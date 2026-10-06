@@ -250,16 +250,45 @@ function sessionName(file) {
 // DISPATCH_LEDGER.md rows, and the snapshot path. The run folder is the one whose SESSION.json
 // names the session in `sessionId` or `hostSessionId`, found as sessionRunFolder() in
 // plugins/code-ops-suite/hooks/routing-card.mjs finds it (bounded hub scan, newest 200 folders).
-// This build bundles no snapshot library (scripts/compact-snapshot.mjs), so a missing snapshot file
-// becomes the line `run co snapshot`. The push stays bounded and any failure is no lines.
+// It also carries the four RUN_LOG.md tags the snapshot carries (CARRIED_FIELDS in
+// scripts/compact-snapshot.mjs): the newest Decision: lines, the Grant: lines up to a cap, the
+// In flight: lines, and the latest Next: line. The tag rules mirror readRunLog() there. This build
+// bundles no snapshot library, so a missing snapshot file becomes the line `run co snapshot`. The
+// push stays bounded and any failure is no lines.
 const COMPACT_ITEMS = 12;
 const COMPACT_ROWS = 8;
 const COMPACT_CHARS = 200;
 const COMPACT_SCAN = 200;
 const COMPACT_BYTES = 65_536;
+const COMPACT_LOG_BYTES = 1_048_576;
+const COMPACT_TAG_CHARS = 600; // a grant or the next command stays whole up to the snapshot's own cap
+const COMPACT_DECISIONS = 4;
+const COMPACT_FLIGHT = 4;
+const COMPACT_GRANTS = 12;
 const SNAPSHOT_FILE = 'COMPACT_SNAPSHOT.md';
 const PENDING_ROW = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|\s*(?:re)?dispatched\s*\|\s*$/;
-const cardLine = (text) => String(text).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, COMPACT_CHARS);
+const cardLine = (text, cap = COMPACT_CHARS) => String(text).replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, cap);
+const TAG_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?(Decision|Grant|In flight|Next):(?:\*\*)?[ \t]*(\S.*)$/;
+
+// The tagged RUN_LOG.md lines from the last COMPACT_LOG_BYTES of the log. `In flight: none` clears
+// the in-flight lines above it, the last `Next:` wins, and a repeated line keeps its first place.
+function runLogTags(dir) {
+  let text;
+  try { text = readFileSync(join(dir, 'RUN_LOG.md'), 'utf8'); } catch { return null; }
+  const out = { decisions: [], grants: [], flight: [], next: null };
+  const add = (list, value) => { if (!list.includes(value)) list.push(value); };
+  for (const line of text.slice(-COMPACT_LOG_BYTES).split(/\r?\n/)) {
+    const hit = TAG_LINE.exec(line);
+    if (!hit) continue;
+    const value = cardLine(hit[2].replace(/\s+/g, ' '), COMPACT_TAG_CHARS);
+    if (hit[1] === 'Decision') add(out.decisions, value);
+    else if (hit[1] === 'Grant') add(out.grants, value);
+    else if (hit[1] === 'Next') out.next = value;
+    else if (/^none\.?$/i.test(value)) out.flight = [];
+    else add(out.flight, value);
+  }
+  return out;
+}
 
 function sessionRunDir(cwd, sessionId) {
   let entries;
@@ -291,18 +320,29 @@ function compactionPush(cwd, sessionId) {
     const open = read('TASKS.md').map((line) => /^[ \t]*[-*][ \t]+\[ \][ \t]+(.*)$/.exec(line)?.[1]).filter(Boolean);
     if (open.length) {
       const shown = open.slice(0, COMPACT_ITEMS);
-      lines.push(`Open items in ${rel}/TASKS.md (${shown.length} of ${open.length} shown):`, ...shown);
+      lines.push(`Open items in ${rel}/TASKS.md (${shown.length} of ${open.length} shown):`, ...shown.map((item) => cardLine(item)));
     }
     const rows = read('DISPATCH_LEDGER.md').map((line) => PENDING_ROW.exec(line)).filter(Boolean);
     if (rows.length) {
       const shown = rows.slice(0, COMPACT_ROWS);
       lines.push(`Pending dispatches in ${rel}/DISPATCH_LEDGER.md (${shown.length} of ${rows.length} shown):`,
-        ...shown.map(([, id, role, brief, artifact]) => `${id} ${role}: ${brief} -> ${artifact}`));
+        ...shown.map(([, id, role, brief, artifact]) => cardLine(`${id} ${role}: ${brief} -> ${artifact}`)));
     }
+    const log = runLogTags(dir);
+    if (log?.decisions.length) {
+      const shown = log.decisions.slice(-COMPACT_DECISIONS);
+      lines.push(`Decisions in ${rel}/RUN_LOG.md (newest ${shown.length} of ${log.decisions.length}):`, ...shown.map((d) => cardLine(d)));
+    }
+    if (log?.grants.length) {
+      const shown = log.grants.slice(0, COMPACT_GRANTS);
+      lines.push(`Authority grants in ${rel}/RUN_LOG.md (${shown.length} of ${log.grants.length} shown, verbatim):`, ...shown.map((g) => cardLine(g, COMPACT_TAG_CHARS)));
+    }
+    if (log?.flight.length) lines.push(`In flight in ${rel}/RUN_LOG.md:`, ...log.flight.slice(0, COMPACT_FLIGHT).map((f) => cardLine(f)));
+    if (log?.next) lines.push(`Next: ${log.next}`);
     lines.push(existsSync(join(dir, SNAPSHOT_FILE))
       ? `Compaction snapshot: ${rel}/${SNAPSHOT_FILE}`
       : `Compaction snapshot: ${rel}/${SNAPSHOT_FILE} is not written; run co snapshot`);
-    return lines.map(cardLine).join('\n');
+    return lines.map((line) => cardLine(line, COMPACT_TAG_CHARS + 8)).join('\n'); // grants and Next: keep their own cap; other lines were cut above
   } catch { return null; }
 }
 

@@ -93,7 +93,10 @@ quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. 
 Codex, the 150,000-token band asks the lead to checkpoint (`TASKS.md` current, a `Next:` line in
 `RUN_LOG.md`), not to assess or hand off. The 300,000-token ceiling forces an assessment on a
 session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` current before any
-compaction. After one, the routing card lists the open `TASKS.md` lines for the session.
+compaction, and tag the `RUN_LOG.md` lines the compaction snapshot carries. `co snapshot --fields`
+prints them from `CARRIED_FIELDS` in `scripts/compact-snapshot.mjs`, the one list that maps each
+handoff field below to its snapshot section. A compaction then keeps what a handoff keeps. After
+one, the routing card names the snapshot and lists the open `TASKS.md` lines when it is stale.
 It also lists under `Pending agents:` each background agent the session launched that has not reported.
 
 On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,000-token window, before the 200,000-token price line. Grok 4.7 bills double above that line. Checkpoint first. Keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`. Stay on the 256,000-token window.

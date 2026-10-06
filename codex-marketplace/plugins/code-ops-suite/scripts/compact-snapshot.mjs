@@ -7,17 +7,23 @@
 //   node scripts/compact-snapshot.mjs [--session <id>] [--transcript <file>] [--run <dir>] [--json]
 //   co snapshot [--session <id>] [--transcript <file>] [--run <dir>] [--json]
 //
-// It needs `--session` or `--run`. The run folder is `--run`, else the folder whose SESSION.json names
+// It needs `--session` or `--run`, except `--fields`, which prints CARRIED_FIELDS. The run folder is `--run`, else the folder whose SESSION.json names
 // the session in `sessionId` or `hostSessionId`. The transcript is `--transcript`, else the host's
 // default file for the session. A missing piece never aborts the write: the header says `partial` and
 // names it. Each write replaces the file. `--json` prints the result fields instead of one line.
 //
-// SECTIONS, in budget order (characters, 12,000 in all): Operator words 4,800, Running work 2,000,
-// Active items 3,600, Peers 1,200. Truncation, when a section or the total runs over: stub older
-// operator messages (never one of 80 characters or fewer, never an answer), then cut item lines,
-// then drop quiet peers, then cut running-work descriptions. Ids, report paths, and reply-owed peers
-// are never cut. The parsing lives in conversationOf() (transcript-lib.mjs); running agents come live
-// from the agent ledger, so a snapshot cannot show a stale agent state.
+// SECTIONS, in file order (characters, 12,000 in all): Operator words 4,800, Running work 2,000,
+// Active items 3,600, Peers 1,200, Decisions 1,400, Authority grants 800, In flight 600, Next
+// command 700. The last four come from tagged lines in the run folder's RUN_LOG.md (`Decision:`,
+// `Grant:`, `In flight:`, `Next:`), and the header's `Run:` line names the folder, so a compaction
+// keeps what a handoff keeps. CARRIED_FIELDS below is the one list that maps each handoff field to
+// its section; `co snapshot --fields` prints it, and the handoff skill cites it rather than copy it.
+// Truncation, when a section or the total runs over: stub older operator messages (never one of 80
+// characters or fewer, never an answer), then cut item lines, then drop quiet peers, then cut
+// running-work descriptions, then cut decision text, then drop older in-flight lines. Ids, report
+// paths, reply-owed peers, authority grants, the next command, and the run folder path are never
+// cut. The parsing lives in conversationOf() (transcript-lib.mjs); running agents come live from the
+// agent ledger, so a snapshot cannot show a stale agent state.
 //
 // SAFETY. (1) The write is a temporary file renamed over the target. (2) The header records the
 // `compact_boundary` count of the transcript, which the card compares to its own count. (3) A
@@ -36,17 +42,17 @@
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { formatAge, pendingReport } from './agent-ledger.mjs';
 import { parseOrDie, usage } from './cli-lib.mjs';
 import { conversationOf, defaultTranscriptDir, handoffMarkerPath, projectSlug, stateRoot } from './transcript-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const USAGE = 'usage: compact-snapshot.mjs [--session <id>] [--transcript <file>] [--run <dir>] [--json]  (needs --session or --run)';
+const USAGE = 'usage: compact-snapshot.mjs [--session <id>] [--transcript <file>] [--run <dir>] [--json]  (needs --session or --run)\n       compact-snapshot.mjs --fields  (prints what a compaction snapshot carries, field by field)';
 
 export const SNAPSHOT_FILE = 'COMPACT_SNAPSHOT.md';
-export const BUDGET = { total: 12_000, words: 4_800, work: 2_000, items: 3_600, peers: 1_200 };
+export const BUDGET = { total: 12_000, words: 4_800, work: 2_000, items: 3_600, peers: 1_200, decisions: 1_400, grants: 800, flight: 600, next: 700 };
 const WORD_CUT = 600;
 const WORD_HEAD = 400;
 const WORD_TAIL = 150;
@@ -55,9 +61,38 @@ const ITEM_MAX = 16;
 const ITEM_STEPS = [240, 160, 120, 80, 60];
 const DESC_STEPS = [80, 40, 20, 0];
 const PEER_CUT = 200;
+const DECISION_MAX = 24;
+const DECISION_STEPS = [600, 400, 280, 200, 140, 100];
+const DECISION_FLOOR = 6;
+const FLIGHT_MAX = 8;
+const FLIGHT_STEPS = [240, 160, 120];
+const FLIGHT_FLOOR = 2;
+const TAG_CAP = 600;
 const TASKS_BYTES = 65_536;
+const LOG_BYTES = 1_048_576;
 const RUN_SCAN = 200;
 const WITHHELD = '[withheld: masking failed]';
+const TAG_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?(Decision|Grant|In flight|Next):(?:\*\*)?[ \t]*(\S.*)$/;
+
+// The ONE list of what a compaction snapshot carries, keyed to the handoff fields it stands in for
+// (the `## Write` bullets of the handoff skill). `tag` is the RUN_LOG.md line prefix that feeds the
+// section; `source` names every other feed. The handoff skill and the eval read this list, so a new
+// handoff field with no entry here fails the eval instead of drifting.
+export const CARRIED_FIELDS = [
+  { fields: ['Goal and state of play', 'Scope and constraints'], section: 'Operator words', source: 'transcript' },
+  { fields: ['Open items'], section: 'Active items', source: 'TASKS.md' },
+  { fields: ['In-flight boundaries (agents, processes)'], section: 'Running work', source: 'agent ledger and transcript' },
+  { fields: ['Peers owed a reply'], section: 'Peers', source: 'transcript' },
+  { fields: ['Decisions made', 'Traps and dead ends'], section: 'Decisions', tag: 'Decision' },
+  { fields: ['Authority'], section: 'Authority grants', tag: 'Grant' },
+  { fields: ['In-flight boundaries (file:line)'], section: 'In flight', tag: 'In flight' },
+  { fields: ['Next command'], section: 'Next command', tag: 'Next' },
+  { fields: ['Program', 'Key findings', 'Carried context'], section: 'header', source: 'the Run: line points at the run folder' },
+];
+
+export function fieldsTable() {
+  return CARRIED_FIELDS.map((e) => `${e.fields.join('; ')} -> ${e.section === 'header' ? 'header Run: line' : `## ${e.section}`} (${e.tag ? `RUN_LOG.md line "${e.tag}: <text>"` : e.source})`);
+}
 
 const collapse = (value) => String(value ?? '').replace(/[\u0000-\u001f\u007f\s]+/g, ' ').trim();
 const cutTo = (text, max) => (text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`);
@@ -121,8 +156,10 @@ function threadsOf(peerMessages, outbound) {
 
 // The pure builder. `conversation` is conversationOf() output or null, `running` the ledger's pending
 // agents or null, `items` `{ total, lines: [{ n, text }] }` or null; a null input is named in a
-// `partial` status. `mask(texts)` returns one masked string or null per text, or throws.
-export function buildSnapshot({ conversation = null, running = null, items = null, now = Date.now(), sessionId = '', mask = maskTexts, missing = [] } = {}) {
+// `partial` status. `runLog` is readRunLog() output (a missing RUN_LOG.md reads as no tagged lines)
+// and `runFolder` the run folder path the header names. `mask(texts)` returns one masked string or
+// null per text, or throws.
+export function buildSnapshot({ conversation = null, running = null, items = null, runLog = null, runFolder = '', now = Date.now(), sessionId = '', mask = maskTexts, missing = [] } = {}) {
   const gaps = [...missing];
   if (!conversation) gaps.push('transcript');
   if (!running) gaps.push('agent ledger');
@@ -140,16 +177,28 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
       .map((w) => ({ kind: w.kind, id: w.id, type: w.type, age: w.kind === 'wakeup' ? `due in ${formatAge(w.dueAt - now)}` : formatAge(w.at === null ? 0 : now - w.at), report: '', text: w.description })),
   ];
   const itemLines = (items?.lines ?? []).slice(0, ITEM_MAX);
+  const log = runLog ?? { decisions: [], grants: [], flight: [], next: null };
+  const tagged = (list) => list.map((text) => ({ text }));
+  const decisions = tagged(log.decisions.slice(-DECISION_MAX));
+  const grants = tagged(log.grants);
+  const flight = tagged(log.flight.slice(-FLIGHT_MAX));
+  const nextLine = tagged(log.next ? [log.next] : []);
 
-  // One scanner pass for every free-text field. Ids, paths, names, and ages are not masked.
-  const masked = maskAll([...words.map((w) => w.text), ...owed.map((t) => t.text), ...work.map((w) => w.text ?? ''), ...itemLines.map((i) => i.text)], mask);
+  // One scanner pass for every free-text field, grants and the next command included. Ids, paths,
+  // names, and ages are not masked.
+  const masked = maskAll([...words.map((w) => w.text), ...owed.map((t) => t.text), ...work.map((w) => w.text ?? ''), ...itemLines.map((i) => i.text),
+    ...decisions.map((d) => d.text), ...grants.map((g) => g.text), ...flight.map((f) => f.text), ...nextLine.map((n) => n.text)], mask);
   let at = 0;
   words.forEach((w) => { w.body = masked[at++]; });
   owed.forEach((t) => { t.body = masked[at++]; });
   work.forEach((w) => { w.body = masked[at++]; });
   itemLines.forEach((i) => { i.body = masked[at++]; });
+  [decisions, grants, flight, nextLine].forEach((list) => list.forEach((e) => { e.body = masked[at++]; }));
 
-  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length };
+  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length, decisionCut: DECISION_STEPS[0], decisionShown: decisions.length, flightCut: FLIGHT_STEPS[0], flightShown: flight.length };
+  // A grant or the next command is capped at the source, never by the truncation passes.
+  const capped = (body) => (body.length <= TAG_CAP ? body : `${body.slice(0, 450)} [${body.length - 550} chars omitted, RUN_LOG.md] ${body.slice(-100)}`);
+  const tagLine = (e, cut) => `- ${e.body === null ? WITHHELD : cut ? cutTo(e.body, cut) : capped(e.body)}`;
   const section = (title, lines) => `## ${title}\n${lines.length ? lines.join('\n') : 'none'}\n`;
   const sections = () => ({
     words: section(`Operator words (${words.length}, oldest first)`, words.map((w) => {
@@ -170,19 +219,35 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
       ...quiet.slice(0, state.quietShown).map((t) => `- quiet ${t.name || '-'} ${t.session || '-'}`),
       ...(state.quietShown < quiet.length ? [`- (${quiet.length - state.quietShown} more quiet not shown)`] : []),
     ]),
+    decisions: section(`Decisions (${state.decisionShown} of ${log.decisions.length} shown, RUN_LOG.md)`, decisions.slice(decisions.length - state.decisionShown).map((d) => tagLine(d, state.decisionCut))),
+    grants: section(`Authority grants (${grants.length}, verbatim, RUN_LOG.md)`, grants.map((g) => tagLine(g, 0))),
+    flight: section(`In flight (${state.flightShown} of ${log.flight.length} shown, RUN_LOG.md)`, flight.slice(flight.length - state.flightShown).map((f) => tagLine(f, state.flightCut))),
+    next: section('Next command (latest Next: line, RUN_LOG.md)', nextLine.map((n) => tagLine(n, 0))),
   });
   const reducers = {
     words: () => { const w = words.find((e) => e.kind === 'prompt' && e.body !== null && e.body.length > STUB_CUT && !e.stub); if (w) w.stub = true; return Boolean(w); },
     items: () => { const next = ITEM_STEPS.find((c) => c < state.itemCut); if (next !== undefined) state.itemCut = next; return next !== undefined; },
     peers: () => { if (state.quietShown <= 0) return false; state.quietShown--; return true; },
     work: () => { const next = DESC_STEPS.find((c) => c < state.descCut); if (next !== undefined) state.descCut = next; return next !== undefined; },
+    decisions: () => {
+      const next = DECISION_STEPS.find((c) => c < state.decisionCut);
+      if (next !== undefined) { state.decisionCut = next; return true; }
+      if (state.decisionShown > DECISION_FLOOR) { state.decisionShown--; return true; }
+      return false;
+    },
+    flight: () => {
+      const next = FLIGHT_STEPS.find((c) => c < state.flightCut);
+      if (next !== undefined) { state.flightCut = next; return true; }
+      if (state.flightShown > FLIGHT_FLOOR) { state.flightShown--; return true; }
+      return false;
+    },
   };
-  const counts = { words: words.length, running: work.length, items: items?.total ?? 0, peers: owed.length };
+  const counts = { words: words.length, running: work.length, items: items?.total ?? 0, peers: owed.length, decisions: log.decisions.length, grants: grants.length, flight: log.flight.length };
   const render = () => {
     const parts = sections();
-    const header = ['# Compact snapshot', `Written: ${new Date(now).toISOString()}`, `Session: ${sessionId || 'unknown'}`, `Boundaries: ${convo.boundaries}`,
+    const header = ['# Compact snapshot', `Written: ${new Date(now).toISOString()}`, `Session: ${sessionId || 'unknown'}`, `Run: ${runFolder || 'unknown'}`, `Boundaries: ${convo.boundaries}`,
       `Status: ${gaps.length ? 'partial' : 'complete'}`, ...(gaps.length ? [`Missing: ${gaps.join(', ')}`] : []),
-      `Counts: operator words ${counts.words}, running work ${counts.running}, active items ${counts.items}, reply-owed peers ${counts.peers}`].join('\n');
+      `Counts: operator words ${counts.words}, running work ${counts.running}, active items ${counts.items}, reply-owed peers ${counts.peers}, decisions ${counts.decisions}, grants ${counts.grants}, in flight ${counts.flight}`].join('\n');
     return { parts, text: `${header}\n\n${Object.values(parts).join('\n')}` };
   };
 
@@ -261,6 +326,36 @@ function readItems(runDir) {
   return { total: open.length, lines: open.slice(0, ITEM_MAX) };
 }
 
+// The tagged lines of the run folder's RUN_LOG.md, or null when the file cannot be read. A log past
+// LOG_BYTES reads its last LOG_BYTES. `In flight: none` clears the in-flight lines above it, a later
+// `Next:` replaces an earlier one, and a repeated decision or grant keeps its first place. Every
+// grant stays, because a grant is never dropped.
+// deferred(LOG_BYTES, index the tagged lines when a log outgrows it)
+export function readRunLog(runDir) {
+  let text;
+  try { text = readFileSync(join(runDir, 'RUN_LOG.md'), 'utf8'); } catch { return null; }
+  const out = { decisions: [], grants: [], flight: [], next: null };
+  const push = (list, value) => { if (!list.includes(value)) list.push(value); };
+  for (const line of text.slice(-LOG_BYTES).split(/\r?\n/)) {
+    const hit = TAG_LINE.exec(line);
+    if (!hit) continue;
+    const value = collapse(hit[2]);
+    if (hit[1] === 'Decision') push(out.decisions, value);
+    else if (hit[1] === 'Grant') push(out.grants, value);
+    else if (hit[1] === 'Next') out.next = value;
+    else if (/^none\.?$/i.test(value)) out.flight = [];
+    else push(out.flight, value);
+  }
+  return out;
+}
+
+// The run folder as the header names it: relative to the working directory with forward slashes
+// when inside it, else absolute.
+function runLabel(cwd, run) {
+  const rel = relative(cwd, run);
+  return (rel === '' || rel.startsWith('..') || isAbsolute(rel) ? run : rel).split(sep).join('/');
+}
+
 // Reads the inputs, builds, and writes. Every input that cannot be read is named in the status.
 export function createSnapshot({ sessionId = '', transcriptPath, runDir, cwd = process.cwd(), home = stateHome(), now = Date.now(), mask = maskTexts, isIgnored = gitIgnored } = {}) {
   const transcript = transcriptPath ?? (sessionId ? join(defaultTranscriptDir(cwd), `${sessionId}.jsonl`) : null);
@@ -269,7 +364,7 @@ export function createSnapshot({ sessionId = '', transcriptPath, runDir, cwd = p
   const run = runDir ? resolve(runDir) : findRunFolder(cwd, sessionId);
   let running = null;
   try { running = pendingReport({ sessionId: sessionId || undefined, cwd: sessionId ? undefined : cwd, runDir: run ?? undefined }).agents; } catch { /* the ledger is named missing */ }
-  const built = buildSnapshot({ conversation, running, items: run ? readItems(run) : null, now, sessionId, mask, missing: run ? [] : ['run folder'] });
+  const built = buildSnapshot({ conversation, running, items: run ? readItems(run) : null, runLog: run ? readRunLog(run) : null, runFolder: run ? runLabel(cwd, run) : '', now, sessionId, mask, missing: run ? [] : ['run folder'] });
   return { ...built, ...writeSnapshot(built.text, { runDir: run ?? undefined, cwd, sessionId, home, isIgnored }) };
 }
 
@@ -278,21 +373,37 @@ export function readSnapshotHeader(text) {
   const head = String(text).split(/\r?\n\r?\n/, 1)[0];
   if (!head.startsWith('# Compact snapshot')) return null;
   const field = (name) => new RegExp(`^${name}: (.*)$`, 'm').exec(head)?.[1]?.trim();
-  const counts = /^Counts: operator words (\d+), running work (\d+), active items (\d+), reply-owed peers (\d+)$/m.exec(head);
+  // The last three counts are optional: a snapshot an older build wrote has only the first four.
+  const counts = /^Counts: operator words (\d+), running work (\d+), active items (\d+), reply-owed peers (\d+)(?:, decisions (\d+), grants (\d+), in flight (\d+))?$/m.exec(head);
+  const tail = (i) => (counts[i] === undefined ? undefined : Number(counts[i]));
   return {
     writtenAt: field('Written') ?? '',
     sessionId: field('Session') ?? '',
+    run: field('Run') ?? '',
     boundaries: Number(field('Boundaries')),
     status: field('Status') ?? '',
     missing: (field('Missing') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
-    counts: counts ? { words: Number(counts[1]), running: Number(counts[2]), items: Number(counts[3]), peers: Number(counts[4]) } : null,
+    counts: counts ? { words: Number(counts[1]), running: Number(counts[2]), items: Number(counts[3]), peers: Number(counts[4]), decisions: tail(5), grants: tail(6), flight: tail(7) } : null,
   };
 }
 
 // `fresh` when the card's boundary count is exactly one above the header's (PreCompact writes before
 // its own boundary lands); anything else, including an unreadable header, is `stale`.
-export function snapshotState(header, boundaries) {
-  return header && Number.isInteger(header.boundaries) && Number.isInteger(boundaries) && boundaries === header.boundaries + 1 ? 'fresh' : 'stale';
+//
+// RACE. The host flushes the boundary row after SessionStart can already run, so the card can count
+// the header's own number. A caller that passes `lastAt` (boundaryInfo() in transcript-lib.mjs: the
+// newest boundary's timestamp in milliseconds, or null) opts into reading that count as fresh, but
+// only when the snapshot was written at or after the latest boundary it counts, so no compaction sits
+// between the write and now. With no `lastAt` argument the rule stays strict. A snapshot for an
+// earlier compaction has a count at least one apart from the header's, or a Written time before the
+// boundary it counted, and reads stale.
+export function snapshotState(header, boundaries, lastAt) {
+  if (!header || !Number.isInteger(header.boundaries) || !Number.isInteger(boundaries)) return 'stale';
+  if (boundaries === header.boundaries + 1) return 'fresh';
+  if (lastAt === undefined || boundaries !== header.boundaries) return 'stale';
+  const written = Date.parse(header.writtenAt);
+  if (!Number.isFinite(written)) return 'stale';
+  return boundaries === 0 || (Number.isFinite(lastAt) && written >= lastAt) ? 'fresh' : 'stale';
 }
 
 // The handoff marker's sibling. PreCompact and PostCompact set `pending`. The next Grok
@@ -317,7 +428,7 @@ export function takeCompactLine(marker) {
   try { body = JSON.parse(readFileSync(file, 'utf8')); } catch { return null; }
   if (!body?.pending || typeof body.path !== 'string' || !body.path) return null;
   try { writeFileSync(file, JSON.stringify({ ...body, pending: false })); } catch { return null; }
-  return `Read ${body.path} before trusting the host summary. It holds operator words, running work, open items, and reply-owed peers.`;
+  return `Read ${body.path} before trusting the host summary. It holds operator words, running work, open items, reply-owed peers, decisions, authority grants, in-flight work, and the next command.`;
 }
 
 export function markSnapshotRestore({ sessionId, cwd = process.cwd(), home = stateHome(), path }) {
@@ -331,7 +442,9 @@ function cli(argv) {
     transcript: { value: true },
     run: { value: true },
     json: { value: false },
+    fields: { value: false },
   }, USAGE);
+  if (flags.fields && !positional.length) { console.log(fieldsTable().join('\n')); return 0; }
   if (positional.length || (!flags.session && !flags.run)) usage(USAGE);
   let result;
   try {

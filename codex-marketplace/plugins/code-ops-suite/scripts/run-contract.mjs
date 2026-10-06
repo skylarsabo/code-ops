@@ -43,7 +43,7 @@ const REPLAN_V2 = [...REPLAN, 'context-drift'];
 const REPLAN_V3 = [...REPLAN_V2, 'runtime-drift'];
 
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: run-contract.mjs init --run <ignored run dir> --lead-model <id> [--lead-tier <tier>] [--lead-effort <effort>] [--host <name>] [--untracked metadata|exclude] [--atlas <dir>] [--stable-prefix <path>]... [--root <dir>] [--force]\n       run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict | --in-flight] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
+function usage() { die('usage: run-contract.mjs init --run <ignored run dir> --lead-model <id> [--lead-tier <tier>] [--lead-effort <effort>] [--host <name>] [--session <id>] [--host-session <id>] [--untracked metadata|exclude] [--atlas <dir>] [--stable-prefix <path>]... [--root <dir>] [--force]\n       run-contract.mjs check --contract <path> [--root <dir>]\n       run-contract.mjs reconcile --contract <path> --ledger <path> [--strict | --in-flight] [--root <dir>]\n       run-contract.mjs record --contract <path> --acceptance <path> --criterion Q-NNN --verdict PASS|FAIL|UNKNOWN|N/A --proof <text> --actor <role@model|tool|user> [--reason <text>]\n       run-contract.mjs finalize --contract <path> --acceptance <path> --dispatch-ledger <path> --result <path> [--root <dir>]', 2); }
 function flags(args, known, booleans = new Set(), repeated = new Set()) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
@@ -424,6 +424,25 @@ function runSibling(script, args, root) {
   try { execFileSync(process.execPath, [fileURLToPath(new URL(`./${script}`, import.meta.url)), ...args], { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'], timeout: 120000, maxBuffer: 64 * 1024 * 1024 }); }
   catch (error) { die(`${script} failed: ${String(error.stderr || error.stdout || error.message).trim()}`); }
 }
+// WHY: compact-snapshot.mjs and the SessionStart card find a session's run folder through its
+// SESSION.json, and init wrote none, so a hand-made run folder read as "Missing: run folder" after a
+// compaction. Init now records the session in the folder's SESSION.json: a new file, or the missing
+// ids of one `run open` wrote with no session. A SESSION.json that names another session is left
+// alone and reported, and an unknown session id is reported, never guessed.
+function recordSession(runDir, runId, f) {
+  const sessionId = f['--session'] || process.env.CLAUDE_CODE_SESSION_ID || process.env.CODEX_SESSION_ID || '';
+  const file = resolve(runDir, 'SESSION.json');
+  let current = null;
+  if (existsSync(file)) {
+    try { current = JSON.parse(readFileSync(file, 'utf8')); } catch { /* reported below */ }
+    if (!current || typeof current !== 'object' || Array.isArray(current)) { console.log('! SESSION.json exists but is not a JSON object; left unchanged'); return; }
+  }
+  if (!sessionId) { console.log('! no session id (pass --session): the compact snapshot cannot find this run folder by session'); return; }
+  if (current?.sessionId && current.sessionId !== sessionId) { console.log(`! SESSION.json names session ${current.sessionId}, not ${sessionId}; left unchanged`); return; }
+  const host = f['--host-session'] || current?.hostSessionId || null;
+  atomicWrite(file, `${JSON.stringify({ v: 1, name: runId, hop: 0, predecessor: null, createdAt: new Date().toISOString(), ...current, sessionId, hostSessionId: host }, null, 2)}\n`);
+  console.log(`ok recorded session ${sessionId} in ${basename(runDir)}/SESSION.json`);
+}
 function tracked(root, path) { try { return git(root, ['ls-files', '--', path]).length > 0; } catch { return false; } }
 function init(f) {
   const root = resolve(f['--root'] || process.cwd());
@@ -477,13 +496,14 @@ function init(f) {
   verifyContext(contract, contractPath, root);
   atomicWrite(contractPath, `${JSON.stringify(contract, null, 2)}\n`);
   console.log(`ok initialized ${runId} at ${rel(INIT_FILES.contract)}`);
+  recordSession(runDir, runId, f);
   console.log(`! lead must fill ${LEAD_FIELDS.join(', ')}; check fails until they are set`);
 }
 
 const command = process.argv[2];
 if (!command) usage();
 if (command === 'init') {
-  const f = flags(process.argv.slice(3), new Set(['--run', '--root', '--lead-model', '--lead-tier', '--lead-effort', '--host', '--untracked', '--atlas', '--stable-prefix', '--force']), new Set(['--force']), new Set(['--stable-prefix'])); if (!f['--run'] || !f['--lead-model']) usage();
+  const f = flags(process.argv.slice(3), new Set(['--run', '--root', '--lead-model', '--lead-tier', '--lead-effort', '--host', '--session', '--host-session', '--untracked', '--atlas', '--stable-prefix', '--force']), new Set(['--force']), new Set(['--stable-prefix'])); if (!f['--run'] || !f['--lead-model']) usage();
   init(f);
 } else if (command === 'check') {
   const f = flags(process.argv.slice(3), new Set(['--contract', '--root'])); if (!f['--contract']) usage();

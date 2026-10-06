@@ -4,6 +4,15 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.43.0
+- The compaction snapshot now carries what a handoff carries. It adds four sections read from tagged `RUN_LOG.md` lines: decisions with their rejected options, authority grants, in-flight `file:line` boundaries, and the next command. The header gains a `Run:` line and counts for the new sections. Grants and the next command are never cut, and every new line passes the same redaction pass as the transcript text.
+- `CARRIED_FIELDS` in `scripts/compact-snapshot.mjs` is the one list that maps each handoff `Write` field to its snapshot section and tag. `co snapshot --fields` prints it, the handoff skill cites it, and the eval fails when a handoff field has no entry.
+- The compact card reads a snapshot as fresh when the host has not yet flushed the boundary row, provided the snapshot was written at or after the newest boundary. `snapshotState` keeps its strict two-argument form. The card also prints `snapshot also holds:` and, for a partial snapshot, `Snapshot partial: missing <inputs>` with the rebuild command.
+- The standard card names the four tags. The checkpoint advice on every host, including both Grok notes, asks for `Decision:`, `Grant:`, `In flight:`, and `Next:` lines.
+- `run-contract.mjs init` records the session in `SESSION.json` (`--session`, `--host-session`, or the host session environment variable), so the run folder is found by session id. It leaves a file that names another session unchanged.
+- OpenCode compaction push carries the same four tag lines, read by the same rules, so OpenCode keeps parity.
+- Fixes in touched files: the compact-snapshot eval trims trailing space from a fixture grant, and each pushed OpenCode open-item and dispatch line is cut at 200 characters at its source.
+
 ## 2.42.2
 - The `conform` global scope now names the one authored source, `global-contracts/AGENTS.source.md`, and the three renders that `scripts/render-global-contracts.mjs` writes from it. Edit the source, render, then run `sync-global.mjs`.
 

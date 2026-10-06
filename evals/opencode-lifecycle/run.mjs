@@ -484,6 +484,29 @@ expect(pendingHandoffs(bare).length === 3, 'pickup must list at most 3 pending h
   const withSnapshot = await compact(compactHooks, 'cc-1');
   expect(withSnapshot.includes('Compaction snapshot: code-ops-docs/80 Runs/2026-09-30 compact/COMPACT_SNAPSHOT.md') && !withSnapshot.includes('run co snapshot'),
     `a written snapshot was not named by path: ${withSnapshot.slice(-200)}`);
+  // The RUN_LOG.md tags the snapshot carries (D-010): parity with CARRIED_FIELDS, grants whole, Next: last wins.
+  const { CARRIED_FIELDS, readRunLog } = await import(pathToFileURL(join(root, 'scripts', 'compact-snapshot.mjs')).href);
+  const grant = `Operator granted: create branch eng/x and open one PR, never merge ${'(verbatim) '.repeat(20)}`.trim();
+  writeFileSync(join(run, 'RUN_LOG.md'), ['# Run log', ...Array.from({ length: 6 }, (_, i) => `- Decision: DEC-${i + 1} chose option ${i}; rejected: the other`),
+    '**Grant:** ' + grant, 'In flight: scripts/a.mjs:10-20 partial', 'In flight: scripts/b.mjs:5 done', 'In flight: none', 'In flight: scripts/c.mjs:7 partial',
+    'Next: an older command', 'Next: node evals/opencode-lifecycle/run.mjs', ''].join('\r\n'));
+  const tagged = await compact(compactHooks, 'cc-1');
+  const tagLines = tagged.split('\n');
+  const carriedTags = CARRIED_FIELDS.filter((entry) => entry.tag).map((entry) => entry.tag);
+  const logRel = 'code-ops-docs/80 Runs/2026-09-30 compact/RUN_LOG.md';
+  expect(carriedTags.length === 4 && carriedTags.every((tag) => (tag === 'Next' ? tagLines.some((l) => l.startsWith('Next: ')) : tagged.includes(tag === 'Decision' ? 'Decisions in ' : tag === 'Grant' ? 'Authority grants in ' : 'In flight in '))),
+    `the push did not carry every tag CARRIED_FIELDS names (${carriedTags.join(',')}): ${tagged.slice(-700)}`);
+  expect(tagLines.includes(`Decisions in ${logRel} (newest 4 of 6):`) && tagLines.includes('DEC-3 chose option 2; rejected: the other') && !tagged.includes('DEC-2 ') && tagged.includes('DEC-6 chose option 5; rejected: the other'),
+    `the push did not keep the newest 4 of 6 decisions with their rejected options: ${tagged.slice(-900)}`);
+  expect(tagLines.includes(grant) && tagLines.includes(`Authority grants in ${logRel} (1 of 1 shown, verbatim):`) && grant.length > 200,
+    `the push cut the grant that must stay whole: ${tagged.slice(-900)}`);
+  expect(tagLines.includes('scripts/c.mjs:7 partial') && !tagged.includes('scripts/a.mjs') && tagLines.includes('Next: node evals/opencode-lifecycle/run.mjs') && !tagged.includes('an older command'),
+    `the push did not apply In flight: none and the last Next: ${tagged.slice(-900)}`);
+  const parsedLog = readRunLog(run);
+  expect(parsedLog.grants[0] === grant && parsedLog.decisions.length === 6 && parsedLog.next === 'node evals/opencode-lifecycle/run.mjs' && parsedLog.flight.join('|') === 'scripts/c.mjs:7 partial',
+    `the snapshot parser and the push disagree on the fixture: ${JSON.stringify(parsedLog)}`);
+  rmSync(join(run, 'RUN_LOG.md'));
+  expect(!(await compact(compactHooks, 'cc-1')).includes('RUN_LOG.md'), 'a run folder with no RUN_LOG.md still pushed tag lines');
   // Fail open: an unknown session, a corrupt SESSION.json, and a context that is not a list push nothing extra and never throw.
   expect(await compact(compactHooks, 'no-such-session') === '', 'an unknown session pushed run folder lines');
   writeFileSync(join(run, 'SESSION.json'), '{not json');
