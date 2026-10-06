@@ -234,11 +234,12 @@ Route work on state surfaces to `code-ops-suite:distill`. That covers handoffs, 
 **Produces:** the host-specific global contracts at
 `~/.claude/CLAUDE.md`, `~/.claude/AGENTS.md`, and `~/.codex/AGENTS.md`, plus the Grok rule
 `~/.grok/rules/code-ops-global.md`, and a drift report at the pre-write checkpoint. Their
-sources live in the marketplace checkout's `global-contracts/`, and
-`<marketplace>/scripts/sync-global.mjs` installs them. `global-contracts/AGENTS.md` feeds the
-Claude pair and the Grok rule. `global-contracts/AGENTS.codex.md` feeds Codex. The Claude pair
-is byte-identical. The Codex contract may differ by explicit host behavior. Phases A to C above
-do not run in this scope.
+one authored source is the marketplace checkout's `global-contracts/AGENTS.source.md`.
+`<marketplace>/scripts/render-global-contracts.mjs` renders it into `AGENTS.claude.md`,
+`AGENTS.codex.md`, and `AGENTS.grok.md`, and `<marketplace>/scripts/sync-global.mjs` installs
+those. The claude render feeds the Claude pair, the grok render feeds the Grok rule, and the
+codex render feeds Codex. The Claude pair is byte-identical. Host-only prose sits in `host:`
+blocks of the source. Phases A to C above do not run in this scope.
 
 The repo contract procedure keeps one repo's `AGENTS.md` truthful.
 **This scope keeps the other half of the split honest.** The global file carries cross-repo
@@ -284,15 +285,17 @@ The global files govern every repo and every session, so never edit them without
 Present the classified drift and the exact proposed edit, then wait. Name every removal
 explicitly with the bucket that justifies it. A section the developer never sees named is a
 section they never agreed to lose. When the edit removes nothing, say that too. Per §4, take no
-action outside the two `global-contracts/` sources and the targets `sync-global.mjs` installs. Settings, hooks, permissions, and
+action outside `global-contracts/AGENTS.source.md`, its three renders, and the targets `sync-global.mjs` installs. Settings, hooks, permissions, and
 keybindings stay out of scope even when the drift seems to call for them. Say so and stop.
 
 ### Global Phase 4: write stable shared doctrine and small host deltas
 
-Write through the marketplace, never in place. Edit `<marketplace>/global-contracts/`, then
-run `node <marketplace>/scripts/sync-global.mjs --only contracts` to install the result. When a
-home file holds approved edits the sources lack, run the script with `--capture` first, so the
-sources start from what the machine runs. The script refuses a target it did not write. Pass
+Write through the marketplace, never in place. Edit `<marketplace>/global-contracts/AGENTS.source.md`,
+run `node <marketplace>/scripts/render-global-contracts.mjs`, then run
+`node <marketplace>/scripts/sync-global.mjs --only contracts` to install the result. When a
+home file holds approved edits the source lacks, run the script with `--capture` first, then port
+each captured edit into `AGENTS.source.md` and render again, so the source starts from what the
+machine runs. The script refuses a target it did not write. Pass
 `--force` only when the checkpoint approved discarding that file's edits. It keeps a dated
 backup either way.
 

@@ -142,18 +142,26 @@ for (const plugin of pluginNames) {
   }
 }
 
-// 6b. The Grok instruction text (global-contracts/AGENTS.md, which sync-global installs as the Grok
+// 6b. The Grok instruction text (global-contracts/AGENTS.grok.md, which sync-global installs as the Grok
 //     global rule) carries the spawn contract: every xai rung is one model, spawn_subagent takes
 //     no model, persona, or reasoning_effort, session effort is the config default, and model is
 //     stripped under inheritance. The same text makes a suite compact the context relief.
-const grokText = read(join(root, 'global-contracts', 'AGENTS.md')).replace(/\s+/g, ' ');
-expect(/every xai rung is one model/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says every xai rung is one model');
-expect(/`spawn_subagent` takes no model, no persona, and no reasoning_effort/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer says spawn_subagent takes no model, persona, or reasoning_effort');
-expect(/`subagent_model_inheritance` is on, strip `model` from spawn calls/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer strips model from spawn calls under model inheritance');
-expect(/Session effort is `\[models\]\.default_reasoning_effort`/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names session effort as [models].default_reasoning_effort');
-expect(/send_subagent_message/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names send_subagent_message');
-expect(/newest compaction segment/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names the newest compaction segment');
-expect(/184,000/.test(grokText), 'global-contracts/AGENTS.md: the Grok text no longer names the 184,000-token host compact');
+const grokText = read(join(root, 'global-contracts', 'AGENTS.grok.md')).replace(/\s+/g, ' ');
+expect(/every xai rung is one model/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer says every xai rung is one model');
+expect(/`spawn_subagent` takes no model, no persona, and no reasoning_effort/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer says spawn_subagent takes no model, persona, or reasoning_effort');
+expect(/`subagent_model_inheritance` is on, strip `model` from spawn calls/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer strips model from spawn calls under model inheritance');
+expect(/Session effort is `\[models\]\.default_reasoning_effort`/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer names session effort as [models].default_reasoning_effort');
+expect(/send_subagent_message/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer names send_subagent_message');
+expect(/newest compaction segment/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer names the newest compaction segment');
+expect(/184,000/.test(grokText), 'global-contracts/AGENTS.grok.md: the Grok text no longer names the 184,000-token host compact');
+
+// The Claude and Codex renders never carry the Grok-only spawn and compaction prose.
+for (const host of ['claude', 'codex']) {
+  const hostText = read(join(root, 'global-contracts', `AGENTS.${host}.md`));
+  for (const term of ['spawn_subagent', 'xai', '184,000']) {
+    expect(!hostText.includes(term), `global-contracts/AGENTS.${host}.md: the ${host} render carries the Grok-only term ${term}`);
+  }
+}
 
 // 7. Bonus leg: Grok Build's own validator, when the binary is available.
 // Windows resolves `grok` through a .cmd shim, which needs a shell. Passing the whole

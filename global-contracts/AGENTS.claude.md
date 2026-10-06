@@ -40,16 +40,21 @@ and preserve each agent's declared quality floor.
 
 The code-ops `run-contract.mjs` validator checks each contract and has no off switch.
 
-Use the strong tier for judgment-bearing work. Use lower declared floors only for mechanical,
-low-ambiguity work. Permit one bounded Astra peer for architecture, refutation, mathematics,
-or synthesis, with a rationale, stopping criterion, and lead-owned blocking criterion.
+Use lower declared floors only for mechanical, low-ambiguity work. Permit one bounded
+frontier peer for architecture, refutation, mathematics, or synthesis, with a rationale,
+stopping criterion, and lead-owned blocking criterion.
 
-The session model leads and owns final verdicts and acceptance. Route effort by ambiguity: low for
-mechanical work, medium for scoped execution, high for review and difficult tracing, and
-higher only for unresolved critical judgments.
+The session model leads and owns final verdicts and acceptance. Route effort by ambiguity and
+observed eval quality rather than by importance or price alone.
 
-A dispatch costs its resident context on every turn. Use the narrowest restricted agent that
-fits the unit. Name a round budget and a report cap in every brief.
+A dispatch costs its resident context on every turn. Use the narrowest agent that fits the
+unit: `code-ops-suite:implementer` for build work, `code-ops-suite:web-researcher` for
+read-only web research, `code-ops-suite:probe` for read-only shell probes, never a
+general-purpose agent where a restricted one fits. Name a round budget and a report cap in
+each brief, and keep breadth agents at their declared tier.
+
+The code-ops dispatch guard denies a wide-surface agent type or a dispatch below the routed rung.
+It also denies any dispatch past 1.5 times the round budget. Off switch: `CODE_OPS_DISPATCH_GUARD=off`.
 
 At the round budget, checkpoint to the report path and continue in a fresh operative.
 Do not fork or resume its context.
@@ -58,29 +63,24 @@ At 150,000 tokens of context the lead checkpoints: keep `TASKS.md` current and a
 
 On Claude and Codex, host auto-compaction is the context relief, not a handoff.
 
-Codex auto-compacts near 215,000 tokens of its 258,000-token window.
+On Claude, set `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended).
 
 Hand off only to start new work, or to move to a clean session that loads updated code-ops plugins or contracts. A host change or a failed compaction also needs one. A long session keeps its agents and peers reachable, so the operator never repeats context.
 
 A unit too small to repay an operative's startup context stays inline, with the reason recorded.
 
-Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
-dispatch; do not raise or disable the ceiling to avoid it.
+Past 300,000 tokens the code-ops dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs. Off switch: `CODE_OPS_CONTEXT_CEILING=off`. Run the assessment instead of raising or disabling the ceiling. A handoff assessment unlocks one 150,000-token band, and the next band blocks again.
 
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.
+
+Fable 5.1 uses adaptive thinking, so let the runtime control effort.
 
 Do not request or imitate a hidden reasoning trace. Keep the reusable instruction prefix
 stable and put changing task details in later turns. Preserve append-only conversation
 history. Do not rewrite earlier messages or thinking blocks. Do not require a tool call when
 the task does not need one. Batch independent tool calls and continue useful work while an
 operative runs.
-
-For Astra sessions, bias toward action and follow-through. State delegation expectations
-explicitly because the model may otherwise work inline. Keep output compact because the
-model may otherwise over-format. Test in proportion to the change and broaden only when a
-failure, risk, or repository gate justifies it. Do not repeat passing verification without a
-reason.
 
 ## Use code-ops deliberately
 
@@ -94,6 +94,8 @@ Operative reports are evidence, not acceptance. Briefs state the objective, scop
 authority, deterministic rules, risks, expected evidence, and return shape. Agents return
 concise `file:line` evidence, commands run, skipped areas, blockers, and confidence. A
 high-risk area nobody examined is a coverage gap.
+
+The code-ops dispatch guard denies a brief that lacks a required field.
 
 ## Ground claims and verification
 
@@ -135,6 +137,22 @@ A new session is new work unless the operator resumes a handoff, and each sessio
 own run folder. Address a peer session by its program session name, and resolve the live
 successor with `co handoff live` before messaging, because a handed-off session is finished.
 
+## Compact Instructions
+
+When the host compacts this session, keep these items in the summary:
+
+- The operator's requests and constraints, in one line.
+- The run folder path.
+- Each active open-item id with its owner and done-when check.
+- Each running background agent with its id, type, and the report it owes, so it stays reachable.
+- Each peer session by name, the last message sent or received, and any reply owed.
+- Each authority grant, verbatim, with its scope.
+- Each decision with the options rejected.
+- Each in-flight `file:line` boundary.
+- The next command.
+
+After a compaction, read the newest compaction segment before the host summary.
+
 ## Change and publishing standards
 
 Prefer the smallest readable correct change. Preserve behavior unless the requested change
@@ -155,6 +173,7 @@ At safe phase boundaries or observed context pressure, assess whether to continu
 hand off. Checkpoint durable state first. A pending host command is not execution, and existing
 same-task authority does not grant broader authority.
 
-Repository `AGENTS.md` files own repository facts, commands, gates, and local exceptions.
-Do not copy this user-wide doctrine into them. Higher-priority platform instructions always
-prevail. Update Codex memory only when the user explicitly asks.
+Repository `CLAUDE.md` and `AGENTS.md` files own repository facts, commands, gates, and
+local exceptions. Do not copy this user-wide doctrine into them.
+
+Keep `~/.claude/CLAUDE.md` and `~/.claude/AGENTS.md` byte-identical and verify them together.

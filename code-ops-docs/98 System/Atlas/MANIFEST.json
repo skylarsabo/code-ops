@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -311,7 +311,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "13032db18a2f9732d0739498a13b7e6483adf69fc2c110af518cf32b3d681fa9"
+      "verifiedDigest": "c2bf4dae59475e69c2994d072c62a02aa90422463d160b7f61a52dabb1883d38"
     },
     {
       "slug": "gate-scripts",
@@ -320,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -728,8 +728,13 @@
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
+          "file": "scripts/render-global-contracts.mjs",
+          "line": 94,
+          "anchor": "function renderHost(chunks, host) {"
+        },
+        {
           "file": "scripts/sync-global.mjs",
-          "line": 113,
+          "line": 115,
           "anchor": "function classify(file, source, state) {"
         },
         {
@@ -773,7 +778,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "d92e06b989aa99cb5d12ac7b4b4050d8015e0ae97413492f3b72aeff214ea7ab"
+      "verifiedDigest": "26a3c51829de5fcd4c2b3906ed5f222442d79fa584c0854290732f1d913c0c90"
     },
     {
       "slug": "evals-and-calibration",
@@ -781,8 +786,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "8caf4cf2b41a329ad634f59385bf4998fc932a18e9e7545bcb2a0e06a6d6375a",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedDigest": "99976d9fed76fac2d8ad71c2e312afb1459aa07c879ddcb6949e008e62624478",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1074,7 +1079,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1187,7 +1192,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "71b6e2012b727d86e552ea91d2efc00e96e3710ae586d68f4483e7441ad4365f"
+      "verifiedDigest": "e2275c4bb2eda89fd5bd766ea2d8af608e419253e9fb252040187382dc7121d5"
     },
     {
       "slug": "ci-workflows",
@@ -1195,8 +1200,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "4ebaed663812c47768b415ff4e7fdb976685578c",
-      "verifiedDigest": "07910a75b1f56a09e44402e021e0d61f85b93ea333b56200e357b3b54cc467d6",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedDigest": "fb82c707d6b658b48d61132d4637596d402abb2f43eec1275c2810271028b6e6",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1353,45 +1358,50 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "a11426fe2233eef053a0e5020cc3389e785e6fc7",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 41,
-          "anchor": "each brief, and keep breadth agents at their declared tier. At 150,000 tokens of"
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 62,
+          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
           "file": "global-contracts/AGENTS.codex.md",
-          "line": 55,
-          "anchor": "lead checkpoints: keep"
+          "line": 57,
+          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 47,
-          "anchor": "agents and peers reachable, so the operator never repeats context. On Grok, the"
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 65,
+          "anchor": ". Stay on that window. After the compact, read the newest compaction segment bef"
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 146,
-          "anchor": "## Compact Instructions"
-        },
-        {
-          "file": "global-contracts/AGENTS.md",
-          "line": 158,
-          "anchor": "- The next command."
-        },
-        {
-          "file": "global-contracts/AGENTS.md",
-          "line": 160,
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 159,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
-          "file": "global-contracts/AGENTS.md",
-          "line": 66,
-          "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 140,
+          "anchor": "## Compact Instructions"
+        },
+        {
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 152,
+          "anchor": "- The next command."
+        },
+        {
+          "file": "global-contracts/AGENTS.claude.md",
+          "line": 154,
+          "anchor": "After a compaction, read the newest compaction segment before the host summary."
+        },
+        {
+          "file": "global-contracts/AGENTS.grok.md",
+          "line": 79,
+          "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "df06cacf5ca1e69ad574d2e7afc031d9d8fc981e3ce05e5020abe61fe4928587"
+      "verifiedDigest": "b1a6f97731e54fb2fec6f16c55f131bc457fb78b7fa3b713053777bed5666d76"
     },
     {
       "slug": "runtime-toolchain",
