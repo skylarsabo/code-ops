@@ -1,7 +1,8 @@
 #!/bin/sh
 # Keep the tracked Codex render in lockstep with the canonical Claude source, and keep
 # vendored plugins/*/scripts/ copies in lockstep with their canonical scripts/ source.
-# This hook stages only derived/vendored artifacts; it never stages authored source files.
+# This hook stages only derived/vendored artifacts and the documentation manifest; it never
+# stages authored source files.
 set -eu
 
 repo_root="$(git rev-parse --show-toplevel)"
@@ -50,14 +51,59 @@ snapshot_staged_tree() {
 atlas_dir='code-ops-docs/98 System/Atlas'
 pending_marker="$(git rev-parse --git-path code-ops-derived-pending)"
 
-# Run the atlas gate and the documentation manifest check against the staged result. These
-# checks never stamp or sync: a stamp asserts that the prose still holds, which only the
-# author can judge. On failure the commit aborts and a marker file in the git directory
-# makes the next attempt run the same checks even though the regenerated files are by then
-# already staged and the hook would change nothing.
-check_derived_freshness() {
+# CODE_OPS_DIGEST_AUTOFIX=off (or 0, or false) turns off the two automatic steps this hook
+# adds around the manifest: the atlas content-digest restamp (0d) and the merge reconcile
+# (section 3). The freshness checks themselves stay on.
+autofix=1
+case "$(printf '%s' "${CODE_OPS_DIGEST_AUTOFIX:-}" | tr 'A-Z' 'a-z')" in
+  off|0|false) autofix=0 ;;
+esac
+
+# Run the atlas gate and the documentation manifest check against the staged result. The
+# manifest check reads the index with --index, so it hashes the bytes the commit records.
+run_freshness_checks() {
+  manifest_path="$(git ls-files -- '*DOCS_MANIFEST.json' | head -n 1)"
   atlas_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate 2>&1)" && atlas_ok=1 || atlas_ok=0
-  manifest_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs check 2>&1)" && manifest_ok=1 || manifest_ok=0
+  manifest_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs check --index 2>&1)" && manifest_ok=1 || manifest_ok=0
+}
+
+# ---- 0d. restamp the atlas content digest, the one stamp this hook may write -----------
+# An author stamps atlas sections after the manifest sync, and the stamp edits the atlas folder
+# the manifest hashes as the atlas content. The atlas source digest does not read that folder,
+# so only the content digest goes stale. That is the one case where the stamp records no new
+# judgment: the person already re-read the prose and ran the stamp. Restamp it only when the
+# staged result shows exactly that:
+#   - the manifest check names one stale digest, the atlas content digest, and nothing else
+#     (so the atlas source digest still matches what the commit records);
+#   - the manifest has no unstaged edits, because the tool writes the working file and git add
+#     stages it whole;
+#   - the atlas gate and the claims gate both pass.
+# It runs only on the failure path of check_derived_freshness, which the hook calls once, at the
+# end of section 3. So it is the last mutation on every path: the merge regeneration, the vendored
+# sync, the renderers, and the merge reconcile have already written their bytes. Any other drift,
+# such as a source edit or a stale atlas section, keeps failing.
+restamp_atlas_content() {
+  [ "$autofix" -eq 1 ] || return 1
+  [ -n "$manifest_path" ] || return 1
+  [ "$(printf '%s\n' "$manifest_out" | sed -n 's/^  - //p')" = 'atlas content digest is stale' ] || return 1
+  git diff --quiet -- "$manifest_path" || return 1
+  (unset GIT_DIR GIT_WORK_TREE; node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate --claims-gate) >/dev/null 2>&1 || return 1
+  snapshot_staged_tree
+  (unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs sync --index --only atlas) >/dev/null 2>&1 || return 1
+  retry_on_index_lock git add -- "$manifest_path"
+}
+
+# Check the staged result. Apart from the atlas content restamp above, these checks never
+# stamp or sync: a stamp asserts that the prose still holds, which only the author can judge.
+# On failure the commit aborts and a marker file in the git directory makes the next attempt
+# run the same checks even though the regenerated files are by then already staged and the
+# hook would change nothing.
+check_derived_freshness() {
+  run_freshness_checks
+  if [ "$manifest_ok" -eq 0 ] && restamp_atlas_content; then
+    echo "Restamped the atlas content digest in the manifest: the atlas gate and the claims gate pass, and no other digest was stale." >&2
+    run_freshness_checks
+  fi
   if [ "$atlas_ok" -eq 1 ] && [ "$manifest_ok" -eq 1 ]; then
     rm -f "$pending_marker"
     return 0
@@ -87,9 +133,14 @@ check_derived_freshness() {
     else
       echo "       (the atlas gate named no STALE section; fix what it reports above)"
     fi
-    echo "  2. node scripts/docs-manifest.mjs sync"
-    echo "  3. git add \"code-ops-docs/98 System\""
-    echo "  4. Run git commit again."
+    echo "  2. git add \"$atlas_dir\""
+    echo "  3. node scripts/docs-manifest.mjs sync --index"
+    echo "  4. git add \"${manifest_path:-code-ops-docs/98 System/DOCS_MANIFEST.json}\""
+    echo "  5. Run git commit again."
+    echo "Sync with --index so the digests hash the staged bytes, which is what CI checks."
+    if [ -n "$manifest_path" ] && git show ":$manifest_path" 2>/dev/null | grep -q '"regenerated"'; then
+      echo "The digest value \"regenerated\" is a placeholder. A merge left it on a domain that no parent had stamped."
+    fi
   } >&2
   return 1
 }
@@ -98,9 +149,12 @@ check_derived_freshness() {
 # The merge driver (scripts/derived-merge.mjs) takes one side of a conflicting derived file and
 # records its path, because git runs a driver before the merged tree exists. This hook sees the
 # merged tree, so it regenerates the flagged files here and stages them. A failed regeneration
-# restores the conflict and aborts, so a stale derived file never reaches a commit. Then the
-# freshness checks run against the regenerated result.
+# restores the conflict and aborts, so a stale derived file never reaches a commit. The freshness
+# checks do not run here. They run once at the end (section 3), after the vendored sync, the
+# renderers, and the merge reconcile have written their bytes, so the atlas restamp (0d) is the
+# last mutation on every path. force_check makes section 3 run them.
 derived_merge_pending="$(git rev-parse --git-path code-ops-derived-merge-pending)"
+force_check=0
 if [ -e "$derived_merge_pending" ]; then
   command -v node >/dev/null 2>&1 || {
     echo "node is required to regenerate merged derived files." >&2
@@ -109,7 +163,7 @@ if [ -e "$derived_merge_pending" ]; then
   # A clean automatic merge reaches here through pre-merge-commit, whose staged files miss the
   # commit. The flag has post-merge amend the merge commit.
   node scripts/derived-merge.mjs regenerate ${CODE_OPS_MERGE_COMMIT:+--amend-after} || exit 1
-  check_derived_freshness || exit 1
+  force_check=1
 fi
 
 # ---- 1. sync vendored plugin copies of canonical scripts/ files -----------------
@@ -149,39 +203,77 @@ fi
 renderer_inputs="plugins .claude-plugin/marketplace.json scripts/build-codex-marketplace.mjs scripts/build-opencode-dist.mjs scripts/model-tiers.mjs"
 renderer_paths="$renderer_inputs .agents/plugins/marketplace.json codex-marketplace opencode-dist"
 
-# Do no work for commits unrelated to either source or generated marketplace artifacts.
-if git diff --cached --quiet -- $renderer_paths; then
-  exit 0
-fi
 
-# Rendering reads the working tree while a commit records the index. Refuse to mix
-# staged source with a different unstaged/untracked renderer input; otherwise the
-# hook could stage output for source that is absent from the commit.
-#
-# The vendored-sync step above only ever stages files it itself just wrote (the
-# plugins/*/scripts/ copies named in the manifest) — those are staged==working-tree by
-# the time we get here, so they cannot trip this refusal. Any remaining unstaged/untracked
-# renderer input under plugins/ is unrelated pre-existing local state and must still refuse.
-if ! git diff --quiet -- $renderer_inputs || test -n "$(git ls-files --others --exclude-standard -- $renderer_inputs)"; then
-  echo "Stage or stash all host-renderer inputs before committing." >&2
-  exit 1
-fi
+# Regenerate both host distributions and stage them. Only commits that stage a renderer input
+# or a generated artifact reach this; any other commit skips it and pays nothing.
+render_hosts() {
+  # Rendering reads the working tree while a commit records the index. Refuse to mix
+  # staged source with a different unstaged/untracked renderer input; otherwise the
+  # hook could stage output for source that is absent from the commit.
+  #
+  # The vendored-sync step above only ever stages files it itself just wrote (the
+  # plugins/*/scripts/ copies named in the manifest) — those are staged==working-tree by
+  # the time we get here, so they cannot trip this refusal. Any remaining unstaged/untracked
+  # renderer input under plugins/ is unrelated pre-existing local state and must still refuse.
+  if ! git diff --quiet -- $renderer_inputs || test -n "$(git ls-files --others --exclude-standard -- $renderer_inputs)"; then
+    echo "Stage or stash all host-renderer inputs before committing." >&2
+    exit 1
+  fi
 
-command -v node >/dev/null 2>&1 || {
-  echo "node is required to render the host distributions." >&2
-  exit 1
+  command -v node >/dev/null 2>&1 || {
+    echo "node is required to render the host distributions." >&2
+    exit 1
+  }
+
+  snapshot_staged_tree
+  node scripts/build-codex-marketplace.mjs
+  retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/
+
+  node scripts/build-opencode-dist.mjs
+  retry_on_index_lock git add -A -- opencode-dist/
 }
 
-snapshot_staged_tree
-node scripts/build-codex-marketplace.mjs
-retry_on_index_lock git add -A -- .agents/plugins/marketplace.json codex-marketplace/
+# Do no work for commits unrelated to either source or generated marketplace artifacts.
+# A commit that skips the renderers still reaches section 3, because a commit that stages only
+# atlas files, or only a merge, may need its manifest restamped or checked.
+if ! git diff --cached --quiet -- $renderer_paths; then
+  render_hosts
+fi
 
-node scripts/build-opencode-dist.mjs
-retry_on_index_lock git add -A -- opencode-dist/
+# ---- 3. last mutations and the freshness backstop --------------------------------
+# Everything above has written its bytes, so the steps here judge the final staged tree.
+#
+# A merge runs the attested reconcile (scripts/derived-merge.mjs): it restamps each manifest
+# domain that every parent of the merge already carried correct digests for, covers the
+# one-sided merge that never calls the merge driver, and stages only the manifest. Git names the
+# merged head in MERGE_HEAD, or for a clean merge in the environment that pre-merge-commit passes.
+merging=0
+if [ "$autofix" -eq 1 ] && [ -f scripts/derived-merge.mjs ] && { [ -n "${CODE_OPS_MERGE_COMMIT:-}" ] || [ -e "$(git rev-parse --git-path MERGE_HEAD)" ]; }; then
+  command -v node >/dev/null 2>&1 || {
+    echo "node is required to reconcile a merged manifest." >&2
+    exit 1
+  }
+  snapshot_staged_tree
+  node scripts/derived-merge.mjs reconcile ${CODE_OPS_MERGE_COMMIT:+--amend-after} || exit 1
+  merging=1
+fi
 
-# ---- 3. freshness backstop -------------------------------------------------------
-# Run the checks when this hook changed staged bytes, or when an earlier attempt of this
-# commit failed them (the marker). A hook that changed nothing and has no marker adds no work.
-if [ -e "$pending_marker" ] || [ "$(git write-tree)" != "$before_tree" ]; then
-  check_derived_freshness
+# A commit that stages atlas files may have been stamped after the manifest sync (0d). A commit made
+# partway through a rebase, cherry-pick, or revert sees an intermediate manifest, so it is not
+# checked here; post-rewrite restamps after a rebase, and CI checks the final result.
+midway=0
+for midway_state in rebase-merge rebase-apply CHERRY_PICK_HEAD REVERT_HEAD; do
+  if [ -e "$(git rev-parse --git-path "$midway_state")" ]; then midway=1; fi
+done
+atlas_staged=0
+if [ "$autofix" -eq 1 ] && [ "$midway" -eq 0 ] && ! git diff --cached --quiet -- "$atlas_dir"; then
+  atlas_staged=1
+fi
+
+# Run the checks when this hook changed staged bytes, when an earlier attempt of this commit
+# failed them (the marker), or when the commit is a merge, stages atlas files, or regenerated
+# merged derived files (0c). Any other commit adds no work.
+if [ -e "$pending_marker" ] || [ "$force_check" -eq 1 ] || [ "$merging" -eq 1 ] || [ "$atlas_staged" -eq 1 ] \
+  || { [ -n "$before_tree" ] && [ "$(git write-tree)" != "$before_tree" ]; }; then
+  check_derived_freshness || exit 1
 fi

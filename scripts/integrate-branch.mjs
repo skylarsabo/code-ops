@@ -26,7 +26,9 @@
 //      is version 3. The gate never writes its baseline and never seals.
 //   4. Atlas freshness for this repo's own atlas (read-only). A stale section is a pending
 //      judgment item - this script prints the section and the stamp command and never stamps it;
-//      only a human (or an agent that has actually re-verified the prose) should run that.
+//      only a human (or an agent that has actually re-verified the prose) should run that. After the
+//      stamps it also prints the follow-up: git add the atlas folder, docs-manifest.mjs sync --index,
+//      then git add the manifest.
 //   5. Gates: the structural chain from CLAUDE.md "Before declaring any change done" always runs,
 //      plus every applicable step from the required structural-lint job of
 //      .github/workflows/validate.yml and the shard jobs its `needs:` lists - applicable meaning its `run:` text names a changed path,
@@ -282,6 +284,8 @@ function runBuildStep(log) {
 function runDocsStep(log, base) {
   const forward = runRelocateForwardStep(log, base);
   const script = join(ROOT, 'scripts', 'docs-manifest.mjs');
+  // Plain sync, not --index: this runner stages nothing, so the index lacks the bump and the
+  // regenerated files that the commit will take. The pre-commit hook then checks the staged bytes.
   const a = runNode([script, 'sync', '--base', base], { label: 'docs-manifest.mjs sync --base', log });
   const b = runNode([script, 'check'], { label: 'docs-manifest.mjs check', log });
   const c = runDocsGateStep(log);
@@ -338,6 +342,10 @@ function runAtlasStep(log) {
   const judgmentItems = stale.map(
     (slug) => `atlas section '${slug}' is STALE - re-verify the prose, then: node scripts/atlas-check.mjs stamp --atlas "${ATLAS_DIR}" --section ${slug}`
   );
+  // A stamp edits the atlas folder, which the manifest hashes as the atlas content. Name the follow-up,
+  // since a stamp after the sync leaves that digest stale. The pre-commit hook restamps it only when
+  // nothing else is stale.
+  if (stale.length) judgmentItems.push(`after stamping: git add "${ATLAS_DIR}", then node scripts/docs-manifest.mjs sync --index, then git add the manifest`);
   return { ok: r.ok !== false, judgmentItems, stale };
 }
 

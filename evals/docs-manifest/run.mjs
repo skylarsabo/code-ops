@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Regression coverage for generic manifest discovery, interior globs, and installed extraction.
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -396,6 +396,116 @@ try {
   const renderSkipped = run(join(ROOT, 'scripts', 'check-vault-standard.mjs'), [hub, '--render'], upgrade);
   check('upgrade-without-conform-adds-no-failure: --render on the v2 vault writes nothing', renderSkipped.status === 0
     && !existsSync(join(hub, '98 System', 'TRIAGE.md')) && !existsSync(join(hub, '10 Design', 'INDEX.md')), renderSkipped.out);
+
+  // Read modes: --index, --attested, --only, and the plain-sync unstaged warning. One fixture with
+  // distinct sources per domain, so a single edit drifts a known set. `atlas` digests all of src/**,
+  // `architecture` src/a/** and `contracts` src/b/**. The rest digest scripts/**.
+  const modes = join(work, 'modes');
+  const script = join(modes, 'scripts', 'docs-manifest.mjs');
+  const modesManifest = join(modes, 'project-docs', '98 System', 'DOCS_MANIFEST.json');
+  const sourcesOf = { architecture: ['src/a/**'], contracts: ['src/b/**'], atlas: ['src/**'] };
+  const both = (args) => {
+    const r = spawnSync(process.execPath, [script, ...args, '--root', modes], { cwd: modes, encoding: 'utf8' });
+    return { status: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
+  };
+  const stampedDomains = () => Object.fromEntries(JSON.parse(readFileSync(modesManifest, 'utf8')).domains.map((d) => [d.id, `${d.sourceDigest}${d.contentDigest}`]));
+  const commitAll = (message) => { git(['add', '-A'], modes); git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], modes); return git(['rev-parse', 'HEAD'], modes).trim(); };
+  const staleIds = () => [...both(['check']).all.matchAll(/- ([a-z-]+) (?:source|content) digest is stale/g)].map((m) => m[1]).filter((id, i, all) => all.indexOf(id) === i).sort();
+  mkdirSync(join(modes, 'scripts'), { recursive: true });
+  mkdirSync(join(modes, 'src', 'a'), { recursive: true });
+  mkdirSync(join(modes, 'src', 'b'), { recursive: true });
+  mkdirSync(join(modes, 'project-docs', '98 System'), { recursive: true });
+  mkdirSync(join(modes, 'project-docs', '40 Engineering'), { recursive: true });
+  for (const file of ['docs-manifest.mjs', 'context-index-lib.mjs', 'record-lib.mjs']) cpSync(join(ROOT, 'scripts', file), join(modes, 'scripts', file));
+  writeFileSync(join(modes, 'src', 'a', 'x.txt'), 'a0\n');
+  writeFileSync(join(modes, 'src', 'b', 'x.txt'), 'b0\n');
+  for (const id of required) writeFileSync(join(modes, 'project-docs', '40 Engineering', `${id}.md`), `# ${id}\n`);
+  writeFileSync(modesManifest, `${JSON.stringify({
+    version: 1, hub: 'project-docs',
+    domains: required.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: sourcesOf[id] || ['scripts/**'], sourceDigest: '', contentDigest: '' })),
+  }, null, 2)}\n`);
+  git(['init', '--quiet', '-b', 'main'], modes);
+  let r = both(['sync']);
+  check('modes fixture syncs', r.status === 0 && both(['check']).status === 0, r.all);
+  const seed = commitAll('seed');
+
+  // --index reads the index: unstaged edits and untracked files never enter a digest.
+  writeFileSync(join(modes, 'src', 'a', 'x.txt'), 'a-unstaged\n');
+  writeFileSync(join(modes, 'src', 'a', 'untracked.txt'), 'new\n');
+  check('check fails on a working tree with unstaged edits and untracked files', staleIds().join() === 'architecture,atlas', staleIds().join());
+  r = both(['check', '--index']);
+  check('check --index ignores unstaged edits and untracked files', r.status === 0, r.all);
+  const before = readFileSync(modesManifest, 'utf8');
+  r = both(['sync', '--index']);
+  check('sync --index with only unstaged edits stamps nothing and does not warn', r.status === 0 && readFileSync(modesManifest, 'utf8') === before && !r.err.includes('unstaged'), r.all);
+  r = both(['sync']);
+  check('plain sync warns about unstaged inputs and does not refuse', r.status === 0 && /warn 2 unstaged path\(s\)/.test(r.err) && r.err.includes('src/a/untracked.txt'), r.all);
+  git(['checkout', '--', 'project-docs'], modes);
+  rmSync(join(modes, 'src', 'a', 'untracked.txt'));
+  git(['add', 'src/a/x.txt'], modes);
+  check('check --index fails once the edit is staged and the manifest is stale', both(['check', '--index']).status === 1, both(['check', '--index']).all);
+  r = both(['sync', '--index']);
+  check('sync --index writes the manifest without staging it', r.status === 0 && !r.err.includes('unstaged')
+    && both(['check', '--index']).status === 1, r.all);
+  git(['add', 'project-docs'], modes);
+  check('check --index passes once the stamped manifest is staged', both(['check', '--index']).status === 0, both(['check', '--index']).all);
+  writeFileSync(join(modes, 'src', 'a', 'x.txt'), 'a-later-unstaged\n');
+  check('check --index passes while an unstaged edit sits on top', both(['check', '--index']).status === 0, both(['check', '--index']).all);
+  git(['checkout', '--', 'src'], modes);
+  git(['reset', '--hard', '--quiet', seed], modes);
+
+  // --only stamps one domain. The other drifted domain keeps its bytes.
+  writeFileSync(join(modes, 'src', 'a', 'x.txt'), 'a-only\n');
+  const preOnly = stampedDomains();
+  r = both(['sync', '--only', 'atlas']);
+  const postOnly = stampedDomains();
+  check('--only atlas stamps atlas and no other domain', r.status === 0 && postOnly.atlas !== preOnly.atlas
+    && Object.keys(preOnly).filter((id) => id !== 'atlas').every((id) => postOnly[id] === preOnly[id]), r.all);
+  check('--only atlas leaves architecture stale', staleIds().join() === 'architecture', staleIds().join());
+  check('--only rejects an unknown domain', both(['sync', '--only', 'nope']).status === 1, both(['sync', '--only', 'nope']).all);
+  git(['reset', '--hard', '--quiet', seed], modes);
+
+  // --attested: side one (s1) edits src/a and syncs. Side two edits src/b, stamps atlas only, and
+  // leaves contracts stale. `merged` takes side two's manifest with side one's src/a, as a merge
+  // that kept our manifest would. architecture and atlas drift only through the combination and both
+  // sides attested them. contracts was stale on side two, so it stays stale.
+  git(['checkout', '-q', '-b', 's1'], modes);
+  writeFileSync(join(modes, 'src', 'a', 'x.txt'), 'a1\n');
+  both(['sync']);
+  const side1 = commitAll('side one');
+  git(['checkout', '-q', '-b', 's2', seed], modes);
+  writeFileSync(join(modes, 'src', 'b', 'x.txt'), 'b2\n');
+  both(['sync', '--only', 'atlas']);
+  const side2 = commitAll('side two');
+  git(['checkout', '-q', '-b', 'merged'], modes);
+  git(['checkout', side1, '--', 'src/a/x.txt'], modes);
+  commitAll('combined trees, manifest from side two');
+  check('the combined tree is stale for architecture, atlas and contracts', staleIds().join() === 'architecture,atlas,contracts', staleIds().join());
+  const preAtt = stampedDomains();
+  r = both(['sync', '--attested', `${side2},${side1}`]);
+  const postAtt = stampedDomains();
+  check('--attested stamps the domains fresh at both revs', r.status === 0 && postAtt.architecture !== preAtt.architecture && postAtt.atlas !== preAtt.atlas, r.all);
+  check('--attested leaves a domain stale at one rev untouched and names it', postAtt.contracts === preAtt.contracts
+    && r.out.includes('left stale, not attested') && r.out.includes('contracts') && staleIds().join() === 'contracts', r.all);
+  check('--attested keeps the bytes of every domain it did not stamp', Object.keys(preAtt).filter((id) => !['architecture', 'atlas'].includes(id)).every((id) => postAtt[id] === preAtt[id]), r.all);
+  git(['checkout', '--', 'project-docs'], modes);
+  r = both(['sync', '--attested', side1]);
+  check('--attested with one rev attests contracts, which was fresh there', r.status === 0 && staleIds().length === 0, r.all);
+  git(['checkout', '--', 'project-docs'], modes);
+  const reshaped = JSON.parse(readFileSync(modesManifest, 'utf8'));
+  reshaped.domains.find((d) => d.id === 'architecture').sources = ['src/**'];
+  writeFileSync(modesManifest, `${JSON.stringify(reshaped, null, 2)}\n`);
+  r = both(['sync', '--attested', side1]);
+  check('--attested does not attest a domain whose sources changed since the rev', r.status === 0 && r.out.includes('left stale') && r.out.includes('architecture'), r.all);
+  git(['checkout', '--', 'project-docs'], modes);
+  for (const [name, args, code] of [
+    ['--attested rejects an unknown rev', ['sync', '--attested', 'no-such-rev'], 1],
+    ['--attested rejects an empty rev', ['sync', '--attested', `${side1},`], 2],
+    ['--attested is sync only', ['check', '--attested', side1], 2],
+    ['--only is sync only', ['check', '--only', 'atlas'], 2],
+    ['--index is not valid for plan', ['plan', '--index'], 2],
+    ['--attested and --all conflict', ['sync', '--attested', side1, '--all'], 2],
+  ]) { r = both(args); check(name, r.status === code, r.all); }
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }
 console.log('\ndocs-manifest eval passed');

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -311,7 +311,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "13032db18a2f9732d0739498a13b7e6483adf69fc2c110af518cf32b3d681fa9"
+      "verifiedDigest": "1cab46fac970ade96db3d6e0560d3e0a4ecc226abc90dbbafe31f94559a5b5ca"
     },
     {
       "slug": "gate-scripts",
@@ -320,8 +320,13 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 112,
+          "anchor": "function indexSnapshot(root) {"
+        },
         {
           "file": "scripts/lint-plugins.mjs",
           "line": 873,
@@ -339,7 +344,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 88,
+          "line": 159,
           "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
@@ -364,7 +369,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 227,
+          "line": 295,
           "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
         },
         {
@@ -414,7 +419,7 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 294,
+          "line": 298,
           "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
@@ -629,12 +634,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 539,
+          "line": 547,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 566,
+          "line": 574,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -734,13 +739,13 @@
         },
         {
           "file": "scripts/derived-merge.mjs",
-          "line": 12,
+          "line": 14,
           "anchor": "// WHY two phases: git runs a merge driver once per file, before the merged tree"
         },
         {
           "file": "scripts/derived-merge.mjs",
-          "line": 113,
-          "anchor": "}"
+          "line": 125,
+          "anchor": "export function registerDriver(root, scriptsDir = SCRIPTS) {"
         },
         {
           "file": "scripts/distill-check.mjs",
@@ -773,7 +778,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "d92e06b989aa99cb5d12ac7b4b4050d8015e0ae97413492f3b72aeff214ea7ab"
+      "verifiedDigest": "a57cf210f30c87d393c5aec382e7f8780de5d99115ada57e2f88c9fc31f332c3"
     },
     {
       "slug": "evals-and-calibration",
@@ -781,8 +786,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8c9308f7445a12deaff6055404ea34f2a53be436",
-      "verifiedDigest": "8caf4cf2b41a329ad634f59385bf4998fc932a18e9e7545bcb2a0e06a6d6375a",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedDigest": "69237524ac5190cae613d0011fcf859772666cc52e3f1fb5e5e6f30d7e37c0a3",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -821,13 +826,28 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 171,
+          "line": 175,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
           "file": "evals/opencode-dist/run.mjs",
           "line": 297,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
+        },
+        {
+          "file": "evals/merge-driver/run.mjs",
+          "line": 132,
+          "anchor": "// The hook scenarios (S3, S4, S6, S7, S9) run the real hooks. This repository h"
+        },
+        {
+          "file": "evals/merge-driver/run.mjs",
+          "line": 616,
+          "anchor": "// 14. Mutants for the hooks. Each broken hook must fail the scenario that guard"
+        },
+        {
+          "file": "evals/codex-marketplace/run.mjs",
+          "line": 136,
+          "anchor": "const hookCommands = preCommit.split('\\n').filter((line) => !/^\\s*(#|echo\\b)/.te"
         },
         {
           "file": "scripts/judgment-evals.mjs",
@@ -1074,7 +1094,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1187,7 +1207,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "71b6e2012b727d86e552ea91d2efc00e96e3710ae586d68f4483e7441ad4365f"
+      "verifiedDigest": "0bca8059f74df2564153c1d372e96e15b63886b7f0dbb6020925d095f43ee684"
     },
     {
       "slug": "ci-workflows",
@@ -1261,7 +1281,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
+      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1338,7 +1358,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "34c8fc21e2ae584004abf2455a6101b6ada2da81c6addef2850b07911f32b469"
+      "verifiedDigest": "8078267e0d05e7a01c85ad826fb4ac1d759366584fae4845431011f54d12fe4a"
     },
     {
       "slug": "root-contracts",

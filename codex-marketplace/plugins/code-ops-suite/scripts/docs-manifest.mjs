@@ -24,13 +24,13 @@ const LEGACY_KEYS_REMOVED = new Set(['path', 'disposition', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>] [--base <ref>] [--all]', 2); }
+function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>] [--base <ref>] [--all] [--index] [--only <id>] [--attested <rev>[,<rev>...]]', 2); }
 function flags(args) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
     const key = args[i];
-    if (key === '--all') { if (out[key]) usage(); out[key] = true; continue; }
-    if (!['--root', '--out', '--base'].includes(key) || out[key]) usage();
+    if (key === '--all' || key === '--index') { if (out[key]) usage(); out[key] = true; continue; }
+    if (!['--root', '--out', '--base', '--only', '--attested'].includes(key) || out[key]) usage();
     const value = args[++i];
     if (!value || value.startsWith('--')) usage();
     out[key] = value;
@@ -41,9 +41,9 @@ function gitPaths(root, args) {
   return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
     .split('\0').filter(Boolean).map((path) => toPosix(path));
 }
-export function hashPaths(root, paths) {
+export function hashPaths(root, paths, read = (path) => readFileSync(resolve(root, path))) {
   const hash = createHash('sha256');
-  for (const path of [...paths].sort()) { hash.update(path); hash.update('\0'); hash.update(readFileSync(resolve(root, path))); hash.update('\0'); }
+  for (const path of [...paths].sort()) { hash.update(path); hash.update('\0'); hash.update(read(path)); hash.update('\0'); }
   return hash.digest('hex');
 }
 // The one source-digest path. A manifest domain and a state page that declares `sources:` both
@@ -52,24 +52,95 @@ export function hashPaths(root, paths) {
 export const repoFiles = (root) => gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
 export const matchSources = (files, patterns, skip = () => false) =>
   files.filter((file) => patterns.some((pattern) => pathMatchesGlob(pattern, file)) && !skip(file));
-function contentPaths(root, hub, path) {
-  const absolute = resolve(root, hub, path);
-  if (!existsSync(absolute)) return [];
-  if (statSync(absolute).isFile()) return [`${hub}/${path}`];
-  const prefix = `${hub}/${path}/`;
-  return gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']).filter((entry) => entry.startsWith(prefix));
+// A snapshot is where digest inputs come from: the working tree (the default), the index
+// (--index, the bytes a commit takes), or a commit tree (--attested). It lists the files, reads
+// a path's bytes, and resolves a domain's page or folder. The working-tree snapshot keeps the
+// historical behavior: `files` is `ls-files -co`, so untracked files count.
+const BLOB_BUFFER = 1024 * 1024 * 1024;
+function workingSnapshot(root) {
+  const files = repoFiles(root);
+  return {
+    files, tracked: gitPaths(root, ['ls-files', '-z']),
+    read: (path) => readFileSync(resolve(root, path)),
+    contents(hub, path) {
+      const absolute = resolve(root, hub, path);
+      if (!existsSync(absolute)) return [];
+      if (statSync(absolute).isFile()) return [`${hub}/${path}`];
+      const prefix = `${hub}/${path}/`;
+      return files.filter((entry) => entry.startsWith(prefix));
+    },
+  };
 }
-function findManifest(root) {
-  const candidates = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z'])
-    .filter((file) => file.endsWith('/98 System/DOCS_MANIFEST.json'));
+// Reads every blob of a tree listing through one `git cat-file --batch`, so the index or a rev
+// costs one process, not one per file.
+// deferred(whole tree held in memory, stream cat-file per domain if a repository outgrows BLOB_BUFFER)
+function blobSnapshot(root, entries) {
+  const shas = [...new Set(entries.map((entry) => entry.sha))];
+  const blobs = new Map();
+  if (shas.length) {
+    const out = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input: `${shas.join('\n')}\n`, maxBuffer: BLOB_BUFFER });
+    let at = 0;
+    for (const sha of shas) {
+      const eol = out.indexOf(0x0a, at);
+      const [, type, size] = (eol < 0 ? '' : out.toString('latin1', at, eol)).split(' ');
+      if (type !== 'blob') die(`cannot read object ${sha} through git cat-file`);
+      blobs.set(sha, out.subarray(eol + 1, eol + 1 + Number(size)));
+      at = eol + 1 + Number(size) + 1;
+    }
+  }
+  const byPath = new Map(entries.map((entry) => [entry.path, blobs.get(entry.sha)]));
+  const files = [...byPath.keys()];
+  return {
+    files, tracked: files, read: (path) => byPath.get(path),
+    contents(hub, path) {
+      if (byPath.has(`${hub}/${path}`)) return [`${hub}/${path}`];
+      const prefix = `${hub}/${path}/`;
+      return files.filter((entry) => entry.startsWith(prefix));
+    },
+  };
+}
+// Both listings are NUL-separated records of `<metadata>\t<path>`. A gitlink (a submodule commit)
+// has no blob, so `parse` returns null for it and the entry drops out.
+function listing(root, args, parse) {
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+    .split('\0').filter(Boolean).flatMap((record) => {
+      const tab = record.indexOf('\t');
+      const entry = parse(record.slice(0, tab).split(' '), record.slice(tab + 1));
+      return entry ? [entry] : [];
+    });
+}
+function indexSnapshot(root) {
+  return blobSnapshot(root, listing(root, ['ls-files', '-s', '-z'], ([mode, sha, stage], path) => {
+    if (stage !== '0') die(`the index has unmerged paths (${path}); resolve them before using --index`);
+    return mode === '160000' ? null : { path, sha };
+  }));
+}
+function treeSnapshot(root, rev) {
+  return blobSnapshot(root, listing(root, ['ls-tree', '-r', '-z', rev], ([, type, sha], path) => (type === 'blob' ? { path, sha } : null)));
+}
+const MANIFEST_SUFFIX = '/98 System/DOCS_MANIFEST.json';
+// `fromSnapshot` reads the manifest bytes from the snapshot instead of the file on disk. `check
+// --index` uses it, so the digests it compares are the ones the commit would carry.
+function findManifest(snap, root, fromSnapshot) {
+  const candidates = snap.files.filter((file) => file.endsWith(MANIFEST_SUFFIX));
   if (candidates.length !== 1) die(candidates.length ? `multiple documentation manifests found: ${candidates.join(', ')}` : 'no documentation manifest found at <hub>/98 System/DOCS_MANIFEST.json');
   const path = resolve(root, candidates[0]);
   let manifest;
-  try { manifest = JSON.parse(readFileSync(path, 'utf8')); } catch (error) { die(`cannot parse documentation manifest: ${error.message}`); }
-  const hub = candidates[0].slice(0, -'/98 System/DOCS_MANIFEST.json'.length);
+  try { manifest = JSON.parse(fromSnapshot ? snap.read(candidates[0]).toString('utf8') : readFileSync(path, 'utf8')); } catch (error) { die(`cannot parse documentation manifest: ${error.message}`); }
+  const hub = candidates[0].slice(0, -MANIFEST_SUFFIX.length);
   if (!manifest || manifest.hub !== hub) die(`documentation manifest hub must equal ${hub}`);
-  return { path, manifest, hub };
+  return { path, manifest, hub, relative: candidates[0] };
 }
+// The files a domain digests: source matches outside the hub, plus the domain's own page or folder.
+function domainInputs(snap, hub, domain) {
+  return {
+    sources: matchSources(snap.files, domain.sources, (file) => file.startsWith(`${hub}/`)),
+    contents: snap.contents(hub, domain.path),
+  };
+}
+const digestsOf = (snap, root, { sources, contents }) => ({
+  sourceDigest: hashPaths(root, sources, snap.read), contentDigest: hashPaths(root, contents, snap.read),
+});
 function exactKeys(value, keys, label, errors) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) { errors.push(`${label} must be an object`); return false; }
   for (const key of Object.keys(value)) if (!keys.has(key)) errors.push(`${label} has unknown key ${key}`);
@@ -188,10 +259,10 @@ function inspectCollections(root, manifest, hub, files, tracked, errors) {
     if (!entry?.requiredBy?.some((item) => item.kind === 'record') && !entry?.requiredBy?.some((item) => item.kind === 'external' || item.kind === 'commit')) errors.push(`legacy path ${index + 1} needs a verifiable control`);
   }
 }
-function inspect(root, manifest, hub) {
+function inspect(root, manifest, hub, snap) {
   const errors = [];
-  const files = gitPaths(root, ['ls-files', '-co', '--exclude-standard', '-z']);
-  const tracked = gitPaths(root, ['ls-files', '-z']);
+  const files = snap.files;
+  const tracked = snap.tracked;
   const topKeys = TOP_KEYS[manifest.version] || TOP_KEYS_V1;
   for (const key of Object.keys(manifest)) if (!topKeys.has(key)) errors.push(`manifest has unknown key ${key}`);
   for (const key of topKeys) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
@@ -211,13 +282,10 @@ function inspect(root, manifest, hub) {
     const validSources = Array.isArray(domain.sources) && domain.sources.length > 0
       && domain.sources.every((pattern) => typeof pattern === 'string' && pattern);
     if (!validSources) errors.push(`${domain.id} needs source patterns`);
-    const sources = validSources
-      ? matchSources(files, domain.sources, (file) => file.startsWith(`${hub}/`))
-      : [];
+    const { sources, contents } = validSources ? domainInputs(snap, hub, domain) : { sources: [], contents: snap.contents(hub, domain.path) };
     if (validSources && !sources.length) errors.push(`${domain.id} source patterns match no repository files`);
-    const contents = contentPaths(root, hub, domain.path);
     if (!contents.length) errors.push(`${domain.id} target is missing or empty: ${domain.path}`);
-    const expectedSource = hashPaths(root, sources); const expectedContent = hashPaths(root, contents);
+    const { sourceDigest: expectedSource, contentDigest: expectedContent } = digestsOf(snap, root, { sources, contents });
     if (domain.sourceDigest !== expectedSource) errors.push(`${domain.id} source digest is stale`);
     if (domain.contentDigest !== expectedContent) errors.push(`${domain.id} content digest is stale`);
     domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent };
@@ -233,6 +301,46 @@ function inspect(root, manifest, hub) {
   return errors;
 }
 
+// --attested: a drifted domain is restamped only when each named commit already carried correct
+// digests for it. At that commit the manifest entry must name the same sources and page as the
+// current one and equal the digests computed from that commit's own tree. Both sides of a merge
+// then vouched for the domain, so restamping it is mechanical. A domain either side left stale,
+// or whose definition changed, is not attested and keeps its bytes.
+function attestedIds(root, revs, relative, hub, candidates) {
+  let attested = new Set(candidates.map((domain) => domain.id));
+  for (const rev of revs) {
+    if (!attested.size) break;
+    const snap = treeSnapshot(root, rev);
+    let there = null;
+    try { there = JSON.parse(snap.read(relative).toString('utf8')); } catch { /* absent or unparsable at this commit: nothing is attested */ }
+    const byId = new Map((there?.hub === hub && Array.isArray(there.domains) ? there.domains : []).map((entry) => [entry?.id, entry]));
+    attested = new Set(candidates.filter((domain) => {
+      const entry = byId.get(domain.id);
+      if (!attested.has(domain.id) || !entry || entry.path !== domain.path || !Array.isArray(entry.sources)
+        || !entry.sources.every((pattern) => typeof pattern === 'string' && pattern)
+        || JSON.stringify(entry.sources) !== JSON.stringify(domain.sources)) return false;
+      const digests = digestsOf(snap, root, domainInputs(snap, hub, entry));
+      return entry.sourceDigest === digests.sourceDigest && entry.contentDigest === digests.contentDigest;
+    }).map((domain) => domain.id));
+  }
+  return attested;
+}
+// A plain sync hashes the working tree, but a commit takes the index. Paths that differ between
+// the two are named so the author can stage them or pass --index. This warns and never refuses:
+// the remedy for an atlas stamp is itself an unstaged edit inside a domain.
+function unstagedInputs(root, inputs) {
+  const dirty = new Set([...gitPaths(root, ['diff', '--name-only', '-z', '--']), ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])]);
+  return [...new Set(inputs.flatMap(({ sources, contents }) => [...sources, ...contents]))].filter((file) => dirty.has(file)).sort();
+}
+function parseRevs(root, value) {
+  const revs = value.split(',');
+  if (revs.some((rev) => !rev || rev.startsWith('-'))) usage();
+  for (const rev of revs) {
+    try { execFileSync('git', ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { cwd: root, stdio: 'ignore' }); } catch { die(`--attested: ${rev} is not a commit`); }
+  }
+  return revs;
+}
+
 // Import-safe: check-vault-standard.mjs reuses the digest helpers above, so the CLI runs only when
 // this file is the entry point. A symlinked entry compares by real path.
 const isEntry = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
@@ -240,7 +348,13 @@ if (isEntry) {
   const command = process.argv[2];
   if (!['check', 'sync', 'plan'].includes(command)) usage();
   const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
-  const { path, manifest, hub } = findManifest(root); const errors = inspect(root, manifest, hub);
+  if (((f['--attested'] || f['--only']) && command !== 'sync') || (f['--index'] && command === 'plan')
+    || (f['--attested'] && f['--all'])) usage();
+  const revs = f['--attested'] ? parseRevs(root, f['--attested']) : null;
+  const snap = f['--index'] ? indexSnapshot(root) : workingSnapshot(root);
+  const { path, manifest, hub, relative } = findManifest(snap, root, Boolean(f['--index']) && command === 'check');
+  if (f['--only'] && !manifest.domains?.some((domain) => domain.id === f['--only'])) die(`--only: no documentation domain ${f['--only']}`);
+  const errors = inspect(root, manifest, hub, snap);
   const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
   const structuralErrors = errors.filter((error) => !digestDrift.test(error));
   if (command === 'sync') {
@@ -249,33 +363,42 @@ if (isEntry) {
     // lines so parallel feature PRs stop colliding on the whole DOCS_MANIFEST.json.
     // Pass --base <ref> to further limit stamping to domains whose sources or
     // content paths differ from that ref (plus untracked files). Pass --all to
-    // restamp every domain even when digests already match.
-    const files = repoFiles(root);
+    // restamp every domain even when digests already match. Pass --only <id> to
+    // stamp one domain. Pass --index to hash the index instead of the working tree.
+    // Pass --attested <rev>,<rev> to stamp only domains those commits already carried
+    // correctly (see attestedIds); a domain left stale is named below and keeps its bytes.
     const changed = f['--base']
       ? new Set([...gitPaths(root, ['diff', '--name-only', '-z', f['--base'], '--']),
                  ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])])
       : null;
     const forceAll = Boolean(f['--all']);
-    let stamped = 0;
+    const wanted = [];
     for (const domain of manifest.domains) {
       const next = domain._computed;
       delete domain._computed;
-      const sourceHits = matchSources(files, domain.sources, (file) => file.startsWith(`${hub}/`));
-      const contentHits = contentPaths(root, hub, domain.path);
+      const inputs = domainInputs(snap, hub, domain);
       const inBaseScope = changed === null
-        || sourceHits.some((entry) => changed.has(entry))
-        || contentHits.some((entry) => changed.has(entry));
+        || inputs.sources.some((entry) => changed.has(entry))
+        || inputs.contents.some((entry) => changed.has(entry));
       const drifted = domain.sourceDigest !== next.sourceDigest
         || domain.contentDigest !== next.contentDigest;
-      if (inBaseScope && (forceAll || drifted)) {
-        domain.sourceDigest = next.sourceDigest;
-        domain.contentDigest = next.contentDigest;
-        stamped += 1;
-      }
+      if ((!f['--only'] || domain.id === f['--only']) && inBaseScope && (forceAll || drifted)) wanted.push({ domain, next, inputs });
+    }
+    const attested = revs ? attestedIds(root, revs, relative, hub, wanted.map((entry) => entry.domain)) : null;
+    const stamps = wanted.filter((entry) => !attested || attested.has(entry.domain.id));
+    for (const { domain, next } of stamps) {
+      domain.sourceDigest = next.sourceDigest;
+      domain.contentDigest = next.contentDigest;
+    }
+    const stale = wanted.filter((entry) => !stamps.includes(entry)).map((entry) => entry.domain.id);
+    if (!f['--index'] && stamps.length) {
+      const unstaged = unstagedInputs(root, stamps.map((entry) => entry.inputs));
+      if (unstaged.length) console.error(`warn ${unstaged.length} unstaged path(s) fed these digests (${unstaged.slice(0, 3).join(', ')}${unstaged.length > 3 ? ', ...' : ''}); a commit takes the staged bytes, so stage them first or pass --index`);
     }
     atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`);
-    const scope = forceAll ? 'all' : (changed === null ? `${stamped} drifted` : `${stamped} changed vs ${f['--base']}`);
-    console.log(`ok documentation manifest synced (${manifest.domains.length} domains, ${scope})`);
+    const scope = forceAll ? 'all' : (changed === null ? `${stamps.length} ${revs ? 'attested' : 'drifted'}` : `${stamps.length} changed vs ${f['--base']}`);
+    console.log(`ok documentation manifest synced (${manifest.domains.length} domains, ${scope}${f['--only'] ? `, only ${f['--only']}` : ''}${f['--index'] ? ', index' : ''})`);
+    if (stale.length) console.log(`left stale, not attested at ${revs.join(', ')}: ${stale.join(', ')}`);
   } else if (command === 'check') {
     if (errors.length) die(`documentation manifest invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
     console.log(`ok documentation manifest (${manifest.domains.length} domains)`);
