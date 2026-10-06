@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.43.0
+- The implementation loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups.
+- The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry the touch-improve duty. Each report states, for each touched file, improved (what), none-in-scope (why), or net-negative (why).
+
 ## 2.42.2
 - The `conform` global scope now names the one authored source, `global-contracts/AGENTS.source.md`, and the three renders that `scripts/render-global-contracts.mjs` writes from it. Edit the source, render, then run `sync-global.mjs`.
 

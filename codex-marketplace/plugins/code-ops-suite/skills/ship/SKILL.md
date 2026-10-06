@@ -57,6 +57,10 @@ with a `deferred(<ceiling>, <upgrade path>)` marker. The mechanical floor under 
 range. It blocks only on an unrecorded dependency, and its other tells are leads. The report carries
 its added, removed, and net line counts, with a one-line reason when net lines are positive.
 
+Every brief carries the touch-improve rule (`§11`). The operative leaves each touched file better in
+modularity, performance, and quality. Its report states, for each touched file, one of: improved
+(what), none-in-scope (why), or net-negative (why).
+
 ## Phase 3: the proof
 
 Add tests that fail before the change and pass after it. Keep the full suite green. Run the

@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-09-18
+updated: 2026-10-06
 ---
 
 # Measurements
@@ -13,7 +13,9 @@ The source and granularity are host-qualified: Claude exposes per-message transc
 Codex exposes response usage in peer rollouts, and installed Grok 1.0.13 exposes cumulative
 per-prompt snapshots in `updates.jsonl`. OpenCode has no automatic transcript receipt. Reading
 supported local records costs no model tokens and nothing leaves the machine. A row without a
-receipt does not enter this page.
+receipt does not enter this page. A registration, such as the program metric registry below, fixes a
+metric's source, owner, baseline, and decision rule before a receipt exists. It carries no
+measured result of its own.
 
 Numbers age. Treat a row as true for the window it names and re-run the audit before acting on it.
 
@@ -114,7 +116,7 @@ instruction files and records this arm false. OpenCode has no ladder arm.
 
 The symbol index (`context-query.mjs`, hook `index-refresh.mjs`, switch `CODE_OPS_INDEX`) is the Workstream C arm. Its row compares sessions that answer a structural question through the query tool against sessions that read the map, on tool calls, tokens, and the context resident at session end, which is the metric codegraph loses on.
 
-## Pre-registered comparison, Phase 6
+## Pre-registered comparison, digest, index, and ladder card
 
 Every receipt row records which mechanisms the session ran under, in `arms`, each on unless its
 switch said off, and the
@@ -588,3 +590,234 @@ Review never steps below medium. A level that loses recall on either run is disc
 table's rows are rewritten from the receipts, with the run receipts cited, and the conventions'
 routing sentence is edited in the same commit. The sweep has not been run for the current lead
 model, and the table stands on the previous generation's runs until it is.
+
+## Program metric registry, 2026-10-06
+
+This is the single registration of every metric the code-ops program redesign judges itself by.
+Each entry names its data source, owner, baseline, and decision rule. The registration happens
+before the changes ship, so no later number is invented or moved. Item ids refer to the checklist in
+the run folder `80 Runs/2026-10-06-program-redesign/PLAN.md` (local, gitignored).
+
+Four rules bind every entry:
+
+- **No invented targets.** A decision rule that needs a threshold not yet measured reads "set
+  from" a named measurement. That measurement happens before the change ships.
+- **Baselines cite their report.** Each baseline names its run-folder report, window, and sample
+  size. The reports are local and gitignored. They live in `80 Runs/2026-10-07-program-build/reports/`
+  and `80 Runs/2026-10-06-program-redesign/reports/`.
+- **Amend, never edit in place.** A change to a rule or baseline goes in a dated amendment under
+  its entry.
+- **The owner is the plan item's role.** The owner reads the metric and acts on its rule. The
+  lead keeps acceptance.
+
+### CI cost
+
+**CI wall time per job.**
+
+- **Source and owner.** Job `completed_at` minus `started_at` for every job of `validate.yml`,
+  from `gh api repos/skylarsabo/code-ops/actions/runs/<id>/jobs`. Queue time is excluded. The
+  explorer measures it (P0-M1). The implementer acts on it (P6-M1, P6-Rebalance).
+- **Baseline.** Report D-002, 8 successful `pull_request` runs, 2026-10-01 to 2026-10-06. The
+  critical path is `structural-lint-windows-shard-1` at a 285 s median (244 to 326 s). Its
+  neighbors are Windows shard-4 at 217.5 s, shard-5 at 161.5 s, and shard-2 at 121 s. Ubuntu shard
+  medians run 103.5 to 126 s. Windows shard-3 has a 24.5 s median and a 591 s maximum, from one run
+  where the record-collection eval took 571 s. `host-evals-macos` is skipped on pull requests, so
+  macOS has no sample.
+- **Decision rule.** P6-Rebalance holds when every Windows job stays within the per-job target set
+  from the P6 profile over repeated runs. A run with an outlier step is reported with its step, and
+  it is not dropped from the sample.
+
+**Billed CI minutes per platform.**
+
+- **Source and owner.** The same job records. Billed minutes are each job rounded up to a whole
+  minute, times the platform multiplier. The implementer derives them (P6-Rebalance) in
+  `.github/ci-budgets.json`.
+- **Baseline.** Report D-002, same 8 runs. The median is 39 weighted minutes per run, from 38 to
+  60. Windows carries about 75 to 80 percent of it. The multipliers (Ubuntu x1, Windows x2) and
+  the rounding rule are **UNVERIFIED**, because D-002 did not fetch them from GitHub documentation.
+- **Decision rule.** Verify the multipliers against GitHub documentation before any billed-minute
+  figure drives a decision. After that, P6-Rebalance holds when weighted minutes per run do not
+  exceed the baseline median. The target is set from the P6 profile.
+
+**Record-collections spawn count.**
+
+- **Source and owner.** The spawn counter that P6-M2 adds to `evals/record-collections/run.mjs`,
+  read per platform. The implementer owns it (P6-M2, P6-RecordFix).
+- **Baseline.** Set from the P6 profile (P6-M2). No spawn count exists yet. The one related
+  observation is the step time in Windows shard-3: 571 s in one run and 16 to 40 s in the other 7
+  (report D-002).
+- **Decision rule.** P6-RecordFix holds when the spawn count falls below the P6-M2 baseline, the
+  `ok` line list is identical, and Windows and Ubuntu pass with the same coverage.
+
+### Report legibility and links
+
+**Operative report anchor density.**
+
+- **Source and owner.** The share of bullet findings of at least four words, outside code fences,
+  that match `REF_RE` (`scripts/citation-lib.mjs:30`), per report. The match checks form and does
+  not check that the anchor resolves. The explorer measures it (P0-M2). The implementer acts on it
+  (P5-U1-Cost).
+- **Baseline.** Report D-003, the 40 newest reports of 2026-10-01 to 2026-10-06, of which 36 hold
+  findings. Pooled, 231 of 889 findings are anchored (26.0 percent). The per-report distribution
+  is minimum 0.0, first quartile 8.2, median 22.1, third quartile 36.6, maximum 60.7 percent. 7 of
+  36 reports have no anchored finding. One run dominates the sample, so it may not represent older
+  reports.
+- **Decision rule.** The P5-U1-Cost advisory stays when the per-report median share rises against
+  the baseline in reports written after it ships, with no rise in reports that have zero anchored
+  findings. The size of the rise needed is set from the baseline distribution before the advisory
+  becomes anything stronger than a note.
+
+**File:line link adoption.**
+
+- **Source and owner.** The share of file references in operative reports and final replies written
+  as `[name](repo-relative/path:line)`, against bare anchors. The link form is pinned at
+  `evals/lint-plugins/run.mjs:106`. The implementer owns it (P5-U2-Links).
+- **Baseline.** Not yet measured. It is measured on the report sample of D-003 before the standard
+  ships.
+- **Decision rule.** The standard stays when the link share of anchors rises in reports written
+  after it ships. The size of the rise is set from the pre-ship measurement.
+
+**Docs-standards alignment.**
+
+- **Source and owner.** The count of standards that no other standard cross-references, from
+  `scripts/check-docs-standards-alignment.mjs`. The reviewer owns it (P8-U5-Org).
+- **Baseline.** Set by the first run of that check across every standard. The check does not exist
+  yet.
+- **Decision rule.** The check fails closed. A new standard with no cross-reference fails it, and no
+  threshold applies.
+
+### Direction and context
+
+**Circling.**
+
+- **Source and owner.** `git log` on `main` and the `RUN_LOG.md` and `TASKS.md` files under
+  `80 Runs/`. The explorer measures it (P0-M3). The implementer turns it into `co churn`
+  (P4-U1-Dir).
+- **Baseline.** Report D-009, `origin/main` at `3c1fa907`, 2026-09-06 to 2026-10-06, 292 commits.
+  The primary measures are two. Fix-of-fix commits per merged PR: 61 PRs, median 0, maximum 3, 22
+  commits, and 18 PRs with one or more. Reverts: 0 of 292 commits. Three digest restamp PRs top the
+  fix-of-fix list, which is the class DS-3 automates.
+- **Secondary measures.** The re-fix rate is 115 of 144 commits (79.9 percent), **PROBABLE**. It
+  enters a decision only after a run over 2026-08-06 to 2026-09-05 supplies a comparison. The
+  reopened-id proxy is 31 of 82 ids, an upper bound, **SPECULATIVE**, because ids repeat across
+  programs. Repeated `Next:` lines are 0 of 86 across 6 files, which gives no signal. Report
+  D-003 measured carry age in handoff hops. D-009 supersedes that measure.
+- **Decision rule.** The median is 0, so read the count of PRs with at least one fix-of-fix commit,
+  18 of 61. DS-3 (P1-D3) holds when that count falls against the baseline over a window that starts
+  after it lands. A revert is reported in every window. The re-fix rate and the reopened-id proxy
+  take no part in a decision until their comparison runs.
+
+**Compaction fidelity.**
+
+- **Source and owner.** Two readings. First, handoff fields that survive a simulated compaction,
+  from the parity case in `evals/compact-snapshot`. Second, the stale and partial snapshot rate:
+  the `COMPACT_SNAPSHOT.md` header against the transcript boundary rows, through `snapshotState`
+  in `scripts/compact-snapshot.mjs`. The implementer owns it (P7-U5-Compact).
+- **Baseline.** Set by the P7-U5-Compact eval and the first live compaction. No rate exists. Two
+  observations exist and neither is a rate. On 2026-09-30 one session named every active item,
+  constraint, and running agent after a compact, with agent ids missing (n=1). On 2026-10-06 one
+  card printed STALE for a fresh snapshot (report D-008). The probable cause is a race in
+  `routing-card.mjs:266`, where SessionStart read the transcript before the host wrote the
+  boundary row.
+- **Decision rule.** P7-U5-Compact holds when every handoff field survives the simulated
+  compaction and the race and partial cases pass. A false STALE card counts as a failure in every
+  window. The live rate threshold is set from the first live compactions after the change ships.
+
+**Ceiling breach rate.**
+
+- **Source and owner.** `node scripts/context-audit.mjs --all`: the share of lead input tokens on
+  turns above 300,000 tokens, the count of lead turns above 600,000, and compactions and handoffs
+  per session. The maintainer owns it (P10-CtxCeiling).
+- **Baseline.** The existing figures in the section "Pre-registered: context ceiling and wide-type
+  deny" and in the handoff point baseline. The 10-day audit counted 2.68 billion of 3.69 billion
+  lead input tokens above 300,000 and 1,942 lead turns above 600,000. The later 72-hour window
+  put 19 percent of lead input above 300,000. The windows differ, so no trend is read from them.
+- **Decision rule.** The decision rule of that section applies unchanged. P10-CtxCeiling chooses the
+  ceiling value from the measured band distribution, and the operator approves the value.
+
+**Tokens re-read per operative.**
+
+- **Source and owner.** `repeatReads` from `scripts/context-audit.mjs`: characters re-read from a
+  path already read in the same thread, split by operative thread. The maintainer owns it.
+- **Baseline.** The all-thread figure from 2026-06-23 to 2026-09-02, in the baseline section above:
+  152 paths read more than once, 207 extra reads, and 1,099,139 characters. It mixes leads and
+  operatives and counts characters, not tokens. The per-operative split is not measured.
+- **Decision rule.** A lever that claims fewer re-reads holds when re-read characters per
+  operative thread fall against the per-operative baseline with the correctness gates green. The
+  size of the fall needed is set from that baseline before the lever ships.
+
+### Guard and workflow
+
+**Workflow contract-line adoption.**
+
+- **Source and owner.** The share of Workflow dispatches whose brief carries the Run-contract
+  line. The source is the advisory in `dispatch-guard.mjs` and the compliance export of
+  `scripts/context-audit.mjs`. The implementer owns it (P2-DS4PR2, P2-DS4PR4).
+- **Baseline.** Not measured. The advisory does not exist yet. The first compliance counts are the
+  baseline.
+- **Decision rule.** The advisory ships with no probe dependency and never denies. A flip to deny
+  waits on the P2-DS4P0 probe and decision-log evidence, and the operator decides. The adoption
+  threshold for that flip is set from the first compliance counts.
+
+**Guard denial rate.**
+
+- **Source and owner.** Denials divided by decisions, per guard rule, from the decision rows that
+  `dispatch-guard.mjs` emits. The rows hold counts and no brief text. The implementer owns it
+  (P2-DS4PR1).
+- **Baseline.** Not measured. No decision rows exist before P2-DS4PR1.
+- **Decision rule.** This rate feeds the decision rules already registered for the dispatch guard
+  and the context ceiling above. A threshold that those rules leave open is set from the first
+  window of decision rows.
+
+**Decision log counts.**
+
+- **Source and owner.** The permanent counts row that `pruneOldDecisions` and `writeSummaryRow` in
+  `scripts/context-audit.mjs` write. The implementer owns it (P2b-DecisionLog30d).
+- **Baseline.** None yet. The first counts row lands in this section with P2b-DecisionLog30d.
+- **Decision rule.** Rows older than 30 days are deleted. The counts row is written first and holds
+  no text. The counts match before and after the deletion, and no copy of the deleted text remains.
+
+**M5 ratchet counts.**
+
+- **Source and owner.** `scripts/ratchet-cli.mjs` counts `fail()` sites and eval coverage. The
+  counts are stored in `.github/ratchet-baseline.json`. The implementer owns it (P2-DS4PR5).
+- **Baseline.** Set at creation of `.github/ratchet-baseline.json`. That file does not exist yet.
+- **Decision rule.** The CI step "M5 gate ratchet" fails when a count falls below the stored
+  baseline. A lower count enters only through a reviewed edit of the baseline file.
+
+### Quality ratchet
+
+**R1 lapse rate.**
+
+- **Source and owner.** The share of dispatched units whose report shows no R1 verdict, or shows a
+  net-negative touched-file delta without a reason. The sources are the M7 self-audit R1 verdicts
+  (P2-DS4PR5, P3-U3-QR) and the `scan-overbuild.mjs` advisory (P3-U2-QR). The maintainer owns it.
+- **Baseline.** Not measured. No R1 verdict exists before P0-R1 lands. The first window after it
+  is the baseline.
+- **Decision rule.** R1 is unconditional with no threshold, so every lapse is a finding. The rate
+  decides whether the P3-U1-QR examples and the P3-U2-QR advisory stay. They stay when the rate
+  falls against the window before them.
+
+**Code-standard violations.**
+
+- **Source and owner.** Hits per merged PR from `scripts/scan-overbuild.mjs` on changed files,
+  beside `lint-plugins.mjs` failures. The maintainer owns it (R2).
+- **Baseline.** Not measured. It is set by running `scan-overbuild.mjs` over the D-009 window,
+  2026-09-06 to 2026-10-06, before any rule reads it.
+- **Decision rule.** The gates stay binary and are never weakened. This count informs only. A rise
+  in hits per merged PR after a doctrine change goes to the operator.
+
+### Documentation
+
+**Redundancy baseline.**
+
+- **Source and owner.** Redundant words and passages across authored docs and `CONVENTIONS.md`
+  files. The tool is `scripts/check-duplication.mjs` (P8-U1-Org). The explorer records it
+  (P8-U2-Org).
+- **Baseline.** Report D-016, re-run on the refutation: 9,103 redundant words in 65 passages,
+  **CONFIRMED**. It excludes two superseded design documents, "Docs state and history" and the
+  handoff fidelity design, as D-016 names them. The remaining classes are the `CONVENTIONS.md` pinned blocks,
+  the global-contract overlap, and the 12-skill 52-word stanza. The earlier figure of 15,872
+  words is superseded.
+- **Decision rule.** P8-U2-Org first reproduces 9,103 with `check-duplication.mjs`. The target is
+  set from that reproduction. A fall counts only when the pinned passages stay byte-identical.
