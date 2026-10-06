@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.42.1
+- `docs-manifest.mjs sync` stamps digests only for domains that drifted, so parallel feature PRs stop colliding on the whole `DOCS_MANIFEST.json` digest table. Pass `--base <ref>` to further limit stamping to domains whose sources or content paths differ from that ref; pass `--all` to restamp every domain.
+- `integrate-branch.mjs` runs `docs-manifest.mjs sync --base <ref>` so the normal integrate path stays scoped.
+
 ## 2.42.0
 - On Grok, the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window. At 150,000 tokens the handoff card checkpoints and waits for that compact.
 - A typed prompt past 200,000 tokens stays blocked until `/compact`, a handoff command, or a live `Continue-until:` bound, because that compact did not run.

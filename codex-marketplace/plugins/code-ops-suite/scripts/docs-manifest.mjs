@@ -24,12 +24,13 @@ const LEGACY_KEYS_REMOVED = new Set(['path', 'disposition', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>]', 2); }
+function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>] [--base <ref>] [--all]', 2); }
 function flags(args) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
     const key = args[i];
-    if (!['--root', '--out'].includes(key) || out[key]) usage();
+    if (key === '--all') { if (out[key]) usage(); out[key] = true; continue; }
+    if (!['--root', '--out', '--base'].includes(key) || out[key]) usage();
     const value = args[++i];
     if (!value || value.startsWith('--')) usage();
     out[key] = value;
@@ -244,8 +245,37 @@ if (isEntry) {
   const structuralErrors = errors.filter((error) => !digestDrift.test(error));
   if (command === 'sync') {
     if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
-    for (const domain of manifest.domains) { domain.sourceDigest = domain._computed.sourceDigest; domain.contentDigest = domain._computed.contentDigest; delete domain._computed; }
-    atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`); console.log(`ok documentation manifest synced (${manifest.domains.length} domains)`);
+    // Stamp digests only where they drift. Unrelated domains keep their existing
+    // lines so parallel feature PRs stop colliding on the whole DOCS_MANIFEST.json.
+    // Pass --base <ref> to further limit stamping to domains whose sources or
+    // content paths differ from that ref (plus untracked files). Pass --all to
+    // restamp every domain even when digests already match.
+    const files = repoFiles(root);
+    const changed = f['--base']
+      ? new Set([...gitPaths(root, ['diff', '--name-only', '-z', f['--base'], '--']),
+                 ...gitPaths(root, ['ls-files', '--others', '--exclude-standard', '-z'])])
+      : null;
+    const forceAll = Boolean(f['--all']);
+    let stamped = 0;
+    for (const domain of manifest.domains) {
+      const next = domain._computed;
+      delete domain._computed;
+      const sourceHits = matchSources(files, domain.sources, (file) => file.startsWith(`${hub}/`));
+      const contentHits = contentPaths(root, hub, domain.path);
+      const inBaseScope = changed === null
+        || sourceHits.some((entry) => changed.has(entry))
+        || contentHits.some((entry) => changed.has(entry));
+      const drifted = domain.sourceDigest !== next.sourceDigest
+        || domain.contentDigest !== next.contentDigest;
+      if (inBaseScope && (forceAll || drifted)) {
+        domain.sourceDigest = next.sourceDigest;
+        domain.contentDigest = next.contentDigest;
+        stamped += 1;
+      }
+    }
+    atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    const scope = forceAll ? 'all' : (changed === null ? `${stamped} drifted` : `${stamped} changed vs ${f['--base']}`);
+    console.log(`ok documentation manifest synced (${manifest.domains.length} domains, ${scope})`);
   } else if (command === 'check') {
     if (errors.length) die(`documentation manifest invalid:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
     console.log(`ok documentation manifest (${manifest.domains.length} domains)`);

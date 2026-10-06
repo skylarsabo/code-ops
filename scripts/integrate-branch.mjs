@@ -22,7 +22,7 @@
 //      in write mode.
 //   3. Documentation manifest: first `docs-relocate.mjs forward --base <ref>` when the manifest is
 //      version 3, names a `removed` legacy root, and FORWARDING.json exists (no other repository sees
-//      it); then docs-manifest.mjs sync, then check, then `docs-gate.mjs --check` when the manifest
+//      it); then docs-manifest.mjs sync --base <ref> (drift-only stamp), then check, then `docs-gate.mjs --check` when the manifest
 //      is version 3. The gate never writes its baseline and never seals.
 //   4. Atlas freshness for this repo's own atlas (read-only). A stale section is a pending
 //      judgment item - this script prints the section and the stamp command and never stamps it;
@@ -282,7 +282,7 @@ function runBuildStep(log) {
 function runDocsStep(log, base) {
   const forward = runRelocateForwardStep(log, base);
   const script = join(ROOT, 'scripts', 'docs-manifest.mjs');
-  const a = runNode([script, 'sync'], { label: 'docs-manifest.mjs sync', log });
+  const a = runNode([script, 'sync', '--base', base], { label: 'docs-manifest.mjs sync --base', log });
   const b = runNode([script, 'check'], { label: 'docs-manifest.mjs check', log });
   const c = runDocsGateStep(log);
   return forward && a.ok && b.ok && c;
