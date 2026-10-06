@@ -1,0 +1,49 @@
+#!/bin/sh
+# After a rebase, restamp the documentation manifest. A rebase runs no merge driver and no merge
+# commit, so a manifest that main moved under the branch can end up stale in the rewritten tip.
+# scripts/derived-merge.mjs rewrite restamps each domain that both the old tip and the new base
+# already carried correct digests for, stages only the manifest, and with --amend folds it into the
+# tip without running hooks. A domain the branch never stamped stays stale, and CI still refuses it.
+#
+# $1 is rebase or amend. git sends one "<old sha> <new sha>" line per rewritten commit on stdin.
+# The old tip is ORIG_HEAD. The new base is the parent of the one rewritten commit whose parent is
+# not itself rewritten. Any shape this cannot name with certainty, such as a rebase that keeps merge
+# commits, is left alone and the exact command is printed. A post hook cannot abort the rebase, so
+# this always exits 0.
+#
+# CODE_OPS_DIGEST_AUTOFIX=off (or 0, or false) turns it off.
+[ "${1:-}" = "rebase" ] || exit 0
+case "$(printf '%s' "${CODE_OPS_DIGEST_AUTOFIX:-}" | tr 'A-Z' 'a-z')" in
+  off|0|false) exit 0 ;;
+esac
+command -v node >/dev/null 2>&1 || exit 0
+repo_root="$(git rev-parse --show-toplevel)" || exit 0
+cd "$repo_root" || exit 0
+[ -f scripts/derived-merge.mjs ] || exit 0
+
+new_shas="$(awk 'NF >= 2 && $2 !~ /^0+$/ { print $2 }' | awk '!seen[$0]++')"
+[ -n "$new_shas" ] || exit 0
+new_tip="$(printf '%s\n' "$new_shas" | tail -n 1)"
+old_tip="$(git rev-parse --verify --quiet 'ORIG_HEAD^{commit}')" || exit 0
+
+roots=''
+for sha in $new_shas; do
+  parent="$(git rev-parse --verify --quiet "$sha^" || true)"
+  case " $(printf '%s ' $new_shas)" in
+    *" $parent "*) ;;
+    *) roots="$roots $sha" ;;
+  esac
+done
+set -- $roots
+if [ "$#" -ne 1 ]; then
+  echo "note: the rebase rewrote commits in a shape the digest restamp cannot place, so the manifest was not restamped. Check it with: node scripts/docs-manifest.mjs check --index" >&2
+  exit 0
+fi
+base="$(git rev-parse --verify --quiet "$1^")" || exit 0
+
+if [ "$(git rev-parse HEAD)" != "$new_tip" ]; then
+  echo "note: HEAD is not the last rewritten commit, so the manifest was not restamped. Run: node scripts/derived-merge.mjs rewrite --old $old_tip --base $base --amend" >&2
+  exit 0
+fi
+node scripts/derived-merge.mjs rewrite --old "$old_tip" --base "$base" --amend >&2 || true
+exit 0
