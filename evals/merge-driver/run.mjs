@@ -32,6 +32,8 @@ const node = (cwd, ...args) => {
   return { status: result.status ?? 1, out: `${result.stdout || ''}${result.stderr || ''}`.trim() };
 };
 const put = (repo, path, text) => { mkdirSync(resolve(repo, path, '..'), { recursive: true }); writeFileSync(join(repo, path), text); };
+// A repository that commits has a committer. The hooks run under the caller's git, but a direct call to derived-merge.mjs reads this.
+const setIdentity = (repo) => { git(repo, 'config', 'user.email', 'eval@example.com'); git(repo, 'config', 'user.name', 'Eval'); };
 const read = (repo, path) => readFileSync(join(repo, path), 'utf8');
 const commit = (repo, message) => { git(repo, 'add', '-A'); return git(repo, 'commit', '--no-verify', '-qm', message); };
 const manifestCheck = (repo) => node(repo, 'scripts/docs-manifest.mjs', 'check');
@@ -64,6 +66,7 @@ function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts'), spl
   put(repo, ATLAS_MANIFEST, '{\n  "stamp": "base"\n}\n');
   put(repo, INTAKE, '{"line":"base"}\n');
   git(repo, 'init', '-q', '-b', 'main');
+  setIdentity(repo);
   node(repo, 'scripts/docs-manifest.mjs', 'sync');
   commit(repo, 'seed');
   if (install) node(repo, 'scripts/install-git-hooks.mjs');
@@ -173,6 +176,7 @@ function atlasFixture(name, { hooksDir = join(ROOT, '.githooks') } = {}) {
       : { id, path: `40 Engineering/${id}.md`, status: 'current', sources: ['src/**'], sourceDigest: '', contentDigest: '' })),
   }, null, 2)}\n`);
   git(repo, 'init', '-q', '-b', 'main');
+  setIdentity(repo);
   node(repo, 'scripts/docs-manifest.mjs', 'sync');
   commit(repo, 'seed');
   node(repo, 'scripts/install-git-hooks.mjs');

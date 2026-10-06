@@ -320,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
+      "verifiedAt": "122e80f31ee05a0733ebe919817b25e88905bcd7",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -783,7 +783,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "457708c76d48ac0dd17c69de4c5d7fb7dda054c4468d6147a767b9a0070e6cb6"
+      "verifiedDigest": "aa68cca647948f714b5ea4d7b26de7f9114fdf8d2e19f90a58b3bc146ab8c8a6"
     },
     {
       "slug": "evals-and-calibration",
@@ -791,8 +791,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
-      "verifiedDigest": "3191ffc16dffabc9e7d1f0253015a4ffbf5f3ec984accce356da775a978d31d2",
+      "verifiedAt": "122e80f31ee05a0733ebe919817b25e88905bcd7",
+      "verifiedDigest": "e2efd5b95e2d89215487050aa9f16400d736cab901a693e0f735f64aee1f708a",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -841,12 +841,12 @@
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 132,
+          "line": 135,
           "anchor": "// The hook scenarios (S3, S4, S6, S7, S9) run the real hooks. This repository h"
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 616,
+          "line": 620,
           "anchor": "// 14. Mutants for the hooks. Each broken hook must fail the scenario that guard"
         },
         {
