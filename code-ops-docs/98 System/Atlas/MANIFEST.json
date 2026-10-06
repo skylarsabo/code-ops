@@ -320,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
+      "verifiedAt": "3e48f6b57fb8f0aeba72893ad0b1a1537aed4b52",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -329,13 +329,18 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 873,
+          "line": 902,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1556,
+          "line": 1585,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 446,
+          "anchor": "function checkScriptDomains() {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -783,7 +788,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "536e559306bff132bca8410228b48627e2f8c5f9d868f7c9e2cc7f11ba83ba62"
+      "verifiedDigest": "818d18fffd392c8a0a16854cb7898439ba8435d2cb69463e6ee6e802bc757df3"
     },
     {
       "slug": "evals-and-calibration",
@@ -791,8 +796,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
-      "verifiedDigest": "d2b939c61cc21f6af2247c022a1e299b4c14bf91def51dcc47a9cddb9c878935",
+      "verifiedAt": "3e48f6b57fb8f0aeba72893ad0b1a1537aed4b52",
+      "verifiedDigest": "24056f4cf9483ff53c46fdd2509f3e066fd18222fc6810b1c351cec46448b157",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
