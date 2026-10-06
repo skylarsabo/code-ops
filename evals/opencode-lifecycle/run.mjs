@@ -505,6 +505,17 @@ expect(pendingHandoffs(bare).length === 3, 'pickup must list at most 3 pending h
   const parsedLog = readRunLog(run);
   expect(parsedLog.grants[0] === grant && parsedLog.decisions.length === 6 && parsedLog.next === 'node evals/opencode-lifecycle/run.mjs' && parsedLog.flight.join('|') === 'scripts/c.mjs:7 partial',
     `the snapshot parser and the push disagree on the fixture: ${JSON.stringify(parsedLog)}`);
+  // The secret-shape floor and the colon outside the bold (**Decision**:). The secrets are built at run time so no literal sits in the repo.
+  const secrets = { aws: `AKIA${'IOSFODNN7EXAMPLE'}`, bearer: 't'.repeat(30), key: 'k'.repeat(12), pat: `github_pat_${'B'.repeat(30)}`, pem: '-----BEGIN RSA PRIVATE KEY-----', gh: `ghp_${'C'.repeat(36)}` };
+  writeFileSync(join(run, 'TASKS.md'), ['# Tasks', `- [ ] OI-50 paste ${secrets.pem} here`, `- [ ] OI-51 token=${secrets.key} rotate`].join('\n'));
+  writeFileSync(join(run, 'RUN_LOG.md'), ['# Run log', `**Decision**: DEC-1 rotate ${secrets.aws} today`, `- **Grant**: allowed with Bearer ${secrets.bearer} header`,
+    `**In flight**: src/a.js:1 api_key=${secrets.key} partial`, `Next: run with ${secrets.pat} and ${secrets.gh}`, ''].join('\n'));
+  const masked = await compact(compactHooks, 'cc-1');
+  const maskedLines = masked.split('\n');
+  expect(Object.values(secrets).every((s) => !masked.includes(s)) && !masked.includes('t'.repeat(30)), `a secret shape reached the push: ${masked.slice(-900)}`);
+  expect(maskedLines.includes('DEC-1 rotate <REDACTED:secret> today') && maskedLines.includes('allowed with <REDACTED:secret> header') && maskedLines.includes('src/a.js:1 <REDACTED:secret> partial')
+    && maskedLines.includes('Next: run with <REDACTED:secret> and <REDACTED:secret>') && maskedLines.includes('OI-50 paste <REDACTED:secret> here') && maskedLines.includes('OI-51 <REDACTED:secret> rotate'),
+    `the push did not mask each secret shape in place, or missed the **Decision**: form: ${masked.slice(-900)}`);
   rmSync(join(run, 'RUN_LOG.md'));
   expect(!(await compact(compactHooks, 'cc-1')).includes('RUN_LOG.md'), 'a run folder with no RUN_LOG.md still pushed tag lines');
   // Fail open: an unknown session, a corrupt SESSION.json, and a context that is not a list push nothing extra and never throw.

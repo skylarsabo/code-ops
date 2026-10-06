@@ -654,10 +654,10 @@ try {
   // the tag parser
   const logDir = join(tmp, 'taglog');
   mkdirSync(logDir, { recursive: true });
-  writeFileSync(join(logDir, 'RUN_LOG.md'), ['See Decision: not at line start', '- **Grant:** one', '* Grant: two', 'Grant: one', 'Decision: d1', 'Decision: d1', 'In flight: a:1', 'In flight: b:2', 'In flight: none.', 'In flight: c:3', 'Next: first', 'Next: second', 'Decision:', 'Decision:no space'].join('\r\n'));
+  writeFileSync(join(logDir, 'RUN_LOG.md'), ['See Decision: not at line start', '- **Grant:** one', '* Grant: two', 'Grant: one', 'Decision: d1', 'Decision: d1', 'In flight: a:1', 'In flight: b:2', 'In flight: none.', 'In flight: c:3', 'Next: first', 'Next: second', 'Decision:', 'Decision:no space', '- **Decision**: d2', '**Grant**: three', '**In flight**: c:4', '**Next**: third'].join('\r\n'));
   const parsed = readRunLog(logDir);
-  check('9q. the tag parser: bullets and bold match, CRLF is fine, duplicates keep their first place, In flight: none clears, the last Next wins, a mid-line tag is ignored',
-    JSON.stringify(parsed) === JSON.stringify({ decisions: ['d1', 'no space'], grants: ['one', 'two'], flight: ['c:3'], next: 'second' }), JSON.stringify(parsed));
+  check('9q. the tag parser: bullets and bold match with the colon inside or outside the bold, CRLF is fine, duplicates keep their first place, In flight: none clears, the last Next wins, a mid-line tag is ignored',
+    JSON.stringify(parsed) === JSON.stringify({ decisions: ['d1', 'no space', 'd2'], grants: ['one', 'two', 'three'], flight: ['c:3', 'c:4'], next: 'third' }), JSON.stringify(parsed));
   check('9r. a missing RUN_LOG.md reads as null and the builder renders none in each new section without going partial',
     readRunLog(join(tmp, 'no-such-log-dir')) === null && (() => { const b2 = buildSnapshot({ conversation: manyWords, running: [], items: { total: 0, lines: [] }, runLog: null, runFolder: 'r', now, sessionId: SID, mask: id }); return b2.status === 'complete' && /## Authority grants \(0, verbatim, RUN_LOG\.md\)\nnone\n/.test(b2.text); })());
 
@@ -675,6 +675,12 @@ try {
   check('9t. never cut: every grant and the next command stay whole, the newest decisions keep their ids, and the run path stays',
     bigLog.grants.every((g) => big.text.includes(`- ${g}\n`)) && big.text.includes(`- ${bigLog.next}\n`) && shownIds.includes('DEC-30') && shownIds.length >= 6 && big.text.includes('Run: 80 Runs/big') && manyAgents.every((a) => big.text.includes(a.agent_id)), `${shownIds.join(',')}`);
   check('9u. decision text cuts before older decisions drop, and the newest in-flight line survives', /^- DEC-30 [^\n]*…$/m.test(big.text) && big.text.includes('src/file7.mjs:17-47'), big.text.slice(-1500));
+  // 40 grants of 590 characters (24,000 characters uncut) must not push the file past the total budget.
+  const grantFlood = Array.from({ length: 40 }, (_, i) => `G-${String(i + 1).padStart(2, '0')} ${'g'.repeat(586)}`);
+  const flood = buildSnapshot({ conversation: manyWords, running: manyAgents, items: items(16, 200), runLog: { ...bigLog, grants: grantFlood }, runFolder: '80 Runs/big', now, sessionId: SID, mask: id });
+  check('9s2. 40 long grants stay within 12,000 characters: the newest grants stay within 800, one line counts the older ones, and the next command and Run: line stay',
+    flood.chars <= BUDGET.total && !flood.overBudget && /^- \d+ older grants in RUN_LOG\.md$/m.test(flood.text) && flood.text.includes('- G-40 ') && !flood.text.includes('- G-01 ')
+    && /## Authority grants \(1 of 40 shown, verbatim, RUN_LOG\.md\)\n- 39 older grants in RUN_LOG\.md\n/.test(flood.text) && flood.text.includes(`- ${bigLog.next}\n`) && flood.text.includes('Run: 80 Runs/big') && /grants 40,/.test(flood.text), `${flood.chars}`);
   const maskOff = buildSnapshot({ conversation: null, running: [], items: null, runLog: bigLog, now, sessionId: SID, mask: () => { throw new Error('scanner down'); } });
   check('9v. a failing mask withholds grants and the next command rather than writing them raw', !maskOff.text.includes('verbatim words') && !maskOff.text.includes('long-command') && (maskOff.text.match(/\[withheld: masking failed\]/g) ?? []).length >= 7, maskOff.text.slice(0, 200));
 

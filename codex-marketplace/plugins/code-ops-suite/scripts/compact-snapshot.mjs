@@ -21,8 +21,9 @@
 // Truncation, when a section or the total runs over: stub older operator messages (never one of 80
 // characters or fewer, never an answer), then cut item lines, then drop quiet peers, then cut
 // running-work descriptions, then cut decision text, then drop older in-flight lines. Ids, report
-// paths, reply-owed peers, authority grants, the next command, and the run folder path are never
-// cut. The parsing lives in conversationOf() (transcript-lib.mjs); running agents come live from the
+// paths, reply-owed peers, the next command, and the run folder path are never cut. Authority grants
+// stay whole while the snapshot fits; past the total budget, the newest grants stay within their 800
+// characters (at least one) and one line counts the older ones in RUN_LOG.md. The parsing lives in conversationOf() (transcript-lib.mjs); running agents come live from the
 // agent ledger, so a snapshot cannot show a stale agent state.
 //
 // SAFETY. (1) The write is a temporary file renamed over the target. (2) The header records the
@@ -72,7 +73,8 @@ const TASKS_BYTES = 65_536;
 const LOG_BYTES = 1_048_576;
 const RUN_SCAN = 200;
 const WITHHELD = '[withheld: masking failed]';
-const TAG_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?(Decision|Grant|In flight|Next):(?:\*\*)?[ \t]*(\S.*)$/;
+// The colon may sit inside the bold (`**Decision:**`) or outside it (`**Decision**:`).
+const TAG_LINE = /^[ \t]*(?:[-*][ \t]+)?(?:\*\*)?(Decision|Grant|In flight|Next)(?::(?:\*\*)?|\*\*:)[ \t]*(\S.*)$/;
 
 // The ONE list of what a compaction snapshot carries, keyed to the handoff fields it stands in for
 // (the `## Write` bullets of the handoff skill). `tag` is the RUN_LOG.md line prefix that feeds the
@@ -195,7 +197,7 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
   itemLines.forEach((i) => { i.body = masked[at++]; });
   [decisions, grants, flight, nextLine].forEach((list) => list.forEach((e) => { e.body = masked[at++]; }));
 
-  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length, decisionCut: DECISION_STEPS[0], decisionShown: decisions.length, flightCut: FLIGHT_STEPS[0], flightShown: flight.length };
+  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length, decisionCut: DECISION_STEPS[0], decisionShown: decisions.length, flightCut: FLIGHT_STEPS[0], flightShown: flight.length, grantShown: grants.length };
   // A grant or the next command is capped at the source, never by the truncation passes.
   const capped = (body) => (body.length <= TAG_CAP ? body : `${body.slice(0, 450)} [${body.length - 550} chars omitted, RUN_LOG.md] ${body.slice(-100)}`);
   const tagLine = (e, cut) => `- ${e.body === null ? WITHHELD : cut ? cutTo(e.body, cut) : capped(e.body)}`;
@@ -220,7 +222,10 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
       ...(state.quietShown < quiet.length ? [`- (${quiet.length - state.quietShown} more quiet not shown)`] : []),
     ]),
     decisions: section(`Decisions (${state.decisionShown} of ${log.decisions.length} shown, RUN_LOG.md)`, decisions.slice(decisions.length - state.decisionShown).map((d) => tagLine(d, state.decisionCut))),
-    grants: section(`Authority grants (${grants.length}, verbatim, RUN_LOG.md)`, grants.map((g) => tagLine(g, 0))),
+    grants: section(`Authority grants (${state.grantShown < grants.length ? `${state.grantShown} of ${grants.length} shown` : grants.length}, verbatim, RUN_LOG.md)`, [
+      ...(state.grantShown < grants.length ? [`- ${grants.length - state.grantShown} older grant${grants.length - state.grantShown === 1 ? '' : 's'} in RUN_LOG.md`] : []),
+      ...grants.slice(grants.length - state.grantShown).map((g) => tagLine(g, 0)),
+    ]),
     flight: section(`In flight (${state.flightShown} of ${log.flight.length} shown, RUN_LOG.md)`, flight.slice(flight.length - state.flightShown).map((f) => tagLine(f, state.flightCut))),
     next: section('Next command (latest Next: line, RUN_LOG.md)', nextLine.map((n) => tagLine(n, 0))),
   });
@@ -254,6 +259,10 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
   // Pass one takes each section to its own budget, pass two the total, both in the truncation order.
   for (const name of Object.keys(reducers)) while (render().parts[name].length > BUDGET[name] && reducers[name]());
   for (const name of Object.keys(reducers)) while (render().text.length > BUDGET.total && reducers[name]());
+  // Last resort: grants stay whole only while the snapshot fits. Past the total budget, the newest
+  // grants stay within BUDGET.grants (at least one) and one line counts the older ones. The next
+  // command and the Run: line are never cut.
+  if (render().text.length > BUDGET.total) while (state.grantShown > 1 && render().parts.grants.length > BUDGET.grants) state.grantShown--;
   const { text } = render();
   return { text, counts, status: gaps.length ? 'partial' : 'complete', missing: gaps, boundaries: convo.boundaries, chars: text.length, overBudget: text.length > BUDGET.total };
 }
@@ -329,7 +338,7 @@ function readItems(runDir) {
 // The tagged lines of the run folder's RUN_LOG.md, or null when the file cannot be read. A log past
 // LOG_BYTES reads its last LOG_BYTES. `In flight: none` clears the in-flight lines above it, a later
 // `Next:` replaces an earlier one, and a repeated decision or grant keeps its first place. Every
-// grant stays, because a grant is never dropped.
+// grant is read; buildSnapshot() cuts the oldest only when the snapshot would pass its budget.
 // deferred(LOG_BYTES, index the tagged lines when a log outgrows it)
 export function readRunLog(runDir) {
   let text;
