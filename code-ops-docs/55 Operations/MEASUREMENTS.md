@@ -627,17 +627,19 @@ Four rules bind every entry:
   from the P6 profile over repeated runs. A run with an outlier step is reported with its step, and
   it is not dropped from the sample.
 
-**Billed CI minutes per platform.**
+**Weighted runner minutes per platform (proxy, not an invoice).**
 
-- **Source and owner.** The same job records. Billed minutes are each job rounded up to a whole
-  minute, times the platform multiplier. The implementer derives them (P6-Rebalance) in
-  `.github/ci-budgets.json`.
+- **Source and owner.** The same job records. Weighted minutes are each job rounded up to a whole
+  minute, times a platform multiplier. The repository is public, and the run `/timing` endpoint
+  reports `total_ms` 0, so standard runners are not billed. The figure is a load proxy. The
+  implementer derives it (P6-Rebalance) in `.github/ci-budgets.json`.
 - **Baseline.** Report D-002, same 8 runs. The median is 39 weighted minutes per run, from 38 to
   60. Windows carries about 75 to 80 percent of it. The multipliers (Ubuntu x1, Windows x2) and
-  the rounding rule are **UNVERIFIED**, because D-002 did not fetch them from GitHub documentation.
-- **Decision rule.** Verify the multipliers against GitHub documentation before any billed-minute
-  figure drives a decision. After that, P6-Rebalance holds when weighted minutes per run do not
-  exceed the baseline median. The target is set from the P6 profile.
+  the rounding rule are **UNVERIFIED**, because D-002 did not fetch them. The GitHub Actions runner
+  pricing documentation would verify them.
+- **Decision rule.** P6-Rebalance holds when the median of at least 8 post-change runs does not
+  exceed the baseline median of 39. The target is set from the P6 profile. Verify the multipliers
+  against that documentation before any weighted figure is read as cost.
 
 **Record-collections spawn count.**
 
@@ -654,18 +656,19 @@ Four rules bind every entry:
 **Operative report anchor density.**
 
 - **Source and owner.** The share of bullet findings of at least four words, outside code fences,
-  that match `REF_RE` (`scripts/citation-lib.mjs:30`), per report. The match checks form and does
-  not check that the anchor resolves. The explorer measures it (P0-M2). The implementer acts on it
-  (P5-U1-Cost).
-- **Baseline.** Report D-003, the 40 newest reports of 2026-10-01 to 2026-10-06, of which 36 hold
-  findings. Pooled, 231 of 889 findings are anchored (26.0 percent). The per-report distribution
-  is minimum 0.0, first quartile 8.2, median 22.1, third quartile 36.6, maximum 60.7 percent. 7 of
-  36 reports have no anchored finding. One run dominates the sample, so it may not represent older
-  reports.
+  that match `REF_RE` (`scripts/citation-lib.mjs:30`), per report. The D-003 definition counts
+  every bullet of four or more words, so padding anchors or splitting bullets moves the share. The
+  match checks form and does not check that the anchor resolves. The explorer measures it (P0-M2).
+  The implementer acts on it (P5-U1-Cost).
+- **Baseline.** Report D-003, the 40 newest reports by run-folder date, 2026-10-01 to 2026-10-06,
+  of which 36 hold findings. Pooled, 231 of 889 findings are anchored (26.0 percent). The
+  per-report distribution is minimum 0.0, first quartile 8.2, median 22.1, third quartile 36.6,
+  maximum 60.7 percent. 7 of 36 reports have no anchored finding. One run dominates the sample, so
+  it may not represent older reports.
 - **Decision rule.** The P5-U1-Cost advisory stays when the per-report median share rises against
-  the baseline in reports written after it ships, with no rise in reports that have zero anchored
-  findings. The size of the rise needed is set from the baseline distribution before the advisory
-  becomes anything stronger than a note.
+  the baseline in reports written after it ships. The count of reports with zero anchored findings
+  is the paired reading and must not rise. The size of the rise is set from the baseline
+  distribution before the advisory becomes anything stronger than a note.
 
 **File:line link adoption.**
 
@@ -694,18 +697,27 @@ Four rules bind every entry:
   `80 Runs/`. The explorer measures it (P0-M3). The implementer turns it into `co churn`
   (P4-U1-Dir).
 - **Baseline.** Report D-009, `origin/main` at `3c1fa907`, 2026-09-06 to 2026-10-06, 292 commits.
-  The primary measures are two. Fix-of-fix commits per merged PR: 61 PRs, median 0, maximum 3, 22
-  commits, and 18 PRs with one or more. Reverts: 0 of 292 commits. Three digest restamp PRs top the
-  fix-of-fix list, which is the class DS-3 automates.
+  The fix-of-fix count is 22 commits in 18 of 61 merged PRs (median 0, maximum 3). Of the 22, 21
+  have subjects that start Restamp, Re-stamp, or Refresh. They are mechanical digest stamps, the
+  class DS-3 automates. One starts Fix (PR 219). Reverts: 0 of 292 commits.
+- **Readings.** Two readings replace the single count.
+  - *Primary reading (review fixes).* PRs with a follow-up commit that is not a mechanical restamp.
+    A review-fix commit counts in any position when its subject matches Fix or "review". The
+    baseline is 1 commit in 1 PR (PR 219). PRs 193 and 183 open with a "Fix review findings" first
+    commit, so the after-first-commit rule excludes them. Counting them, the baseline is 3 PRs. The
+    sample is too small to judge. The rule is set from a 30-day post-change window.
+  - *DS-3 reading (restamps).* PRs with a restamp follow-up commit. The baseline is 17 of 61 PRs (PR 219 has no restamp follow-up)
+    and 21 commits. This reading must fall after DS-3 lands.
 - **Secondary measures.** The re-fix rate is 115 of 144 commits (79.9 percent), **PROBABLE**. It
   enters a decision only after a run over 2026-08-06 to 2026-09-05 supplies a comparison. The
   reopened-id proxy is 31 of 82 ids, an upper bound, **SPECULATIVE**, because ids repeat across
   programs. Repeated `Next:` lines are 0 of 86 across 6 files, which gives no signal. Report
   D-003 measured carry age in handoff hops. D-009 supersedes that measure.
-- **Decision rule.** The median is 0, so read the count of PRs with at least one fix-of-fix commit,
-  18 of 61. DS-3 (P1-D3) holds when that count falls against the baseline over a window that starts
-  after it lands. A revert is reported in every window. The re-fix rate and the reopened-id proxy
-  take no part in a decision until their comparison runs.
+- **Decision rule.** The median is 0, so each reading uses a PR count. DS-3 (P1-D3) holds when the
+  DS-3 reading falls against 17 of 61 over a window that starts after it lands. The primary
+  reading gets its rule from the 30-day post-change window, not from the baseline. A revert is
+  reported in every window. The re-fix rate and the reopened-id proxy take no part in a decision
+  until their comparison runs.
 
 **Compaction fidelity.**
 
@@ -715,7 +727,8 @@ Four rules bind every entry:
   in `scripts/compact-snapshot.mjs`. The implementer owns it (P7-U5-Compact).
 - **Baseline.** Set by the P7-U5-Compact eval and the first live compaction. No rate exists. Two
   observations exist and neither is a rate. On 2026-09-30 one session named every active item,
-  constraint, and running agent after a compact, with agent ids missing (n=1). On 2026-10-06 one
+  constraint, and running agent after a compact, with agent ids missing (n=1). The paragraph
+  "Compaction fidelity check (pre-registered)" above records it. On 2026-10-06 one
   card printed STALE for a fresh snapshot (report D-008). The probable cause is a race in
   `routing-card.mjs:266`, where SessionStart read the transcript before the host wrote the
   boundary row.
