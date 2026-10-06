@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6a5723fe0a1df487b01efbebc8d5d0334f31d677",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -310,7 +310,8 @@
           "line": 215,
           "anchor": "## Derived-file merge driver: install"
         }
-      ]
+      ],
+      "verifiedDigest": "13032db18a2f9732d0739498a13b7e6483adf69fc2c110af518cf32b3d681fa9"
     },
     {
       "slug": "gate-scripts",
@@ -319,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6a5723fe0a1df487b01efbebc8d5d0334f31d677",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "scripts/lint-plugins.mjs",
@@ -771,7 +772,8 @@
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
         }
-      ]
+      ],
+      "verifiedDigest": "d92e06b989aa99cb5d12ac7b4b4050d8015e0ae97413492f3b72aeff214ea7ab"
     },
     {
       "slug": "evals-and-calibration",
@@ -1072,7 +1074,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6a5723fe0a1df487b01efbebc8d5d0334f31d677",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1184,7 +1186,8 @@
           "line": 87,
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
-      ]
+      ],
+      "verifiedDigest": "71b6e2012b727d86e552ea91d2efc00e96e3710ae586d68f4483e7441ad4365f"
     },
     {
       "slug": "ci-workflows",
@@ -1258,7 +1261,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "6a5723fe0a1df487b01efbebc8d5d0334f31d677",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1334,7 +1337,8 @@
           "line": 152,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
-      ]
+      ],
+      "verifiedDigest": "34c8fc21e2ae584004abf2455a6101b6ada2da81c6addef2850b07911f32b469"
     },
     {
       "slug": "root-contracts",
@@ -1349,7 +1353,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "6a5723fe0a1df487b01efbebc8d5d0334f31d677",
+      "verifiedAt": "8969bb7b5c037145248ab0002e79a53112d7ec21",
       "claims": [
         {
           "file": "global-contracts/AGENTS.md",
@@ -1386,7 +1390,8 @@
           "line": 66,
           "anchor": "On Grok every xai rung is one model, so the rung is not a variable there: premiu"
         }
-      ]
+      ],
+      "verifiedDigest": "17c133b723100375f68bbdb217d7937f3ceb64fa9799d8aa5540ec86ea870b79"
     },
     {
       "slug": "runtime-toolchain",
