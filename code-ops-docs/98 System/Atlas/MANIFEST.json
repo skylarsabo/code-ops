@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "aae99620620267e669e2c6ee9e3d5a89ab02a3ef",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "1a2eb218b38765795da57204ca1e7d156c9ae9e5640babbc8a8a7cb6b12b1cc6"
+      "verifiedDigest": "6f858f1893ed5a8f97cf86da17f3ac6b2f8cec3311788b088896970c7e61e3bb"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9a62d7e04254d1dafb6b32946d50a0e8a518af1e",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -584,27 +584,32 @@
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 31,
+          "line": 32,
           "anchor": "// through the redaction scanner (scan-redaction.mjs) before it is written, and"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 33,
+          "line": 34,
           "anchor": "says that path is ignored; otherwise it goes to the home state"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 301,
+          "line": 310,
           "anchor": "const run = spawnSync('git', ['check-ignore', '-q', '--', path], { cwd: dirname("
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 81,
+          "line": 83,
           "anchor": "export const CARRIED_FIELDS = ["
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 400,
+          "line": 265,
+          "anchor": "if (render().text.length > BUDGET.total) while (state.grantShown > 1 && render()"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 409,
           "anchor": "export function snapshotState(header, boundaries, lastAt) {"
         },
         {
@@ -679,7 +684,7 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 867,
+          "line": 874,
           "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
         },
         {
@@ -798,7 +803,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "0aa39c00648161ba88b5a771a0d84c69901eecc2fc2083b09618fef3c99ef746"
+      "verifiedDigest": "71b2fd822fa0d8065143b79ea6c8e6f62092482955945c7111c30443635d7671"
     },
     {
       "slug": "evals-and-calibration",
@@ -806,8 +811,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9a62d7e04254d1dafb6b32946d50a0e8a518af1e",
-      "verifiedDigest": "5f8a164e82e759d760c2fdcce1b8122585242723908d688cff8ca3ff5f368fd8",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
+      "verifiedDigest": "3a85f5ea7a21262e55a03e226f09081d958371a225e40c117ef3371c86f6de02",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1129,7 +1134,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "aae99620620267e669e2c6ee9e3d5a89ab02a3ef",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1242,7 +1247,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "4323a31116860fd1ecc3a99c3500ff298ebcccd8de26af27a2af716d220c315e"
+      "verifiedDigest": "d4b55b46691f683004bd469505ee2f56ebdc785a8f1035516fe5353822ef15a1"
     },
     {
       "slug": "ci-workflows",
