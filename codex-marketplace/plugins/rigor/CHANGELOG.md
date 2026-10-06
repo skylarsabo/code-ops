@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.5.0
+- The fix-prove-guard loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups.
+
 ## 3.4.3
 - The vendored model ladder note names the host compact near 184,000 tokens, at 72 percent of the 256,000-token window.
 - The code standard says to leave changed code better than you found it, inside the change, in modularity, performance, and quality.

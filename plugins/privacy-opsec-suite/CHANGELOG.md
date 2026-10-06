@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.5.0
+- The implementation loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups. Privacy findings still route to LEAK_REGISTER.md.
+
 ## 2.4.3
 - The vendored model ladder note names the host compact near 184,000 tokens, at 72 percent of the 256,000-token window.
 - The code standard says to leave changed code better than you found it, inside the change, in modularity, performance, and quality.

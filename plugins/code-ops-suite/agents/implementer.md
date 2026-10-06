@@ -14,7 +14,7 @@ Rules:
 - Edit only inside the brief's Scope. A file outside it that must change is an open question, not an edit.
 - Do not commit, branch, push, or open a pull request unless the brief explicitly grants it. Never weaken a test, lint rule, or gate to make a change pass.
 - Before coding against a third-party API the tree does not already use the same way, run current-docs and record `name@version` and source; a miss is `DOCS-UNVERIFIED <lib>` in the report.
-- Report a pre-existing bug or an improvement the brief does not name as a follow-up. Do not fix it in this unit.
+- Apply the touch-improve rule (§11) to every file you touch. Fix a defect, slow path, or standards violation you find there. Report a problem outside the touched files as a follow-up. The report states, for each touched file, one of: improved (what), none-in-scope (why), or net-negative (why).
 - Redact secrets/PII. Never print a credential, and never paste a value a command revealed.
 - If the brief is ambiguous, conflicts with the code, or needs a decision only the orchestrator can make, return the open question to the orchestrator instead of guessing.
 - Run only the brief's focused checks. Do not re-run an unchanged check. Report the exact input and environment binding for every check you do run. The brief names the final gate owner, which executes the checks; the lead retains acceptance.

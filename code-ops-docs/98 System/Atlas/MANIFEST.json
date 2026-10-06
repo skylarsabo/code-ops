@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
+      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -262,12 +262,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
-          "line": 93,
+          "line": 97,
           "anchor": "for the base remote. Before the branch's first push, run"
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
-          "line": 97,
+          "line": 101,
           "anchor": "and then the upstream base branch, and push once more. A second rejection stops"
         },
         {
@@ -311,7 +311,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "b16dfc36c7bc7cabd386c932591a6fd02f743b3a6b8b59a9303bb5d0aad22d76"
+      "verifiedDigest": "cd7731f58e8a9a2bc765afb5b34c6b249999a27b229d812cc8e2b0795fa6dced"
     },
     {
       "slug": "gate-scripts",
@@ -320,7 +320,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "122e80f31ee05a0733ebe919817b25e88905bcd7",
+      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -783,7 +783,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "aa68cca647948f714b5ea4d7b26de7f9114fdf8d2e19f90a58b3bc146ab8c8a6"
+      "verifiedDigest": "536e559306bff132bca8410228b48627e2f8c5f9d868f7c9e2cc7f11ba83ba62"
     },
     {
       "slug": "evals-and-calibration",
@@ -791,8 +791,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "122e80f31ee05a0733ebe919817b25e88905bcd7",
-      "verifiedDigest": "e2efd5b95e2d89215487050aa9f16400d736cab901a693e0f735f64aee1f708a",
+      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
+      "verifiedDigest": "d2b939c61cc21f6af2247c022a1e299b4c14bf91def51dcc47a9cddb9c878935",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1099,7 +1099,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
+      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1212,7 +1212,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "42e88ff4dce337fbdfb5624dfcdc855ffbfb46b1da79a1144410a2469ba1a2c2"
+      "verifiedDigest": "76c4f0923a1df832b26d7b5f104b3a85e8253989ee59b9b3d92c50f4066941c5"
     },
     {
       "slug": "ci-workflows",
@@ -1286,7 +1286,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "15162fb0ad496d5d835d1250ae9553fd1b910715",
+      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1363,7 +1363,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "8078267e0d05e7a01c85ad826fb4ac1d759366584fae4845431011f54d12fe4a"
+      "verifiedDigest": "7cfa3aacca6177d853988ec98bbfd8693cccc357f7e8f93a44ed118e6624c70c"
     },
     {
       "slug": "root-contracts",
