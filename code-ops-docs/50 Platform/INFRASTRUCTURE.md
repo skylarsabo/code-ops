@@ -33,6 +33,8 @@ GitHub Actions provides CI. GitHub hosts pull requests, branch protection, and t
 
 Git hooks can regenerate derived host distributions and reject unsafe staging conditions. CI remains the backstop when hooks are missing or bypassed. Evidence: `AGENTS.md:106-108`.
 
+A commit that stages any file under `code-ops-docs/98 System/Atlas` now runs the full atlas gate and the staged-index manifest check, whether or not the hook changed other bytes (`.githooks/pre-commit`, the `atlas_staged` test). A commit made partway through a rebase, cherry-pick, or revert skips it, because the manifest is then intermediate. When the only stale digest is the atlas content digest and the atlas gate and claims gate both pass, the hook restamps that digest and stages the manifest. Any other stale digest, or a stale atlas section, aborts the commit with the stamp and sync commands. A merge reconciles its manifest in the hook, and `.githooks/post-rewrite` restamps the tip after a rebase. `CODE_OPS_DIGEST_AUTOFIX=off` removes the atlas trigger, the restamp, the merge reconcile, and the post-rewrite restamp. The freshness checks that follow a hook edit or a failed attempt stay on.
+
 `scripts/sync-global.mjs` keeps one operator machine current after a merge. It installs the user-wide contracts from `global-contracts/` for Claude Code, Codex, and Grok Build, and it refreshes the installed code-ops plugin caches on each host. It refuses to overwrite a contract it did not write unless the operator passes `--force` or `--capture`. `evals/sync-global/run.mjs` covers it. See the README section "Keep this machine current".
 
 ## Host hook switches
@@ -49,10 +51,11 @@ The `SubagentStop` return check is advisory and never blocks. The agent ledger r
 subagent launch and report without output, so `co agents pending` lists the agents a handed-off
 session never heard back from. The `PreCompact` hook `compact-snapshot.mjs` writes
 `COMPACT_SNAPSHOT.md` before each compaction and never blocks it.
-Eleven variables switch off a hook or feature, read from the canonical `.claude/settings.json`
-environment. A twelfth governs only the routing card's pending-handoff line, a
-thirteenth sets or disables the dispatch guard's context ceiling, and a fourteenth names the
-operator's shell on the routing card.
+The table lists each variable that switches off a hook or feature, read from the canonical
+`.claude/settings.json` environment. Three rows differ. `CODE_OPS_CONTEXT_CEILING` also takes an
+integer that replaces the default ceiling. `CODE_OPS_OPERATOR_SHELL` is not an off switch: it names
+the operator's shell on the routing card. `CODE_OPS_DIGEST_AUTOFIX` is read from the environment of
+the git process, not from `settings.json`.
 Rendered hosts use their documented process environment:
 
 ```json
@@ -77,6 +80,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_READ_NOTICE` | `off`, `0`, or `false` | the `PostToolUse` history read notice for a Read, Grep, or shell call that opens a record not in force, inside `handoff-card.mjs`; the card and feed switches leave it on |
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 replaces the 300,000-token default |
 | `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` redirect or deny of a message to a handed-off peer session, `peer-guard.mjs`, and every presence board write: `handoff-state.mjs` open and resume, the `index-refresh.mjs` edit record, the `session-receipt.mjs` `SessionEnd` mark, and the OpenCode `tool.execute.after` adapter, the collision note and its peer-surface note in `dispatch-guard.mjs`, the routing card's `peer:` lines, and the change feed |
+| `CODE_OPS_DIGEST_AUTOFIX` | `off`, `0`, or `false` | the git-hook digest autofix, read from the git process environment: the `.githooks/pre-commit` atlas content restamp (block 0d), its atlas-staged trigger, the merge reconcile in `derived-merge.mjs`, and the `.githooks/post-rewrite` restamp; it leaves the freshness checks on every failure path and the merge driver unchanged |
 | `CODE_OPS_OPERATOR_SHELL` | not an off switch | the `operator shell:` line inside `routing-card.mjs` on hosts other than Claude Code; a value replaces the shell derived from `process.platform` |
 
 Any other `CODE_OPS_RECEIPTS` value names the receipt ledger path.

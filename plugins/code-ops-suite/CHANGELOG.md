@@ -4,9 +4,19 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
-## 2.43.0
+## 2.44.0
 - The implementation loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups.
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry the touch-improve duty. Each report states, for each touched file, improved (what), none-in-scope (why), or net-negative (why).
+
+## 2.43.0
+- A merge restamps its documentation manifest by attestation. `derived-merge.mjs reconcile` runs on every merge, including one the merge driver never sees, and restamps a domain only when each parent already carried correct digests for it. A domain either side left stale stays stale, and the commit is refused with the stamp and sync commands.
+- A rebase gets the same restamp. The new `.githooks/post-rewrite` hook calls `derived-merge.mjs rewrite`, which attests against the old tip and the new base and writes the manifest into the rebased tip. `install-git-hooks.mjs` installs it.
+- `docs-manifest.mjs` reads three snapshots: the working tree, the index (`--index`), and a commit tree (`--attested <rev>,<rev>`). `check --index` hashes the bytes a commit would hold, and `sync --index --only <id>` stamps one domain from the index. A plain sync names the paths where the working tree and the index differ.
+- The pre-commit hook restamps the atlas content digest when it is the only stale digest and the atlas gate and the claims gate both pass. A stamp made after the manifest sync no longer needs a second sync. Any other drift still aborts the commit.
+- A commit that stages any file under the Atlas folder now runs the full atlas gate and the manifest check. A commit partway through a rebase, cherry-pick, or revert skips them.
+- The pre-commit hook runs the freshness checks once, at the end, after the merge regeneration, the vendored sync, the renderers, and the reconcile. The atlas restamp is the last write on every path.
+- `CODE_OPS_DIGEST_AUTOFIX=off` (also `0` or `false`) turns off the atlas restamp, the Atlas trigger, the merge reconcile, and the post-rewrite restamp. The freshness checks stay on.
+- `INFRASTRUCTURE.md` states the Atlas trigger and the switch, and its switch intro no longer counts the variables.
 
 ## 2.42.2
 - The `conform` global scope now names the one authored source, `global-contracts/AGENTS.source.md`, and the three renders that `scripts/render-global-contracts.mjs` writes from it. Edit the source, render, then run `sync-global.mjs`.

@@ -7,6 +7,8 @@
 //   node scripts/derived-merge.mjs check         exit 1 unless the driver is registered
 //   node scripts/derived-merge.mjs regenerate    run from pre-commit and pre-merge-commit
 //   node scripts/derived-merge.mjs amend         run from post-merge
+//   node scripts/derived-merge.mjs reconcile     restamp the manifest of any merge, even with no conflict
+//   node scripts/derived-merge.mjs rewrite       restamp the manifest after a rebase, from post-rewrite
 //   node scripts/derived-merge.mjs driver %O %A %B %P    git calls this, never a person
 //
 // WHY two phases: git runs a merge driver once per file, before the merged tree exists on disk.
@@ -21,6 +23,18 @@
 // post-merge amends the new merge commit with the staged regeneration. A merge that stopped on a real
 // conflict has no such gap: the person's `git commit` runs pre-commit, and its staged files land.
 //
+// The manifest is restamped by attestation, never by a plain sync. A domain is restamped only when
+// each parent of the merge already carried correct digests for it (docs-manifest.mjs sync --attested).
+// Both sides then vouched for the domain, so combining them is mechanical. A domain either side left
+// stale keeps stale digests, and the commit is refused with the pre-commit message. The parents are
+// HEAD plus the merged heads, which git names in MERGE_HEAD, or in GITHEAD_<sha> while it merges.
+//
+// Git calls the driver only when both sides changed a file. A merge where one side left the manifest
+// alone skips it, so `reconcile` runs the same attested restamp for every merge. `rewrite` does it
+// for a rebase, where no driver and no merge commit exist: the parents are the old tip and the new base.
+// CODE_OPS_DIGEST_AUTOFIX=off (or 0, or false) turns reconcile and rewrite off. It does not change
+// regenerate, whose attested rule is stricter than the plain sync it replaced.
+//
 // The driver applies only to `git merge` and `git pull`. A rebase, cherry-pick, or stash pop does
 // not run the commit hooks at the right point, so those fall back to the plain text merge.
 //
@@ -28,8 +42,9 @@
 // top level of whichever working tree is merging, and every linked worktree shares one local config,
 // so a relative path cannot resolve from all of them.
 //
-// Exit (regenerate): 0 = nothing pending or all regenerated and staged, 1 = a regeneration failed
-// and the conflict is back in the index. Exit (check): 0 = registered and the script exists, 1 = not.
+// Exit (regenerate, reconcile): 0 = nothing pending or all regenerated and staged, 1 = a regeneration
+// failed and the conflict is back in the index. Exit (rewrite): 0 = fresh or restamped, 1 = a domain
+// stays stale and the manifest is as it was. Exit (check): 0 = registered and the script exists, 1 = not.
 // Exit (driver): 0 = merged, 1 = conflict. 2 = usage error.
 
 import { spawnSync } from 'node:child_process';
@@ -64,7 +79,7 @@ export const GROUPS = [
     id: 'docs-manifest',
     match: (p) => p.split('/').pop() === 'DOCS_MANIFEST.json',
     attributes: ['DOCS_MANIFEST.json'],
-    tools: [['docs-manifest.mjs', 'sync']],
+    tools: [['docs-manifest.mjs', 'sync', '--index', '--attested', ({ parents }) => parents.join(',')]],
     normalize: (text) => text.replace(DIGEST, `$1"${PLACEHOLDER}"`),
   },
 ];
@@ -150,6 +165,15 @@ function inMergeCommand() {
   return !['rebase-merge', 'rebase-apply'].some((name) => existsSync(resolve(git(['rev-parse', '--git-path', name]).out)));
 }
 
+// The heads a merge brings in. A merge that stopped for a person leaves MERGE_HEAD. While git still
+// merges, the driver and pre-merge-commit see no such file, only a GITHEAD_<sha> variable per head.
+function mergeHeads(root) {
+  const file = gitFile(root, 'MERGE_HEAD');
+  if (existsSync(file)) return readFileSync(file, 'utf8').split('\n').map((line) => line.trim()).filter(Boolean).sort();
+  if (!inMergeCommand()) return [];
+  return Object.keys(process.env).flatMap((key) => /^GITHEAD_([0-9a-f]{40}|[0-9a-f]{64})$/.exec(key)?.[1] ?? []).sort();
+}
+
 function textMerge(ours, base, theirs, path) {
   const result = git(['merge-file', '-L', `${path} (ours)`, '-L', `${path} (base)`, '-L', `${path} (theirs)`, ours, base, theirs]);
   return result.status === 0 ? 0 : 1;
@@ -162,7 +186,9 @@ function recordPending(root, path, base, ours, theirs) {
   if (!head || !entry.ours || !entry.theirs) throw new Error('cannot record the merge inputs');
   const file = markerFile(root);
   let state = readMarker(file);
-  if (!state || state.head !== head) state = { head, entries: {} };
+  const parents = [head, ...mergeHeads(root)];
+  if (!state || state.head !== head) state = { head, parents, entries: {} };
+  else if (!(state.parents?.length > 1)) state.parents = parents;
   state.entries[path] = entry;
   writeFileSync(file, JSON.stringify(state));
 }
@@ -176,13 +202,31 @@ function driver([base, ours, theirs, path]) {
   return textMerge(ours, base, theirs, path);
 }
 
-function runTools(group, root) {
+// A tool argument may be a function of the context, which holds the merge parents. A tool that needs
+// the parents fails closed when fewer than two are known: attestation needs both sides.
+// A "left stale" line from the manifest tool goes to ctx.notes, so the caller can name the domains.
+function runTools(group, root, ctx) {
   for (const [tool, ...args] of group.tools) {
-    const result = spawnSync(process.execPath, [join(SCRIPTS, tool), ...args], { cwd: root, encoding: 'utf8' });
+    if (args.some((arg) => typeof arg === 'function') && ctx.parents.length < 2) return `${tool} needs both merge parents, and git named only ${ctx.parents.length}`;
+    const result = spawnSync(process.execPath, [join(SCRIPTS, tool), ...args.map((arg) => (typeof arg === 'function' ? arg(ctx) : arg))], { cwd: root, encoding: 'utf8' });
     if (result.status !== 0) return `${tool} exited ${result.status ?? 'without a status'}: ${`${result.stdout || ''}${result.stderr || ''}`.trim().split('\n').slice(-6).join(' | ')}`;
+    ctx.notes.push(...(result.stdout || '').split('\n').filter((line) => line.startsWith('left stale')));
   }
   return '';
 }
+
+const toolCommand = (name, ...args) => ['node', relative(process.cwd(), join(SCRIPTS, name)).split(sep).join('/'), ...args].join(' ');
+// Domains the attested rule left alone still hold stale digests, and a driver merge left a placeholder in them.
+function reportStale(notes) {
+  if (!notes.length) return;
+  console.error([`note: the merge did not stamp these documentation domains, because a parent did not carry correct digests for them.`,
+    `Their digests are stale, and a merged placeholder reads "${PLACEHOLDER}". After you review the cause, stamp them with: ${toolCommand('docs-manifest.mjs', 'sync')}`,
+    ...notes.map((line) => `  ${line}`)].join('\n'));
+}
+const autofixOff = () => ['off', '0', 'false'].includes((process.env.CODE_OPS_DIGEST_AUTOFIX || '').toLowerCase());
+
+// The tree the commit must hold. A merge commit written from the earlier tree gets amended.
+const writeAmendMarker = (root, head) => writeFileSync(gitFile(root, AMEND_MARKER), JSON.stringify({ head, tree: git(['write-tree'], { cwd: root }).out }));
 
 // git add takes the index lock and never waits, so a busy lock is the one retried failure.
 function stage(root, pathspecs) {
@@ -220,17 +264,18 @@ function regenerate(amendAfter) {
   if (flagged.length) stage(root, flagged);
   const failures = [];
   let blocked = '';
+  const ctx = { parents: state.parents?.length > 1 ? state.parents : [state.head, ...mergeHeads(root)], notes: [] };
   for (const group of GROUPS) {
     const paths = Object.keys(state.entries).filter((path) => group.match(path));
     if (!paths.length) continue;
     // Later groups read what earlier groups wrote, so one failure stops them all.
-    const why = blocked ? `skipped, the ${blocked} regeneration failed first` : runTools(group, root) || stage(root, group.stage || paths);
+    const why = blocked ? `skipped, the ${blocked} regeneration failed first` : runTools(group, root, ctx) || stage(root, group.stage || paths);
     if (why) { blocked ||= group.id; failures.push({ group: group.id, paths, why }); }
   }
+  reportStale(ctx.notes);
   if (!failures.length) {
     rmSync(file, { force: true });
-    // Record the tree the commit must hold. A merge commit written from the earlier tree gets amended.
-    if (amendAfter) writeFileSync(gitFile(root, AMEND_MARKER), JSON.stringify({ head: state.head, tree: git(['write-tree'], { cwd: root }).out }));
+    if (amendAfter) writeAmendMarker(root, state.head);
     return 0;
   }
   const failed = new Set(failures.flatMap((failure) => failure.paths));
@@ -239,7 +284,7 @@ function regenerate(amendAfter) {
   writeFileSync(file, JSON.stringify(state));
   const lines = ['x derived-file regeneration failed. The merge cannot be committed with a stale derived file.'];
   for (const failure of failures) lines.push(`  ${failure.group}: ${failure.why}`, ...failure.paths.slice(0, 5).map((path) => `    ${path}`));
-  lines.push(restored ? `The listed files are conflicted again. Fix the cause, then run: ${SELF} regenerate` : 'The index could not be restored. Run: git status');
+  lines.push(restored ? `The listed files are conflicted again. Fix the cause and stage the fix, because the generators read the index. Then run: ${SELF} regenerate` : 'The index could not be restored. Run: git status');
   lines.push('That command regenerates and stages them. Then finish the merge with git commit.');
   console.error(lines.join('\n'));
   return 1;
@@ -256,15 +301,90 @@ function amend() {
   const parents = git(['rev-list', '--parents', '-n1', 'HEAD'], { cwd: root }).out.split(' ').slice(1);
   const expected = parents.length === 2 && parents[0] === pending.head && git(['write-tree'], { cwd: root }).out === pending.tree;
   if (!expected || git(['rev-parse', 'HEAD^{tree}'], { cwd: root }).out === pending.tree) return 0;
-  // `git commit --amend` refuses inside post-merge, so write the commit object directly.
+  const replaced = replaceHead(root, pending.tree, parents, 'merge: regenerated derived files');
+  if (!replaced) return 0;
+  console.error(`x the merge commit lacks the regenerated derived files, which are staged. Run: git commit --amend --no-edit\n  ${replaced}`);
+  return 1;
+}
+
+// Write HEAD again over `tree`, keeping its author and message. `git commit --amend` refuses inside
+// post-merge and re-enters pre-commit inside post-rewrite, so this writes the commit object directly.
+// Returns '' when HEAD moved, else the first line of the failure.
+function replaceHead(root, tree, parents, reflog) {
   const show = (format) => git(['log', '-1', `--format=${format}`], { cwd: root }).out;
   const env = { ...process.env, GIT_AUTHOR_NAME: show('%an'), GIT_AUTHOR_EMAIL: show('%ae'), GIT_AUTHOR_DATE: show('%aI') };
   const message = git(['log', '-1', '--format=%B'], { cwd: root, encoding: 'utf8' }).out;
-  const made = git(['commit-tree', pending.tree, '-p', parents[0], '-p', parents[1], '-F', '-'], { cwd: root, env, input: `${message}\n` });
-  const moved = made.status === 0 && git(['update-ref', '-m', 'merge: regenerated derived files', 'HEAD', made.out, headSha(root)], { cwd: root });
-  if (moved && moved.status === 0) return 0;
-  console.error(`x the merge commit lacks the regenerated derived files, which are staged. Run: git commit --amend --no-edit\n  ${(made.err || (moved && moved.err) || '').split('\n')[0]}`);
-  return 1;
+  const made = git(['commit-tree', tree, ...parents.flatMap((parent) => ['-p', parent]), '-F', '-'], { cwd: root, env, input: `${message}\n` });
+  const moved = made.status === 0 && git(['update-ref', '-m', reflog, 'HEAD', made.out, headSha(root)], { cwd: root });
+  return moved && moved.status === 0 ? '' : (made.err || (moved && moved.err) || 'git could not write the commit').split('\n')[0];
+}
+
+// The attested restamp that reconcile and rewrite share. It runs only on a manifest the index and the
+// working tree agree on, because the tool writes the working file and the caller stages it whole.
+// `skip` is why nothing ran, `dirty` marks the case a person fixes, and `why` is a tool failure.
+function attestedRestamp(root, revs) {
+  const group = GROUPS.find((candidate) => candidate.id === 'docs-manifest');
+  if (!groupRunnable(group)) return { skip: 'docs-manifest.mjs is not installed here' };
+  const paths = git(['ls-files', '-z', '--', '*DOCS_MANIFEST.json'], { cwd: root }).out.split('\0').filter((path) => path && group.match(path));
+  if (!paths.length) return { skip: '' };
+  if (git(['ls-files', '-u'], { cwd: root }).out) return { skip: 'the index has unmerged paths' };
+  if (git(['diff', '--quiet', '--', ...paths], { cwd: root }).status !== 0) return { skip: `${paths[0]} has unstaged edits`, dirty: true };
+  const ctx = { parents: revs, notes: [] };
+  return { paths, ctx, why: runTools(group, root, ctx) };
+}
+
+// Merge-time restamp for every merge, including the one-sided merge that never calls the driver. It
+// stages only the manifest, and never refuses: the freshness check in pre-commit is the gate. With
+// --amend-after it records the tree that post-merge folds into the merge commit.
+function reconcile(amendAfter) {
+  if (autofixOff()) return 0;
+  const root = topLevel();
+  const head = headSha(root);
+  const heads = mergeHeads(root);
+  if (!head || !heads.length) return 0;
+  const done = attestedRestamp(root, [head, ...heads]);
+  if (done.dirty) console.error(`note: ${done.skip}, so the merge did not restamp it. Stage or discard them, then run: ${SELF} reconcile`);
+  if (done.skip || !done.paths) return 0;
+  if (done.why) { console.error(`note: the merge could not restamp the manifest: ${done.why}`); return 0; }
+  const staged = stage(root, done.paths);
+  if (staged) { console.error(`note: ${staged}`); return 0; }
+  reportStale(done.ctx.notes);
+  if (amendAfter) writeAmendMarker(root, head);
+  return 0;
+}
+
+// post-rewrite: a rebase has no merge commit and no driver, so the parents are the old tip, which the
+// author stamped, and the new base, which CI stamped. The restamped manifest is staged, and with
+// --amend it also replaces HEAD without running hooks. The result must pass check --index, or the
+// manifest goes back to HEAD, so a rewrite never leaves a half-stamped file behind.
+function rewrite(args) {
+  const [old, base, amendHead] = args;
+  if (autofixOff()) return 0;
+  const root = topLevel();
+  const command = `${SELF} rewrite --old ${old} --base ${base}${amendHead ? ' --amend' : ''}`;
+  const commit = (rev) => git(['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { cwd: root }).out;
+  if (!commit(old) || !commit(base)) { console.error(`x rewrite: ${commit(old) ? base : old} is not a commit`); return 2; }
+  if (git(['diff', '--cached', '--quiet'], { cwd: root }).status !== 0) { console.error(`note: the index holds staged changes, so the rewrite did not restamp the manifest. Commit or unstage them, then run: ${command}`); return 0; }
+  const done = attestedRestamp(root, [commit(old), commit(base)]);
+  if (done.dirty) console.error(`note: ${done.skip}, so the rewrite did not restamp it. Stage or discard them, then run: ${command}`);
+  if (done.skip || !done.paths) return 0;
+  if (done.why) { console.error(`x rewrite: ${done.why}`); return 1; }
+  const changed = git(['diff', '--quiet', '--', ...done.paths], { cwd: root }).status !== 0;
+  const stale = () => { reportStale(done.ctx.notes); return 1; };
+  if (!changed) return done.ctx.notes.length ? stale() : 0;
+  const staged = stage(root, done.paths);
+  const verdict = staged ? { status: 1 } : spawnSync(process.execPath, [join(SCRIPTS, 'docs-manifest.mjs'), 'check', '--index'], { cwd: root, encoding: 'utf8' });
+  if (verdict.status !== 0) {
+    git(['restore', '--source=HEAD', '--staged', '--worktree', '--', ...done.paths], { cwd: root });
+    if (staged) console.error(`x rewrite: ${staged}`);
+    return stale();
+  }
+  if (!amendHead) { console.log(`ok restamped the manifest digests and staged them. Fold them into HEAD with: git commit --amend --no-edit`); return 0; }
+  const parents = git(['rev-list', '--parents', '-n1', 'HEAD'], { cwd: root }).out.split(' ').slice(1);
+  const replaced = replaceHead(root, git(['write-tree'], { cwd: root }).out, parents, 'rewrite: restamped manifest digests');
+  if (replaced) { console.error(`x the restamped manifest is staged but HEAD was not amended. Run: git commit --amend --no-edit\n  ${replaced}`); return 1; }
+  console.log('ok restamped the manifest digests and amended HEAD');
+  return 0;
 }
 
 const isEntry = process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
@@ -273,6 +393,10 @@ if (isEntry) {
   if (command === 'driver' && rest.length === 4) process.exit(driver(rest));
   if (command === 'regenerate' && (!rest.length || (rest.length === 1 && rest[0] === '--amend-after'))) process.exit(regenerate(rest.length === 1));
   if (command === 'amend' && !rest.length) process.exit(amend());
+  if (command === 'reconcile' && (!rest.length || (rest.length === 1 && rest[0] === '--amend-after'))) process.exit(reconcile(rest.length === 1));
+  if (command === 'rewrite' && rest[0] === '--old' && rest[2] === '--base' && rest[1] && rest[3] && !rest[1].startsWith('-') && !rest[3].startsWith('-') && (rest.length === 4 || (rest.length === 5 && rest[4] === '--amend'))) {
+    process.exit(rewrite([rest[1], rest[3], rest.length === 5]));
+  }
   if (command === 'install' && !rest.length) {
     const root = topLevel();
     registerDriver(root);
@@ -286,6 +410,6 @@ if (isEntry) {
     console.error(`x merge driver ${DRIVER} is not fully installed (driver ${state.registered ? 'set' : state.problem}, attributes ${state.attributes ? 'set' : 'missing'}). Run: ${SELF} install`);
     process.exit(1);
   }
-  console.error(`usage: ${SELF} install | check | regenerate [--amend-after] | amend | driver <base> <ours> <theirs> <path>`);
+  console.error(`usage: ${SELF} install | check | regenerate [--amend-after] | amend | reconcile [--amend-after] | rewrite --old <rev> --base <rev> [--amend] | driver <base> <ours> <theirs> <path>`);
   process.exit(2);
 }

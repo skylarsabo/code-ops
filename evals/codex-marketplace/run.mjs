@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Codex marketplace regression eval — validates the generated native package's
+// Codex marketplace regression eval: validates the generated native package's
 // discovery surface, model-invocable policy, MCP declaration, and hook payload behavior.
 //
 //   node evals/codex-marketplace/run.mjs   (exit 0 = pass)
@@ -131,7 +131,11 @@ expect(preCommit.includes('case "$lock_error" in') && preCommit.includes('*index
 expect(preCommit.includes('node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate') && preCommit.includes('node scripts/docs-manifest.mjs check'), 'pre-commit hook does not run the atlas gate and the manifest check on derived paths it changed');
 expect(preCommit.includes('git write-tree') && preCommit.includes('[ "$(git write-tree)" != "$before_tree" ]'), 'pre-commit hook does not detect staged bytes it changed');
 expect(preCommit.includes('[ -e "$pending_marker" ]'), 'pre-commit hook lets a retry skip a freshness check an earlier attempt failed');
-expect(!/^\s*node scripts\/(atlas-check\.mjs stamp|docs-manifest\.mjs sync)/m.test(preCommit),'pre-commit hook runs a stamp or a manifest sync itself');
+// The hook never stamps an atlas section. Its one manifest write is the atlas content-digest
+// restamp (block 0d), so any executed `docs-manifest.mjs sync` must be `sync --index --only atlas`.
+const hookCommands = preCommit.split('\n').filter((line) => !/^\s*(#|echo\b)/.test(line)).join('\n');
+expect(!/atlas-check\.mjs\s+stamp/.test(hookCommands), 'pre-commit hook stamps an atlas section itself');
+expect([...hookCommands.matchAll(/docs-manifest\.mjs\s+sync\b(?!\s+--index\s+--only\s+atlas(?![\w-]))/g)].length === 0, 'pre-commit hook runs a manifest sync other than the atlas-only index restamp');
 
 const hookInstaller = read(join(root, 'scripts', 'install-git-hooks.mjs'));
 expect(hookInstaller.includes("git(['config', '--get', 'core.hooksPath'])"), 'hook installer does not protect an effective inherited hooks path');
@@ -248,8 +252,8 @@ for (const dropped of ['fork_turns', 'reasoning_effort', openai.models.strong, .
 }
 
 if (fails.length) {
-  console.error('FAIL — Codex marketplace eval:');
+  console.error('FAIL: Codex marketplace eval:');
   for (const failure of fails) console.error('  x ' + failure);
   process.exit(1);
 }
-console.log('PASS — Codex marketplace: skill, agent-floor, portable-runtime, MCP, and hook payload checks hold.');
+console.log('PASS: Codex marketplace: skill, agent-floor, portable-runtime, MCP, and hook payload checks hold.');

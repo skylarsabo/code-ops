@@ -24,7 +24,7 @@ import { driverRegistered, ensureAttributes, registerDriver } from './derived-me
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const HOOKS_PATH = '.githooks';
-const HOOK_NAMES = ['pre-commit', 'pre-merge-commit', 'post-merge'];
+const HOOK_NAMES = ['pre-commit', 'pre-merge-commit', 'post-merge', 'post-rewrite'];
 const HOOK_PATHS = HOOK_NAMES.map((name) => resolve(ROOT, HOOKS_PATH, name));
 const args = process.argv.slice(2);
 const check = args.includes('--check');
@@ -89,7 +89,8 @@ if (current && !ours && !force) {
 if (current === HOOKS_PATH || !ours) git(['config', '--local', 'core.hooksPath', HOOKS_PATH]);
 if (process.platform !== 'win32') for (const hook of HOOK_PATHS) chmodSync(hook, 0o755);
 // A merge runs no pre-commit hook mid-merge, so the driver records the derived files that
-// conflicted and the commit hooks regenerate them. See scripts/derived-merge.mjs.
+// conflicted and the commit hooks regenerate them. post-rewrite restamps the manifest after a
+// rebase, which has no merge commit. See scripts/derived-merge.mjs.
 registerDriver(ROOT);
 ensureAttributes(ROOT);
-console.log(`Installed repository hooks (${HOOKS_PATH}). Pre-commit will regenerate and stage the derived host distributions. The derived-file merge driver is registered, so a merge regenerates conflicting derived files instead of stopping on them.`);
+console.log(`Installed repository hooks (${HOOKS_PATH}). Pre-commit will regenerate and stage the derived host distributions. The derived-file merge driver is registered, so a merge regenerates conflicting derived files instead of stopping on them. Post-rewrite restamps the manifest after a rebase.`);
