@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.45.1
+- `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
+
 ## 2.45.0
 - The compaction snapshot now carries what a handoff carries. It adds four sections read from tagged `RUN_LOG.md` lines: decisions with their rejected options, authority grants, in-flight `file:line` boundaries, and the next command. The header gains a `Run:` line and counts for the new sections. The next command is never cut, grants stay whole while the snapshot fits its 12,000 characters, and every new line passes the same redaction pass as the transcript text.
 - `CARRIED_FIELDS` in `scripts/compact-snapshot.mjs` is the one list that maps each handoff `Write` field to its snapshot section and tag. `co snapshot --fields` prints it, the handoff skill cites it, and the eval fails when a handoff field has no entry.

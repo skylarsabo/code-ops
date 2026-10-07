@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.5.1
+- `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
+
 ## 2.5.0
 - The implementation loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups. Privacy findings still route to LEAK_REGISTER.md.
 

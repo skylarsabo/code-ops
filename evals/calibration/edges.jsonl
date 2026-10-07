@@ -25,7 +25,7 @@
 {"from":"L-011","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
 {"from":"L-012","rel":"fixed-in","to":"PR-45","note":"protocol rewrite"}
 {"from":"L-013","rel":"fixed-in","to":"PR-45","note":"doctrine + SHARED_PASSAGES pin"}
-{"from":"L-013","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#ledger-atomicity"}
+{"from":"L-013","rel":"enforced-by","to":"GATE:scripts/doctrine-passages.mjs#ledger-atomicity"}
 {"from":"L-014","rel":"fixed-in","to":"PR-45"}
 {"from":"L-014","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
 {"from":"L-013","rel":"enforced-by","to":"GATE:scripts/dispatch-ledger.mjs#phantom-row"}
@@ -45,13 +45,13 @@
 {"from":"L-020","rel":"fixed-in","to":"COMMIT:314cc77"}
 {"from":"L-020","rel":"deferred","to":"deferred","note":"no mechanical check can hold an operative-behaviour lesson; the tier-boundary text pin verifies the doctrine text, not operative conduct on a run against another repository (R-008 recurrence)"}
 {"from":"L-021","rel":"fixed-in","to":"COMMIT:314cc77"}
-{"from":"L-021","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#report-persistence"}
+{"from":"L-021","rel":"enforced-by","to":"GATE:scripts/doctrine-passages.mjs#report-persistence"}
 {"from":"L-022","rel":"fixed-in","to":"COMMIT:314cc77"}
-{"from":"L-022","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#report-shape-gate"}
+{"from":"L-022","rel":"enforced-by","to":"GATE:scripts/doctrine-passages.mjs#report-shape-gate"}
 {"from":"L-023","rel":"fixed-in","to":"COMMIT:2df53bf"}
 {"from":"L-023","rel":"enforced-by","to":"EVAL:evals/calibration-metrics/run.mjs"}
 {"from":"L-024","rel":"fixed-in","to":"COMMIT:314cc77"}
-{"from":"L-024","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#panel-lens-diversity"}
+{"from":"L-024","rel":"enforced-by","to":"GATE:scripts/doctrine-passages.mjs#panel-lens-diversity"}
 {"from":"L-040","rel":"fixed-in","to":"PR-59"}
 {"from":"L-040","rel":"enforced-by","to":"EVAL:evals/vault-standard/run.mjs"}
 {"from":"L-040","rel":"enforced-by","to":"GATE:scripts/lint-plugins.mjs#eval-wired-to-ci"}

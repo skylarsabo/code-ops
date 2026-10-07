@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
+      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -147,7 +147,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
-          "line": 63,
+          "line": 64,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "6f858f1893ed5a8f97cf86da17f3ac6b2f8cec3311788b088896970c7e61e3bb"
+      "verifiedDigest": "72eaff58786a1779361a2e3d2f9bb6142640f57364cfe87ed93ec178076b0cda"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8fb47b858b716dde20345c5c5b687fc7f589e87a",
+      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -344,13 +344,28 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1585,
+          "line": 1478,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 446,
+          "line": 448,
           "anchor": "function checkScriptDomains() {"
+        },
+        {
+          "file": "scripts/doctrine-passages.mjs",
+          "line": 23,
+          "anchor": "export const SHARED_PASSAGES = ["
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 120,
+          "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 121,
+          "anchor": "import { layoutPath } from './layout-manifest.mjs';"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -669,22 +684,22 @@
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 83,
+          "line": 84,
           "anchor": "export function surfaceOfScope(paths) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 153,
+          "line": 154,
           "anchor": "export function routeUnit(basis) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 183,
+          "line": 184,
           "anchor": "if (rung === 'premium') return provider.premiumCollapse ?? null;"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 63,
+          "line": 64,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
@@ -808,7 +823,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "125e7c168d9169270d88df0e2aded6945d5c32a98549f39ea67e01264e891e0a"
+      "verifiedDigest": "ca1a23b748d4ed2815462b1d9c0b7545c7f5d801cc80f72d72381914e931d9a0"
     },
     {
       "slug": "evals-and-calibration",
@@ -816,8 +831,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
-      "verifiedDigest": "a7e333c04411a87caebf9e312f3dc47518d15b6b3f0e4949b7c5a92224e2acd4",
+      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
+      "verifiedDigest": "7f7983c2f503a197b3ae7d3567b76393265ad86423bfa8a030ef7b081087cf96",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1139,7 +1154,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
+      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1252,7 +1267,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "d4b55b46691f683004bd469505ee2f56ebdc785a8f1035516fe5353822ef15a1"
+      "verifiedDigest": "478e46ec18d373aa81fc17077ab0c9bcaeec3d358e36b65b2dc0fd61da43a544"
     },
     {
       "slug": "ci-workflows",

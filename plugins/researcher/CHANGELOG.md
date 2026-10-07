@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.14
+- `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
+
 ## 0.16.13
 - The vendored model ladder note names the host compact near 184,000 tokens, at 72 percent of the 256,000-token window.
 - The code standard says to leave changed code better than you found it, inside the change, in modularity, performance, and quality.
