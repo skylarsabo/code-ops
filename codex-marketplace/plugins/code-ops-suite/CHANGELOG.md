@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.48.0
+- `scan-overbuild.mjs` now reads removed lines and prints a touched-file delta advisory after its tells, for the touched-file duty. It runs the pass-through shape and the exported-helper pattern over each touched source file's removed lines, and marks the file `IMPROVED` (removes some, adds none), `WORSE`, or `MIXED`. A removal reports its base line, and `--json` carries the result as `delta`. The advisory adds no hit and never changes the exit code, and the tells and their exit codes are unchanged.
+
 ## 2.47.0
 - `route-unit.mjs` is the one source of unit kinds. `CONTRACT_KIND_OF` maps each route kind to the kind a run contract records, and `run-contract.mjs` derives its accepted kinds from it. A bad kind now fails with the allowed list and names the contract kind to record for a route kind.
 - Version 4 contract units accept an optional `size` (`S`, `M`, or `L`) and `roundBudget`, and briefs may carry a `Size:` line. Every size defaults to the 40-round budget, because no unit has recorded a size yet. An advisory fires when a budget sits below the measured median for its size, and it stays silent until a median is measured.
