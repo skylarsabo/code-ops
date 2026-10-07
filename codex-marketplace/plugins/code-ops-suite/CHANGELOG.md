@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.57.0
+- New `compliance` subcommand of `context-audit.mjs` counts, from the two supported transcript formats, operator prompts, dispatch calls by tool, guard denials, Workflow launches with and without a Run-contract line, briefs without a `Round budget` line, and authority-bearing shell commands (`git push`, `gh pr create`, `gh pr merge`, `gh release`). It prints counts and ids only, never prompt, command, brief, or result text. Subagent threads, unreadable files, and transcripts of the other hosts are counted apart as skipped. Flags: `--json`, `--out`, `--session`, `--host`, `--all`.
+- `context-audit.mjs` now runs its command line only when invoked as a script, and exports the pure counting helpers, so the eval imports them. The eval pins `RUN_CONTRACT_LINE` to the dispatch guard's literal and fails when the two differ.
+- The `context-audit` eval gains fixtures for both formats with a seeded sentinel string that must never appear in any output. MEASUREMENTS.md pre-registers three compliance rows with decision rules fixed before data.
+
 ## 2.56.0
 - The Anthropic `light` rung binds `claude-haiku-5-5` in `scripts/model-tiers.mjs`, replacing `claude-haiku-4-5-20251001`. The `explorer` agent declares `model: claude-haiku-5-5` instead of the `haiku` alias, which resolved to Haiku 4.5 in recent sessions. `CLAUDE_ALIAS_TIER` ranks the id `light`, and lint check 30 lets a light agent omit `effort:`, because Haiku 5.5 defaults to medium. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5, so the dated id stays in `ACCEPTED_MODELS` as a `light` pin and a historical stamp keeps its rung. The Copilot host ladder and its `haiku` specialist are unchanged, because Copilot availability of Haiku 5.5 is unverified.
 - The Anthropic price notes carry the 1-hour cache-write rates (Sonnet 5.5 $4, Opus 5.5 $8, Haiku 5.5 $0.20), the batch rates, and the Haiku 5.5 rates above a 100,000-token prompt. The Sonnet 5.5 cache read records the pricing table value of $0.20, which the page prose contradicts. `REGISTRY_VERIFIED_AT` stays at 2026-10-01 because models.dev did not list `claude-haiku-5-5` on 2026-10-07.
