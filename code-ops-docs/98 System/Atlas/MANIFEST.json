@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -52,7 +52,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
-          "line": 734,
+          "line": 747,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
@@ -62,27 +62,32 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 409,
+          "line": 411,
           "anchor": "advice = 'This session is past the 200,000-token price line, where input is bill"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 413,
-          "anchor": "line to RUN_LOG.md. The host compacts near 184,000 tokens. After it, read the ne"
+          "line": 404,
+          "anchor": "Host auto-compaction is the relief, so no handoff is needed. At the next safe bo"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 417,
+          "line": 415,
+          "anchor": "At the next safe boundary, checkpoint before the 200,000-token price line: keep"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 419,
           "anchor": "advice = 'Finish the step in flight and checkpoint. Start a new session and poin"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 305,
+          "line": 307,
           "anchor": "function grokRestoreLine(state) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 405,
+          "line": 407,
           "anchor": "This session is past the 200,000-token price line, and no operator prompt has ar"
         },
         {
@@ -92,17 +97,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 383,
+          "line": 385,
           "anchor": "? (grok ? ' New dispatches are now gated until you run /compact or /code-ops-sui"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 429,
+          "line": 440,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 417,
+          "line": 428,
           "anchor": "lines.push(...gitLine(cwd));"
         },
         {
@@ -231,6 +236,11 @@
           "anchor": "- Use public sources only. Never sign up, submit a form, log in, start a trial,"
         },
         {
+          "file": "plugins/code-ops-suite/scripts/compact-snapshot.mjs",
+          "line": 15,
+          "anchor": "// SECTIONS, in file order (characters, 12,000 in all): Operator words 4,800, Ru"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/compact-snapshot.mjs",
           "line": 9,
           "anchor": "// The host ignores PreCompact and PostCompact stdout, so the hook prints nothin"
@@ -247,17 +257,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 413,
+          "line": 424,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 280,
+          "line": 284,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 289,
+          "line": 299,
           "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
@@ -297,12 +307,12 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 96,
+          "line": 99,
           "anchor": "On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,00"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 100,
+          "line": 103,
           "anchor": ". The latest such line wins, and a malformed one sets no bound. The card stays q"
         },
         {
@@ -311,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "cd7731f58e8a9a2bc765afb5b34c6b249999a27b229d812cc8e2b0795fa6dced"
+      "verifiedDigest": "6f858f1893ed5a8f97cf86da17f3ac6b2f8cec3311788b088896970c7e61e3bb"
     },
     {
       "slug": "gate-scripts",
@@ -320,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "3e48f6b57fb8f0aeba72893ad0b1a1537aed4b52",
+      "verifiedAt": "a68d56e84ee4c93de0ab2227d77762b9ceb1f7e0",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -464,7 +474,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 898,
+          "line": 911,
           "anchor": "if (o.type === 'compacted') return null;"
         },
         {
@@ -559,7 +569,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 323,
+          "line": 333,
           "anchor": "async function routingLine(sessionId) {"
         },
         {
@@ -575,27 +585,37 @@
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 15,
-          "anchor": "// SECTIONS, in budget order (characters, 12,000 in all): Operator words 4,800,"
+          "anchor": "// SECTIONS, in file order (characters, 12,000 in all): Operator words 4,800, Ru"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 25,
+          "line": 32,
           "anchor": "// through the redaction scanner (scan-redaction.mjs) before it is written, and"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 27,
+          "line": 34,
           "anchor": "says that path is ignored; otherwise it goes to the home state"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 236,
+          "line": 310,
           "anchor": "const run = spawnSync('git', ['check-ignore', '-q', '--', path], { cwd: dirname("
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 295,
-          "anchor": "return header && Number.isInteger(header.boundaries) && Number.isInteger(boundar"
+          "line": 83,
+          "anchor": "export const CARRIED_FIELDS = ["
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 265,
+          "anchor": "if (render().text.length > BUDGET.total) while (state.grantShown > 1 && render()"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
+          "line": 409,
+          "anchor": "export function snapshotState(header, boundaries, lastAt) {"
         },
         {
           "file": "scripts/vendored-manifest.mjs",
@@ -619,12 +639,12 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 734,
+          "line": 747,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 759,
+          "line": 772,
           "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
         },
         {
@@ -669,7 +689,7 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 827,
+          "line": 874,
           "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
         },
         {
@@ -788,7 +808,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "818d18fffd392c8a0a16854cb7898439ba8435d2cb69463e6ee6e802bc757df3"
+      "verifiedDigest": "6d5f1a2381dd899dc4b3c86a3d697a973d0dc8441199a667795f9ed4be436a6d"
     },
     {
       "slug": "evals-and-calibration",
@@ -796,8 +816,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "3e48f6b57fb8f0aeba72893ad0b1a1537aed4b52",
-      "verifiedDigest": "24056f4cf9483ff53c46fdd2509f3e066fd18222fc6810b1c351cec46448b157",
+      "verifiedAt": "a68d56e84ee4c93de0ab2227d77762b9ceb1f7e0",
+      "verifiedDigest": "9ea243f43b5f5e1b51ca0195e871d5ecbcef57f5de9a3336b581239a2725e5a6",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -921,7 +941,7 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 1019,
+          "line": 1022,
           "anchor": "line per live session of another program on the presence board, from the board"
         },
         {
@@ -958,6 +978,16 @@
           "file": "evals/compact-snapshot/run.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 584,
+          "anchor": "check('9a. PARITY: every CARRIED_FIELDS section, and the Run: path, is in a simu"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 593,
+          "anchor": "check('9d. PARITY: every handoff Write field has a CARRIED_FIELDS entry, and the"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -1021,47 +1051,47 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 310,
+          "line": 311,
           "anchor": "// ---------------------------------------------------------------- lifecycle as"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 423,
+          "line": 425,
           "anchor": "// ---------------------------------------------------------------- Codex token-"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 358,
+          "line": 360,
           "anchor": "// ---------------------------------------------------------------- context ceil"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 364,
+          "line": 366,
           "anchor": "const gatedGrok = /New dispatches are now gated until you run \\/compact or \\/cod"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 124,
+          "line": 125,
           "anchor": "const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At t"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 125,
+          "line": 126,
           "anchor": "const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 127,
+          "line": 128,
           "anchor": "const BAND2 = 'Finish the step in flight and checkpoint as above. If the host ha"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 128,
+          "line": 129,
           "anchor": "const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 196,
+          "line": 197,
           "anchor": "// A lead whose shell changes directory reports a different payload cwd on each"
         },
         {
@@ -1073,6 +1103,11 @@
           "file": "evals/compact-snapshot/run.mjs",
           "line": 462,
           "anchor": "cl = linesOf(c);"
+        },
+        {
+          "file": "evals/opencode-lifecycle/run.mjs",
+          "line": 495,
+          "anchor": "const carriedTags = CARRIED_FIELDS.filter((entry) => entry.tag).map((entry) => e"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
@@ -1104,7 +1139,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
+      "verifiedAt": "4b5bf80663af6d9a31d7a3ce4b7fcd55fa1820c5",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1148,22 +1183,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 400,
+          "line": 402,
           "anchor": ", because the Codex PreCompact hook does not fire.';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 280,
+          "line": 284,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 289,
+          "line": 299,
           "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 285,
+          "line": 289,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
@@ -1208,7 +1243,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 235,
+          "line": 238,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -1217,7 +1252,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "76c4f0923a1df832b26d7b5f104b3a85e8253989ee59b9b3d92c50f4066941c5"
+      "verifiedDigest": "d4b55b46691f683004bd469505ee2f56ebdc785a8f1035516fe5353822ef15a1"
     },
     {
       "slug": "ci-workflows",
@@ -1291,7 +1326,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "992642914e60e83fe9ac9d5d6b36388f8ff27d2d",
+      "verifiedAt": "9a62d7e04254d1dafb6b32946d50a0e8a518af1e",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1344,19 +1379,19 @@
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 253
+          "line": 259
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 299
+          "line": 327
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 733
+          "line": 775
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 865
+          "line": 932
         },
         {
           "file": "Platform/INFRASTRUCTURE.md",
@@ -1368,7 +1403,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "7cfa3aacca6177d853988ec98bbfd8693cccc357f7e8f93a44ed118e6624c70c"
+      "verifiedDigest": "71c839072f13485306e788d03bdc17d5288d74893f6a4d420fcf7570c3f0b092"
     },
     {
       "slug": "root-contracts",
