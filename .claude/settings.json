@@ -4,7 +4,6 @@
       "Bash(node scripts/lint-plugins.mjs)",
       "Bash(node scripts/scan-ai-tells.mjs *)",
       "Bash(node scripts/check-no-deps.mjs)",
-      "Bash(node scripts/check-doc-refs.mjs)",
       "Bash(node scripts/revalidate-register.mjs *)",
       "Bash(node scripts/build-codex-marketplace.mjs --check)",
       "Bash(node scripts/preflight.mjs *)",
