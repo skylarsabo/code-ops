@@ -651,6 +651,65 @@ try {
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', join(runDir, 'L055_ACCEPTANCE_LEDGER.md'), '--dispatch-ledger', l055Ledger, '--result', l055Result, '--root', root], root);
   check('finalize still refuses the same partial dispatch state', r.status === 1 && !existsSync(l055Result), r.out);
 
+  // ---- a planned unit that will never run is declared, not given an invented actor id -------
+  // D-003 is still planned with no row. Save the ledger and receipts bytes so the chain the
+  // later cases assert against stays exactly as it was.
+  const l055LedgerPlain = readFileSync(l055Ledger, 'utf8');
+  const l055ChainPlain = readFileSync(l055Receipts, 'utf8');
+  const l055Rel = 'run/L055_DISPATCH_LEDGER.md';
+  const statusL055 = () => JSON.parse(run(RUNTIME, ['status', '--root', root, '--contract', contractPath, '--json'], root).stdout);
+  const pendingIds = (status) => status.pendingDispatches.items.map((item) => item.unitId);
+  const notDispatchedIds = (status) => (status.notDispatched?.items || []).map((item) => item.unitId);
+  const restoreL055 = () => { writeFileSync(l055Ledger, l055LedgerPlain); writeFileSync(l055Receipts, l055ChainPlain); };
+  const reconcileL055 = (flag) => run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, flag], root);
+  const declareByHand = (id, reason) => writeFileSync(l055Ledger, `${l055LedgerPlain.trimEnd()}\n> not-dispatched: ${id} · ${reason}\n`);
+
+  let status = statusL055();
+  check('status lists an undeclared planned unit as pending', pendingIds(status).includes('D-003')
+    && status.pendingDispatches.items.find((item) => item.unitId === 'D-003').status === 'planned' && notDispatchedIds(status).length === 0, JSON.stringify(status.pendingDispatches));
+
+  declareByHand('D-003', 'review folded into the lead read');
+  status = statusL055();
+  check('status moves a declared unit from pending to notDispatched', !pendingIds(status).includes('D-003')
+    && notDispatchedIds(status).join() === 'D-003' && status.notDispatched.items[0].reason === 'review folded into the lead read', JSON.stringify(status));
+  r = run(RUNTIME, ['status', '--root', root, '--contract', contractPath], root);
+  check('status text names the declared unit and its reason', /not dispatched D-003: review folded into the lead read/.test(r.out), r.out);
+  r = reconcileL055('--in-flight');
+  check('in-flight reconcile accepts a declared never-run unit', r.status === 0 && !/missing planned ledger row D-003/.test(r.out), r.out);
+  r = reconcileL055('--strict');
+  check('strict reconcile still refuses a declared unit still in the contract', r.status === 1 && /D-003 is declared not dispatched; drop it from the contract with a replan before finalizing/.test(r.out), r.out);
+  r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', join(runDir, 'L055_ACCEPTANCE_LEDGER.md'), '--dispatch-ledger', l055Ledger, '--result', l055Result, '--root', root], root);
+  check('finalize refuses a declared unit and writes no result', r.status === 1 && !existsSync(l055Result), r.out);
+  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', l055Rel], root);
+  check('checkpoint succeeds with a declared never-run unit', r.status === 0 && /sequence 5/.test(r.out), r.out);
+  restoreL055();
+
+  // The command path writes the same marker the hand-written cases above use.
+  r = run(LEDGER, ['skip', '--ledger', l055Ledger, '--id', 'D-003', '--reason', 'review folded into the lead read', '--contract', contractPath], root);
+  check('dispatch-ledger skip declares the unit', r.status === 0 && notDispatchedIds(statusL055()).join() === 'D-003', r.out);
+  r = reconcileL055('--in-flight');
+  check('in-flight reconcile accepts a unit declared through skip', r.status === 0 && !/missing planned ledger row D-003/.test(r.out), r.out);
+  restoreL055();
+
+  declareByHand('D-009', 'not in the contract');
+  r = reconcileL055('--in-flight');
+  check('reconcile refuses a declaration for an unplanned unit', r.status === 1 && /D-009 is declared not dispatched but the contract does not plan it/.test(r.out), r.out);
+  status = statusL055();
+  check('status keeps an undeclared planned unit pending beside a stray declaration', pendingIds(status).includes('D-003'), JSON.stringify(status.pendingDispatches));
+  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', l055Rel], root);
+  check('checkpoint refuses a stray declaration and appends nothing', r.status === 1 && readFileSync(l055Receipts, 'utf8') === l055ChainPlain, r.out);
+  restoreL055();
+
+  declareByHand('D-001', 'also has a row');
+  r = reconcileL055('--in-flight');
+  check('reconcile refuses a declaration for a unit that has a row', r.status === 1 && /D-001 is declared not dispatched and has a ledger row/.test(r.out), r.out);
+  restoreL055();
+
+  writeFileSync(l055Ledger, `${l055LedgerPlain.trimEnd()}\n> not-dispatched: D-003\n`);
+  r = reconcileL055('--in-flight');
+  check('reconcile refuses a malformed declaration', r.status === 1 && /malformed not-dispatched marker/.test(r.out), r.out);
+  restoreL055();
+
   const l055GoodChain = readFileSync(l055Receipts, 'utf8');
   const readJournal = () => readFileSync(l055Journal, 'utf8').trim().split('\n').map((line) => JSON.parse(line));
   const writeJournal = (events) => writeFileSync(l055Journal, `${events.map((event) => JSON.stringify(event)).join('\n')}\n`);

@@ -47,6 +47,8 @@ to `handoff resume` there, so peers can find the session by either id.
 Each hop names the next session in sequence: `Ledger2 AMM`, then `Ledger2 AMM HO 1`, then
 `Ledger2 AMM HO 2`. The handoff's `Session:` line holds the successor's name, and `Hop:` holds its
 number. The base name keeps its recorded case and never changes to the `PROGRAM.md` title.
+The first hop may instead keep the name of a session the operator already named, with no `HO`
+suffix; the next draft appends ` HO 2` to that name.
 
 Peers address a program session by its name, never by a bare session id. Before messaging a peer,
 resolve the live head with `node <plugin-root>/scripts/co.mjs handoff live "<name>"`: a
@@ -139,7 +141,7 @@ traps, and carried-context bullets as `[FILL: confirm still true]` lines: keep e
 holds and delete the rest. Replace each `[FILL: ...]` placeholder with judgment, held to `§9`:
 - **Program:** added first, above Goal, because it points at the context every other section sits
   in. It holds `Program: <path to PROGRAM.md>`, `Predecessor: <path to prior HANDOFF.md | none>`,
-  `Session: <base name> HO <n>`, and `Hop: <n>`.
+  `Session: <base name> HO <n>` (the first hop may keep an existing session name), and `Hop: <n>`.
 - **Goal and state of play:** a `Request:` line with the operator's request verbatim, the phases complete, in flight, and not started, the automation level, and any steering (`§3`).
 - **Scope and constraints:** areas in and out of scope, and the operator's constraints in their exact words.
 - **Key findings:** one line each with `CONFIRMED`, `PROBABLE`, or `SPECULATIVE` and a pointer to its evidence.
@@ -248,7 +250,7 @@ For a **Write**:
 - The file is state throughout, with no instructions, no `[FILL: ...]` placeholder, and nothing secret.
 - `SCOPE_DIGESTS.md`, when draft wrote it, holds a filled digest for every scope document.
 - `node <plugin-root>/scripts/co.mjs check handoff HANDOFF.md` passes, beside the redaction scan above.
-- The `## Program` section carries the successor's `Session:` name and its `Hop:`.
+- The `## Program` section carries the successor's `Session:` name and its `Hop:`. The first hop may keep an existing session name with no `HO` suffix.
 - The reply ends with the one paste-ready resume line, by session name when that name is unique,
   and qualifies startup pickup as discovery, not automatic resume.
 

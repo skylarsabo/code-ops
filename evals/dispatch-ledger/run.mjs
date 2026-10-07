@@ -419,6 +419,8 @@ try {
   const noActorLedger = join(dir, 'CONTRACT_NOACTOR_LEDGER.md');
   const z4 = run(['add', '--ledger', noActorLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001']);
   check('z4. a version 4 contract add without --actor-id exits 1', z4.status === 1 && /actor/i.test(z4.stderr), z4.stderr);
+  check('z4. the refusal says to supply the host agent id and points a never-run unit to skip',
+    /supply the agent id the host returned/.test(z4.stderr) && /dispatch-ledger\.mjs skip/.test(z4.stderr), z4.stderr);
   check('z4. no ledger was created on refusal', !existsSync(noActorLedger));
 
   // z5. an actor already bound to a different unit is refused — caught at append time, not only
@@ -440,6 +442,7 @@ try {
   const z6JournalBefore = readFileSync(reuseLedger + '.journal.jsonl', 'utf8');
   const z6 = run(['update', '--ledger', reuseLedger, '--id', 'D-001', '--status', 'redispatched']);
   check('z6. redispatch on a bound journal without --actor-id exits 1', z6.status === 1 && /actor/i.test(z6.stderr), z6.stderr);
+  check('z6. the redispatch refusal says to supply the host agent id', /supply the agent id the host returned/.test(z6.stderr), z6.stderr);
   check('z6. ledger unchanged after the missing-actor refusal', readFileSync(reuseLedger, 'utf8') === z6Before);
   check('z6. journal unchanged after the missing-actor refusal', readFileSync(reuseLedger + '.journal.jsonl', 'utf8') === z6JournalBefore);
 
@@ -508,6 +511,51 @@ try {
   run(['update', '--ledger', strictBound, '--id', 'D-002', '--status', 'reported']);
   const z12 = run(['check', '--ledger', strictBound, '--strict']);
   check('z12. a bound ledger passes check --strict once all rows report', z12.status === 0, z12.stdout + z12.stderr);
+
+  // ---- n1-sk9. `skip` declares a planned unit that will never run: it writes one marker line,
+  // never touches the journal, and every dispatch path then refuses that id.
+  const skipLedger = join(dir, 'SKIP_LEDGER.md');
+  run(['add', '--ledger', skipLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5', '--contract', contractPath, '--unit', 'D-001', '--actor-id', 'agent-s1']);
+  const skipJournalBefore = readFileSync(skipLedger + '.journal.jsonl', 'utf8');
+  const sk1 = run(['skip', '--ledger', skipLedger, '--id', 'D-002', '--reason', 'review folded into the lead read', '--contract', contractPath]);
+  check('sk1. skip exits 0 and writes the marker', sk1.status === 0
+    && readFileSync(skipLedger, 'utf8').includes('\n> not-dispatched: D-002 · review folded into the lead read\n'), sk1.stderr + readFileSync(skipLedger, 'utf8'));
+  check('sk1. skip leaves the journal untouched', readFileSync(skipLedger + '.journal.jsonl', 'utf8') === skipJournalBefore);
+  const sk1c = run(['check', '--ledger', skipLedger]);
+  check('sk1. check exits 0 and lists the declared unit', sk1c.status === 0 && /not dispatched: D-002 \(review folded into the lead read\)/.test(sk1c.stdout), sk1c.stdout + sk1c.stderr);
+
+  const skipBefore = readFileSync(skipLedger, 'utf8');
+  const sk2 = run(['skip', '--ledger', skipLedger, '--id', 'D-001', '--reason', 'was dispatched']);
+  check('sk2. skip refuses an id that has a row', sk2.status === 1 && /already has a ledger row/.test(sk2.stderr), sk2.stderr);
+  const sk3 = run(['skip', '--ledger', skipLedger, '--id', 'D-002', '--reason', 'again']);
+  check('sk3. skip refuses a repeat declaration', sk3.status === 1 && /already declared not dispatched/.test(sk3.stderr), sk3.stderr);
+  const sk4 = run(['skip', '--ledger', join(dir, 'NO_SUCH_LEDGER.md'), '--id', 'D-002', '--reason', 'no ledger']);
+  check('sk4. skip refuses a missing ledger and creates none', sk4.status === 1 && /ledger not found/.test(sk4.stderr) && !existsSync(join(dir, 'NO_SUCH_LEDGER.md')), sk4.stderr);
+  const sk5 = run(['skip', '--ledger', skipLedger, '--id', 'D-007', '--reason', 'not planned', '--contract', contractPath]);
+  check('sk5. skip refuses a unit absent from the contract', sk5.status === 1 && /D-007/.test(sk5.stderr), sk5.stderr);
+  check('sk5. the refused skips left the ledger unchanged', readFileSync(skipLedger, 'utf8') === skipBefore);
+
+  const sk6 = run(['add', '--ledger', skipLedger, '--role', 'reviewer', '--brief', 'review the payment diff', '--artifact', 'REVIEW.md', '--model', 'claude-opus-5', '--contract', contractPath, '--unit', 'D-002', '--actor-id', 'agent-s2']);
+  check('sk6. add --contract on a declared unit refuses', sk6.status === 1 && /declared not dispatched/.test(sk6.stderr), sk6.stderr);
+  const serialLedger = join(dir, 'SKIP_SERIAL_LEDGER.md');
+  run(['add', '--ledger', serialLedger, '--role', 'explorer', '--brief', 'map the payment lane', '--artifact', 'MAP.md', '--model', 'claude-sonnet-5']);
+  run(['skip', '--ledger', serialLedger, '--id', 'D-002', '--reason', 'review folded into the lead read']);
+  const sk7 = run(['add', '--ledger', serialLedger, '--role', 'explorer', '--brief', 'map the billing lane', '--artifact', 'BILL.md', '--model', 'claude-sonnet-5']);
+  check('sk7. add without --contract skips the declared serial', sk7.status === 0 && /|s*D-003s*|/.test(readFileSync(serialLedger, 'utf8')), sk7.stderr);
+
+  const bothLedger = join(dir, 'SKIP_BOTH_LEDGER.md');
+  writeFileSync(bothLedger, [
+    '| id | role | brief | expected artifact | status |',
+    '| --- | --- | --- | --- | --- |',
+    '| D-001 | explorer@claude-sonnet-5 | map the payment lane | MAP.md | dispatched |',
+    '> not-dispatched: D-001 · also has a row',
+  ].join('\n') + '\n');
+  const sk8 = run(['check', '--ledger', bothLedger]);
+  check('sk8. check fails a ledger that declares an id it also has a row for', sk8.status === 1, sk8.stdout + sk8.stderr);
+  const badMarker = join(dir, 'SKIP_BAD_MARKER_LEDGER.md');
+  writeFileSync(badMarker, '| id | role | brief | expected artifact | status |\n| --- | --- | --- | --- | --- |\n> not-dispatched: D-002\n');
+  const sk9 = run(['check', '--ledger', badMarker]);
+  check('sk9. check fails a malformed not-dispatched marker', sk9.status === 1 && /malformed not-dispatched marker/.test(sk9.stdout + sk9.stderr), sk9.stdout + sk9.stderr);
 } finally {
   for (const d of cleanupDirs) rmSync(d, { recursive: true, force: true });
 }

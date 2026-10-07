@@ -28,6 +28,32 @@ export const LEDGER_ROW_RE = /^\|\s*(D-\d+)\s*\|\s*([^|]*?)\s*\|\s*([^|]*?)\s*\|
 // The closed set of values the status column may carry.
 export const LEDGER_STATUSES = ['dispatched', 'reported', 'failed', 'redispatched'];
 
+// `> not-dispatched: D-NNN · <reason>` declares a planned unit that will never run, so a ledger can
+// close it without a dispatch and without inventing an actor id. A declaration names no row, so an
+// id that also has a row, or that the contract never planned, is a conflict the readers report.
+export const NOT_DISPATCHED_PREFIX = '> not-dispatched:';
+const NOT_DISPATCHED_RE = /^> not-dispatched: (D-\d+) · (\S.*)$/;
+
+/**
+ * Reads the not-dispatched declarations from ledger text.
+ * @param {string} text
+ * @returns {{ declared: Map<string, string>, malformed: string[] }}
+ */
+export function parseNotDispatched(text) {
+  const declared = new Map();
+  /** @type {string[]} */
+  const malformed = [];
+  text.split('\n').forEach((raw, index) => {
+    const line = raw.replace(/\r$/, '').trim();
+    if (!line.startsWith(NOT_DISPATCHED_PREFIX)) return;
+    const match = NOT_DISPATCHED_RE.exec(line);
+    if (!match) malformed.push(`L${index + 1}: malformed not-dispatched marker (expected \`${NOT_DISPATCHED_PREFIX} D-NNN · <reason>\`): ${line.slice(0, 100)}`);
+    else if (declared.has(match[1])) malformed.push(`L${index + 1}: ${match[1]} is declared not-dispatched twice`);
+    else declared.set(match[1], match[2]);
+  });
+  return { declared, malformed };
+}
+
 // The table header a ledger opens with, written by dispatch-ledger.mjs.
 export const LEDGER_HEADER = '| id | role | brief | expected artifact | status |\n'
   + '| --- | --- | --- | --- | --- |\n';

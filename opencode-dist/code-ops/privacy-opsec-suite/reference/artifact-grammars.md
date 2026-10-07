@@ -93,6 +93,28 @@ it as prose, whether the fault is a missing title, a missing ` · lead@`, or an 
 lead model changes mid-run. A lead swap between phases is a legitimate but noteworthy event,
 not a silent one.
 
+### Not-dispatched markers
+
+A planned unit that will never run is declared in the ledger, not given an invented actor id:
+
+```
+node scripts/dispatch-ledger.mjs skip --ledger <file> --id <D-NNN> --reason <text> [--contract <file>]
+```
+
+The line it writes looks like this:
+
+```
+> not-dispatched: D-003 · review folded into the lead read
+```
+
+The form is `> not-dispatched: D-NNN · <reason>`. The marker names no row, so it adds no row and no
+journal entry. `parseNotDispatched` in `scripts/ledger-grammar.mjs` reads it. `check` lists each
+declared unit and fails closed on a malformed marker, a repeated id, or an id that also has a row.
+`add` skips a declared serial and refuses `--contract --unit` for a declared id. Reconciliation
+against a contract fails a declaration for a unit the contract does not plan. In-flight mode
+accepts a declared unit with no row. Strict mode and `finalize` refuse it until a replan drops the
+unit from the contract.
+
 ### Orchestration rates are journal-first
 
 `dispatch-ledger.mjs` also maintains a write journal beside the ledger,

@@ -66,6 +66,8 @@
 //  10. Session chain. "## Program" may carry `Session: <base name> HO <n>`, the name the successor
 //      session takes, and `Hop: <n>`. A handoff without both lines is legacy and passes. When
 //      either is present, both must be: Hop is a positive integer and Session ends with ` HO <Hop>`.
+//      The first hop (`Hop: 1`) may instead carry an existing session's name with no HO suffix, so a
+//      session the operator already named keeps its name; the next draft appends ` HO 2` to that base.
 //  19. Convergence (DEC-74). A PROGRAM.md `## Finish line` section, whose bullets start `- F<n> `,
 //      opts in. Then "## Open items" holds at most OPEN_CAP bullets, each carries `Blocks: F<n>`
 //      (a comma list is allowed) on its own line or its ledger line, and every F id it names is on
@@ -228,6 +230,10 @@ const bulletsOf = (body) => body.split('\n').filter((l) => /^[-*]\s+/.test(l));
 const findSection = (list, name) => list.find((s) => s.heading.toLowerCase().startsWith(name.toLowerCase()));
 // The text after `<label>:` on its own line, bulleted or not, or null when the line is absent.
 const labelValue = (body, label) => new RegExp(`^[-*\\t ]*${label}:[^\\S\\r\\n]*(.*)$`, 'm').exec(body)?.[1].trim() ?? null;
+// Check 10: a Session ends with " HO <Hop>". The first hop may instead name an existing session, which
+// carries no HO suffix, so a lone "HO 1", a glued "HO1", and a suffix that disagrees with Hop all still fail.
+const sessionMatchesHop = (session, hop) => new RegExp(`\\S HO ${hop}$`).test(session)
+  || (hop === '1' && !/(^|\s)HO\s*\d+$/i.test(session));
 const pathValue = (body, label) => labelValue(body, label)?.replace(/^`(.*)`$/, '$1').trim() || null;
 const squash = (s) => s.replace(/\s+/g, ' ').trim();
 const agreedSlug = (line) => /\bAgreed-with:\s*([A-Za-z0-9][\w.-]*)/.exec(line)?.[1] ?? null;
@@ -584,7 +590,7 @@ if (programSection) {
   const hop = labelValue(programSection.body, 'Hop');
   if (session !== null || hop !== null) {
     if (!/^[1-9]\d*$/.test(hop ?? '')) violations.push(`"## Program" Hop: must be a positive integer beside Session:, found: ${hop ?? 'no Hop line'}`);
-    else if (!session || !new RegExp(`\\S HO ${hop}$`).test(session)) violations.push(`"## Program" Session: must end with " HO ${hop}" to match Hop: ${hop}, found: ${session ?? 'no Session line'}`);
+    else if (!session || !sessionMatchesHop(session, hop)) violations.push(`"## Program" Session: must end with " HO ${hop}" to match Hop: ${hop}${hop === '1' ? ', or name an existing session with no HO suffix on this first hop' : ''}, found: ${session ?? 'no Session line'}`);
   }
   // ---- 12. no decision older than the writing session's hop stays pending ----
   if (grammar2) {

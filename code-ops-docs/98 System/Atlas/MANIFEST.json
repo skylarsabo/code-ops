@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5eb51032956923beff50ae5acae893a7b7d73984",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -323,17 +323,17 @@
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 85,
-          "anchor": "On Claude and Codex, context size alone never selects HANDOFF. Claude Code compa"
+          "anchor": "handoff neither stops them nor proves reattachment."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 99,
-          "anchor": "On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,00"
+          "anchor": "each background agent the session launched that has not reported."
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 103,
-          "anchor": ". The latest such line wins, and a malformed one sets no bound. The card stays q"
+          "anchor": "After the compact, read the newest compaction segment before the host summary. T"
         },
         {
           "file": "plugins/code-ops-suite/skills/conform/SKILL.md",
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "e5d9885c995488f96a50bbc214eeb4c47fbdedb1d1b74afa3a666cc2ff987368"
+      "verifiedDigest": "6b5521582f80620336a23e9193fc125c21222eb5c348e7cfeb405d944ad94ac8"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -595,7 +595,7 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 146,
-          "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
+          "anchor": "// Imported by relative specifier: check-handoff.mjs ships vendored into"
         },
         {
           "file": "scripts/check-handoff.mjs",
@@ -605,7 +605,7 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 69,
-          "anchor": "//  19. Convergence (DEC-74). A PROGRAM.md"
+          "anchor": ") may instead carry an existing session's name with no HO suffix, so a"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -650,7 +650,7 @@
         {
           "file": "scripts/check-handoff.mjs",
           "line": 508,
-          "anchor": "function agreedWithWarning(line, peer, own, peerFile) {"
+          "anchor": "check 18: ${id} leads ${n} bullets across ${tag} and ${ARCHIVE_NAME}; ids are un"
         },
         {
           "file": "scripts/agent-ledger.mjs",
@@ -953,7 +953,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "e2fdcd2949e11da5ef335c360520fd98043d6cbbb5f10774a61ace55802d622c"
+      "verifiedDigest": "cdf6b3d64f2a925662f8673b003d5f1914caf89d16e7528b8d281b0ce9e1a9b6"
     },
     {
       "slug": "evals-and-calibration",
@@ -961,8 +961,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
-      "verifiedDigest": "5b75315b30f0a8f9278e80198580e472bdf24475f10473a6016de5564d97102a",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
+      "verifiedDigest": "c1a45dfcb3657de13d389daf4994518f5f97d97661a2a492e41a82f5dd4f7ec7",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1107,7 +1107,7 @@
         {
           "file": "evals/handoff-check/run.mjs",
           "line": 366,
-          "anchor": "// Agreed-with (design 2026-09 item 4): warn only, exit 0, when the peer program"
+          "anchor": "mkdirSync(dir, { recursive: true });"
         },
         {
           "file": "evals/change-feed/run.mjs",
@@ -1304,7 +1304,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1408,8 +1408,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 238,
-          "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
+          "line": 238
         },
         {
           "file": "opencode-dist/plugins/code-ops-lifecycle.js",
@@ -1417,7 +1416,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "5974c4d9244cfd48b30c16d0a4dc9bed539f10c87534f28b272a5c9ebe9195a1"
+      "verifiedDigest": "85854dd53483dcfc339f4aa21d79a789dd5d30afd0ed8c72535b0bed518a4b43"
     },
     {
       "slug": "ci-workflows",
@@ -1520,7 +1519,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5eb51032956923beff50ae5acae893a7b7d73984",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1545,7 +1544,7 @@
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 72,
-          "anchor": "token pressure. First persist decisions, rejected approaches, authority boundari"
+          "anchor": "costs several million tokens to write and resume."
         },
         {
           "file": "scripts/run-contract.mjs",
@@ -1560,7 +1559,7 @@
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
           "line": 74,
-          "anchor": ". Execute the host action only through a callable host"
+          "anchor": "token pressure. First persist decisions, rejected approaches, authority boundari"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -1597,7 +1596,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "9f5fc60895957bf2c43cff1451a63af081c796e147933fc0d333ce80a70c0078"
+      "verifiedDigest": "a21f2a82df8b655b9c5ede8438631d17656d5b5b49c95057710dedde4e16854a"
     },
     {
       "slug": "root-contracts",

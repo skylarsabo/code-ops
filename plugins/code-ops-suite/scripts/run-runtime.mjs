@@ -12,7 +12,7 @@ import {
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseAcceptance } from './acceptance-lib.mjs';
-import { LEDGER_ROW_RE } from './ledger-grammar.mjs';
+import { LEDGER_ROW_RE, parseNotDispatched } from './ledger-grammar.mjs';
 import {
   atomicWrite,
   checkedPath,
@@ -296,18 +296,25 @@ function runtimeStatus(root, contractArgument, limit) {
     ]) if (!same(current.binding[key], replayed.activeBinding[key])) drift.push({ category, path });
   }
   const dispatches = new Map();
+  const declared = new Map();
   const ledgerValid = references.ledger && probe('dispatch-ledger', references.ledger.path, () => {
     const actual = checkLedger(root, references.ledger.path, false);
     if (!same(actual, references.ledger)) drift.push({ category: 'dispatch-ledger-changed', path: references.ledger.path });
-    for (const line of readFileSync(checkedPath(root, references.ledger.path), 'utf8').split(/\r?\n/)) {
+    const ledgerText = readFileSync(checkedPath(root, references.ledger.path), 'utf8');
+    for (const line of ledgerText.split(/\r?\n/)) {
       const match = line.match(LEDGER_ROW_RE);
       if (match) dispatches.set(match[1], match[5]);
     }
+    for (const [id, reason] of parseNotDispatched(ledgerText).declared) declared.set(id, reason);
     if ([...dispatches.values()].some((status) => status !== 'reported')) drift.push({ category: 'dispatch-incomplete', path: references.ledger.path });
     if (current) probe('dispatch-contract', references.ledger.path, () => runCheck(RUN_CONTRACT,
       ['reconcile', '--root', root, '--contract', contractPath.absolute, '--ledger', checkedPath(root, references.ledger.path)], 'dispatch reconciliation'));
   });
-  const pending = contract.units.filter((unit) => !ledgerValid || dispatches.get(unit.id) !== 'reported')
+  // A declaration closes a planned unit only when the ledger is valid and the unit has no row.
+  const notDispatched = ledgerValid ? contract.units.filter((unit) => declared.has(unit.id) && !dispatches.has(unit.id))
+    .map((unit) => ({ unitId: unit.id, reason: declared.get(unit.id) })) : [];
+  const closedUnits = new Set(notDispatched.map((item) => item.unitId));
+  const pending = contract.units.filter((unit) => !closedUnits.has(unit.id) && (!ledgerValid || dispatches.get(unit.id) !== 'reported'))
     .map((unit) => ({ unitId: unit.id, status: ledgerValid ? dispatches.get(unit.id) || 'planned' : references.ledger ? 'UNKNOWN' : 'planned', artifact: unit.artifact }));
   const latest = new Map();
   const acceptanceValid = !references.acceptance || probe('acceptance', references.acceptance.path, () => {
@@ -352,6 +359,7 @@ function runtimeStatus(root, contractArgument, limit) {
     version: 1, runId: contract.runId, revision: contract.revision,
     checkpoint: checkpoint ? { sequence: checkpoint.sequence, kind: checkpoint.kind, recordedAt: checkpoint.recordedAt, verified: drift.length === 0 } : null,
     pendingDispatches: bounded(pending),
+    notDispatched: bounded(notDispatched),
     acceptance: { total: contract.quality.criteria.length, valid: acceptanceValid, unresolved: bounded(unresolved) },
     tokenBudgets: { total: budgeted.length, observed: bounded(budgeted), overruns: bounded(budgetOverruns) },
     drift: bounded(drift), readPointers: bounded(pointers),
@@ -494,11 +502,12 @@ if (command === 'init') {
       console.log(`runtime ${status.runId} revision ${status.revision}; checkpoint ${status.checkpoint?.sequence ?? 'MISSING'} (${status.checkpoint?.verified ? 'verified' : 'unverified'})`);
       console.log(`pending dispatches: ${status.pendingDispatches.total}; unresolved acceptance: ${status.acceptance.unresolved.total}/${status.acceptance.total}; token budget overruns: ${status.tokenBudgets.overruns.total}; drift: ${status.drift.total}`);
       for (const item of status.pendingDispatches.items) console.log(`pending ${item.unitId} ${item.status}: ${item.artifact}`);
+      for (const item of status.notDispatched.items) console.log(`not dispatched ${item.unitId}: ${item.reason}`);
       for (const item of status.acceptance.unresolved.items) console.log(`acceptance ${item.criterionId} ${item.verdict}`);
       for (const item of status.tokenBudgets.overruns.items) console.log(`budget ${item.unitId} exceeded ${item.exceeded.join(',')}`);
       for (const item of status.drift.items) console.log(`drift ${item.category}: ${item.path}`);
       for (const path of status.readPointers.items) console.log(`read: ${path}`);
-      if ([status.pendingDispatches, status.acceptance.unresolved, status.drift, status.readPointers].some((items) => items.omitted)) console.log(`lists capped at ${limit}; use --json for omitted counts`);
+      if ([status.pendingDispatches, status.notDispatched, status.acceptance.unresolved, status.drift, status.readPointers].some((items) => items.omitted)) console.log(`lists capped at ${limit}; use --json for omitted counts`);
     }
   } catch (error) { die(error.message); }
 } else if (command === 'metrics') {

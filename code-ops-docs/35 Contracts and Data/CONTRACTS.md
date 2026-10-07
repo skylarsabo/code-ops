@@ -1328,6 +1328,14 @@ From and To state to belong to its entity and every Writer cell to be non-empty.
 | 22 | Distill phase | pending | lead starts the phase | prior phase done | running, checkpointed | planned (distill, PRs 6 to 8) with S `run-runtime.mjs checkpoint` | receipts | planned |
 | 23 | Distill phase | checkpointed | lead review passes | review rule met | done | planned (distill, PRs 6 to 8) | receipts | planned |
 
+A planned unit that will never run is not a Unit (dispatch row) state, because it has no row and no
+actor. The lead declares it with `dispatch-ledger.mjs skip --ledger <file> --id <D-NNN> --reason
+<text>`, which appends one `> not-dispatched: D-NNN · <reason>` line to the ledger and leaves the
+journal unchanged. `run-runtime.mjs status` lists the unit under `notDispatched`, not
+`pendingDispatches`. In-flight reconciliation accepts the unit with no row. Strict reconciliation
+and `finalize` still refuse it until a replan drops it from the contract. A marker for a unit the
+contract does not plan, for a unit that has a row, or in a malformed form fails every reader.
+
 Evidence: `scripts/lint-plugins.mjs` (`checkAgentStateMachine`) and `scripts/ledger-grammar.mjs`.
 
 ## Peer guard hook
