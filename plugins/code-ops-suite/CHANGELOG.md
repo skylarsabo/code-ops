@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.51.0
+- `check-vault-standard.mjs` gains rule 16, the decision register. A vault that carries `20 Decisions/REGISTER.md` keeps it whole: ids come from the D, ADR, DEC, EVO, and RBS families and stay unique, every `DEC-<n>` cited in the vault has a row, every decision note and ADR has a row, and each row has a valid date and status. A committed link in a Source cell must resolve. A run folder or program ledger is a code-span path under `80 Runs/`, checked for form only, and a link into that gitignored folder fails. A vault with no register sees no change.
+- This repository adds `20 Decisions/REGISTER.md` with 108 rows for its decision notes, ADRs, and program ledgers.
+
 ## 2.50.0
 - `docs-manifest.mjs runs` lists each run folder under `<hub>/80 Runs/` by retention tier: `active` (0 to 30 days), `distill-ready` (31 to 180), and `archive` (181 or more). It ages a folder from its `YYYY-MM-DD` name prefix and falls back to the folder mtime when the name has no valid date. The command is read-only and takes `--now <YYYY-MM-DD>` for a repeatable report. `runRetentionTier` and `listRunTiers` are exported for other scripts.
 - The new operations page `RUN_RETENTION.md` states the tiers, the age limits, and the fallback. The docs-manifest eval tests each limit on both sides and the mtime fallback.
