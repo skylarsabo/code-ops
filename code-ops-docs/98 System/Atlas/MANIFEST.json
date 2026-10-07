@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "0c66e45e71dcc096e6678446e9d00d75e36a18a45c4ca29fc8aba0861bb75ef6"
+      "verifiedDigest": "8effd775ed1989c9df97250a02bfadcdf0efeb23fda904603f15b4bd594b6370"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -339,17 +339,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 902,
+          "line": 946,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1478,
+          "line": 1522,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 448,
+          "line": 449,
           "anchor": "function checkScriptDomains() {"
         },
         {
@@ -359,13 +359,18 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 120,
+          "line": 121,
           "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 121,
-          "anchor": "import { layoutPath } from './layout-manifest.mjs';"
+          "line": 122,
+          "anchor": "import { LAYOUT, layoutPath } from './layout-manifest.mjs';"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 816,
+          "anchor": "function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
@@ -878,7 +883,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "8a78154be5fdfe4e097887d7e5a7f83c681fcf062b93362d5e216c255958daf6"
+      "verifiedDigest": "d95040ee16445eaa966b7833aa5a327aadfd0a9ca423e8f0e6d0ac51ae2445a0"
     },
     {
       "slug": "evals-and-calibration",
@@ -886,8 +891,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
-      "verifiedDigest": "5b6b1a4d3f350449701f1dca20b1027dbbdfe6f715e91c99778fcc4eff6ac5ec",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedDigest": "4bca45d3de2208e4c05b90f624df827c8d33dab6c3a2b67a2920bd06dd23706c",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1209,7 +1214,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1322,7 +1327,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "82cbd3ef58ebefaf437499795d4991c24b57e22831ef44b413a6057018083046"
+      "verifiedDigest": "7a3ddaf1956410d59212d53acca469d371676f150dce7aa648c587979ad321dc"
     },
     {
       "slug": "ci-workflows",
@@ -1413,7 +1418,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1490,7 +1495,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "b492f9df5c4a5ad29583d4c2c3a7c189084c6245a0ea938b73b98d7988868cd2"
+      "verifiedDigest": "c0a00484ab6726c1d506ecea0f154691fa459ed6cafabf7ed3bf7a0d63375131"
     },
     {
       "slug": "root-contracts",

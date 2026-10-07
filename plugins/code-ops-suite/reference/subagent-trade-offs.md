@@ -6,12 +6,12 @@ The skills in this suite rarely do their work in a single thread. A task with in
 
 ## The short version
 
-A subagent is a worker the orchestrator spawns with a precise question and a minimal toolset. It runs in an isolated context and hands back a tight, evidence-cited report. The orchestrator merges those reports. The suite ships nine subagents, and they split into two kinds:
+A subagent is a worker the orchestrator spawns with a precise question and a minimal toolset. It runs in an isolated context and hands back a tight, evidence-cited report. The orchestrator merges those reports. The suite ships thirteen subagents, and they split into two kinds. Lint check 12 compares this count and the table rows with `plugins/*/agents/*.md`, so a new agent needs a row here.
 
 | Kind | Agents | Tools | Fan-out rule |
 | --- | --- | --- | --- |
-| **Read-only** — investigate, never change anything | code-ops `explorer`, rigor `tracer`, privacy-opsec `explorer`, researcher `gatherer`, researcher `claim-checker`, code-ops `reviewer`, privacy-opsec `privacy-reviewer` | `Read, Grep, Glob` (the two reviewers add `Bash` for read-only checks) | Parallelize freely over disjoint areas. |
-| **Write / execute** — produce artifacts or run code | rigor `verifier`, code-ops `implementer` | `Read, Grep, Glob, Bash, Write` (the `implementer` adds `Edit`) | Used carefully, on disjoint files. The `verifier` never edits the source under evaluation, and the `implementer` edits only inside its brief's Scope. |
+| **Read-only** — investigate, never change anything | code-ops `explorer`, rigor `tracer`, privacy-opsec `explorer`, researcher `gatherer`, researcher `claim-checker`, code-ops `reviewer`, privacy-opsec `privacy-reviewer`, code-ops `mech-review`, code-ops `web-researcher`, code-ops `probe` | `Read, Grep, Glob` (the two reviewers and `mech-review` add `Bash` for read-only checks, `probe` swaps in `Bash` for read-only probes, and `web-researcher` adds `WebSearch, WebFetch`) | Parallelize freely over disjoint areas. |
+| **Write / execute** — produce artifacts or run code | rigor `verifier`, code-ops `implementer`, code-ops `mech` | `Read, Grep, Glob, Bash, Write` (the `implementer` and `mech` add `Edit`) | Used carefully, on disjoint files. The `verifier` never edits the source under evaluation, the `implementer` edits only inside its brief's Scope, and the `mech` applies only an exact spec. |
 
 One rule governs all of them, and it lives in code-ops-suite [`CONVENTIONS.md` §1](../../../plugins/code-ops-suite/CONVENTIONS.md). **Read-only analysis parallelizes freely. Anything that edits code runs in parallel only on disjoint file sets, and the orchestrator serializes work that touches shared files or dependency edges.** Every subagent grounds its report in `file:line` evidence ([§9](../../../plugins/code-ops-suite/CONVENTIONS.md)). The orchestrator keeps developer-in-the-loop control, so the subagents report and the orchestrator decides.
 
@@ -41,11 +41,12 @@ Effort level names do not carry across model generations. When the lead model ch
 
 The agent type fixes an operative's instructions and tools. The lead sets the rung and effort per dispatch, and states them in the brief's `Tier`, `Effort`, and `Route basis` lines, which `co route` prints. A strong-floor agent works the same at every rung, so its definition never changes with the dispatch.
 
-Three anti-patterns follow from the table:
+Four anti-patterns follow from the table:
 
 - Never run the highest effort on a breadth sweep, because parallelism beats effort for coverage.
 - Never run low effort on review.
 - Never route a judgment-bearing dispatch below the strong tier on the argument that it is cheaper.
+- Never route a unit that runs an eval or writes a temp file to `probe`, because `probe` is read-only. Route it to the `implementer`, or to `mech` when the brief leaves nothing to decide.
 
 Effort and tier partially substitute, and the substitution is provider-agnostic: a stronger model at medium effort approximates a mid model at high effort. That substitution buys speed. It never licenses a down-tier for work whose output a verdict rests on.
 
@@ -120,7 +121,7 @@ The trade-off is real. Every subagent is a fresh context that must be primed wit
 
 ## The read-only agents
 
-These nine never edit, and only the ones whose tools add `Bash` execute anything. Because they cannot change the tree, two of them touching the same file is harmless. So the orchestrator spawns as many as the work warrants, over whatever slices it likes, all at once.
+These ten never edit, and only the ones whose tools add `Bash` execute anything. Because they cannot change the tree, two of them touching the same file is harmless. So the orchestrator spawns as many as the work warrants, over whatever slices it likes, all at once.
 
 ```mermaid
 flowchart TD

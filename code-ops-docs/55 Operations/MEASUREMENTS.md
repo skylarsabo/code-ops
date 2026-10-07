@@ -872,12 +872,31 @@ stays silent until P12-M1d fills a median.
 **Redundancy baseline.**
 
 - **Source and owner.** Redundant words and passages across authored docs and `CONVENTIONS.md`
-  files. The tool is `scripts/check-duplication.mjs` (P8-U1-Org). The explorer records it
-  (P8-U2-Org).
+  files. The measuring method is the D-016 method: 12-word shingles, counting passages of 40 or
+  more words that two or more authored `.md` files share. `scripts/check-duplication.mjs`
+  (P8-U1-Org) uses 40-word runs over a different file set and reports 13,973 words at 96178115,
+  so it is a gate on the pinned passages and not this metric. The lead owns the reading
+  (P8-U2-Org, report D-026).
 - **Baseline.** Report D-016, re-run on the refutation: 9,103 redundant words in 65 passages,
   **CONFIRMED**. It excludes two superseded design documents, "Docs state and history" and the
   handoff fidelity design, as D-016 names them. The remaining classes are the `CONVENTIONS.md` pinned blocks,
   the global-contract overlap, and the 12-skill 52-word stanza. The earlier figure of 15,872
   words is superseded.
-- **Decision rule.** P8-U2-Org first reproduces 9,103 with `check-duplication.mjs`. The target is
-  set from that reproduction. A fall counts only when the pinned passages stay byte-identical.
+- **Reproduction (D-026, CONFIRMED).** The D-016 method gives 9,103 words in 65 passages at
+  ba472ed0, the last commit before D-016 ran, and 15,872 words with nothing excluded. At 96178115
+  it gives 12,383 words in 75 passages. The rise of 3,280 words has three causes: the touch-improve
+  rule adds 204 to the `CONVENTIONS.md` blocks (PR 239), the per-host contract renders add 2,988
+  to the global-contract overlap (PR 237), and CHANGELOG repeats add 88.
+- **Classes, owners, and targets.**
+
+  | Class | Words at 96178115 | Owner | Target |
+  |---|---|---|---|
+  | `CONVENTIONS.md` blocks | 4,097 | lint check 14 | Keep the 1,781 pinned words; pin or reference the rest |
+  | Global-contract overlap | 3,974 | `render-global-contracts.mjs` | Keep, derived renders |
+  | CHANGELOG repeats | 2,197 | plugin maintainers | Keep |
+  | Other passages | 1,221 | none yet | Name an owner before setting a target |
+  | Skill stanzas | 894 | skill authors | Fall by up to 804 words if replaced by a reference |
+
+- **Decision rule.** The next reading uses the D-016 method on the same exclusions. A fall counts
+  only when the pinned passages stay byte-identical. Excluding the derived renders from the metric
+  is a method change, so it starts a new baseline and never counts as a fall.
