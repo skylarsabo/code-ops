@@ -40,7 +40,8 @@
 //  12. Every bundled agent declares a frontmatter `model:` tier at or above its floor in
 //      AGENT_MODEL_FLOORS (haiku < sonnet < opus) — downgrading the verification core is
 //      a visible diff, never a silent frontmatter tweak; the handbook's "(model: `X`)"
-//      annotations must match the frontmatter.
+//      annotations must match the frontmatter, and the routing table's written agent
+//      counts and Kind table must match plugins/*/agents/*.md (fails closed when absent).
 //  13. The register-producing skills' Done-when keeps running revalidate-register.mjs
 //      (the producer-side anchor gate cannot silently regress out of the wiring). The rigor
 //      finding producers run it under --strict --profile finding-rigor (CONFIRMED needs a
@@ -118,7 +119,7 @@ import * as vendoredManifest from './vendored-manifest.mjs';
 import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS, TIER_ORDER, TIER_RANK, modelSupportsTier } from './model-tiers.mjs';
 import { LEDGER_STATUSES } from './ledger-grammar.mjs';
 import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './doctrine-passages.mjs';
-import { layoutPath } from './layout-manifest.mjs';
+import { LAYOUT, layoutPath } from './layout-manifest.mjs';
 
 // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
 if (process.argv.includes('--help') || process.argv.includes('-h')) { console.log('usage: lint-plugins.mjs'); process.exit(0); }
@@ -756,6 +757,7 @@ function checkAgentModelFloors({ plugins }) {
     'researcher/gatherer': 'haiku',
   };
   const agentModelByName = new Map();
+  const shipped = new Set(); // every plugins/*/agents/*.md as "<plugin>/<name>", for the doc's count claims
   for (const p of plugins) {
     const agentsDir = join(p.dir, 'agents');
     if (!existsSync(agentsDir)) continue;
@@ -765,6 +767,7 @@ function checkAgentModelFloors({ plugins }) {
       const nm = fm && fm[1].match(/^name:[ \t]*(\S+)/m);
       const md = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
       const agentKey = `${p.name}/${nm ? nm[1] : f.slice(0, -3)}`;
+      shipped.add(agentKey);
       if (!md) { fail(`${agentKey}: agents/${f} has no frontmatter model: field — declare the tier explicitly`); continue; }
       agentModelByName.set(agentKey, md[1]);
       const floor = AGENT_MODEL_FLOORS[agentKey];
@@ -786,22 +789,63 @@ function checkAgentModelFloors({ plugins }) {
   }
   {
     const tradeoffs = layoutPath('subagentTradeOffs', ROOT);
-    if (existsSync(tradeoffs)) {
-      const lines = readText(tradeoffs).split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
-        // prefix to a real plugin name so the two `explorer` agents cannot collide.
-        for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z0-9.-]+)`/g)) {
-          const pluginName = plugins.some((p) => p.name === m[1]) ? m[1]
-            : plugins.some((p) => p.name === `${m[1]}-suite`) ? `${m[1]}-suite` : null;
-          if (!pluginName) continue;
-          const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
-          if (actual && actual !== m[3])
-            fail(`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
-        }
+    const tradeoffsRel = LAYOUT.subagentTradeOffs;
+    if (!existsSync(tradeoffs)) { fail(`${tradeoffsRel}: missing — the routing table must exist to state the shipped agents`); return; }
+    const lines = readText(tradeoffs).split(/\r?\n/);
+    // The doc writes shorthand plugin prefixes ("code-ops `explorer`"); resolve the
+    // prefix to a real plugin name so the two `explorer` agents cannot collide.
+    const pluginOfPrefix = (prefix) => plugins.some((p) => p.name === prefix) ? prefix
+      : plugins.some((p) => p.name === `${prefix}-suite`) ? `${prefix}-suite` : null;
+    for (let i = 0; i < lines.length; i++) {
+      for (const m of lines[i].matchAll(/\*\*([a-z-]+) `([a-z-]+)`\*\*[^(]*\(model: `([a-z0-9.-]+)`/g)) {
+        const pluginName = pluginOfPrefix(m[1]);
+        if (!pluginName) continue;
+        const actual = agentModelByName.get(`${pluginName}/${m[2]}`);
+        if (actual && actual !== m[3])
+          fail(`${tradeoffsRel}:${i + 1}: annotates ${pluginName}/${m[2]} as (model: \`${m[3]}\`) but its frontmatter says "${actual}" — sync the doc`);
       }
     }
+    checkAgentCountClaims({ lines, rel: tradeoffsRel, shipped, pluginOfPrefix });
   }
+}
+
+// The routing table states how many agents ship and lists each one in its Kind table. Both
+// derive from plugins/*/agents/*.md here, so adding or removing an agent without the doc fails.
+const COUNT_WORDS = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten',
+  'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen', 'twenty'];
+function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {
+  const claimed = (pattern, what) => {
+    const idx = lines.findIndex((l) => pattern.test(l));
+    if (idx < 0) { fail(`${rel}: no sentence states ${what} — restore it so the count stays checked`); return null; }
+    const word = lines[idx].match(pattern)[1].toLowerCase();
+    const n = COUNT_WORDS.includes(word) ? COUNT_WORDS.indexOf(word) : /^\d+$/.test(word) ? Number(word) : NaN;
+    if (Number.isNaN(n)) { fail(`${rel}:${idx + 1}: "${word}" is not a count the gate can read — write it as a number or a word up to twenty`); return null; }
+    return { n, line: idx + 1 };
+  };
+  const kindRow = (label) => {
+    const idx = lines.findIndex((l) => l.startsWith(`| **${label}**`));
+    if (idx < 0) { fail(`${rel}: the Kind table has no "${label}" row`); return null; }
+    const agents = [...lines[idx].matchAll(/\b([a-z-]+) `([a-z-]+)`/g)]
+      .map((m) => (pluginOfPrefix(m[1]) ? `${pluginOfPrefix(m[1])}/${m[2]}` : null)).filter(Boolean);
+    return { agents, line: idx + 1 };
+  };
+  const readOnly = kindRow('Read-only');
+  const writing = kindRow('Write / execute');
+  const total = claimed(/\bships (\w+) subagents\b/, 'how many subagents the suite ships');
+  if (total && total.n !== shipped.size)
+    fail(`${rel}:${total.line}: states ${total.n} shipped subagents but plugins/*/agents/*.md ships ${shipped.size} — sync the doc`);
+  if (!readOnly || !writing) return;
+  const tabled = [...readOnly.agents, ...writing.agents];
+  for (const name of [...shipped].filter((a) => !tabled.includes(a)))
+    fail(`${rel}:${readOnly.line}: the Kind table omits shipped agent ${name} — list it in the Read-only or Write / execute row`);
+  for (const name of new Set(tabled.filter((a, i) => !shipped.has(a) || tabled.indexOf(a) !== i)))
+    fail(`${rel}:${readOnly.line}: the Kind table lists ${name} ${shipped.has(name) ? 'more than once' : 'but no plugin ships it'} — sync the doc`);
+  const readOnlyCount = claimed(/^These (\w+) never edit\b/, 'how many read-only agents never edit');
+  if (readOnlyCount && readOnlyCount.n !== readOnly.agents.length)
+    fail(`${rel}:${readOnlyCount.line}: states ${readOnlyCount.n} read-only agents but the Kind table lists ${readOnly.agents.length} — sync the doc`);
+  const writeCount = claimed(/^(\w+) agents in the suite can write\b/, 'how many agents can write');
+  if (writeCount && writeCount.n !== writing.agents.length)
+    fail(`${rel}:${writeCount.line}: states ${writeCount.n} writing agents but the Kind table lists ${writing.agents.length} — sync the doc`);
 }
 
 // ---- 30. agent effort cap -----------------------------------------------------
