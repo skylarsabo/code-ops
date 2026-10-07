@@ -8,7 +8,7 @@
     },
     {
       "name": "gatherer",
-      "sourceModel": "haiku",
+      "sourceModel": "claude-haiku-5-5",
       "minimumTier": "light"
     }
   ]

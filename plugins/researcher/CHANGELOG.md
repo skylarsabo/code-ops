@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.17.0
+- The `gatherer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.
+
 ## 0.16.16
 - The vendored `co.mjs` lists the new `co churn` command. This plugin does not bundle `churn.mjs`, so `co churn` reports that it is not bundled here.
 

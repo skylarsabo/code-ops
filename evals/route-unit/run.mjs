@@ -215,7 +215,7 @@ for (const group of GROUPS) check(`route-unit ${group}`, seen.has(group) && fail
 
 // ---- the data the router reads ----------------------------------------------------------
 check('TIER_ORDER keeps the four canonical rungs', TIER_ORDER.join() === 'light,mid,strong,frontier', TIER_ORDER.join());
-check('the Claude alias map still has no premium alias', Object.keys(CLAUDE_ALIAS_TIER).join() === 'haiku,sonnet,opus,claude-sonnet-5-5');
+check('the Claude alias map still has no premium alias', Object.keys(CLAUDE_ALIAS_TIER).join() === 'haiku,sonnet,opus,claude-sonnet-5-5,claude-haiku-5-5');
 const derivedCollapse = (provider) => (provider.models.premium === provider.models.strong ? 'strong' : provider.models.premium === provider.models.frontier ? 'frontier' : null);
 check('every provider pins a premium model and states its collapse', Object.values(PROVIDER_TIERS).every((p) => typeof p.models.premium === 'string' && p.premiumCollapse === derivedCollapse(p)),
   Object.values(PROVIDER_TIERS).filter((p) => p.premiumCollapse !== derivedCollapse(p)).map((p) => p.id).join(','));

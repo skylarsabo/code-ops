@@ -62,7 +62,7 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 
 | Provider | `light` | `mid` | `strong` | `premium` (dispatch only) | `frontier` |
 | --- | --- | --- | --- | --- | --- |
-| Anthropic (Claude) | `haiku` | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `opus` (`claude-opus-5-5`) | `fable` |
+| Anthropic (Claude) | `haiku` (`claude-haiku-5-5`) | `claude-sonnet-5-5` | `claude-sonnet-5-5` | `opus` (`claude-opus-5-5`) | `fable` |
 | xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
 | OpenAI (GPT) | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6.1-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
@@ -80,7 +80,7 @@ price Sol at $2/$10 per million tokens and Astra at $10/$50. Use Astra when a bo
 decision justifies the premium dispatch. The binding and selected use remain visible in the run contract and dispatch ledger.
 See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
 
-The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, 5-minute cache writes $2.50, 1M context. `claude-opus-5-5` (the `opus` alias) is the dispatch-only `premium` binding, $4/$20 per million tokens with cache reads $0.20. It ranks `strong`, and no bundled agent declares it. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
+The Anthropic `mid` and `strong` rungs both bind to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. The pricing table gives the $0.20 cache read; the page prose gives a different figure. `claude-opus-5-5` (the `opus` alias) is the dispatch-only `premium` binding, $4/$20 per million tokens with cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), and batch $2/$10. It ranks `strong`, and no bundled agent declares it. The Anthropic `light` rung binds `claude-haiku-5-5` (a dateless pinned snapshot, released 2026-10-07), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. The `haiku` alias resolves to it on the Anthropic API only: Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. models.dev did not list `claude-haiku-5-5` on 2026-10-07, so `REGISTRY_VERIFIED_AT` was not bumped. The `fable` alias binds to `claude-fable-5-1`. Fable 5.1 uses adaptive thinking,
 so the runtime controls effort and the instruction files do not imitate a reasoning trace.
 Keep the reusable instruction prefix stable, append task-specific turns, and avoid rewriting
 earlier messages. This preserves valid thinking blocks and maximizes cache reuse. Do not force
@@ -138,10 +138,10 @@ flowchart TD
 
 **Mappers and tracers** (`Read, Grep, Glob`, no `Bash`):
 
-- **code-ops `explorer`** (model: `haiku`): fast structural investigation. It maps structure, locates definitions and call-sites, traces flow, and gathers context. The definition says *"Use several in parallel to cover disjoint areas of a large codebase."*
+- **code-ops `explorer`** (model: `claude-haiku-5-5`): fast structural investigation. It maps structure, locates definitions and call-sites, traces flow, and gathers context. The definition says *"Use several in parallel to cover disjoint areas of a large codebase."*
 - **rigor `tracer`** (model: `claude-sonnet-5-5`): bug-hunting investigator. It traces one control-flow or data-flow path end to end, derives the invariants a piece of code must uphold, or finds every site of a concept. It separates what it verified by reading from what it infers. It also runs in a **refutation mode** ([rigor `§I`](../../../plugins/rigor/CONVENTIONS.md)): handed a peer's load-bearing finding, its sole task is to kill it by locating a dominating guard in a different function, file, or boundary, and it returns REFUTED with a `file:line` or SURVIVED.
-- **privacy-opsec `explorer`** (model: `haiku`): leak-aware mapper. It finds egress paths, logging and telemetry, identifier and session handling, metadata sources, and proxy-bypass paths. It reports patterns rather than values, and it redacts identifiers and IP addresses.
-- **researcher `gatherer`** (model: `haiku`): sources evidence from the codebase, the version-control history, and installed-dependency docs. It **never reaches the network**, because web sourcing is orchestrated at the skill level under the egress manifest. A gatherer that needs a web source hands the gap back rather than fetching it.
+- **privacy-opsec `explorer`** (model: `claude-haiku-5-5`): leak-aware mapper. It finds egress paths, logging and telemetry, identifier and session handling, metadata sources, and proxy-bypass paths. It reports patterns rather than values, and it redacts identifiers and IP addresses.
+- **researcher `gatherer`** (model: `claude-haiku-5-5`): sources evidence from the codebase, the version-control history, and installed-dependency docs. It **never reaches the network**, because web sourcing is orchestrated at the skill level under the egress manifest. A gatherer that needs a web source hands the gap back rather than fetching it.
 
 **Reviewers and checkers** stay read-only on the source while doing judgment work:
 
