@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Synthetic-only regression coverage. The literal-bracket case is deliberately defensive.
-import { execFileSync, spawnSync } from 'node:child_process';
+import { execFileSync as execFile, spawnSync as spawnChild } from 'node:child_process';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, unlinkSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -18,6 +18,7 @@ const COLLECTION = ['--collection', 'evidence'];
 const expectedCases = process.platform === 'win32' ? 267 : 270;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
+let spawnCount = 0;
 let work;
 
 // A seal posts change-feed events under CODE_OPS_HOME. Every child inherits this temp home, so
@@ -26,6 +27,10 @@ const FEED_HOME = mkdtempSync(join(tmpdir(), 'records-home-'));
 process.env.CODE_OPS_HOME = FEED_HOME;
 process.on('exit', () => rmSync(FEED_HOME, { recursive: true, force: true }));
 
+// Every child this file starts goes through these two wrappers, so the closing line reports the
+// spawn count that dominates the Windows leg. Grandchildren (records.mjs calling git) are not counted.
+function execFileSync(...args) { spawnCount += 1; return execFile(...args); }
+function spawnSync(...args) { spawnCount += 1; return spawnChild(...args); }
 function check(name, condition, detail = '') {
   executedCases += 1;
   console.log(`${condition ? 'ok  ' : 'FAIL'} ${name}`);
@@ -2928,7 +2933,7 @@ supersedes: []
   runW2Cases({ work, check, run, git, commit, write, generated, rehashAuthorityChain });
   if (executedCases !== expectedCases) throw new Error(`expected ${expectedCases} cases but executed ${executedCases}`);
   if (failures.length) throw new Error(failures.join('\n'));
-  console.log(`\nrecord-collections eval passed (${executedCases}/${expectedCases} cases)`);
+  console.log(`\nrecord-collections eval passed (${executedCases}/${expectedCases} cases, ${spawnCount} spawns)`);
 } catch (error) {
   const message = error instanceof Error ? error.message : (() => {
     try { return String(error); } catch { return '<unstringifiable thrown value>'; }
