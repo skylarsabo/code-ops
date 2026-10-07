@@ -29,6 +29,7 @@
     "check-autofix-scope.mjs": "gates",
     "check-doc-citations.mjs": "gates",
     "check-doc-links.mjs": "gates",
+    "check-docs-standards-alignment.mjs": "gates",
     "check-duplication.mjs": "gates",
     "check-fleet.mjs": "gates",
     "check-handoff.mjs": "program",
