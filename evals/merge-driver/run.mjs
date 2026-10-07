@@ -53,7 +53,7 @@ function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts'), spl
   for (const file of SCRIPTS) cpSync(join(scriptsDir, file), join(repo, 'scripts', file));
   put(repo, 'scripts/atlas-check.mjs', 'process.exit(0);\n');
   mkdirSync(join(repo, '.githooks'), { recursive: true });
-  for (const hook of ['pre-commit', 'pre-merge-commit', 'post-merge', 'post-rewrite']) cpSync(join(ROOT, '.githooks', hook), join(repo, '.githooks', hook));
+  for (const hook of ['pre-commit', 'pre-push', 'pre-merge-commit', 'post-merge', 'post-rewrite']) cpSync(join(ROOT, '.githooks', hook), join(repo, '.githooks', hook));
   cpSync(join(ROOT, '.gitattributes'), join(repo, '.gitattributes'));
   for (const id of REQUIRED) put(repo, `${HUB}/40 Engineering/${id}.md`, `# ${id}\n`);
   put(repo, 'src/a.md', 'one\ntwo\nthree\n');
@@ -136,7 +136,7 @@ function failureStaysClosed(repo) {
 // pre-commit hook expects: the atlas folder and the manifest sit under code-ops-docs, the atlas domain
 // reads every file outside the hub, and a canonical script is vendored into a plugin copy. The atlas
 // gate is a stub that reads two flag files in .git, because evals/atlas-check covers the real gate.
-const HOOKS = ['pre-commit', 'pre-merge-commit', 'post-merge', 'post-rewrite'];
+const HOOKS = ['pre-commit', 'pre-push', 'pre-merge-commit', 'post-merge', 'post-rewrite'];
 const AHUB = 'code-ops-docs';
 const AMANIFEST = `${AHUB}/98 System/DOCS_MANIFEST.json`;
 const ATLAS_DIR = `${AHUB}/98 System/Atlas`;

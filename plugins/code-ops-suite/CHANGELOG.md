@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.46.0
+- A branch-name rule blocks branches that start with an AI tool name (`claude/`, `codex/`, and similar) or end in a generated token such as `beautiful-lehmann-0bd3b1`. `scripts/branch-name.mjs` owns the rule and its `check` command.
+- The traceless hook applies the rule to commands that create or rename a branch, commit, push, or open a pull request, and blocks with the rename command. The OpenCode traceless plugin applies the same rule.
+- The tracked `pre-commit` hook checks the current branch, and a new `pre-push` hook checks each pushed branch, so hosts without the tool hook are covered. The CI traceless step checks the pull request head ref. The rule has no off switch.
+
 ## 2.45.1
 - `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
 

@@ -1,0 +1,25 @@
+#!/bin/sh
+# Refuse to push a branch whose name starts with an AI-tool name or ends in a generated random
+# token. scripts/branch-name.mjs owns the rule. Git feeds this hook one line per ref:
+#   <local ref> <local sha> <remote ref> <remote sha>
+# Only refs/heads/ names are checked, and a deletion (all-zero local sha) always passes, so a
+# misnamed remote branch can still be removed. A missing node or script skips the check, because
+# the branch-name step of the CI gate in .github/workflows/validate.yml is the backstop.
+set -eu
+
+repo_root="$(git rev-parse --show-toplevel)"
+cd "$repo_root"
+[ -f scripts/branch-name.mjs ] || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+
+failed=0
+while read -r _ local_sha remote_ref _; do
+  case "$remote_ref" in refs/heads/*) ;; *) continue ;; esac
+  case "$local_sha" in *[!0]*) ;; *) continue ;; esac
+  node scripts/branch-name.mjs check "${remote_ref#refs/heads/}" >/dev/null || failed=1
+done
+
+if [ "$failed" -ne 0 ]; then
+  echo "Push aborted: a branch name breaks the branch-name rule." >&2
+  exit 1
+fi

@@ -16,6 +16,7 @@
     "attack-chain-graph.mjs": "calibration",
     "bench-hooks.mjs": "calibration",
     "benchmark-command.mjs": "calibration",
+    "branch-name.mjs": "gates",
     "brief-template.mjs": "dispatch",
     "build-codex-marketplace.mjs": "release",
     "build-opencode-dist.mjs": "release",

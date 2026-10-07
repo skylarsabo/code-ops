@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "72eaff58786a1779361a2e3d2f9bb6142640f57364cfe87ed93ec178076b0cda"
+      "verifiedDigest": "0221685c06707d34c1ff355fd63682ebde5b8531d4a10b4045e1bab9abcd2013"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -488,6 +488,26 @@
           "anchor": "function renderRegister(context, records) {"
         },
         {
+          "file": "scripts/branch-name.mjs",
+          "line": 35,
+          "anchor": "export const AI_PREFIXES = ["
+        },
+        {
+          "file": "scripts/branch-name.mjs",
+          "line": 48,
+          "anchor": "export function branchNameProblems(name) {"
+        },
+        {
+          "file": "scripts/branch-name.mjs",
+          "line": 183,
+          "anchor": "export function commandBranchViolations(command, cwd, current = currentBranch) {"
+        },
+        {
+          "file": "scripts/install-git-hooks.mjs",
+          "line": 27,
+          "anchor": "const HOOK_NAMES = ['pre-commit', 'pre-push', 'pre-merge-commit', 'post-merge',"
+        },
+        {
           "file": "scripts/transcript-lib.mjs",
           "line": 911,
           "anchor": "if (o.type === 'compacted') return null;"
@@ -634,7 +654,7 @@
         },
         {
           "file": "scripts/vendored-manifest.mjs",
-          "line": 123,
+          "line": 125,
           "anchor": "// The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledge"
         },
         {
@@ -823,7 +843,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "ca1a23b748d4ed2815462b1d9c0b7545c7f5d801cc80f72d72381914e931d9a0"
+      "verifiedDigest": "84f846adaa58bccbba7f01bb73e700ae00239ee650d50bf4c133913dca589b9a"
     },
     {
       "slug": "evals-and-calibration",
@@ -831,8 +851,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
-      "verifiedDigest": "7f7983c2f503a197b3ae7d3567b76393265ad86423bfa8a030ef7b081087cf96",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedDigest": "a72c4600c5c7a5042824b5f55eac7e7bc64cc0d505df98fb3bca63015bed1fb8",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -866,17 +886,17 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 271,
+          "line": 272,
           "anchor": "expect(verdicts.boarded === true, 'OpenCode runtime plugin did not record the ed"
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 175,
+          "line": 182,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 297,
+          "line": 298,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -891,7 +911,7 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 136,
+          "line": 139,
           "anchor": "const hookCommands = preCommit.split('\\n').filter((line) => !/^\\s*(#|echo\\b)/.te"
         },
         {
@@ -1154,7 +1174,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "0b9d36bf16ac35df3a2ba2ffaa2642666330b829",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1233,7 +1253,7 @@
         },
         {
           "file": "scripts/build-opencode-dist.mjs",
-          "line": 454,
+          "line": 479,
           "anchor": "// The presence board records this session's edits through the canonical edit ho"
         },
         {
@@ -1267,7 +1287,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "478e46ec18d373aa81fc17077ab0c9bcaeec3d358e36b65b2dc0fd61da43a544"
+      "verifiedDigest": "3dca2a02818dfff26b7c5ad917f071101baa90a69d54fc2280a15b3699699720"
     },
     {
       "slug": "ci-workflows",
@@ -1275,9 +1295,13 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
-      "verifiedDigest": "c3f4e3b94726d5f675596623f97777b9daca4917a99eaaa07f0a169583054b6c",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedDigest": "21a086abd3edd9b03e3d413938502837b96d6a5af2a6de6800b4daf35e8dfdfe",
       "claims": [
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 89
+        },
         {
           "file": "github/workflows/validate.yml",
           "line": 128
@@ -1354,7 +1378,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "9a62d7e04254d1dafb6b32946d50a0e8a518af1e",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1431,7 +1455,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "71c839072f13485306e788d03bdc17d5288d74893f6a4d420fcf7570c3f0b092"
+      "verifiedDigest": "a423b3eeb44d6d561c813402dd573561a42678cb4574d9803e546e86c50f9eee"
     },
     {
       "slug": "root-contracts",
@@ -1446,7 +1470,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
+      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1489,7 +1513,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "b1a6f97731e54fb2fec6f16c55f131bc457fb78b7fa3b713053777bed5666d76"
+      "verifiedDigest": "883f8244e4a7d9403b038546ee21c0ac207cccea7570ecf1e69930174df5c56b"
     },
     {
       "slug": "runtime-toolchain",

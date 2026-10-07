@@ -8,6 +8,19 @@ set -eu
 repo_root="$(git rev-parse --show-toplevel)"
 cd "$repo_root"
 
+# ---- 00. refuse a commit on a branch whose name breaks the branch-name rule -------
+# scripts/branch-name.mjs owns the rule: no AI-tool prefix, no generated random token. Only its
+# exit 1 (a found problem) aborts. A missing node or script, or a git failure (exit 2), skips the
+# check, because the branch-name step of the CI gate is the backstop. A detached HEAD passes.
+branch_status=0
+if [ -f scripts/branch-name.mjs ] && command -v node >/dev/null 2>&1; then
+  node scripts/branch-name.mjs check >/dev/null || branch_status=$?
+fi
+if [ "$branch_status" -eq 1 ]; then
+  echo "Commit aborted: the current branch name breaks the branch-name rule." >&2
+  exit 1
+fi
+
 # ---- 0. survive a transiently busy index lock -----------------------------------
 # `git add` takes the index lock and dies at once when it is already held. It never
 # waits. The renderer below deletes and rewrites its whole output tree, and that burst

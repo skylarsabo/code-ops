@@ -24,7 +24,7 @@ import { driverRegistered, ensureAttributes, registerDriver } from './derived-me
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const HOOKS_PATH = '.githooks';
-const HOOK_NAMES = ['pre-commit', 'pre-merge-commit', 'post-merge', 'post-rewrite'];
+const HOOK_NAMES = ['pre-commit', 'pre-push', 'pre-merge-commit', 'post-merge', 'post-rewrite'];
 const HOOK_PATHS = HOOK_NAMES.map((name) => resolve(ROOT, HOOKS_PATH, name));
 const args = process.argv.slice(2);
 const check = args.includes('--check');
@@ -93,4 +93,4 @@ if (process.platform !== 'win32') for (const hook of HOOK_PATHS) chmodSync(hook,
 // rebase, which has no merge commit. See scripts/derived-merge.mjs.
 registerDriver(ROOT);
 ensureAttributes(ROOT);
-console.log(`Installed repository hooks (${HOOKS_PATH}). Pre-commit will regenerate and stage the derived host distributions. The derived-file merge driver is registered, so a merge regenerates conflicting derived files instead of stopping on them. Post-rewrite restamps the manifest after a rebase.`);
+console.log(`Installed repository hooks (${HOOKS_PATH}). Pre-commit will regenerate and stage the derived host distributions. The derived-file merge driver is registered, so a merge regenerates conflicting derived files instead of stopping on them. Post-rewrite restamps the manifest after a rebase. Pre-commit and pre-push refuse a branch name with an AI-tool prefix or a generated token.`);

@@ -5,8 +5,9 @@
 //
 //   node evals/opencode-dist/run.mjs   (exit 0 = pass)
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
@@ -333,19 +334,43 @@ expect(compatibility.includes('intentionally unavailable here'), 'OpenCode compa
 // contract (throw vs exit 2), so it needs its own behavioral proof rather than a text match.
 const pluginPath = join(dist, 'plugins', 'code-ops-traceless.js');
 expect(existsSync(pluginPath), 'the traceless plugin was not rendered');
+// Scratch checkouts for the current-branch check: one on an AI-prefixed branch, one on an
+// allowed branch, and one directory that is no repository (git cannot answer, so fail open).
+const scratch = mkdtempSync(join(tmpdir(), 'opencode-branch-'));
+process.on('exit', () => { try { rmSync(scratch, { recursive: true, force: true }); } catch { /* best effort */ } });
+const badRepo = join(scratch, 'bad');
+const goodRepo = join(scratch, 'good');
+const notRepo = join(scratch, 'none');
+for (const [dir, branch] of [[badRepo, 'claude/scratch'], [goodRepo, 'eng/scratch'], [notRepo, null]]) {
+  mkdirSync(dir);
+  if (branch === null) continue;
+  const git = (...args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8' });
+  expect(git('init', '-q').status === 0 && git('symbolic-ref', 'HEAD', `refs/heads/${branch}`).status === 0, `could not prepare the ${branch} scratch repository`);
+}
 // A bare Windows path is not a legal ESM specifier; the import needs a file:// URL.
 const probe = `
 import { CodeOpsTraceless } from ${JSON.stringify(pathToFileURL(pluginPath).href)};
 const hooks = await CodeOpsTraceless({});
-const run = async (command, tool = 'bash') => {
-  try { await hooks['tool.execute.before']({ tool }, { args: { command } }); return 'allowed'; }
+const run = async (command, tool = 'bash', plugin = hooks) => {
+  try { await plugin['tool.execute.before']({ tool }, { args: { command } }); return 'allowed'; }
   catch { return 'blocked'; }
 };
+const onBranch = async (directory) => await CodeOpsTraceless({ directory });
 const out = {
   traced: await run('git commit -m "Generated with Claude Code"'),
   clean: await run('git commit -m "Wait out a busy git index lock"'),
   ungated: await run('git status --short'),
   otherTool: await run('git commit -m "Generated with Claude Code"', 'read'),
+  branchPrefix: await run('git checkout -b claude/fix-gate'),
+  branchToken: await run('git switch -c eng/fix-gate-3f9a1c7e'),
+  branchRename: await run('git branch -m codex/fix-gate'),
+  branchPr: await run('gh pr create --head claude/fix-gate --title "Fix the gate"'),
+  branchOk: await run('git checkout -b eng/fix-gate'),
+  branchOtherTool: await run('git checkout -b claude/fix-gate', 'read'),
+  currentBad: await run('git commit -m "Wait out a busy git index lock"', 'bash', await onBranch(${JSON.stringify(badRepo)})),
+  currentOk: await run('git commit -m "Wait out a busy git index lock"', 'bash', await onBranch(${JSON.stringify(goodRepo)})),
+  currentPush: await run('git push', 'bash', await onBranch(${JSON.stringify(badRepo)})),
+  currentDetached: await run('git commit -m "Wait out a busy git index lock"', 'bash', await onBranch(${JSON.stringify(notRepo)})),
   cases: [],
 };
 for (const command of ${JSON.stringify(COMMAND_CASES.map((entry) => entry.command))}) out.cases.push(await run(command));
@@ -360,6 +385,21 @@ if (result.status !== 0) {
   expect(verdicts.clean === 'allowed', `traceless plugin should allow a clean commit, got ${verdicts.clean}`);
   expect(verdicts.ungated === 'allowed', `traceless plugin should ignore a non-publishing command, got ${verdicts.ungated}`);
   expect(verdicts.otherTool === 'allowed', `traceless plugin should only gate the bash tool, got ${verdicts.otherTool}`);
+  const branchWants = {
+    branchPrefix: 'blocked', // an AI-tool prefix on a new branch
+    branchToken: 'blocked', // a generated token at the end of the name
+    branchRename: 'blocked', // rename to an AI-tool prefix
+    branchPr: 'blocked', // gh pr create --head with an AI-tool prefix
+    branchOk: 'allowed', // an eng/ name passes
+    branchOtherTool: 'allowed', // only the bash tool is gated
+    currentBad: 'blocked', // a commit on a claude/ branch
+    currentOk: 'allowed', // a commit on an eng/ branch
+    currentPush: 'blocked', // a push from a claude/ branch
+    currentDetached: 'allowed', // git cannot answer: fail open
+  };
+  for (const [key, want] of Object.entries(branchWants)) {
+    expect(verdicts[key] === want, `traceless plugin branch gate should have ${want} ${key}, got ${verdicts[key]}`);
+  }
   COMMAND_CASES.forEach(({ name, blocked }, index) => {
     const want = blocked ? 'blocked' : 'allowed';
     expect(verdicts.cases[index] === want, `traceless plugin should have ${want} ${name}, got ${verdicts.cases[index]}`);
