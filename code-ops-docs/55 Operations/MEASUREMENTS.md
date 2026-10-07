@@ -694,24 +694,37 @@ Four rules bind every entry:
 **Circling.**
 
 - **Source and owner.** `git log` on `main` and the `RUN_LOG.md` and `TASKS.md` files under
-  `80 Runs/`. The explorer measures it (P0-M3). The implementer turns it into `co churn`
-  (P4-U1-Dir).
+  `80 Runs/`. The explorer measured it (P0-M3). `co churn` (`scripts/churn.mjs`, P4-U1-Dir)
+  reports it, and `evals/churn/run.mjs` pins each signal on a scratch repository.
+- **Reproduction.** Run `node scripts/churn.mjs 3c1fa907 --since 2026-09-06 --until 2026-10-06
+  --runs "<root>/code-ops-docs/80 Runs"`, or the same arguments after `co churn`. The git measures
+  reproduce D-009 exactly: 292 commits, 0 reverts, re-fix 115 of 144, and fix-of-fix 22 commits in
+  18 of 61 PRs (restamp 21 commits in 17 PRs, fix 1 in 1). The run-folder measures read the live
+  gitignored folders, and the command skips folders dated after `--until`. On the folders dated
+  through 2026-10-06 it reports 83 `Next:` lines in 5 of 26 files (0 repeats), 74 ids, and 30 in both
+  states. D-009 also read `2026-10-07-program-build`, which then held 3 `Next:` lines and 8 ids, and
+  reported 86 lines in 6 of 27 files, 82 ids, and 31.
 - **Baseline.** Report D-009, `origin/main` at `3c1fa907`, 2026-09-06 to 2026-10-06, 292 commits.
   The fix-of-fix count is 22 commits in 18 of 61 merged PRs (median 0, maximum 3). Of the 22, 21
   have subjects that start Restamp, Re-stamp, or Refresh. They are mechanical digest stamps, the
   class DS-3 automates. One starts Fix (PR 219). Reverts: 0 of 292 commits.
 - **Readings.** Two readings replace the single count.
   - *Primary reading (review fixes).* PRs with a follow-up commit that is not a mechanical restamp.
-    A review-fix commit counts in any position when its subject matches Fix or "review". The
-    baseline is 1 commit in 1 PR (PR 219). PRs 193 and 183 open with a "Fix review findings" first
-    commit, so the after-first-commit rule excludes them. Counting them, the baseline is 3 PRs. The
-    sample is too small to judge. The rule is set from a 30-day post-change window.
+    A review-fix commit counts in any position when its subject starts with Fix. The baseline is 1
+    commit in 1 PR (PR 219). PRs 193 and 183 open with a Fix first commit, so the after-first-commit
+    rule excludes them. Counting them, the baseline is 3 PRs, which `co churn` reports as
+    `anyPositionPrs`. A subject that only names a review does not count. Three PRs (177, 178, 216)
+    match "review" and none starts with Fix. The sample is too small to judge. The rule is set from
+    a 30-day post-change window.
   - *DS-3 reading (restamps).* PRs with a restamp follow-up commit. The baseline is 17 of 61 PRs (PR 219 has no restamp follow-up)
     and 21 commits. This reading must fall after DS-3 lands.
 - **Secondary measures.** The re-fix rate is 115 of 144 commits (79.9 percent), **PROBABLE**. It
   enters a decision only after a run over 2026-08-06 to 2026-09-05 supplies a comparison. The
   reopened-id proxy is 31 of 82 ids, an upper bound, **SPECULATIVE**, because ids repeat across
-  programs. Repeated `Next:` lines are 0 of 86 across 6 files, which gives no signal. Report
+  programs. `co churn` reports it as `bothStates` and adds `reopened`, an id checked in an earlier
+  folder and unchecked in a later folder of one program. It is 3 of 74 ids through 2026-10-06. The
+  program is the folder name without its date and `-ho<n>`, so it undercounts a program whose
+  folders carry different names. Repeated `Next:` lines are 0 of 86 across 6 files, which gives no signal. Report
   D-003 measured carry age in handoff hops. D-009 supersedes that measure.
 - **Decision rule.** The median is 0, so each reading uses a PR count. DS-3 (P1-D3) holds when the
   DS-3 reading falls against 17 of 61 over a window that starts after it lands. The primary

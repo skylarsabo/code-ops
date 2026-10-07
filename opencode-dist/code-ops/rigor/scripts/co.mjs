@@ -145,6 +145,10 @@ const TABLE = {
   // A command: `co burndown [--program <slug>] [--run <dir>] [--json]` prints a program's active
   // count against the cap of 12, its backlog, and GROWING or OVER CAP flags. Read-only.
   burndown: 'burndown.mjs',
+  // A command: `co churn [<rev | A..B>] [--since <date>] [--until <date>] [--runs <dir>] [--json]`
+  // reports re-fixes, reverts, fix-of-fix commits per merged PR, repeated Next lines, and reopened
+  // items over a git window and the run folders. Report-only.
+  churn: 'churn.mjs',
   // A command: `co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> [--scope <path>]...
   // [--attempt <n>] [--agent <plugin:agent>] [--json]` prints the paste-ready Tier, Effort, and
   // Route basis lines for one unit and its binding on each host. Read-only.

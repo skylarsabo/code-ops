@@ -4,10 +4,19 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
-## 2.51.0
+## 2.53.0
 - `check-vault-standard.mjs --render` also writes `80 Runs/INDEX.md` on a manifest v3 hub whose `80 Runs/` folder exists. The page lists each run folder newest first with its retention tier, its age, a status, and relative links to `RUN_LOG.md`, `TASKS.md`, and `reports/`. The status is the last `Verdict:` or `Status:` line already in a run's `CLOSEOUT.md`, `EXECUTIVE_SUMMARY.md`, `RUN_LOG.md`, or `TASKS.md`, else the `TASKS.md` checkbox count, else `-`. Tier and age reuse `listRunTiers`.
 - `--render --now <YYYY-MM-DD>` fixes the day the ages count to, so the page repeats byte for byte. Check mode never compares the page, and exempts it from the note rules only while it carries the generated marker.
 - `docs-manifest.mjs` exports `readRunIndex` and the pure `renderRunIndex`. The vault-standard eval covers dated and undated folders, each tier edge, missing artifacts, an absent `80 Runs/`, a non-v3 hub, and the `--now` usage errors. `RUN_RETENTION.md` documents the page.
+
+## 2.52.0
+- New `co churn` command (`scripts/churn.mjs`) reports the circling measures over a git window and the run folders: the re-fix share, reverts, fix-of-fix commits per merged PR split into restamps and review fixes, repeated `Next:` lines, and ids reopened within one program. It is report-only and always exits 0. Two `git log` calls cover any window.
+- Over the D-009 window (`3c1fa907`, 2026-09-06 to 2026-10-06) it reproduces the baseline git measures exactly. The "Circling" entry in MEASUREMENTS.md gives the command and the run-folder readings.
+- A new churn eval pins each signal on a scratch repository, with a mutation control. CI runs it in one Ubuntu shard and one Windows shard.
+
+## 2.51.0
+- `check-vault-standard.mjs` gains rule 16, the decision register. A vault that carries `20 Decisions/REGISTER.md` keeps it whole: ids come from the D, ADR, DEC, EVO, and RBS families and stay unique, every `DEC-<n>` cited in the vault has a row, every decision note and ADR has a row, and each row has a valid date and status. A committed link in a Source cell must resolve. A run folder or program ledger is a code-span path under `80 Runs/`, checked for form only, and a link into that gitignored folder fails. A vault with no register sees no change.
+- This repository adds `20 Decisions/REGISTER.md` with 108 rows for its decision notes, ADRs, and program ledgers.
 
 ## 2.50.0
 - `docs-manifest.mjs runs` lists each run folder under `<hub>/80 Runs/` by retention tier: `active` (0 to 30 days), `distill-ready` (31 to 180), and `archive` (181 or more). It ages a folder from its `YYYY-MM-DD` name prefix and falls back to the folder mtime when the name has no valid date. The command is read-only and takes `--now <YYYY-MM-DD>` for a repeatable report. `runRetentionTier` and `listRunTiers` are exported for other scripts.

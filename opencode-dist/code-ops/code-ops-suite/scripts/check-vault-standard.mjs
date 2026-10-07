@@ -80,6 +80,14 @@
 // and reports/ (docs-manifest.mjs `renderRunIndex`). Ages move daily, so check mode never compares
 // it. `--render --now <YYYY-MM-DD>` fixes the day the ages count to.
 //
+// DECISION REGISTER (any manifest version; the gate is the file's presence).
+//  16. A vault that carries `20 Decisions/REGISTER.md` keeps it whole.
+//      Row ids come from five families (D, ADR, DEC, EVO, RBS) and are unique. Every `DEC-<n>`
+//      cited in the vault has a row, every decision note and ADR has a row, and every committed
+//      link in a Source cell resolves. A run folder or program ledger is a code-span path under
+//      `80 Runs/`, checked for form only: that folder is gitignored and absent from CI, so a link
+//      into it fails. Section 16 below states the rest.
+//
 // Exit: 0 conformant (one-line OK), rendered, or stamped; 1 at least one violation or a failed
 // render/stamp; 2 usage error. --render on a vault whose manifest is not version 3 writes nothing
 // and exits 0.
@@ -407,6 +415,88 @@ for (const abs of walked) {
     fail(`${rel(abs)}: updated '${fm.updated}' is not a YYYY-MM-DD date`);
   checked.push({ path: notePath, text, fm });
 }
+
+// ---- 16. Decision register (opt in by writing `20 Decisions/REGISTER.md`) -----------------------
+// One table row per recorded decision: ID | Date | Decision | Status | Source. A vault with no
+// register is silent, like D-002 says of vault adoption itself. A vault with one gets four checks:
+// ids are unique, every id cited as `DEC-<n>` anywhere in the vault has a row, every decision note
+// (`20 Decisions/D-NNN ...`, `20 Decisions/ADRs/NNNN-...`) has a row, and every committed link in
+// a Source cell resolves. A run folder or program ledger lives under `80 Runs/`, which is
+// gitignored and absent from CI (scripts/check-doc-links.mjs skips that folder for the same
+// reason), so a Source cell names it as a code-span path, never a link. The path is checked for
+// form and never for existence. A link into `80 Runs/` fails: it resolves on one machine only.
+const REGISTER_PATH = '20 Decisions/REGISTER.md';
+const REGISTER_STATUSES = new Set(['in-force', 'amended', 'superseded', 'historical']);
+// Five id families: D-NNN decision notes, ADR-NNNN records, DEC-N program-ledger decisions, and the
+// register-local EVO-N and RBS-N for the two ledgers whose entries carry no number of their own.
+const REGISTER_ID = /^(?:D-\d+|ADR-\d{4}|DEC-\d+|EVO-\d+|RBS-\d+)$/;
+const LEDGER_ID = /^(?:DEC|EVO|RBS)-/;
+// A run source is well formed under `80 Runs/`, with no backslash, no `.` or `..` segment, and no edge space.
+const runSourceOk = (p) => p.startsWith('80 Runs/') && !p.includes('\\') && p === p.trim() && !p.split('/').some((s) => s === '.' || s === '..');
+const LEDGER_SOURCE = /^80 Runs\/programs\/[^/]+\/PROGRAM[^/]*\.md$/;
+const DECISION_NOTE = /^20 Decisions\/(D-\d+)[ .]/;
+const ADR_NOTE = /^20 Decisions\/ADRs\/(\d{4})-/;
+
+function registerLinkTargets(cell) {
+  const targets = [];
+  for (const m of cell.matchAll(/\[\[([^\]]+)\]\]/g)) targets.push({ wiki: true, target: m[1].split('|')[0].split('#')[0].trim() });
+  for (const m of cell.matchAll(/\]\(([^)\s]+)[^)]*\)/g)) {
+    if (/^(?:https?:|mailto:)/i.test(m[1])) continue;
+    let target = m[1].split('#')[0];
+    try { target = decodeURIComponent(target); } catch { /* an undecodable target fails to resolve below */ }
+    targets.push({ wiki: false, target });
+  }
+  return targets;
+}
+
+function checkRegister() {
+  const registerFile = join(vault, REGISTER_PATH);
+  if (!existsSync(registerFile)) return;
+  let text;
+  try { text = readFileSync(registerFile, 'utf8'); }
+  catch (e) { fail(`${REGISTER_PATH}: cannot read: ${e.message}`); return; }
+  const ids = new Set();
+  for (const line of text.replace(/\r\n/g, '\n').split('\n')) {
+    if (!line.startsWith('|')) continue;
+    const cells = line.replace(/^\||\|\s*$/g, '').split('|').map((c) => c.trim());
+    if (cells[0] === 'ID' || cells.every((c) => /^:?-+:?$/.test(c))) continue;
+    const id = cells[0];
+    const where = `${REGISTER_PATH}: row ${id || '(no id)'}`;
+    if (cells.length !== 5) { fail(`${where} has ${cells.length} cells, not the 5 of ID | Date | Decision | Status | Source`); continue; }
+    if (!REGISTER_ID.test(id)) fail(`${where}: the id must look like D-004, ADR-0002, DEC-73, EVO-1, or RBS-1`);
+    else if (ids.has(id)) fail(`${where}: the id appears twice`);
+    ids.add(id);
+    const [, date, decision, status, source] = cells;
+    if (!DATE_RE.test(date)) fail(`${where}: date '${date}' is not a YYYY-MM-DD date`);
+    if (!decision) fail(`${where}: the decision text is empty`);
+    if (!REGISTER_STATUSES.has(status)) fail(`${where}: status '${status}' is not one of ${[...REGISTER_STATUSES].join(', ')}`);
+    const spans = [...source.matchAll(/`([^`]+)`/g)].map((m) => m[1]).filter((s) => s.startsWith('80 Runs/'));
+    for (const span of spans) if (!runSourceOk(span)) fail(`${where}: source path \`${span}\` is malformed: name it as \`80 Runs/<folder>/...\` with no backslash and no \`..\` segment`);
+    const links = registerLinkTargets(source);
+    for (const { wiki, target } of links) {
+      if (/(?:^|\/)80 Runs(?:\/|$)/.test(target.replaceAll('\\', '/'))) { fail(`${where}: a link into 80 Runs/ resolves on one machine only. Write the path as a code span`); continue; }
+      const stem = target.replace(/\.md$/i, '');
+      const found = wiki
+        ? stem !== '' && noteStems.some((s) => s === stem || s.endsWith(`/${stem}`))
+        : target !== '' && existsSync(resolve(dirname(registerFile), target));
+      if (!found) fail(`${where}: link target '${target}' does not resolve`);
+    }
+    if (!spans.length && !links.length) fail(`${where}: the Source cell cites no run folder, program ledger, or committed note`);
+    if (LEDGER_ID.test(id) && !spans.some((s) => LEDGER_SOURCE.test(s))) fail(`${where}: a DEC, EVO, or RBS row must cite its program ledger as \`80 Runs/programs/<slug>/PROGRAM.md\``);
+  }
+  for (const abs of walked) {
+    const path = rel(abs);
+    if (path === REGISTER_PATH) continue;
+    const owed = DECISION_NOTE.exec(path)?.[1] ?? (ADR_NOTE.exec(path) ? `ADR-${ADR_NOTE.exec(path)[1]}` : null);
+    if (owed && !ids.has(owed)) fail(`${path}: decision ${owed} has no row in ${REGISTER_PATH}`);
+    let body;
+    try { body = readFileSync(abs, 'utf8'); }
+    catch (e) { fail(`${path}: cannot read: ${e.message}`); continue; }
+    for (const cited of new Set(body.match(/\bDEC-\d+\b/g) ?? []))
+      if (!ids.has(cited)) fail(`${path}: cites ${cited}, which has no row in ${REGISTER_PATH}`);
+  }
+}
+checkRegister();
 
 // ---- 11-15. Draft rules, generated surfaces, and source digests (manifest v3 only) ------------
 const MS_PER_DAY = 86_400_000;
