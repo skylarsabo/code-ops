@@ -19,6 +19,15 @@ const failures = [];
 // the eval never writes into the operator's real store.
 const FEED_HOME = mkdtempSync(join(tmpdir(), 'records-home-'));
 process.env.CODE_OPS_HOME = FEED_HOME;
+// A merge or fetch can start a detached `gc --auto` that repacks .git/objects while a later case
+// copies the fixture repo, which fails the copy with ENOENT. Every child git, including the ones
+// records.mjs starts, inherits this env-scoped config, so no background maintenance runs.
+const gitConfigBase = Number(process.env.GIT_CONFIG_COUNT ?? 0);
+[['gc.auto', '0'], ['maintenance.auto', 'false']].forEach(([key, value], i) => {
+  process.env[`GIT_CONFIG_KEY_${gitConfigBase + i}`] = key;
+  process.env[`GIT_CONFIG_VALUE_${gitConfigBase + i}`] = value;
+});
+process.env.GIT_CONFIG_COUNT = String(gitConfigBase + 2);
 export const work = mkdtempSync(join(tmpdir(), 'code-ops-records-'));
 process.on('exit', () => { rmSync(FEED_HOME, { recursive: true, force: true }); rmSync(work, { recursive: true, force: true }); });
 
