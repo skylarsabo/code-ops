@@ -293,16 +293,26 @@ function mutationLockPath(context) {
   return join(commonGitDir(context.root), 'code-ops-record-locks', `${context.collection.collectionUuid}.lock`);
 }
 
+function readLockNonce(path) {
+  try { return readFileSync(join(path, 'lease.nonce'), 'utf8'); }
+  catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
 function lockIdentity(path) {
+  const nonce = readLockNonce(path);
   const state = statSync(path, { bigint: true });
   if (state.ino === 0n) {
     throw new Error('cannot verify collection mutation lock identity');
   }
-  return { dev: state.dev.toString(), ino: state.ino.toString(), mtimeMs: Number(state.mtimeMs) };
+  return { dev: state.dev.toString(), ino: state.ino.toString(), mtimeMs: Number(state.mtimeMs), nonce };
 }
 
+// A recreated directory can reuse the inode, so the nonce, which restore never copies, settles identity.
 function sameLockIdentity(left, right) {
-  return left.dev === right.dev && left.ino === right.ino;
+  return left.dev === right.dev && left.ino === right.ino && left.nonce === right.nonce;
 }
 
 function readLockOwner(owner) {
@@ -382,9 +392,15 @@ function acquireMutationLock(context) {
       continue;
     }
     const token = randomUUID();
-    try { writeFileSync(owner, `${JSON.stringify({ pid: process.pid, token, acquiredAt: new Date().toISOString() })}\n`); }
+    const nonce = randomUUID();
+    try {
+      writeFileSync(join(lock, 'lease.nonce'), nonce, { flag: 'wx' });
+      writeFileSync(owner, `${JSON.stringify({ pid: process.pid, token, acquiredAt: new Date().toISOString() })}\n`);
+    }
     catch (error) { rmSync(lock, { recursive: true, force: true }); throw error; }
-    return { lock, owner, token, identity: lockIdentity(lock) };
+    const identity = lockIdentity(lock);
+    if (identity.nonce !== nonce) throw new Error('collection mutation lock changed during acquisition');
+    return { lock, owner, token, identity };
   }
 }
 

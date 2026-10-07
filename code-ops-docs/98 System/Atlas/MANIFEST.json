@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f346606ee302f4aebfae95c7d6fec7dd415211e7",
+      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -28,7 +28,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/scripts/docs-relocate.mjs",
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "aba73ca6e0891d9d8147899022fb60a8c2bb01652124b35c1c2728c2484c8388"
+      "verifiedDigest": "3a809e6faff8290cfc97233c60e9a0ee70f6f9b2c93a86bb253cb1d7ceceb2cd"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "ff96ddb3f1870fd4cc24b9b07b0c06df1b4a6979",
+      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -540,17 +540,17 @@
         {
           "file": "scripts/records.mjs",
           "line": 2010,
-          "anchor": "function intakeRecord(context, options) {"
+          "anchor": "const errors = intakeLineErrors(line);"
         },
         {
           "file": "scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "scripts/records.mjs",
           "line": 2142,
-          "anchor": "function relocateRoot(context, options) {"
+          "anchor": "assertMutationLease(lease);"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -560,7 +560,7 @@
         {
           "file": "scripts/records.mjs",
           "line": 2209,
-          "anchor": "function renderRegister(context, records) {"
+          "anchor": "pendingSeal: pendingCuration.get(entry.id) || null,"
         },
         {
           "file": "scripts/branch-name.mjs",
@@ -938,7 +938,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "3024148aae6c48748bff9e1473e8b891e52b84f97b2d2d186d4a561e75a49ce9"
+      "verifiedDigest": "367224475e570ac59a85be19319b26a4a46b4594d4de1044fc7d67af608fcab5"
     },
     {
       "slug": "evals-and-calibration",
@@ -946,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5f1a0dbb0b77c4a6b6dab3a25b55591f1a1f196b",
-      "verifiedDigest": "d4370f8a851a63cf85c738e8711c7b5bc349cb052497c4af31ed6c0eb4e49c5e",
+      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
+      "verifiedDigest": "d629ecb93a87fc1b3ee6090f5c6430572617e38747f9746190cd1814b28b6478",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1269,7 +1269,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f346606ee302f4aebfae95c7d6fec7dd415211e7",
+      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1279,12 +1279,12 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -1382,7 +1382,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "1d82ecfbf04830923f5206e4f009c1b5e4eb9a886aefd78da738b91a2d8b2375"
+      "verifiedDigest": "244880ecdb5c984f9c3a93a07a6c241a45c2fbc24c7978e8f90e534a454f8c11"
     },
     {
       "slug": "ci-workflows",
@@ -1485,7 +1485,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ff96ddb3f1870fd4cc24b9b07b0c06df1b4a6979",
+      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1562,7 +1562,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "1f41690a911fb23c430fad9bfd55427a505ceffa74c6c2d7ca686883dd792e71"
+      "verifiedDigest": "5c67fc169553447fa94c6db1d39d6ccc5a669e67d75a00caaa324fe1aa6c7dc2"
     },
     {
       "slug": "root-contracts",

@@ -15,7 +15,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 268 : 271;
+const expectedCases = process.platform === 'win32' ? 269 : 272;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let spawnCount = 0;
@@ -1932,6 +1932,24 @@ try {
     && result.output.includes('durable mutation completed') && result.output.includes('do not retry'), result.output);
   const identityOnlyLostLeaseCommonDir = resolve(identityOnlyLostLeaseRepo, git(['rev-parse', '--git-common-dir'], identityOnlyLostLeaseRepo).trim());
   rmSync(join(identityOnlyLostLeaseCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
+
+  // Recreating a directory can reuse its inode; refilling it in place pins that case on every platform.
+  const sameInodeLostLeaseScript = instrumentedRecordsScript('same-inode-lost-lease-script', (source) => source.replace(
+    /function releaseMutationLock\(lease\) \{\r?\n/,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_REFILL_LEASE_IN_PLACE === '1') {\n    rmSync(join(lease.lock, 'lease.nonce'), { force: true });\n    writeFileSync(lease.owner, JSON.stringify({ pid: 1, token: lease.token, acquiredAt: '2026-08-28T03:37:00.000Z' }) + '\\n');\n  }\n`,
+  ));
+  const sameInodeLostLeaseRepo = join(work, 'same-inode-lost-lease-after-success'); cpSync(incrementalRepo, sameInodeLostLeaseRepo, { recursive: true });
+  const sameInodeLostLeaseLedger = generated(sameInodeLostLeaseRepo, 'curation.jsonl');
+  const sameInodeLostLeaseBefore = readFileSync(sameInodeLostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  result = runWithScript(sameInodeLostLeaseScript, ['curate', '--root', sameInodeLostLeaseRepo, ...COLLECTION,
+    '--record', incrementalTwoId, '--state', '{"status":"same-inode-lost-lease-proof"}', '--at', '2026-08-28T03:37:00.000Z'],
+  sameInodeLostLeaseRepo, { CODE_OPS_EVAL_REFILL_LEASE_IN_PLACE: '1' });
+  const sameInodeLostLeaseAfter = readFileSync(sameInodeLostLeaseLedger, 'utf8').trim().split(/\r?\n/).filter(Boolean).length;
+  check('a same-inode replacement with the same token is fatal after durable mutation', result.status === 3
+    && sameInodeLostLeaseAfter === sameInodeLostLeaseBefore + 1
+    && result.output.includes('durable mutation completed') && result.output.includes('do not retry'), result.output);
+  const sameInodeLostLeaseCommonDir = resolve(sameInodeLostLeaseRepo, git(['rev-parse', '--git-common-dir'], sameInodeLostLeaseRepo).trim());
+  rmSync(join(sameInodeLostLeaseCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
 
   const lostLeaseBeforeWriteScript = instrumentedRecordsScript('lost-lease-before-write-script', (source) => source.replace(
     /function assertMutationLease\(lease\) \{\r?\n/,

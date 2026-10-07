@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.55.1
+- `records.mjs` writes a random `lease.nonce` file into the collection mutation lock at acquisition and makes it part of the lock identity, beside the device and inode. A filesystem such as ext4 can give a removed and recreated directory the same inode, and stale-recovery restore copies `owner.json` with its token. Before this change, such a replacement passed as the original lease and the "durable mutation completed ... do not retry" path never fired. A lock from an older version carries no nonce, and stale recovery still compares it by device and inode.
+- The record-collections eval adds a same-inode case. It refills the lock directory in place with the same token, so it reproduces inode reuse on every platform and fails against the previous library. The remove-and-recreate case now passes whatever inode the filesystem assigns.
+
 ## 2.55.0
 - The dispatch guard adds one advisory for a `Workflow` script that makes two or more `agent()` calls, or any call it cannot read, and has no readable `Run contract: <path>` line. The line may be bare or in a comment. The path resolves against the session directory and must name a JSON file with a non-empty `runId`. The note gives the call count against a guideline of 10 and how many calls set no effort. It never denies, and a script the guard cannot parse skips it.
 - A `Workflow` decision row gains a `contract` flag, true when the script carries a `Run contract:` line, and the gate table gains the `workflow-contract` id. The dispatch-guard eval covers the advisory, the silent forms, each bad-path case, and the row flag. CONTRACTS.md describes the advisory.
