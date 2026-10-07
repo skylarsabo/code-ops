@@ -102,6 +102,22 @@ run at the lead tier, never above it. The validator requires arm `b` or `c`, tra
 arm cannot measure a strong-versus-frontier gap. Every unit must use read mode, and no unit artifact may fall inside any unit scope.
 Earlier versions reject the key. Evidence: `scripts/run-contract.mjs`.
 
+`scripts/route-unit.mjs` owns the unit kinds. Its `CONTRACT_KIND_OF` table maps each route kind
+to the kind a contract records, and `run-contract.mjs` accepts exactly the values of that table:
+`breadth`, `mechanical`, `execution`, `judgment`, `review`, and `refutation`. The three route
+kinds `mechanical-read`, `mechanical-edit`, and `gate-run` record `mechanical`, and the route
+kind `peer` records `judgment`. A unit with any other kind fails with `kind must be one of`
+followed by the six kinds. When the kind is a route kind, the error adds `<kind> is a route kind,
+so record <mapped>`. A version 4 unit may also carry an optional `size` of `S`, `M`, or `L`, and
+an optional `roundBudget`, a positive safe integer. Earlier versions reject both keys. An invalid
+value fails the contract. Each size defaults to the dispatch guard's `DEFAULT_BUDGET`, 40
+rounds, in `SIZE_ROUND_BUDGET`. `SIZE_MEDIAN_ROUNDS` holds `null` for each size, because no unit
+has recorded a size (MEASUREMENTS.md, P12-M1d). While a median is `null`, `budgetAdvisory`
+returns nothing. Once a median exists, a `roundBudget` below the median for its `size` prints
+the warning `Round budget <n> is below the measured median of <m> rounds for size <s>` and never
+fails the contract. Evidence: `scripts/route-unit.mjs`, `scripts/run-contract.mjs`, and
+`evals/run-contract/run.mjs`.
+
 Security campaigns use a separate `ATTACK_CAMPAIGN.json` contract. It declares distinct
 exploit families, launches, directed entry-to-sink hypotheses, direct inspection evidence,
 independent validators, and `OPEN`, `BLOCKED`, `EXHAUSTED`, or `CLOSED` state. The compiler

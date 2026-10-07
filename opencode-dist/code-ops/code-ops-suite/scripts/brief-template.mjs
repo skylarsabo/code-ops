@@ -52,9 +52,12 @@ const fields = line.split(',').map((field) => field.trim()).filter(Boolean);
 if (!fields.length) fail(`brief-template: ${type} declares no Brief requires line in its Contract`);
 
 const lines = fields.map((field) => `${field}:`);
-// An agent that requires Tier also gets the values those lines take and the command that prints them.
+// An agent that requires Tier also gets the values those lines take and the command that prints them,
+// preceded by the optional Size line, whose sizes and default budgets route-unit.mjs owns.
 if (fields.includes('Tier')) {
+  const { SIZE_ROUND_BUDGET, UNIT_SIZES } = await import(pathToFileURL(join(HERE, 'route-unit.mjs')).href);
   lines.push(
+    `Size takes ${UNIT_SIZES.join('|')} and is optional; add a \`Size:\` line only to record the unit's size. Default Round budget by size: ${UNIT_SIZES.map((size) => `${size}=${SIZE_ROUND_BUDGET[size]}`).join(', ')}.`,
     'Tier takes light|mid|strong|premium|frontier; Effort takes low|medium|high; Route basis takes `<kind>; surface=<s>; ambiguity=<a>; reversible=<yes|no>`; add `Route override: <reason>` only to depart from the route.',
     'Print them with: co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> --scope <path>',
   );
