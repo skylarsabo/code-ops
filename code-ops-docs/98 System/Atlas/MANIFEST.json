@@ -345,7 +345,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "06f162015abc97d850d4a9cdd559aa4aeb036bb3",
+      "verifiedAt": "ff96ddb3f1870fd4cc24b9b07b0c06df1b4a6979",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -773,6 +773,16 @@
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
+          "file": "scripts/check-gap-link.mjs",
+          "line": 11,
+          "anchor": "// ADVISORY BY DESIGN: a body with no link, or a link to an id the table lacks,"
+        },
+        {
+          "file": "scripts/check-gap-link.mjs",
+          "line": 41,
+          "anchor": "export function assess(body, ids) {"
+        },
+        {
           "file": "scripts/route-unit.mjs",
           "line": 121,
           "anchor": "export function surfaceOfScope(paths) {"
@@ -923,7 +933,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "99a407eaa6eecd813e183e84a6c6d1c77f2af148090f72d6f0412857cad86768"
+      "verifiedDigest": "3024148aae6c48748bff9e1473e8b891e52b84f97b2d2d186d4a561e75a49ce9"
     },
     {
       "slug": "evals-and-calibration",
@@ -931,8 +941,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "06f162015abc97d850d4a9cdd559aa4aeb036bb3",
-      "verifiedDigest": "119ee5c849bf0a26e48141646e870037cdfa6e541e5aa30326f52c5538b0871e",
+      "verifiedAt": "ff96ddb3f1870fd4cc24b9b07b0c06df1b4a6979",
+      "verifiedDigest": "1cf0db741ccff462b5df608b9a2154e7abd8702f4ed716f4989ef6ff2ea2e9f1",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1375,12 +1385,24 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "2f51c9cc2fa43e988dbd7855908860a652beec66",
-      "verifiedDigest": "ebb0043779affbb2383a7c4ba8f4f0abeea806c138ef955b4778ff290fe34e47",
+      "verifiedAt": "ff96ddb3f1870fd4cc24b9b07b0c06df1b4a6979",
+      "verifiedDigest": "ea40a2ebbd0b6c200279b549cb7a83a8bb859ac9c6c9d1b1b7646b0e87e87081",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
           "line": 89
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 94
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 232
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 629
         },
         {
           "file": "github/workflows/validate.yml",

@@ -32,6 +32,7 @@
     "check-docs-standards-alignment.mjs": "gates",
     "check-duplication.mjs": "gates",
     "check-fleet.mjs": "gates",
+    "check-gap-link.mjs": "gates",
     "check-handoff.mjs": "program",
     "check-model-registry.mjs": "gates",
     "check-no-deps.mjs": "gates",
