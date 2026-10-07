@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedAt": "961781158ae27018b2f13af1999138e446eec80d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -22,12 +22,12 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/record-lib.mjs",
-          "line": 1336,
+          "line": 1422,
           "anchor": "export function recordMeaning(text) {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/records.mjs",
-          "line": 2074,
+          "line": 2076,
           "anchor": "async function seal(context, options) {"
         },
         {
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "0221685c06707d34c1ff355fd63682ebde5b8531d4a10b4045e1bab9abcd2013"
+      "verifiedDigest": "7eec637b6a74497c7cb339f71d903ed1086b69c4f1c929d98838926bc5ba96a9"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedAt": "961781158ae27018b2f13af1999138e446eec80d",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -454,37 +454,62 @@
         },
         {
           "file": "scripts/record-lib.mjs",
-          "line": 126,
+          "line": 157,
           "anchor": "export function gitObjectQuery(root, revisions, args, binary = false) {"
         },
         {
           "file": "scripts/record-lib.mjs",
-          "line": 1336,
+          "line": 40,
+          "anchor": "export function enableGitReadCache() { mutableReadCache = true; }"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 190,
+          "anchor": "export function revisionQuery(root, revision, buildArgs, others = [], binary = f"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 132,
+          "anchor": "export function trackedPaths(root) {"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 277,
+          "anchor": "export function prefetchBlobs(root, oids) {"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 105,
+          "anchor": "function noteGitCommand(args) {"
+        },
+        {
+          "file": "scripts/record-lib.mjs",
+          "line": 1422,
           "anchor": "export function recordMeaning(text) {"
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2008,
+          "line": 2010,
           "anchor": "function intakeRecord(context, options) {"
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2074,
+          "line": 2076,
           "anchor": "async function seal(context, options) {"
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2140,
+          "line": 2142,
           "anchor": "function relocateRoot(context, options) {"
         },
         {
           "file": "scripts/record-lib.mjs",
-          "line": 1394,
+          "line": 1480,
           "anchor": "export function forwardingErrors(document) {"
         },
         {
           "file": "scripts/records.mjs",
-          "line": 2207,
+          "line": 2209,
           "anchor": "function renderRegister(context, records) {"
         },
         {
@@ -843,7 +868,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "84f846adaa58bccbba7f01bb73e700ae00239ee650d50bf4c133913dca589b9a"
+      "verifiedDigest": "581c500fadd7c019a0eca9ec1222cdf1e9f1fe29ebccceaf1ce9cfb2cfd311bd"
     },
     {
       "slug": "evals-and-calibration",
@@ -851,8 +876,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
-      "verifiedDigest": "a72c4600c5c7a5042824b5f55eac7e7bc64cc0d505df98fb3bca63015bed1fb8",
+      "verifiedAt": "961781158ae27018b2f13af1999138e446eec80d",
+      "verifiedDigest": "144c59d78cdfc12a5a2b6aed6c65ead5fde825c3e3e6952c14c34c3bacb71339",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1174,7 +1199,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedAt": "961781158ae27018b2f13af1999138e446eec80d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1183,12 +1208,12 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
-          "line": 2074,
+          "line": 2076,
           "anchor": "async function seal(context, options) {"
         },
         {
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/records.mjs",
-          "line": 2074,
+          "line": 2076,
           "anchor": "async function seal(context, options) {"
         },
         {
@@ -1287,7 +1312,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "3dca2a02818dfff26b7c5ad917f071101baa90a69d54fc2280a15b3699699720"
+      "verifiedDigest": "69cff5437ec3b2cb05f059daff18ae6f12230dbc98704920b40e6340c8c57c72"
     },
     {
       "slug": "ci-workflows",
