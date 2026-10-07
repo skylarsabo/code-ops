@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // PreCompact and PostCompact hook: writes COMPACT_SNAPSHOT.md around compaction, so the next
-// tool result can point the lead at the operator words, running work, active items, and
-// reply-owed peers the summary loses. The parsing, masking, budgets, and the write live in
-// `../scripts/compact-snapshot.mjs` (createSnapshot); this hook only feeds it the payload.
-// A written snapshot is marked pending beside the handoff marker. The handoff card names that
-// file once, on the next tool result, and that line outranks the host summary.
+// tool result can point the lead at what the summary loses: operator words, running work, active
+// items, reply-owed peers, and the tagged RUN_LOG.md decisions, grants, in-flight lines, and next
+// command, under a `Run:` header. `../scripts/compact-snapshot.mjs` (createSnapshot) does the
+// parsing, masking, budgets, and write; this hook only feeds it the payload. A written snapshot
+// is marked pending, and the handoff card names it once, ahead of the host summary.
 //
 // The host ignores PreCompact and PostCompact stdout, so the hook prints nothing. It never blocks
 // compaction: every path, including a bad payload, a missing transcript, and a failed write, exits 0.

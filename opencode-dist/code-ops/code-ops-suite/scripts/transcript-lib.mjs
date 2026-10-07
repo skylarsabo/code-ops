@@ -547,14 +547,27 @@ const isBoundary = (o) => o?.type === 'system' && o.subtype === 'compact_boundar
 
 // The `compact_boundary` records in a transcript: the count the snapshot header stores and the
 // SessionStart card reads again, so a caller that only needs the count skips the full parse.
-export function countBoundaries(text) {
-  let n = 0;
+// `lastAt` is the newest boundary's own timestamp in milliseconds, or null when there is none or
+// the row carries no readable one. The card needs it because the host flushes a boundary row after
+// the SessionStart hook can already run, so a count alone cannot tell "row not yet written" from
+// "no compaction since the snapshot".
+export function boundaryInfo(text) {
+  let count = 0;
+  let lastAt = null;
   for (const line of String(text).split('\n')) {
     if (!line.includes('"compact_boundary"')) continue;
-    try { if (isBoundary(JSON.parse(line.replace(/^﻿/, '')))) n++; } catch { /* a torn line is skipped */ }
+    try {
+      const o = JSON.parse(line.replace(/^﻿/, ''));
+      if (!isBoundary(o)) continue;
+      count++;
+      const stamp = typeof o.timestamp === 'string' ? Date.parse(o.timestamp) : NaN;
+      lastAt = Number.isFinite(stamp) ? stamp : null;
+    } catch { /* a torn line is skipped */ }
   }
-  return n;
+  return { count, lastAt };
 }
+
+export const countBoundaries = (text) => boundaryInfo(text).count;
 
 export function conversationOf(text) {
   const out = { operatorWords: [], answers: [], peerMessages: [], outbound: [], work: [], boundaries: 0, lines: 0, lastAt: null };

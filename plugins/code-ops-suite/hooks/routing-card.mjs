@@ -35,9 +35,13 @@
 // latest `Next:` line from the tail of the run folder's RUN_LOG.md (at most NEXT_CHARS), and the
 // state of COMPACT_SNAPSHOT.md (`../scripts/compact-snapshot.mjs`, written by hooks/compact-snapshot.mjs
 // at PreCompact), looked up in the run folder and then the home state directory. `Snapshot fresh`
-// means the transcript holds exactly one more `compact_boundary` than the snapshot header, and the card
-// then gives its path and counts and says it outranks the summary on running work and peers, and omits
-// the open-item lines. `Snapshot STALE` or no snapshot keeps the open-item lines as before. The line
+// means the transcript holds exactly one more `compact_boundary` than the snapshot header, or the same
+// count when the snapshot was written at or after the latest boundary (the host flushes the boundary
+// row after this hook can run; snapshotState() states the rule). The card then gives its path and
+// counts and says it outranks the summary on running work and peers, and omits the open-item lines.
+// A `snapshot also holds:` line counts the decisions, authority grants, and in-flight lines it carries
+// and names its run folder, and `Snapshot partial: missing <inputs>` names what a partial one lacks.
+// `Snapshot STALE` or no snapshot keeps the open-item lines as before. The line
 // `active N/12 (last snapshot M)` counts the live unchecked TASKS.md lines against the header's
 // count, with ` GROWING` when N exceeds M and ` OVER CAP` when N exceeds 12. Pending agents stay live
 // from the ledger. Up to PEER_LINES lines list the snapshot's reply-owed peers, because an unanswered
@@ -255,16 +259,16 @@ async function readSnapshot(cwd, runDir, sessionId, transcriptPath) {
   try {
     const scripts = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
     const lib = await import(pathToFileURL(join(scripts, 'compact-snapshot.mjs')).href);
-    const { countBoundaries } = await import(pathToFileURL(join(scripts, 'transcript-lib.mjs')).href);
+    const { boundaryInfo } = await import(pathToFileURL(join(scripts, 'transcript-lib.mjs')).href);
     const candidates = [runDir ? join(resolve(cwd, runDir), lib.SNAPSHOT_FILE) : null, ...(sessionId ? lib.homeSnapshotPaths(cwd, sessionId) : [])].filter(Boolean);
     for (const path of candidates) {
       let text;
       try { text = readFileSync(path, 'utf8'); } catch { continue; }
       const header = lib.readSnapshotHeader(text);
       if (!header || (header.sessionId !== sessionId && header.sessionId !== 'unknown')) continue;
-      let boundaries = NaN;
-      try { boundaries = countBoundaries(readFileSync(transcriptPath, 'utf8')); } catch { /* no transcript: stale */ }
-      return { state: lib.snapshotState(header, boundaries), path, text, header };
+      let info = { count: NaN, lastAt: null };
+      try { info = boundaryInfo(readFileSync(transcriptPath, 'utf8')); } catch { /* no transcript: stale */ }
+      return { state: lib.snapshotState(header, info.count, info.lastAt), path, text, header };
     }
     return { state: 'absent' };
   } catch { return { state: 'unavailable' }; }
@@ -283,6 +287,12 @@ function snapshotLines(snap, cwd, open, sessionId) {
     lines.push(`Snapshot STALE: ${shown} predates an earlier compaction; verify its running work and peers`);
   } else if (snap.state === 'absent' && sessionId) {
     lines.push(`Snapshot absent: rebuild it with co snapshot --session ${sessionId}`);
+  }
+  // What the snapshot also holds, and what it lacks: a partial snapshot names each missing input so the
+  // session knows which part of the state to rebuild from the run folder.
+  if (snap.state === 'fresh' || snap.state === 'stale') {
+    if (counts && Number.isInteger(counts.decisions)) lines.push(`snapshot also holds: ${counts.decisions} decisions, ${counts.grants} authority grants, ${counts.flight} in-flight lines, the next command${snap.header.run && snap.header.run !== 'unknown' ? `, run folder ${clean(snap.header.run).slice(0, PATH_CHARS)}` : ''}`);
+    if (snap.header?.status === 'partial') lines.push(`Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed input').slice(0, PEER_CHARS)}; rebuild that input from the run folder or run co snapshot --session ${sessionId || '<id>'}`);
   }
   if (open) {
     const last = counts ? ` (last snapshot ${counts.items})` : '';
@@ -389,6 +399,7 @@ async function main() {
     'say what you are about to do, then close with a recap that stands on its own',
     'only you see a command\'s output; put what the user needs to read in your reply',
     'context economy: read the named convention sections only, skim before a whole file, and query the symbol index before a map',
+    'compaction keeps what a handoff keeps: tag RUN_LOG.md lines Decision:, Grant:, In flight:, Next: (co snapshot --fields)',
     'brief template -> co brief <agent>',
   ];
   // build-opencode-dist.mjs runs this hook with empty stdin and bakes the card into the dist, so
