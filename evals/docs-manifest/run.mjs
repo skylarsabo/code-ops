@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 // Regression coverage for generic manifest discovery, interior globs, and installed extraction.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { tally, withDetail } from '../harness.mjs';
+import { RUN_TIER_DAYS, listRunTiers, runRetentionTier } from '../../scripts/docs-manifest.mjs';
 
 const ROOT = process.cwd();
 const work = mkdtempSync(join(tmpdir(), 'coh-docs-manifest-'));
@@ -506,6 +507,59 @@ try {
     ['--index is not valid for plan', ['plan', '--index'], 2],
     ['--attested and --all conflict', ['sync', '--attested', side1, '--all'], 2],
   ]) { r = both(args); check(name, r.status === code, r.all); }
+
+  // Run retention tiers: age from the YYYY-MM-DD name prefix, mtime when the name has no valid date,
+  // and the day constants pinned on both sides of each boundary. The fixture "today" is 2026-10-07.
+  check('the tier constants keep the documented ages', RUN_TIER_DAYS.active === 30 && RUN_TIER_DAYS.distillReady === 180, JSON.stringify(RUN_TIER_DAYS));
+  const DAY = 86_400_000; const NOW = Date.UTC(2026, 9, 7, 12);
+  const dated = (days) => `${new Date(NOW - days * DAY).toISOString().slice(0, 10)}-run`;
+  for (const [days, tier] of [[0, 'active'], [30, 'active'], [31, 'distill-ready'], [180, 'distill-ready'], [181, 'archive'], [400, 'archive']]) {
+    const got = runRetentionTier(dated(days), 0, NOW);
+    check(`a name dated ${days} days ago is ${tier}`, got.tier === tier && got.ageDays === days && got.source === 'name', JSON.stringify(got));
+  }
+  const lateSameDay = runRetentionTier('2026-10-07-run', 0, Date.UTC(2026, 9, 7, 23, 59));
+  check('age counts whole UTC days, so a same-day run is age 0 at 23:59', lateSameDay.ageDays === 0 && lateSameDay.tier === 'active', JSON.stringify(lateSameDay));
+  check('a future-dated name clamps to age 0', runRetentionTier('2026-12-25-run', 0, NOW).ageDays === 0, 'future');
+  check('a date prefix followed by a space still dates the folder', runRetentionTier('2026-09-13 audit', 0, NOW).source === 'name', 'space');
+  check('the name date wins over a fresh mtime', runRetentionTier('2026-01-01-old', NOW, NOW).tier === 'archive', 'name over mtime');
+  const undated = runRetentionTier('scratch', NOW - 3 * DAY, NOW);
+  check('an undated name uses the mtime', undated.source === 'mtime' && undated.ageDays === 3 && undated.tier === 'active', JSON.stringify(undated));
+  check('the mtime fallback uses the same boundaries', [30, 31, 180, 181].map((days) => runRetentionTier('scratch', NOW - days * DAY, NOW).tier).join()
+    === 'active,distill-ready,distill-ready,archive', 'mtime boundaries');
+  for (const bad of ['2026-02-30-run', '2026-13-01-run', '2026-9-1-run', '20260901-run', '12026-09-01-run', '2026-09-011-run']) {
+    check(`${bad} is not a valid date prefix and falls back to mtime`, runRetentionTier(bad, NOW - 40 * DAY, NOW).source === 'mtime', bad);
+  }
+  check('a path argument ages by its last segment', runRetentionTier('project-docs/80 Runs/2026-08-01-x', 0, NOW).name === '2026-08-01-x', 'basename');
+
+  const runsHub = join(modes, 'project-docs', '80 Runs');
+  const expected = {
+    '2026-10-07-today': 'active/0/name', '2026-09-07-edge-active': 'active/30/name', '2026-09-06-edge-ready': 'distill-ready/31/name',
+    '2026-04-10-edge-ready-top': 'distill-ready/180/name', '2026-04-09-edge-archive': 'archive/181/name',
+    'undated-fresh': 'active/6/mtime', 'undated-old': 'archive/644/mtime', '2026-02-30-bad-date': 'distill-ready/67/mtime',
+  };
+  const stamps = { 'undated-fresh': '2026-10-01T12:00:00Z', 'undated-old': '2025-01-01T12:00:00Z', '2026-02-30-bad-date': '2026-08-01T12:00:00Z' };
+  for (const name of Object.keys(expected)) {
+    mkdirSync(join(runsHub, name), { recursive: true });
+    writeFileSync(join(runsHub, name, 'RUN_LOG.md'), '# log\n');
+    if (stamps[name]) utimesSync(join(runsHub, name), new Date(stamps[name]), new Date(stamps[name]));
+  }
+  writeFileSync(join(runsHub, 'INDEX.md'), '# index\n');
+  const listing = readdirSync(runsHub, { recursive: true }).sort().join('|');
+  const got = Object.fromEntries(listRunTiers(runsHub, NOW).map((row) => [row.name, `${row.tier}/${row.ageDays}/${row.source}`]));
+  check('the fixture runs get the expected tiers, ages, and sources', Object.keys(expected).every((name) => got[name] === expected[name])
+    && Object.keys(got).length === Object.keys(expected).length, JSON.stringify(got));
+  r = both(['runs', '--now', '2026-10-07']);
+  const lineOf = (name) => r.out.split('\n').find((line) => line.endsWith(` ${name}`)) || '';
+  const tierOf = (name) => { const at = r.out.indexOf(lineOf(name)); return ['active', 'distill-ready', 'archive'].filter((tier) => r.out.indexOf(`${tier} (`) <= at).pop(); };
+  check('runs prints each folder under its tier with age and source, and skips plain files', r.status === 0
+    && r.out.includes('active (3)') && r.out.includes('distill-ready (3)') && r.out.includes('archive (2)') && !r.out.includes('INDEX.md')
+    && Object.keys(expected).every((name) => tierOf(name) === expected[name].split('/')[0] && lineOf(name).includes(`${expected[name].split('/')[1]}d  ${expected[name].split('/')[2]}`)), r.all);
+  check('runs changes nothing on disk', readdirSync(runsHub, { recursive: true }).sort().join('|') === listing, 'listing changed');
+  for (const [name, args] of [['--now is runs only', ['check', '--now', '2026-10-07']], ['runs rejects --all', ['runs', '--all']],
+    ['runs rejects --index', ['runs', '--index']], ['--now rejects a non-date', ['runs', '--now', 'today']],
+    ['--now rejects an impossible date', ['runs', '--now', '2026-02-30']]]) {
+    r = both(args); check(name, r.status === 2, r.all);
+  }
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }
 console.log('\ndocs-manifest eval passed');

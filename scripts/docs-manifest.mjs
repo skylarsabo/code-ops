@@ -2,8 +2,8 @@
 // Validates and stamps a repository's sole authored-documentation registry.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
 import { safePath, scopeValidationErrors } from './record-lib.mjs';
@@ -24,13 +24,13 @@ const LEGACY_KEYS_REMOVED = new Set(['path', 'disposition', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: docs-manifest.mjs check|sync|plan [--root <repo>] [--out <file>] [--base <ref>] [--all] [--index] [--only <id>] [--attested <rev>[,<rev>...]]', 2); }
+function usage() { die('usage: docs-manifest.mjs check|sync|plan|runs [--root <repo>] [--out <file>] [--base <ref>] [--all] [--index] [--only <id>] [--attested <rev>[,<rev>...]] [--now <YYYY-MM-DD>]', 2); }
 function flags(args) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
     const key = args[i];
     if (key === '--all' || key === '--index') { if (out[key]) usage(); out[key] = true; continue; }
-    if (!['--root', '--out', '--base', '--only', '--attested'].includes(key) || out[key]) usage();
+    if (!['--root', '--out', '--base', '--only', '--attested', '--now'].includes(key) || out[key]) usage();
     const value = args[++i];
     if (!value || value.startsWith('--')) usage();
     out[key] = value;
@@ -341,19 +341,63 @@ function parseRevs(root, value) {
   return revs;
 }
 
+// Run retention tiers (code-ops-docs/55 Operations/RUN_RETENTION.md). A run folder under
+// `<hub>/80 Runs/` is aged from its YYYY-MM-DD name prefix, or from its mtime when the name has no
+// valid date, and falls into one of three tiers. The tiers only classify. Nothing here deletes or moves.
+export const RUN_TIER_DAYS = Object.freeze({ active: 30, distillReady: 180 });
+const MS_PER_DAY = 86_400_000;
+const RUN_DATE_RE = /^(\d{4})-(\d{2})-(\d{2})(?![0-9])/;
+const dayOf = (ms) => Math.floor(ms / MS_PER_DAY);
+// The UTC day of a name's date prefix, or null when the name has no prefix or the date does not exist.
+function nameDay(name) {
+  const m = RUN_DATE_RE.exec(name);
+  if (!m) return null;
+  const [year, month, day] = [Number(m[1]), Number(m[2]), Number(m[3])];
+  const ms = Date.UTC(year, month - 1, day);
+  const date = new Date(ms);
+  return date.getUTCFullYear() === year && date.getUTCMonth() === month - 1 && date.getUTCDate() === day ? dayOf(ms) : null;
+}
+export function runRetentionTier(path, mtimeMs, nowMs = Date.now()) {
+  const name = basename(path);
+  const byName = nameDay(name);
+  const ageDays = Math.max(0, dayOf(nowMs) - (byName ?? dayOf(mtimeMs)));
+  const tier = ageDays <= RUN_TIER_DAYS.active ? 'active' : ageDays <= RUN_TIER_DAYS.distillReady ? 'distill-ready' : 'archive';
+  return { name, ageDays, source: byName === null ? 'mtime' : 'name', tier };
+}
+// Read-only: lists the directories directly under a runs folder with their tier, oldest first.
+export function listRunTiers(runsDir, nowMs = Date.now()) {
+  if (!existsSync(runsDir)) return [];
+  return readdirSync(runsDir, { withFileTypes: true }).filter((entry) => entry.isDirectory())
+    .map((entry) => runRetentionTier(entry.name, statSync(resolve(runsDir, entry.name)).mtimeMs, nowMs))
+    .sort((a, b) => b.ageDays - a.ageDays || a.name.localeCompare(b.name));
+}
+function reportRuns(root, hub, now) {
+  const rows = listRunTiers(resolve(root, hub, '80 Runs'), now);
+  for (const tier of ['active', 'distill-ready', 'archive']) {
+    const inTier = rows.filter((row) => row.tier === tier);
+    console.log(`${tier} (${inTier.length})`);
+    for (const row of inTier) console.log(`  ${String(row.ageDays).padStart(4)}d  ${row.source.padEnd(5)}  ${row.name}`);
+  }
+}
+
 // Import-safe: check-vault-standard.mjs reuses the digest helpers above, so the CLI runs only when
 // this file is the entry point. A symlinked entry compares by real path.
 const isEntry = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 if (isEntry) {
   const command = process.argv[2];
-  if (!['check', 'sync', 'plan'].includes(command)) usage();
+  if (!['check', 'sync', 'plan', 'runs'].includes(command)) usage();
   const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
-  if (((f['--attested'] || f['--only']) && command !== 'sync') || (f['--index'] && command === 'plan')
+  const nowDay = /^\d{4}-\d{2}-\d{2}$/.test(f['--now'] ?? '') ? nameDay(f['--now']) : null;
+  if (f['--now'] !== undefined && nowDay === null) usage();
+  const nowDate = nowDay === null ? Date.now() : nowDay * MS_PER_DAY;
+  if ((f['--now'] && command !== 'runs') || (command === 'runs' && Object.keys(f).some((key) => !['--root', '--now'].includes(key)))
+    || ((f['--attested'] || f['--only']) && command !== 'sync') || (f['--index'] && command === 'plan')
     || (f['--attested'] && f['--all'])) usage();
   const revs = f['--attested'] ? parseRevs(root, f['--attested']) : null;
   const snap = f['--index'] ? indexSnapshot(root) : workingSnapshot(root);
   const { path, manifest, hub, relative } = findManifest(snap, root, Boolean(f['--index']) && command === 'check');
   if (f['--only'] && !manifest.domains?.some((domain) => domain.id === f['--only'])) die(`--only: no documentation domain ${f['--only']}`);
+  if (command === 'runs') { reportRuns(root, hub, nowDate); process.exit(0); }
   const errors = inspect(root, manifest, hub, snap);
   const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
   const structuralErrors = errors.filter((error) => !digestDrift.test(error));
