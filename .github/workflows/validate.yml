@@ -204,6 +204,9 @@ jobs:
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
 
+      - name: Redundancy measure regression eval
+        run: node evals/measure-redundancy/run.mjs
+
       - name: AI-trace scanner eval
         run: node evals/ai-tells/run.mjs
 
@@ -722,6 +725,9 @@ jobs:
 
       - name: Register-staleness regression eval
         run: node evals/register-staleness/run.mjs
+
+      - name: Redundancy measure regression eval
+        run: node evals/measure-redundancy/run.mjs
 
       - name: Import-graph regression eval
         run: node evals/import-graph/run.mjs
