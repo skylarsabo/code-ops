@@ -931,7 +931,7 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a521a64b98a4537252a3d0fc36512877048026ff",
+      "verifiedAt": "dee5466dbe12008c7702db910fba391b90e6d679",
       "verifiedDigest": "8c6cf0b3e84a387d30c18b0ac4bb9fcaa92fe2ecd41bb10d092a82233d1bcedf",
       "claims": [
         {
@@ -1473,7 +1473,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "a521a64b98a4537252a3d0fc36512877048026ff",
+      "verifiedAt": "dee5466dbe12008c7702db910fba391b90e6d679",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
