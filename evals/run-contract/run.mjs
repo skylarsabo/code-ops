@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { PROVIDER_TIERS } from '../../scripts/model-tiers.mjs';
+import { CONTRACT_KINDS, CONTRACT_KIND_OF, DEFAULT_ROUND_BUDGET, KINDS as ROUTE_KINDS, SIZE_MEDIAN_ROUNDS, SIZE_ROUND_BUDGET, UNIT_SIZES, budgetAdvisory } from '../../scripts/route-unit.mjs';
 import { tally, withDetail } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); const REPO = resolve(HERE, '..', '..'); const SCRIPT = join(REPO, 'scripts', 'run-contract.mjs'); const HEAD = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
@@ -106,6 +107,42 @@ try {
   save(singleUnit({ minOperatives: 0, minParallel: 1, singleUnitReason: reason })); r = run(['check', '--contract', path, '--root', REPO]); check('a singleUnitReason never admits a minimum below one', r.status === 1 && /orchestration\.minOperatives must be an integer of at least 1/.test(r.out), r.out);
   save(singleUnit({ minOperatives: 1, minParallel: 3, singleUnitReason: reason })); r = run(['check', '--contract', path, '--root', REPO]); check('a singleUnitReason keeps minParallel bounded by maxParallel', r.status === 1 && /orchestration\.minParallel exceeds maxParallel/.test(r.out), r.out);
   const v3Block = { ...policyMismatch, version: 3, runtime: calibration().runtime, replanOn: calibration().replanOn, calibration: { arm: 'b', track: 'assess-only' } }; save(v3Block); r = run(['check', '--contract', path, '--root', REPO]); check('calibration block on a v3 contract fails closed', r.status === 1 && /contract has unknown key calibration/.test(r.out), r.out);
+  // P12-KindsSource: route-unit.mjs owns the unit kinds. Each route kind maps to a contract kind, a
+  // contract accepts exactly those kinds, and a route kind outside them names the kind to record.
+  check('every route kind maps to one contract kind', ROUTE_KINDS.length === Object.keys(CONTRACT_KIND_OF).length && ROUTE_KINDS.every((kind) => CONTRACT_KINDS.includes(CONTRACT_KIND_OF[kind])), JSON.stringify(CONTRACT_KIND_OF));
+  const withKind = (kind) => { const value = taskBased(); value.units[0] = { ...value.units[0], kind }; return value; };
+  const kindError = (out) => /kind must be one of/.test(out);
+  for (const kind of ROUTE_KINDS) {
+    const mapped = CONTRACT_KIND_OF[kind];
+    save(withKind(mapped)); r = run(['check', '--contract', path, '--root', REPO]); const accepted = !kindError(r.out);
+    save(withKind(kind)); r = run(['check', '--contract', path, '--root', REPO]);
+    const own = mapped === kind ? !kindError(r.out) : kindError(r.out) && r.out.includes(`kind must be one of ${CONTRACT_KINDS.join(', ')}; ${kind} is a route kind, so record ${mapped}`);
+    check(`route kind ${kind} validates as contract kind ${mapped}`, accepted && own, r.out);
+  }
+  save(withKind('bogus')); r = run(['check', '--contract', path, '--root', REPO]); check('an unknown kind fails closed and lists the allowed kinds', r.status === 1 && r.out.includes(`D-001 kind must be one of ${CONTRACT_KINDS.join(', ')}`) && !/route kind/.test(r.out), r.out);
+  // P12-BudgetSize: a unit may record a size and a round budget. With no measured median per size,
+  // the advisory is silent; a patched copy of the scripts stands in for a measured median.
+  const sized = (size, roundBudget) => { const value = taskBased(); value.units[0] = { ...value.units[0], size, roundBudget }; return value; };
+  const fixtureMedian = { S: 20, M: 40, L: 80 };
+  check('every size defaults to the dispatch guard round budget until a median is measured', UNIT_SIZES.join() === 'S,M,L' && UNIT_SIZES.every((size) => SIZE_ROUND_BUDGET[size] === DEFAULT_ROUND_BUDGET && (SIZE_MEDIAN_ROUNDS[size] === null || Number.isInteger(SIZE_MEDIAN_ROUNDS[size]))) && new RegExp(`const DEFAULT_BUDGET = ${DEFAULT_ROUND_BUDGET};`).test(readFileSync(join(REPO, 'plugins', 'code-ops-suite', 'hooks', 'dispatch-guard.mjs'), 'utf8')), JSON.stringify({ SIZE_ROUND_BUDGET, SIZE_MEDIAN_ROUNDS }));
+  const mutantScripts = join(root, 'scripts-median'); cpSync(join(REPO, 'scripts'), mutantScripts, { recursive: true });
+  const mutantRoute = join(mutantScripts, 'route-unit.mjs'); const routeSource = readFileSync(mutantRoute, 'utf8'); const nullMedian = '[size, null]));\n\n// The advisory text';
+  check('the median patch finds its anchor in route-unit.mjs', routeSource.includes(nullMedian), 'SIZE_MEDIAN_ROUNDS anchor moved');
+  writeFileSync(mutantRoute, routeSource.replace(nullMedian, `[size, ({ S: ${fixtureMedian.S}, M: ${fixtureMedian.M}, L: ${fixtureMedian.L} })[size]]));\n\n// The advisory text`));
+  const runMutant = (value) => { save(value); try { return { status: 0, out: execFileSync(process.execPath, [join(mutantScripts, 'run-contract.mjs'), 'check', '--contract', path, '--root', REPO], { cwd: REPO, encoding: 'utf8' }) }; } catch (error) { return { status: error.status ?? 1, out: `${error.stdout || ''}${error.stderr || ''}` }; } };
+  for (const size of UNIT_SIZES) {
+    const median = fixtureMedian[size];
+    save(sized(size, median - 1)); r = run(['check', '--contract', path, '--root', REPO]);
+    const silent = compiles(r.out) && !/^! /m.test(r.out);
+    const below = runMutant(sized(size, median - 1)); const atMedian = runMutant(sized(size, median)); const unsized = runMutant(taskBased());
+    const warned = compiles(below.out) && below.out.includes(`! D-001 Round budget ${median - 1} is below the measured median of ${median} rounds for size ${size}`);
+    check(`size ${size} accepts a round budget, warns below a measured median, and never denies`, silent && warned && compiles(atMedian.out) && !/^! D-001 Round budget/m.test(atMedian.out) && !/^! D-001 Round budget/m.test(unsized.out), `${r.out}${below.out}${atMedian.out}`);
+    check(`size ${size} advisory is a pure function of size, budget, and median`, budgetAdvisory(size, median - 1, fixtureMedian) !== null && budgetAdvisory(size, median, fixtureMedian) === null && budgetAdvisory(size, 1, { ...fixtureMedian, [size]: null }) === null && budgetAdvisory(size, 1) === null);
+  }
+  check('an unknown size has no median and no advisory', budgetAdvisory('XL', 1, fixtureMedian) === null && budgetAdvisory('toString', 1, fixtureMedian) === null);
+  save(sized('XL', 10)); r = run(['check', '--contract', path, '--root', REPO]); check('an unknown size fails closed', r.status === 1 && /D-001 size must be one of S, M, L/.test(r.out), r.out);
+  for (const bad of [0, -3, 1.5, '40']) { save(sized('M', bad)); r = run(['check', '--contract', path, '--root', REPO]); check(`roundBudget ${JSON.stringify(bad)} fails closed`, r.status === 1 && /D-001 roundBudget must be a positive safe integer/.test(r.out), r.out); }
+  const sizeOnV1 = contract(); sizeOnV1.units[0].size = 'S'; save(sizeOnV1); r = run(['check', '--contract', path, '--root', REPO]); check('size stays a version 4 key', r.status === 1 && /unit 1 has unknown key size/.test(r.out), r.out);
   save(contract()); rows(); r = run(['reconcile', '--contract', path, '--ledger', ledger, '--root', REPO, '--strict']); check('strict matching reported ledger passes', r.status === 0, r.out);
   r = run(['reconcile', '--contract', path, '--ledger', ledger, '--root', REPO, '--in-flight']); check('in-flight reconcile passes a fully reported non-v4 ledger', r.status === 0, r.out);
   r = run(['reconcile', '--contract', path, '--ledger', ledger, '--root', REPO, '--in-flight', '--strict']); check('reconcile rejects --in-flight combined with --strict', r.status === 2, r.out);

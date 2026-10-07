@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.15
+- The vendored `route-unit.mjs` exports the contract kind table and the unit sizes that `run-contract.mjs` reads.
+
 ## 0.16.14
 - `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
 
