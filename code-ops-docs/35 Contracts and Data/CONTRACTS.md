@@ -1225,6 +1225,30 @@ its round advisory joins the denial. `warn` turns the deny into advisory context
 `CODE_OPS_LEGACY_PATHS`, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence: `scripts/legacy-paths-lib.mjs`,
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`, and `evals/dispatch-guard/run.mjs`.
 
+The derived path deny is part of the same behavior. An edit under a `derived` legacy path, a
+generated tree such as `opencode-dist/`, is denied the same way, and the reason names the entry's
+`generator` command. The library uses the manifest's `derived` entries when it lists any. A
+manifest that is missing, oversize, corrupt, of an unknown shape, or lists no `derived` entry
+falls back to a built-in list (`.agents/`, `codex-marketplace/`, and
+`opencode-dist/`), so a broken manifest never opens the generated trees. A
+repository with no hub is never denied. `scripts/docs-manifest.mjs` does not yet validate or
+accept the `derived` disposition, so no real manifest can declare one and the fallback is the live
+path today. That validation is a tracked follow-up. Evidence: `scripts/legacy-paths-lib.mjs`
+(`legacyDenial`, `DERIVED_FALLBACK`) and `evals/dispatch-guard/run.mjs`.
+
+Every output that denies or advises appends one decision row to `guard-decisions.jsonl`. The file
+sits beside the session-receipt ledger: in the directory of `CODE_OPS_RECEIPTS` when it names a
+path, else in `~/.claude/code-ops/`. A row is one JSON line holding ids and counts only, never
+brief text, script text, or paths: `v` (1), `ts`, `sessionId` (null when the host id is not a
+safe token), `tool`, `subagent`, `decision` (`deny` or `advisory`), `gates`, and `ledger`.
+`gates` lists each gate id whose message phrase appears in the output, in table order, or
+`other` when none does. `ledger` lists the contract-rule ids those gates back. A `Workflow` row
+adds `workflow` with the `calls` count and the `unreadable` count. `CODE_OPS_RECEIPTS=off` stops the
+rows, and a write error fails open: the decision still reaches the host unchanged. The dispatch-guard
+eval fires every gate id in the table and fails when a message no longer matches its phrase.
+Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`GATES`, `decisionRow`) and
+`evals/dispatch-guard/run.mjs`.
+
 The guard's wide-type deny, brief-contract deny, context-ceiling gate, and round stop are the enforcement layer.
 The routing card, the dispatch ledger, and the narration scan are advisories only. Lint
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.

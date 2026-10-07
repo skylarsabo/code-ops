@@ -110,16 +110,27 @@
 //      cost", DEC-66). Its off switch is `CODE_OPS_PEER_GUARD`, the presence board's own switch:
 //      the note reads that board, and a session that turned the board off should neither publish
 //      to it nor consume it. `CODE_OPS_DISPATCH_GUARD=off` also silences it, as it does every branch.
-//   6. LEGACY PATH DENY, on every thread, for an edit tool (the names behaviour 5 lists). An edit
-//      whose target lies under a `removed` legacy path of the documentation manifest (version 3,
-//      `<hub>/98 System/DOCS_MANIFEST.json`) is denied, and the reason names the removed root and,
-//      when `<hub>/98 System/FORWARDING.json` maps it, the new location (Program state handoffs
-//      and coordination 2026-09, W3). scripts/legacy-paths-lib.mjs, imported lazily and only for an
-//      edit tool, finds the hub as the one top-level directory holding the manifest, reads at most
-//      2 MiB per file, and spawns nothing; any error, a missing library, or a repository with no
-//      hub fails open. A denial on a subagent still counts the call, because the denial and any
-//      round advisory leave in one output. `CODE_OPS_DISPATCH_GUARD=warn` downgrades it to
-//      advisory text. Its own off switch is `CODE_OPS_LEGACY_PATHS`, taking `off`, `0`, or `false`.
+//   6. LEGACY AND DERIVED PATH DENY, on every thread, for an edit tool (the names behaviour 5
+//      lists). An edit whose target lies under a `removed` legacy path of the documentation
+//      manifest (version 3, `<hub>/98 System/DOCS_MANIFEST.json`) is denied, and the reason names
+//      the removed root and, when `<hub>/98 System/FORWARDING.json` maps it, the new location
+//      (Program state handoffs and coordination 2026-09, W3). An edit under a `derived` legacy
+//      path, a generated tree such as `opencode-dist/`, is denied the same way, and the reason
+//      names the entry's `generator` command. A hub whose manifest is missing, oversize, or
+//      corrupt, or one that lists no `derived` entry, falls back to a built-in derived list, so a
+//      broken manifest never opens the generated trees; a repository with no hub is never denied. scripts/legacy-paths-lib.mjs,
+//      imported lazily and only for an edit tool, finds the hub as the one top-level directory
+//      holding the manifest, reads at most 2 MiB per file, and spawns nothing; any other error,
+//      or a missing library, fails open. A denial on a subagent still counts the call, because
+//      the denial and any round advisory leave in one output. `CODE_OPS_DISPATCH_GUARD=warn`
+//      downgrades it to advisory text. Its own off switch is `CODE_OPS_LEGACY_PATHS`, taking
+//      `off`, `0`, or `false`.
+//
+// DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
+// to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
+// else `~/.codex/code-ops/`). A row holds ids and counts only, never brief text or paths; the
+// shape is in the "Dispatch guard hook" section of CONTRACTS.md. `CODE_OPS_RECEIPTS=off` stops
+// the rows, and a write error fails open.
 //
 // The warning asks for a written checkpoint (done items, each dirty path marked complete or
 // partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
@@ -490,6 +501,73 @@ function briefValue(prompt, field) {
 let collision = null;
 let legacy = null;
 let emitted = false;
+// The tool call this process decides, for the decision row. Null for a CLI verb, so only a hook
+// output writes a row. `workflow` holds the per-call counts reviewWorkflow reads.
+let current = null;
+let workflow = null;
+
+// Decision rows. Each gate that can deny or advise has one id, the contract-rule ledger ids it
+// backs, and a phrase unique to its message. An output can carry several gates, so a row lists
+// every id whose phrase appears, in table order, and `other` when none does. The dispatch-guard
+// eval fires every row, so a reworded message that no longer matches fails there.
+const GATES = [
+  ['round-warn', /tool rounds used against/, ['GC-25']],
+  ['round-stop', /the hard stop at |checkpoint allowance following/, ['GC-25']],
+  ['round-note', /-round budget exceeds|Round budget is not one whole number/, ['GC-25']],
+  ['binding', /controller binding is malformed|controller-bound counter is unavailable/, ['GC-25']],
+  ['ceiling', /-token context ceiling/, ['GB-07', 'GB-17', 'GB-19']],
+  ['wide-type', /starts from (?:a large default or inherited context|the default surface)/, ['GB-05', 'GD-01', 'R1-07']],
+  ['effort-cap', /effort is at most high|is not an effort/, []],
+  ['brief-fields', /requires these brief fields, missing/, ['GD-06']],
+  ['budget-missing', /No Round budget in the brief/, ['GC-25']],
+  ['route-tier', /is not a rung|cannot be ranked|, below its .* floor|but the dispatch runs at|\bruns at; the Agent tool|Tier \S+ \/ Effort|is above the routed|below the \S+ floor of/, ['GC-05', 'GC-06']],
+  ['route-basis', /Route basis/, []],
+  ['frontier', /only one frontier peer/, []],
+  ['workflow-opaque', /Workflow agent\(\) calls pass (?:options the guard cannot read|a model or effort that is not a literal)/, []],
+  ['legacy-path', /Legacy path guard:/, []],
+  ['derived-path', /Derived path guard:/, []],
+  ['peer-note', /^(?:Collision|Surface) note/m, []],
+];
+const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
+
+// The row for one PreToolUse output that denies or advises, or null for anything else. It holds
+// ids and counts only: no brief, script, path, or message text.
+function decisionRow(body) {
+  const out = body?.hookSpecificOutput;
+  if (!current || out?.hookEventName !== 'PreToolUse') return null;
+  const deny = out.permissionDecision === 'deny';
+  const text = deny ? out.permissionDecisionReason : out.additionalContext;
+  if (typeof text !== 'string' || !text) return null;
+  const hits = GATES.filter(([, phrase]) => phrase.test(text));
+  const row = {
+    v: 1, ts: new Date().toISOString(),
+    sessionId: SAFE_SESSION.test(String(current.session_id ?? '')) ? current.session_id : null,
+    tool: TOOL_ID.test(String(current.tool_name ?? '')) ? current.tool_name : 'other',
+    subagent: Boolean(current.subagent),
+    decision: deny ? 'deny' : 'advisory',
+    gates: hits.length ? hits.map(([id]) => id) : ['other'],
+    ledger: [...new Set(hits.flatMap(([, , ids]) => ids))].sort(),
+  };
+  if (workflow && current.tool_name === 'Workflow') row.workflow = workflow;
+  return row;
+}
+
+// `guard-decisions.jsonl` beside the session-receipt ledger, or null when `CODE_OPS_RECEIPTS` is off.
+function decisionsPath() {
+  if (off('CODE_OPS_RECEIPTS')) return null;
+  const receipts = process.env.CODE_OPS_RECEIPTS;
+  return join(receipts ? dirname(receipts) : join(homedir(), '.codex', 'code-ops'), 'guard-decisions.jsonl');
+}
+
+function recordDecision(body) {
+  try {
+    const row = decisionRow(body);
+    const path = row && decisionsPath();
+    if (!path) return;
+    mkdirSync(dirname(path), { recursive: true });
+    appendFileSync(path, `${JSON.stringify(row)}\n`);
+  } catch { /* fail open */ }
+}
 
 function emit(body) {
   // Behaviour 6 turns any PreToolUse output into a denial that keeps the rest of the text.
@@ -506,6 +584,7 @@ function emit(body) {
   const sent = merge ? { ...body, hookSpecificOutput: { ...out, additionalContext: `${out.additionalContext}\n${merge.text}` } } : body;
   writeSync(1, `${JSON.stringify(sent)}\n`);
   emitted = true;
+  recordDecision(sent);
   if (merge) { collision = null; try { merge.commit(); } catch { /* fail open */ } }
 }
 
@@ -883,6 +962,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId) {
     const type = keys.get('agentType');
     if (type !== null && (!type.trim() || WIDE_TYPES.has(type.trim().split(':').pop().toLowerCase()))) failed.push(index + 1);
   });
+  workflow = { calls: calls.length, unreadable };
   if (failed.length && !script.includes('Wide-surface reason:')) {
     denials.push(`${failed.length} of ${calls.length} Workflow agent() calls name no agentType or a wide-surface one `
       + `(the first is call ${failed[0]}), which starts from the default surface; set agentType on each to a `
@@ -1209,6 +1289,7 @@ async function main() {
   // its counter.
   const agentId = payload.agent_id
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
+  current = { tool_name: payload.tool_name, session_id: payload.session_id, subagent: typeof agentId === 'string' && agentId !== '' };
   collision = await collisionFor(payload, agentId);
   const denial = await legacyFor(payload);
   if (denial && hardStop) legacy = denial;
