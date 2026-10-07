@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.59.0
+- `records.mjs` writes a random `lease.nonce` file into the collection mutation lock at acquisition and makes it part of the lock identity, beside the device and inode. A filesystem such as ext4 can give a removed and recreated directory the same inode, and stale-recovery restore copies `owner.json` with its token. Before this change, such a replacement passed as the original lease and the "durable mutation completed ... do not retry" path never fired. A lock from an older version carries no nonce, and stale recovery still compares it by device and inode.
+- The record-collections eval adds a same-inode case. It refills the lock directory in place with the same token, so it reproduces inode reuse on every platform and fails against the previous library. The remove-and-recreate case now passes whatever inode the filesystem assigns.
+
 ## 2.57.0
 - New `compliance` subcommand of `context-audit.mjs` counts, from the two supported transcript formats, operator prompts, dispatch calls by tool, guard denials, Workflow launches with and without a Run-contract line, briefs without a `Round budget` line, and authority-bearing shell commands (`git push`, `gh pr create`, `gh pr merge`, `gh release`). It prints counts and ids only, never prompt, command, brief, or result text. Subagent threads, unreadable files, and transcripts of the other hosts are counted apart as skipped. Flags: `--json`, `--out`, `--session`, `--host`, `--all`.
 - `context-audit.mjs` now runs its command line only when invoked as a script, and exports the pure counting helpers, so the eval imports them. The eval pins `RUN_CONTRACT_LINE` to the dispatch guard's literal and fails when the two differ.
