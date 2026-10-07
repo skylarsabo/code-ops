@@ -27,7 +27,7 @@
       "name": "privacy-opsec-suite",
       "source": "./plugins/privacy-opsec-suite",
       "description": "Privacy/anonymity & OpSec specialization: anonymity threat model, anonymous sessions, Tor/proxy egress + leak prevention, metadata minimization, fingerprinting & traffic-analysis resistance, supply-chain trust, opsec hardening, leak incident response, and an opsec PR gate.",
-      "version": "2.6.0",
+      "version": "2.6.1",
       "category": "security",
       "keywords": [
         "privacy",
@@ -43,7 +43,7 @@
       "name": "rigor",
       "source": "./plugins/rigor",
       "description": "Verification-first: find real bugs (proven with repros), validate the test suite (flaky + mutation testing), lock behavior with characterization safety nets, fix at root cause with a regression guard, and ship measured improvements. Evidence tiers, disconfirmation pass, prove-it-or-don't.",
-      "version": "3.6.2",
+      "version": "3.6.3",
       "category": "engineering",
       "keywords": [
         "bugs",

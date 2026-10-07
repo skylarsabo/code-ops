@@ -1,5 +1,9 @@
 # Changelog — privacy-opsec-suite
 
+## 2.6.1
+**Changed**
+- Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+
 ## 2.6.0
 - The `explorer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.
 
