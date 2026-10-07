@@ -10,8 +10,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # The Windows record-collection eval is path-gated below (it costs about twelve minutes on a
-  # Windows runner against about one on Ubuntu). A weekly full run keeps it exercised on an
+  # The Windows record-collection eval is path-gated below (571 s on the one measured CI run, against
+  # a 52.5 s median on Ubuntu; .github/ci-budgets.json holds the numbers). A weekly full run keeps it exercised on an
   # unchanged tree, so a platform-side regression cannot hide behind the gate.
   schedule:
     - cron: '0 6 * * 1'
@@ -31,7 +31,7 @@ jobs:
   # same pinned setup: SHAs per the suite's own supply-chain-trust skill, so a moved tag cannot
   # inject code into CI; the trailing comment tracks the version. fetch-depth: 0 (full history)
   # lets the PR-only plugin-bump check diff against origin/<base_ref>.
-  # Shard 1: the record-collection eval (about 70 s) and the PR-only publishing gates.
+  # Shard 1: the record-collection eval (median 103.5 s) and the PR-only publishing gates.
   structural-lint-shard-1:
     runs-on: ubuntu-latest
     steps:
@@ -86,7 +86,7 @@ jobs:
           node -e 'require("node:fs").writeFileSync(process.argv[1], `${process.env.PR_TITLE}\n\n${process.env.PR_BODY}\n`)' "$pr_text"
           node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
 
-  # Shard 2: the slow orchestration and runtime evals (about 70 s).
+  # Shard 2: the slow orchestration and runtime evals (median 108 s).
   structural-lint-shard-2:
     runs-on: ubuntu-latest
     steps:
@@ -137,7 +137,7 @@ jobs:
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
-  # Shard 3: the structural gates and the remaining evals (about 60 s).
+  # Shard 3: the structural gates and the remaining evals (median 126 s).
   structural-lint-shard-3:
     runs-on: ubuntu-latest
     steps:
@@ -158,6 +158,12 @@ jobs:
 
       - name: Structural lint (the gate)
         run: node scripts/lint-plugins.mjs
+
+      - name: CI budget file check (advisory)
+        run: node scripts/ci-budget.mjs check
+
+      - name: CI budget regression eval
+        run: node evals/ci-budget/run.mjs
 
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
@@ -435,7 +441,7 @@ jobs:
   # shell quoting, line endings) is caught before merge instead of surfacing only for a Windows
   # contributor. They use the same pinned setup as the ubuntu shards and are balanced by measured
   # Windows step time.
-  # Shard 1: attack-chain, snapshot, and extraction evals (about 105 s).
+  # Shard 1: attack-chain, snapshot, and extraction evals (median 285 s).
   structural-lint-windows-shard-1:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -472,7 +478,7 @@ jobs:
       - name: Distill vault-mode state regression eval
         run: node evals/distill-vault/run.mjs
 
-  # Shard 2: runtime and review orchestration evals (about 100 s).
+  # Shard 2: runtime and review orchestration evals (median 121 s).
   structural-lint-windows-shard-2:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -495,7 +501,7 @@ jobs:
           node evals/judgment-orchestration/run.mjs
 
   # Shard 3: the path-gated record eval alone. It is the longest Windows leg whenever it runs, so
-  # the evals it used to share this job with (about 95 s) moved to shard 5 and no longer extend it.
+  # the evals it used to share this job with moved to shard 5 and no longer extend it.
   structural-lint-windows-shard-3:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -509,8 +515,9 @@ jobs:
           node-version-file: '.node-version'
           package-manager-cache: false
 
-      # The record eval dominates this leg (about 693 s on the measured runs, against
-      # 72 s on Ubuntu). It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
+      # The record eval dominates this leg (571 s on the one measured CI run, against a 52.5 s
+      # Ubuntu median). It starts 866 child processes on Windows (879 on Ubuntu), so process
+      # creation sets the cost: about 0.7 s per spawn here against 0.05 s there. It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
       # so it runs here only when the range under test touched those inputs, the generated record
       # authority, or this workflow. The documentation manifest is deliberately not on the list: it
       # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
@@ -545,7 +552,7 @@ jobs:
           node evals/record-collections/run.mjs
           node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
 
-  # Shard 5: atlas, lint-gate, dispatch-guard, and doc-citation evals (about 95 s).
+  # Shard 5: atlas, lint-gate, dispatch-guard, and doc-citation evals (median 161.5 s).
   structural-lint-windows-shard-5:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -583,7 +590,7 @@ jobs:
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
-  # Shard 4: the structural gates and the remaining evals (about 105 s).
+  # Shard 4: the structural gates and the remaining evals (median 217.5 s).
   structural-lint-windows-shard-4:
     runs-on: windows-latest
     timeout-minutes: 20

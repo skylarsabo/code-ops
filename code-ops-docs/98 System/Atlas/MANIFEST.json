@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a68d56e84ee4c93de0ab2227d77762b9ceb1f7e0",
+      "verifiedAt": "8fb47b858b716dde20345c5c5b687fc7f589e87a",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -808,7 +808,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "6d5f1a2381dd899dc4b3c86a3d697a973d0dc8441199a667795f9ed4be436a6d"
+      "verifiedDigest": "125e7c168d9169270d88df0e2aded6945d5c32a98549f39ea67e01264e891e0a"
     },
     {
       "slug": "evals-and-calibration",
@@ -816,8 +816,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a68d56e84ee4c93de0ab2227d77762b9ceb1f7e0",
-      "verifiedDigest": "9ea243f43b5f5e1b51ca0195e871d5ecbcef57f5de9a3336b581239a2725e5a6",
+      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
+      "verifiedDigest": "a7e333c04411a87caebf9e312f3dc47518d15b6b3f0e4949b7c5a92224e2acd4",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1260,8 +1260,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "ba472ed0f961b6afe6ca2f848569554592b910f6",
-      "verifiedDigest": "fb82c707d6b658b48d61132d4637596d402abb2f43eec1275c2810271028b6e6",
+      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
+      "verifiedDigest": "c3f4e3b94726d5f675596623f97777b9daca4917a99eaaa07f0a169583054b6c",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1286,6 +1286,19 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 542
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 163
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 166
+        },
+        {
+          "file": "scripts/ci-budget.mjs",
+          "line": 70,
+          "anchor": "process.exit(strict && findings.length ? 1 : 0);"
         },
         {
           "file": "github/workflows/validate.yml",

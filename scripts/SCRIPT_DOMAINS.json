@@ -37,6 +37,7 @@
     "check-vault-standard.mjs": "gates",
     "citation-lib.mjs": "docs",
     "cli-lib.mjs": "cli",
+    "ci-budget.mjs": "gates",
     "co.mjs": "cli",
     "collision-lib.mjs": "program",
     "compact-snapshot.mjs": "context",
