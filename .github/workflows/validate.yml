@@ -10,8 +10,8 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
-  # The Windows record-collection eval is path-gated below (571 s on the one measured CI run, against
-  # a 52.5 s median on Ubuntu; .github/ci-budgets.json holds the numbers). A weekly full run keeps it exercised on an
+  # The Windows record-collection eval is path-gated below (394 s on the one measured CI run since the
+  # record speed-up, against a 52.5 s median on Ubuntu; .github/ci-budgets.json holds the numbers). A weekly full run keeps it exercised on an
   # unchanged tree, so a platform-side regression cannot hide behind the gate.
   schedule:
     - cron: '0 6 * * 1'
@@ -445,8 +445,9 @@ jobs:
   # The Windows shards mirror the ubuntu checks so a platform-specific regression (path handling,
   # shell quoting, line endings) is caught before merge instead of surfacing only for a Windows
   # contributor. They use the same pinned setup as the ubuntu shards and are balanced by measured
-  # Windows step time.
-  # Shard 1: attack-chain, snapshot, and extraction evals (median 285 s).
+  # Windows step time: the median over six successful runs from 2026-10-07, packed longest step
+  # first onto the lightest shard (.github/ci-budgets.json holds the numbers).
+  # Shard 1: attack-chain, extraction, distill no-loss, vault-standard, and dispatch-guard evals (median 173 s).
   structural-lint-windows-shard-1:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -463,27 +464,19 @@ jobs:
       - name: Attack-chain graph regression eval
         run: node evals/attack-chain-graph/run.mjs
 
-      - name: Context snapshot and bundle regression evals
-        run: |
-          node evals/context-snapshot/run.mjs
-          node evals/context-bundle/run.mjs
-
       - name: Documentation extraction regression eval
         run: node evals/docs-manifest/run.mjs
-
-      - name: Docs gate regression eval
-        run: node evals/docs-gate/run.mjs
-
-      - name: Docs relocation regression eval
-        run: node evals/docs-relocate/run.mjs
 
       - name: Distill no-loss regression eval
         run: node evals/distill-check/run.mjs
 
-      - name: Distill vault-mode state regression eval
-        run: node evals/distill-vault/run.mjs
+      - name: Vault-standard regression eval
+        run: node evals/vault-standard/run.mjs
 
-  # Shard 2: runtime and review orchestration evals (median 121 s).
+      - name: Dispatch guard hook eval (round budget + dispatch advisories)
+        run: node evals/dispatch-guard/run.mjs
+
+  # Shard 2: snapshot, docs-relocation, distill vault-mode, and doc-citation evals (median 181.5 s).
   structural-lint-windows-shard-2:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -497,16 +490,23 @@ jobs:
           node-version-file: '.node-version'
           package-manager-cache: false
 
-      - name: Long-horizon runtime regression eval
-        run: node evals/run-runtime/run.mjs
-
-      - name: Local review and judgment orchestration evals
+      - name: Context snapshot and bundle regression evals
         run: |
-          node evals/local-review-gate/run.mjs
-          node evals/judgment-orchestration/run.mjs
+          node evals/context-snapshot/run.mjs
+          node evals/context-bundle/run.mjs
 
-  # Shard 3: the path-gated record eval alone. It is the longest Windows leg whenever it runs, so
-  # the evals it used to share this job with moved to shard 5 and no longer extend it.
+      - name: Docs relocation regression eval
+        run: node evals/docs-relocate/run.mjs
+
+      - name: Distill vault-mode state regression eval
+        run: node evals/distill-vault/run.mjs
+
+      - name: Doc-citation checker eval
+        run: node evals/doc-citations/run.mjs
+
+  # Shard 3: the docs-gate, ladder-card, and merge-driver evals, then the path-gated record eval
+  # (median 179.5 s without the record eval, which adds 394 s when it runs). The gate leaves this
+  # leg nearly empty on most changes, so the evals above fill it.
   structural-lint-windows-shard-3:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -520,9 +520,18 @@ jobs:
           node-version-file: '.node-version'
           package-manager-cache: false
 
-      # The record eval dominates this leg (571 s on the one measured CI run, against a 52.5 s
-      # Ubuntu median). It starts 866 child processes on Windows (879 on Ubuntu), so process
-      # creation sets the cost: about 0.7 s per spawn here against 0.05 s there. It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
+      - name: Docs gate regression eval
+        run: node evals/docs-gate/run.mjs
+
+      - name: Ladder card hook eval (opt-in switch + implementer filter)
+        run: node evals/ladder-card/run.mjs
+
+      - name: Derived-file merge driver regression eval
+        run: node evals/merge-driver/run.mjs
+
+      # The record eval dominates this leg (394 s on the one measured CI run since the record
+      # speed-up, against a 52.5 s Ubuntu median), and process creation sets the cost on Windows.
+      # It exercises scripts/records.mjs, scripts/record-lib.mjs, and their eval,
       # so it runs here only when the range under test touched those inputs, the generated record
       # authority, or this workflow. The documentation manifest is deliberately not on the list: it
       # re-syncs on nearly every change, and a manifest-only edit cannot alter record behavior
@@ -557,7 +566,7 @@ jobs:
           node evals/record-collections/run.mjs
           node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
 
-  # Shard 5: atlas, lint-gate, dispatch-guard, and doc-citation evals (median 161.5 s).
+  # Shard 5: the agent-ledger, compact-snapshot, lint-gate, atlas-check, and long-horizon evals (median 171.5 s).
   structural-lint-windows-shard-5:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -570,9 +579,6 @@ jobs:
         with:
           node-version-file: '.node-version'
           package-manager-cache: false
-
-      - name: Dispatch guard hook eval (round budget + dispatch advisories)
-        run: node evals/dispatch-guard/run.mjs
 
       - name: Peer surface note eval (declared surfaces, merge diffs, process kills, handed-off peers)
         run: node evals/peer-surfaces/run.mjs
@@ -589,13 +595,13 @@ jobs:
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs
 
-      - name: Doc-citation checker eval
-        run: node evals/doc-citations/run.mjs
-
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
 
-  # Shard 4: the structural gates and the remaining evals (median 217.5 s).
+      - name: Long-horizon runtime regression eval
+        run: node evals/run-runtime/run.mjs
+
+  # Shard 4: the structural gates and the remaining evals (median 177 s).
   structural-lint-windows-shard-4:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -659,9 +665,6 @@ jobs:
       - name: Deferral harvest eval (register shape + stable ids)
         run: node evals/deferral-harvest/run.mjs
 
-      - name: Ladder card hook eval (opt-in switch + implementer filter)
-        run: node evals/ladder-card/run.mjs
-
       - name: Subagent report hook eval (verdict token + report cap, advisory)
         run: node evals/subagent-report/run.mjs
 
@@ -677,17 +680,11 @@ jobs:
       - name: Documentation manifest freshness
         run: node scripts/docs-manifest.mjs check
 
-      - name: Vault-standard regression eval
-        run: node evals/vault-standard/run.mjs
-
       - name: Fleet-standard regression eval
         run: node evals/fleet-standard/run.mjs
 
       - name: opencode distribution regression eval
         run: node evals/opencode-dist/run.mjs
-
-      - name: Derived-file merge driver regression eval
-        run: node evals/merge-driver/run.mjs
 
       - name: opencode lifecycle regression eval
         run: node evals/opencode-lifecycle/run.mjs
@@ -743,6 +740,11 @@ jobs:
 
       - name: Performance measurement regression eval
         run: node evals/benchmark-command/run.mjs
+
+      - name: Local review and judgment orchestration evals
+        run: |
+          node evals/local-review-gate/run.mjs
+          node evals/judgment-orchestration/run.mjs
 
   # One Windows status that fails unless every Windows shard reports success.
   structural-lint-windows:

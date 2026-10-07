@@ -1325,8 +1325,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
-      "verifiedDigest": "21a086abd3edd9b03e3d413938502837b96d6a5af2a6de6800b4daf35e8dfdfe",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
+      "verifiedDigest": "89f89d7b2b8142d6339a151c3414e8e6a68cdaa95e6a54a8886aff4f5dd009ed",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1334,27 +1334,27 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 128
+          "line": 136
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 544
+          "line": 592
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 208
+          "line": 231
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 647
+          "line": 692
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 253
+          "line": 278
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 542
+          "line": 583
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1375,7 +1375,7 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 460
+          "line": 470
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1383,7 +1383,7 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 463
+          "line": 501
         }
       ]
     },
