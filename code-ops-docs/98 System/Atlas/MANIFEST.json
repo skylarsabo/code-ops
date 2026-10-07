@@ -946,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
-      "verifiedDigest": "e9d8a29a3da18500da50eeccdd75fbeb293e1f03dfabd90b67241a3ef7fc5bfa",
+      "verifiedAt": "c4e9b161b9cdcb1c00aed4b86c1eb2c610c7de7c",
+      "verifiedDigest": "410e5cd9b48b8bd058b78f2630e185376e76392f22caf88cd24e3b7133fea9f2",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -978,6 +978,21 @@
           "file": "evals/docs-relocate/run.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/record-collections/run.mjs",
+          "line": 30,
+          "anchor": "const expectedCases = process.platform === 'win32' ? 268 : 271;"
+        },
+        {
+          "file": "evals/record-collections/run.mjs",
+          "line": 16,
+          "anchor": "const SECTIONS = ["
+        },
+        {
+          "file": "evals/record-collections/parallel.mjs",
+          "line": 38,
+          "anchor": "export function sectionProblem({ section, code, signal, text }) {"
         },
         {
           "file": "evals/opencode-dist/run.mjs",
@@ -1485,7 +1500,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
+      "verifiedAt": "c4e9b161b9cdcb1c00aed4b86c1eb2c610c7de7c",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1562,7 +1577,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "e6e45c7674ebcab59d0039a4ea47360aaa12f894e4cd5e22d5f39e464e90454b"
+      "verifiedDigest": "ea70562b9bcd187c01905103bc2be303a5e9da5a6de80cfab34d071f64b4be50"
     },
     {
       "slug": "root-contracts",

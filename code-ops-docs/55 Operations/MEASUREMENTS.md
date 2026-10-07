@@ -650,6 +650,14 @@ Four rules bind every entry:
   (report D-002).
 - **Decision rule.** P6-RecordFix holds when the spawn count falls below the P6-M2 baseline, the
   `ok` line list is identical, and Windows and Ubuntu pass with the same coverage.
+- **Parallel split (D-037), win32.** The eval now runs as 12 section children. Wall time fell from
+  468.5 s serial to 237 to 255 s over three default runs, and to 236.5 s at `--jobs 4`. The
+  `incremental` section, about 206 s, is the critical path. Spawns rose from 867 to 933 because each
+  section builds its own fixture, so D-037 trades spawns for wall time and does not meet the spawn
+  rule above. The `ok` line set is identical (268 lines). Against the old serial run, 2 lines print
+  in a different position; `--serial`, the default, and `--jobs 4` print the same order. The Linux
+  timings and the 271-case total are not yet measured.
+
 
 ### Report legibility and links
 
