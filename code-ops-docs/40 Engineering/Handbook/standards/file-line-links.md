@@ -24,4 +24,4 @@ A citation is FRESH when the cited line still holds the anchor. It is MOVED, DRI
 
 ## Who follows it
 
-The `explorer`, `reviewer`, and `mech` agents return reports that cite code. Each names this page in its Return section. [Evidence and tiers](../05-evidence-and-tiers.md) explains why every claim carries a citation.
+The `explorer`, `reviewer`, and `mech` agents return reports that cite code. Each states this form by name in its Return section. [Evidence and tiers](../05-evidence-and-tiers.md) explains why every claim carries a citation.
