@@ -107,9 +107,14 @@
 //  31. CONTRACTS.md carries a `## Agent state machine` section whose Unit (dispatch row) states
 //      equal LEDGER_STATUSES, whose transitions name a known entity with From and To states
 //      that belong to it (From may be `none`), and whose Writer cells are non-empty.
+//  32. Every house standard page (`*-standard.md` under the Techniques folder) is named by AGENTS.md,
+//      a plugin CONVENTIONS.md, or a plugin skill or agent, and every `*-standard.md` those files
+//      name is a page in that folder (scripts/check-docs-standards-alignment.mjs; fails closed
+//      when the folder, AGENTS.md, plugins/, or the script is missing).
 //
 // It does NOT judge prose quality — that's the human's job.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -1526,6 +1531,20 @@ function checkShippedReferences({ plugins, pluginByName }) {
   }
 }
 
+// ---- 32. house standards are named and exist -------------------------------
+// The rule lives in its own script, which also runs standalone. Each stderr line it prints is
+// one finding, and a script that is gone or fails without a finding still fails this check.
+function checkDocsStandardsAlignment() {
+  const script = join(ROOT, 'scripts', 'check-docs-standards-alignment.mjs');
+  if (!existsSync(script)) { fail('scripts/check-docs-standards-alignment.mjs: missing, so the standards alignment rule cannot run'); return; }
+  try {
+    execFileSync(process.execPath, [script, '--root', ROOT], { encoding: 'utf8', stdio: 'pipe', timeout: 30000 });
+  } catch (error) {
+    const findings = String(error.stderr ?? '').split(/\r?\n/).filter(Boolean);
+    for (const finding of findings.length ? findings : [`docs-standards-alignment: exited ${error.status ?? 'abnormally'} with no finding`]) fail(finding);
+  }
+}
+
 // ---- agent state machine ---------------------------------------------------
 // CONTRACTS.md owns the entity and transition tables. The Unit (dispatch row) states are the
 // one set code also owns (LEDGER_STATUSES), so the two cannot drift apart silently.
@@ -1608,6 +1627,7 @@ function main() {
   checkCompositionCompleteness(ctx);
   checkShippedReferences(ctx);
   checkAgentStateMachine();
+  checkDocsStandardsAlignment();
   printReport(ctx);
 }
 
