@@ -1,14 +1,16 @@
 // Shared lookups for two hook behaviours that guard the documentation hub's history.
 //
 //   legacyDenial  PreToolUse, hooks/dispatch-guard.mjs behaviour 6: names the denial for an edit
-//                 whose target lies under a `removed` legacy path of the manifest.
+//                 whose target lies under a `removed` legacy path of the manifest, or under a
+//                 `derived` one (a generated tree; the manifest may name its generator).
 //   readNotices   PostToolUse, hooks/handoff-card.mjs: names the current rule for a Read, Grep,
 //                 or shell command that opens a record whose status is not `in-force`.
 //
 // Both run on the most frequent tool events, so this file imports only node:fs and node:path,
 // spawns nothing, reads at most MAX_BYTES per file, and returns null or [] on any error (fail
-// open). Callers pre-filter on the tool name before they import it. The hub is the one top-level
-// directory that holds `98 System/DOCS_MANIFEST.json`; a repository whose hub is nested deeper,
+// open); the one exception is a hub whose manifest cannot be read, where legacyDenial still denies
+// the DERIVED_FALLBACK trees. Callers pre-filter on the tool name before they import it. The hub
+// is the one top-level directory that holds `98 System/DOCS_MANIFEST.json`; a repository whose hub is nested deeper,
 // or that has two, gets no result. The tracked-file lookup in promotion-lib.mjs `hubOf` would
 // find it, at the cost of a git spawn.
 // deferred(top-level hub only; walk one level deeper if an adopting repository nests its hub)
@@ -20,10 +22,20 @@ const MAX_TEXT = 256 * 1024;
 const MAX_NOTICES = 3;
 const MAX_HOPS = 8;
 const SYSTEM = '98 System';
+const MANIFEST = 'DOCS_MANIFEST.json';
 const FOLD = process.platform === 'win32' || process.platform === 'darwin';
 const KEYS = ['file_path', 'filePath', 'notebook_path', 'path', 'target_file', 'absolute_path', 'file'];
 const PATCH_KEYS = ['patch', 'input', 'patchText', 'command'];
 const PATCH_TARGET = /^\*\*\* (?:(?:Add|Update) File|Move to): (.+)$/gm;
+// The generated trees a hub repository denies hand edits under when its manifest is missing,
+// unreadable, or lists no `derived` entry, so the deny never fails open. A manifest that lists
+// `derived` entries replaces this list with them. An entry applies only where its generator script
+// exists, so an adopting repository keeps hand-authored trees such as its own `.agents/`.
+const DERIVED_FALLBACK = [
+  { path: '.agents/', script: 'scripts/build-codex-marketplace.mjs', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
+  { path: 'codex-marketplace/', script: 'scripts/build-codex-marketplace.mjs', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
+  { path: 'opencode-dist/', script: 'scripts/build-opencode-dist.mjs', generator: 'node scripts/build-opencode-dist.mjs' }, // runs in the code-ops repository
+];
 // A record that states a rule. Evidence, reports, and summaries are `historical` by default and
 // carry no rule to warn about.
 const RULE_KINDS = new Set(['decision', 'amendment']);
@@ -54,12 +66,14 @@ function repoRoot(cwd) {
 }
 
 // The one top-level directory that holds the documentation manifest, or null for none or several.
-function hubOf(root) {
+// `loose` also accepts a directory with a `98 System` folder and no manifest, so a hub whose
+// manifest was deleted still reaches the derived-path fallback.
+function hubOf(root, loose = false) {
   let hubs = [];
   try {
     hubs = readdirSync(root, { withFileTypes: true })
       .filter((entry) => entry.isDirectory() && entry.name[0] !== '.' && entry.name !== 'node_modules'
-        && existsSync(join(root, entry.name, SYSTEM, 'DOCS_MANIFEST.json')))
+        && existsSync(join(root, entry.name, SYSTEM, loose ? '' : MANIFEST)))
       .map((entry) => entry.name);
   } catch { return null; }
   return hubs.length === 1 ? hubs[0] : null;
@@ -113,29 +127,54 @@ function forwarded(path, forwards) {
   return current === path ? null : current;
 }
 
-// The denial text for an edit under a removed legacy path, or null when the call is allowed.
+// The parsed manifest, or null when it is missing, oversize, corrupt, or not a shape this reader
+// knows. Version 1 declares no legacy paths, so it reads as an empty list.
+function manifestOf(root, hub) {
+  const text = readBounded(join(root, hub, SYSTEM, MANIFEST));
+  if (!text) return null;
+  try {
+    const manifest = JSON.parse(text);
+    if (manifest?.version === 1) return { version: 1, legacyPaths: [] };
+    return (manifest?.version === 2 || manifest?.version === 3) && Array.isArray(manifest.legacyPaths) ? manifest : null;
+  } catch { return null; }
+}
+
+const entriesOf = (manifest, disposition) => manifest.legacyPaths
+  .filter((entry) => entry?.disposition === disposition && typeof entry.path === 'string' && entry.path);
+
+// The denial text for an edit under a removed or derived path, or null when the call is allowed.
+// A repository with no hub is never denied. A hub whose manifest cannot be read falls back to
+// DERIVED_FALLBACK, because a broken manifest must not open the generated trees to hand edits.
 export function legacyDenial(cwd, input) {
   try {
     const files = editTargets(inputOf(input));
     if (!files.length) return null;
     const root = repoRoot(cwd);
-    const hub = root && hubOf(root);
+    const hub = root && hubOf(root, true);
     if (!hub) return null;
-    const text = readBounded(join(root, hub, SYSTEM, 'DOCS_MANIFEST.json'));
-    // The manifest almost never lists a removed root, so the common case skips the parse.
-    if (!text || !text.includes('"removed"')) return null;
-    const manifest = JSON.parse(text);
-    if (manifest?.version !== 3 || !Array.isArray(manifest.legacyPaths)) return null;
-    const removed = manifest.legacyPaths.filter((entry) => entry?.disposition === 'removed' && typeof entry.path === 'string' && entry.path);
-    if (!removed.length) return null;
+    const manifest = manifestOf(root, hub);
+    const removed = manifest?.version === 3 ? entriesOf(manifest, 'removed') : [];
+    // The real manifest cannot declare derived paths yet (docs-manifest.mjs rejects that disposition),
+    // so an empty list falls back to DERIVED_FALLBACK and keeps the deny live.
+    const declared = manifest ? entriesOf(manifest, 'derived') : [];
+    const derived = declared.length ? declared : DERIVED_FALLBACK.filter((entry) => existsSync(join(root, entry.script)));
     for (const file of files) {
       const rel = repoRel(root, cwd, file);
-      const hit = rel && removed.find((entry) => under(rel, entry.path));
-      if (!hit) continue;
-      const moved = forwarded(rel, forwardsOf(root, hub));
-      return `Legacy path guard: ${clean(rel)} is under ${clean(hit.path)}, a root the documentation manifest lists as removed. `
-        + (moved ? `Write it at ${clean(moved)} instead.`
-          : `${hub}/${SYSTEM}/FORWARDING.json maps no new location for it; read the current path from the documentation manifest.`);
+      if (!rel) continue;
+      const hit = removed.find((entry) => under(rel, entry.path));
+      if (hit) {
+        const moved = forwarded(rel, forwardsOf(root, hub));
+        return `Legacy path guard: ${clean(rel)} is under ${clean(hit.path)}, a root the documentation manifest lists as removed. `
+          + (moved ? `Write it at ${clean(moved)} instead.`
+            : `${hub}/${SYSTEM}/FORWARDING.json maps no new location for it; read the current path from the documentation manifest.`);
+      }
+      const built = derived.find((entry) => under(rel, entry.path));
+      if (built) {
+        return `Derived path guard: ${clean(rel)} is under ${clean(built.path)}, a generated tree `
+          + `${declared.length ? 'the documentation manifest marks derived' : 'this repository treats as derived'}. `
+          + (typeof built.generator === 'string' && built.generator
+            ? `Edit its source and run \`${clean(built.generator)}\` instead.` : 'Edit its source and run its generator instead.');
+      }
     }
   } catch { /* fail open */ }
   return null;
