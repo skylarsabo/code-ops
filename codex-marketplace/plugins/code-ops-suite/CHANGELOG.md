@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.55.0
+- The explorer, reviewer, and mech agents name the file:line link standard in their Return section. A report cites code as `[name](repo-relative/path:line)`. The Handbook page `standards/file-line-links.md` states the form and points to where its grammar lives.
+
 ## 2.54.0
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry short examples of the touch-improve outcomes. The ship text shows improved, none-in-scope, and net-negative report lines, and says the reviewer reports a net-negative file as Should-fix. Each agent carries one example sized to its role.
 

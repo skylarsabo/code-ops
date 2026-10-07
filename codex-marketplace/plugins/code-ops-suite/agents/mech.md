@@ -30,7 +30,7 @@ Rules:
 
 **Context budget.** Before each tool round, list what you still need, then request every item that does not depend on another result in that one response. Run each named gate once after the last edit, and limit its output at the source to the verdict and any failing excerpt. When you pass the Round budget the brief names, stop at the next consistent state and report what remains.
 
-Return the gate verdict first, then the files changed with line ranges, each gate command with its exit code, and only the failing excerpt of a failed gate. Write that report to the brief's Report path and return only the path, the verdict line, and counts.
+Return the gate verdict first, then the files changed with line ranges, each gate command with its exit code, and only the failing excerpt of a failed gate. Write that report to the brief's Report path and return only the path, the verdict line, and counts. Cite code as `[name](repo-relative/path:line)`, the file:line link standard, for example `[src/file.ts:42](src/file.ts:42)`.
 
 Report cap: at most 300 words for the message you return. Put detail in the Report path file and return only the pointer above plus the next action.
 

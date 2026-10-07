@@ -77,6 +77,9 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 - [commands/privacy-opsec-suite.md](commands/privacy-opsec-suite.md): the 14 privacy-opsec-suite commands.
 - [commands/researcher.md](commands/researcher.md): the 7 researcher commands.
 
+**Standards**
+- [standards/file-line-links.md](standards/file-line-links.md): the one `[name](repo-relative/path:line)` link form every operative report uses to cite code, and where its grammar lives.
+
 ### Guides (end-to-end journeys)
 
 - [../../70 Guides/audit-a-risky-subsystem.md](../../70 Guides/audit-a-risky-subsystem.md): the rigor journey: ground-truth, test-suite-audit, bug-hunt with quality-scan, safety-net, then fix-verified.
@@ -114,6 +117,6 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 
 ## The handbook is complete
 
-This is the full handbook: twelve chapters, the command reference, nine guides, and nineteen techniques, all under `code-ops-docs/` and tracked in the repo. Every link above resolves to a written page. Nothing is deferred.
+This is the full handbook: twelve chapters, the command reference, one standard, nine guides, and nineteen techniques, all under `code-ops-docs/` and tracked in the repo. Every link above resolves to a written page. Nothing is deferred.
 
 *Verified-at: b0ffede*
