@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.50.0
+- `docs-manifest.mjs runs` lists each run folder under `<hub>/80 Runs/` by retention tier: `active` (0 to 30 days), `distill-ready` (31 to 180), and `archive` (181 or more). It ages a folder from its `YYYY-MM-DD` name prefix and falls back to the folder mtime when the name has no valid date. The command is read-only and takes `--now <YYYY-MM-DD>` for a repeatable report. `runRetentionTier` and `listRunTiers` are exported for other scripts.
+- The new operations page `RUN_RETENTION.md` states the tiers, the age limits, and the fallback. The docs-manifest eval tests each limit on both sides and the mtime fallback.
+
 ## 2.49.0
 - The dispatch guard appends one decision row to `guard-decisions.jsonl`, beside the session-receipt ledger, for each output that denies or advises. A row holds ids and counts only: the gate ids that fired, the contract-rule ids they back, the tool, the decision, and a Workflow call count. `CODE_OPS_RECEIPTS=off` stops the rows, and a write error fails open.
 - The dispatch-guard eval fires every gate id in the guard's table, including the peer note through a seeded presence board, and fails when a reworded message no longer matches its gate.
