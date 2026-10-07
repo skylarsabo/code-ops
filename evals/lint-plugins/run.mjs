@@ -164,7 +164,7 @@ const MECH_OPTS = { tools: 'Read, Edit, Write, Bash, Grep, Glob', contract: agen
 // CONTRACTS.md. Copy the REAL file so the drift case is judged against the actual statuses.
 const REAL_LEDGER_GRAMMAR = join(REPO, 'scripts', 'ledger-grammar.mjs');
 // lint-plugins.mjs imports the doctrine registry and the layout map as siblings; copy the REAL files.
-const REAL_SIBLINGS = ['doctrine-passages.mjs', 'layout-manifest.mjs'].map((name) => [join(REPO, 'scripts', name), name]);
+const REAL_SIBLINGS = ['doctrine-passages.mjs', 'layout-manifest.mjs', 'check-docs-standards-alignment.mjs'].map((name) => [join(REPO, 'scripts', name), name]);
 const STATE_MACHINE_PATH = 'code-ops-docs/35 Contracts and Data/CONTRACTS.md';
 const STATE_MACHINE_FIXTURE = [
   '# Fixture contracts', '', '## Agent state machine', '',
@@ -1125,6 +1125,27 @@ No completion heading here on purpose (case 3 mutation).
   check('20b. a provider with no premium model exits 1', r20b.changed && r20b.status === 1 && r20b.all.includes('model-tiers anthropic: no premium model pinned'));
   const r20c = withTiers('case20c-premium-unplaced', (t) => t.replace("premium: 'claude-opus-5-5'", "premium: 'not-a-pinned-model'"));
   check('20c. a premium id absent from every ladder exits 1', r20c.changed && r20c.status === 1 && r20c.all.includes('premium "not-a-pinned-model" does not satisfy the strong rung'));
+
+  // 21a-21c. STANDARDS ALIGNMENT (check 32) — the rule has its own eval (evals/docs-alignment),
+  // so these cases prove only that the gate calls it and fails closed when it cannot run.
+  const r21a = (() => {
+    const dir = clone('case21a-unnamed-standard');
+    put(dir, 'code-ops-docs/40 Engineering/Techniques/fixture-standard.md', '# Fixture standard\n');
+    return runLint(dir);
+  })();
+  check('21a. a standard page that nothing names exits 1', r21a.status === 1 && r21a.all.includes('fixture-standard.md is named by no AGENTS.md'));
+  const r21b = (() => {
+    const dir = clone('case21b-dangling-standard');
+    put(dir, 'AGENTS.md', `${FIXTURE_CONTRACT}\nSee missing-standard.md for the rule.\n`);
+    return runLint(dir);
+  })();
+  check('21b. a cited standard with no page exits 1', r21b.status === 1 && r21b.all.includes('AGENTS.md names missing-standard.md, which is not a page in'));
+  const r21c = (() => {
+    const dir = clone('case21c-no-alignment-script');
+    rmSync(join(dir, 'scripts', 'check-docs-standards-alignment.mjs'));
+    return runLint(dir);
+  })();
+  check('21c. a missing alignment script exits 1', r21c.status === 1 && r21c.all.includes('scripts/check-docs-standards-alignment.mjs: missing'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
