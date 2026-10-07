@@ -4,7 +4,9 @@
 // names its model, the operator profile names it (when the profile has an enabled
 // list), the desktop Models settings do not hide it, and the provider switches of
 // the OpenCode config allow it. Nothing left is a denial before launch. The cases
-// cover a live list, a warm cache, no cache, the lead clone, and the routing switch.
+// cover a live list, a warm cache, no cache, the lead clone, and the routing switch. The startup
+// cases drive the config hook with two enabled-model sets, a cold-cache ask through a fake host
+// command, and a failing command that leaves the static model and shows a fallback note.
 // A second pass runs the same cases against a copy of the plugin whose check is
 // removed and expects the denials to vanish, so a case that passes on both fails.
 //
@@ -45,7 +47,7 @@ for (const [label, text] of [
   plugins[label] = (await import(pathToFileURL(join(dir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle;
 }
 
-for (const name of ['CODE_OPS_OPENCODE_MODELS', 'CODE_OPS_DISPATCH_GUARD', 'CODE_OPS_CONTEXT_CEILING', 'CODE_OPS_CONTEXT_THRESHOLD']) delete process.env[name];
+for (const name of ['CODE_OPS_OPENCODE_MODELS', 'CODE_OPS_OPENCODE_CMD', 'CODE_OPS_CHOOSER_CHILD', 'CODE_OPS_DISPATCH_GUARD', 'CODE_OPS_CONTEXT_CEILING', 'CODE_OPS_CONTEXT_THRESHOLD']) delete process.env[name];
 process.env.CODE_OPS_RECEIPTS = join(work, 'receipts.jsonl');
 process.env.CODE_OPS_COST_LEDGER = join(work, 'cost.jsonl');
 process.env.HOME = work;
@@ -166,6 +168,108 @@ for (const c of premiumCases) {
 const bindCase = premiumCases[0];
 const nodistinct = await dispatch('nodistinct', bindCase.o);
 expect(!bindCase.ok(nodistinct), `${bindCase.name}: still passes with the differs-from-strong filter removed`);
+
+// The startup ladder binds the models this machine enables. The config hook reads the cached or
+// environment list; with neither it asks the host CLI once (`models --pure`), caches the answer,
+// and reports a fallback when no list arrives. A fake host command stands in for the CLI.
+const fakeHost = join(work, 'fake-opencode.mjs');
+writeFileSync(fakeHost, `import { appendFileSync } from 'node:fs';
+const args = process.argv.slice(2).join(' ');
+if (process.env.FAKE_LOG) appendFileSync(process.env.FAKE_LOG, args + ' child=' + process.env.CODE_OPS_CHOOSER_CHILD + '\\n');
+if (args !== 'models --pure') process.exit(2);
+if (process.env.FAKE_MODE === 'fail') process.exit(1);
+if (process.env.FAKE_MODE === 'empty') process.exit(0);
+console.log(process.env.FAKE_IDS.split(',').join('\\n'));
+`);
+const STATIC = 'static/zen-free';
+const startupLog = join(work, 'ask.log');
+
+async function startup(label, o) {
+  const dir = mkdtempSync(join(work, 'start-'));
+  const cachePath = o.cachePath ?? join(dir, 'cache.json');
+  process.env.CODE_OPS_CHOOSER_CACHE = cachePath;
+  process.env.CODE_OPS_MODEL_PROFILE = join(dir, 'profile.json');
+  process.env.CODE_OPS_DESKTOP_STORE = join(dir, 'store.dat');
+  delete process.env.CODE_OPS_TIER_ROUTING;
+  rmSync(startupLog, { force: true });
+  for (const name of ['CODE_OPS_OPENCODE_CMD', 'FAKE_MODE', 'FAKE_IDS', 'FAKE_LOG', 'CODE_OPS_CHOOSER_CHILD']) delete process.env[name];
+  if (o.cache) writeFileSync(cachePath, JSON.stringify({ hosts: { [basename(process.execPath)]: { ids: o.cache } } }));
+  if (o.ask) {
+    process.env.CODE_OPS_OPENCODE_CMD = JSON.stringify([process.execPath, fakeHost]);
+    process.env.FAKE_LOG = startupLog;
+    process.env.FAKE_MODE = o.ask.mode ?? 'ok';
+    process.env.FAKE_IDS = (o.ask.ids ?? []).join(',');
+  }
+  if (o.child) process.env.CODE_OPS_CHOOSER_CHILD = '1';
+  const hooks = await plugins[label]({ directory: dir, client: {} });
+  const config = { agent: { [IMPLEMENTER]: { prompt: 'Build.', description: 'Builds.', model: STATIC } } };
+  await hooks.config(config);
+  const definition = { description: 'Delegate.', parameters: {} };
+  await hooks['tool.definition']({ toolID: 'task' }, definition);
+  let cached = null;
+  try { cached = JSON.parse(readFileSync(cachePath, 'utf8')).hosts[basename(process.execPath)].ids; } catch { /* no cache written */ }
+  let asks = [];
+  try { asks = readFileSync(startupLog, 'utf8').trim().split('\n').filter(Boolean); } catch { /* the host was never asked */ }
+  for (const name of ['CODE_OPS_OPENCODE_CMD', 'FAKE_MODE', 'FAKE_IDS', 'FAKE_LOG', 'CODE_OPS_CHOOSER_CHILD']) delete process.env[name];
+  return { model: config.agent[IMPLEMENTER].model, card: definition.description, cached, asks, cachePath };
+}
+
+const FALLBACK_HEAD = 'Ladder fallbacks on this host:';
+const PROVIDER_B = [LUNA, TERRA, SOL];
+const startupCases = [
+  { name: 'two enabled-model sets bind different models', run: async (label) => {
+    const both = await startup(label, { cache: HOST });
+    const onlyB = await startup(label, { cache: PROVIDER_B });
+    return { r: { both: both.model, onlyB: onlyB.model }, ok: both.model === OPUS && onlyB.model === TERRA && both.model !== onlyB.model };
+  } },
+  { name: 'a cold cache asks the host once, binds its list, and caches it', run: async (label) => {
+    const r = await startup(label, { ask: { ids: PROVIDER_B } });
+    const warm = await startup(label, { cache: r.cached, ask: { mode: 'fail' } });
+    return { r: { r, warm: warm.model }, ok: r.model === TERRA && r.asks.length === 1 && r.asks[0] === 'models --pure child=1'
+      && JSON.stringify(r.cached) === JSON.stringify([...PROVIDER_B].sort()) && !r.card.includes(FALLBACK_HEAD)
+      && warm.model === TERRA && warm.asks.length === 0 };
+  }, mutates: true },
+  { name: 'a failing host command keeps the static model and shows a fallback note', run: async (label) => {
+    const r = await startup(label, { ask: { mode: 'fail' } });
+    return { r, ok: r.model === STATIC && r.asks.length === 1 && r.cached === null
+      && r.card.includes(FALLBACK_HEAD) && r.card.includes('opencode models failed (exit 1)') && r.card.includes('static ladder') };
+  }, mutates: true, noteMutant: true },
+  { name: 'a host list with no model keeps the static model and says so', run: async (label) => {
+    const r = await startup(label, { ask: { mode: 'empty' } });
+    return { r, ok: r.model === STATIC && r.cached === null && r.card.includes('opencode models listed nothing') };
+  } },
+  { name: 'no host binary and no command keeps the static model and names the switch', run: async (label) => {
+    const r = await startup(label, {});
+    return { r, ok: r.model === STATIC && r.asks.length === 0 && r.card.includes(FALLBACK_HEAD) && r.card.includes('CODE_OPS_OPENCODE_CMD') };
+  } },
+  { name: 'the model-list child never asks again', run: async (label) => {
+    const r = await startup(label, { ask: { ids: PROVIDER_B }, child: true });
+    return { r, ok: r.model === STATIC && r.asks.length === 0 && r.card.includes('model-list child') };
+  } },
+  { name: 'a rung with no model of its class borrows a neighbor and reports it', run: async (label) => {
+    const r = await startup(label, { cache: [LUNA] });
+    return { r, ok: r.card.includes(FALLBACK_HEAD) && /strong has no enabled model of its class and uses/.test(r.card) };
+  } },
+];
+const noask = source.replace('await askHostModels(directory)', '{ ids: [], reason: null }');
+const nonote = source.replace('...(fallbacks.length ?', '...(false ?');
+expect(noask !== source && nonote !== source, 'a startup mutant did not apply');
+for (const [label, text] of [['noask', noask], ['nonote', nonote]]) {
+  const dir = join(work, label);
+  mkdirSync(dir);
+  writeFileSync(join(dir, 'code-ops-model-floors.js'), floors);
+  writeFileSync(join(dir, 'code-ops-lifecycle.js'), text);
+  plugins[label] = (await import(pathToFileURL(join(dir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle;
+}
+for (const c of startupCases) {
+  const real = await c.run('real');
+  expect(real.ok, `${c.name}: ${JSON.stringify(real.r).slice(0, 400)}`);
+  // The cold-cache ask and the fallback note are load-bearing: with either removed, its case must fail.
+  if (c.mutates) {
+    const mutant = await c.run(c.noteMutant ? 'nonote' : 'noask');
+    expect(!mutant.ok, `${c.name}: still passes with the ${c.noteMutant ? 'fallback note' : 'cold-cache ask'} removed`);
+  }
+}
 
 // Each case plants one fault and names whether a dispatch must be denied.
 const cases = [
