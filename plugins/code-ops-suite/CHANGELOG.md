@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.53.0
+- `check-vault-standard.mjs --render` also writes `80 Runs/INDEX.md` on a manifest v3 hub whose `80 Runs/` folder exists. The page lists each run folder newest first with its retention tier, its age, a status, and relative links to `RUN_LOG.md`, `TASKS.md`, and `reports/`. The status is the last `Verdict:` or `Status:` line already in a run's `CLOSEOUT.md`, `EXECUTIVE_SUMMARY.md`, `RUN_LOG.md`, or `TASKS.md`, else the `TASKS.md` checkbox count, else `-`. Tier and age reuse `listRunTiers`.
+- `--render --now <YYYY-MM-DD>` fixes the day the ages count to, so the page repeats byte for byte. Check mode never compares the page, and exempts it from the note rules only while it carries the generated marker.
+- `docs-manifest.mjs` exports `readRunIndex` and the pure `renderRunIndex`. The vault-standard eval covers dated and undated folders, each tier edge, missing artifacts, an absent `80 Runs/`, a non-v3 hub, and the `--now` usage errors. `RUN_RETENTION.md` documents the page.
+
 ## 2.52.0
 - New `co churn` command (`scripts/churn.mjs`) reports the circling measures over a git window and the run folders: the re-fix share, reverts, fix-of-fix commits per merged PR split into restamps and review fixes, repeated `Next:` lines, and ids reopened within one program. It is report-only and always exits 0. Two `git log` calls cover any window.
 - Over the D-009 window (`3c1fa907`, 2026-09-06 to 2026-10-06) it reproduces the baseline git measures exactly. The "Circling" entry in MEASUREMENTS.md gives the command and the run-folder readings.

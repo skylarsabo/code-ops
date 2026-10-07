@@ -371,6 +371,51 @@ export function listRunTiers(runsDir, nowMs = Date.now()) {
     .map((entry) => runRetentionTier(entry.name, statSync(resolve(runsDir, entry.name)).mtimeMs, nowMs))
     .sort((a, b) => b.ageDays - a.ageDays || a.name.localeCompare(b.name));
 }
+
+// Run index (code-ops-docs/55 Operations/RUN_RETENTION.md, "Run index"). `readRunIndex` reads each run
+// folder and `renderRunIndex` is the pure page over its rows. The status comes from lines the run
+// already holds, so no artifact format is new: the last `Verdict:` or `Status:` line of the first
+// source file that has one, else the TASKS.md checkbox count, else null.
+const RUN_STATUS_SOURCES = ['CLOSEOUT.md', 'EXECUTIVE_SUMMARY.md', 'RUN_LOG.md', 'TASKS.md'];
+const RUN_STATUS_LINE = /^[ \t]*(?:[-*][ \t]+)?\**(?:verdict|status)\**[ \t]*:\**[ \t]*(\S.*)$/i;
+const RUN_TASK_LINE = /^[ \t]*[-*][ \t]+\[([ xX])\]/gm;
+const RUN_STATUS_MAX = 100;
+const RUN_LINKS = Object.freeze([['RUN_LOG', 'RUN_LOG.md', 'isFile'], ['TASKS', 'TASKS.md', 'isFile'], ['reports/', 'reports', 'isDirectory']]);
+const statOrNull = (path) => { try { return statSync(path); } catch { return null; } };
+function readRunStatus(dir) {
+  const texts = RUN_STATUS_SOURCES.map((file) => (statOrNull(resolve(dir, file))?.isFile() ? readFileSync(resolve(dir, file), 'utf8') : ''));
+  for (const text of texts) {
+    const found = text.split(/\r?\n/).map((line) => RUN_STATUS_LINE.exec(line)?.[1].trim()).filter(Boolean);
+    const last = found.at(-1);
+    if (last !== undefined) return last.length > RUN_STATUS_MAX ? `${last.slice(0, RUN_STATUS_MAX - 3)}...` : last;
+  }
+  const boxes = [...texts[RUN_STATUS_SOURCES.indexOf('TASKS.md')].matchAll(RUN_TASK_LINE)];
+  return boxes.length ? `${boxes.filter((box) => box[1] !== ' ').length}/${boxes.length} tasks done` : null;
+}
+// Read-only: one row per run folder, with its tier, status, and the key artifacts that exist. A folder
+// whose name starts with a dot is tool state, not a run, so it is left out.
+export function readRunIndex(runsDir, nowMs = Date.now()) {
+  return listRunTiers(runsDir, nowMs).filter((row) => !row.name.startsWith('.')).map((row) => {
+    const dir = resolve(runsDir, row.name);
+    const artifacts = RUN_LINKS.filter(([, entry, test]) => statOrNull(resolve(dir, entry))?.[test]()).map(([, entry]) => entry);
+    return { ...row, status: readRunStatus(dir), artifacts };
+  });
+}
+const mdText = (text) => text.replace(/[\\|[\]]/g, '\\$&');
+const mdHref = (...parts) => parts.map((part) => encodeURIComponent(part).replace(/[()]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)).join('/');
+// Pure: rows from `readRunIndex` in, the page text out. Newest first, ties by name, so equal input gives equal bytes.
+export function renderRunIndex(rows, nowMs, generatedNote) {
+  const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
+  const table = [...rows].sort((a, b) => a.ageDays - b.ageDays || byName(a, b)).map((row) => {
+    const links = RUN_LINKS.filter(([, entry]) => row.artifacts.includes(entry)).map(([label, entry]) => `[${label}](${mdHref(row.name, entry)})`);
+    return `| ${mdText(row.name)} | ${row.tier} | ${row.ageDays} | ${row.status === null ? '-' : mdText(row.status)} | ${links.join(' ') || '-'} |`;
+  });
+  const asOf = new Date(dayOf(nowMs) * MS_PER_DAY).toISOString().slice(0, 10);
+  return `---\ntype: index\ngenerated: true\n---\n\n${generatedNote}\n\n# Run index\n\n`
+    + `Run folders, newest first, with ages counted to ${asOf} (UTC). Tier and age follow \`55 Operations/RUN_RETENTION.md\`. `
+    + `Status is the last \`Verdict:\` or \`Status:\` line of \`${RUN_STATUS_SOURCES.join('`, `')}\` (first file that has one), else the TASKS.md checkbox count, else \`-\`.\n\n`
+    + (table.length ? `| Run | Tier | Age (days) | Status | Artifacts |\n| --- | --- | --- | --- | --- |\n${table.join('\n')}\n` : 'No run folders.\n');
+}
 function reportRuns(root, hub, now) {
   const rows = listRunTiers(resolve(root, hub, '80 Runs'), now);
   for (const tier of ['active', 'distill-ready', 'archive']) {
