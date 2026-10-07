@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5d07fac61a81b590f1a6fe191092a50f1007bb3a",
+      "verifiedAt": "aa504892bd7a6d7a8780de156de54fae4445eb67",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -28,7 +28,7 @@
         {
           "file": "plugins/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/scripts/docs-relocate.mjs",
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "c75308219ad94b27be2d1fb09a5629df80ddd52ca357d6ba7c738d57c50f434b"
+      "verifiedDigest": "4451be05225f65ec51b71300168ab6a59dbbd613f9f9a5b2e467acd662e58d13"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "44e7c8bf523e6d5e9d73327742c51fe204c54599",
+      "verifiedAt": "1b16b433a18ec842d6c9845c8d1b5878b45ed2d6",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -540,17 +540,17 @@
         {
           "file": "scripts/records.mjs",
           "line": 2010,
-          "anchor": "function intakeRecord(context, options) {"
+          "anchor": "const errors = intakeLineErrors(line);"
         },
         {
           "file": "scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "scripts/records.mjs",
           "line": 2142,
-          "anchor": "function relocateRoot(context, options) {"
+          "anchor": "assertMutationLease(lease);"
         },
         {
           "file": "scripts/record-lib.mjs",
@@ -560,7 +560,7 @@
         {
           "file": "scripts/records.mjs",
           "line": 2209,
-          "anchor": "function renderRegister(context, records) {"
+          "anchor": "pendingSeal: pendingCuration.get(entry.id) || null,"
         },
         {
           "file": "scripts/branch-name.mjs",
@@ -938,7 +938,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "69d14c549c72c4182cd5b0347a931f546588957221c3884bf3d1955e08ea5ab6"
+      "verifiedDigest": "46a533be3b38548963ba9b719222fb9aa5aaab696685b7aed99716a0a78e68e7"
     },
     {
       "slug": "evals-and-calibration",
@@ -946,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5d07fac61a81b590f1a6fe191092a50f1007bb3a",
-      "verifiedDigest": "9a19adf2012c5994aab3b8772b72a7a184cee5415f44a729b3c2b57e01efadcd",
+      "verifiedAt": "aa504892bd7a6d7a8780de156de54fae4445eb67",
+      "verifiedDigest": "be1a8bb6ac5bdf576b5cdc111090c6bd30111579f36d5448496c903302bc0ddf",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -982,7 +982,7 @@
         {
           "file": "evals/record-collections/run.mjs",
           "line": 30,
-          "anchor": "const expectedCases = process.platform === 'win32' ? 268 : 271;"
+          "anchor": "const expectedCases = process.platform === 'win32' ? 269 : 272;"
         },
         {
           "file": "evals/record-collections/run.mjs",
@@ -1289,7 +1289,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5d07fac61a81b590f1a6fe191092a50f1007bb3a",
+      "verifiedAt": "aa504892bd7a6d7a8780de156de54fae4445eb67",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1299,12 +1299,12 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "opencode-dist/code-ops/code-ops-suite/scripts/records.mjs",
           "line": 2076,
-          "anchor": "async function seal(context, options) {"
+          "anchor": "}"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -1402,7 +1402,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "a72967b1986597a0adab31e5f328cff4fe15285a8715b5e03fb1b59e43408bdf"
+      "verifiedDigest": "75301e9e531693bd0266d5056626dec5683bad37487bef801ccea77b9e5f9ac5"
     },
     {
       "slug": "ci-workflows",
@@ -1505,7 +1505,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5d07fac61a81b590f1a6fe191092a50f1007bb3a",
+      "verifiedAt": "aa504892bd7a6d7a8780de156de54fae4445eb67",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1582,7 +1582,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "12f1f1a67a1d6f1fe8e08629d3db9182bc599d9b5cb9d6077eac4ef2a6352b50"
+      "verifiedDigest": "f94c1ca0f8775ba6432eca5b404e074855493ce562d9d520171092f6917dfa8c"
     },
     {
       "slug": "root-contracts",

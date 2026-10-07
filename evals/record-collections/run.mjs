@@ -19,7 +19,7 @@ const SECTIONS = [
   { name: 'revised', cases: 15, weight: 51 },
   { name: 'adopt-basics', cases: 36, weight: 21 },
   { name: 'genesis', cases: 7, weight: 48 },
-  { name: 'incremental', cases: 51, weight: 206 },
+  { name: 'incremental', cases: 52, weight: 206 },
   { name: 'rereview', cases: 16, weight: 47 },
   { name: 'rewrites', cases: 14 + OFF_WIN32, weight: 35 },
   { name: 'prefix-a', cases: 10, weight: 25 },
@@ -27,7 +27,7 @@ const SECTIONS = [
   { name: 'tail', cases: 48, weight: 134 },
   { name: 'w2', cases: 19, weight: 86 },
 ];
-const expectedCases = process.platform === 'win32' ? 268 : 271;
+const expectedCases = process.platform === 'win32' ? 269 : 272;
 
 function usage(message) {
   console.error(`${message}\nusage: run.mjs [--serial | --jobs N] | --section NAME`);

@@ -1613,7 +1613,7 @@ Failure ordering protects existing evidence first. Commands validate mode, clean
 
 Commands build the complete mutation in memory after validation. One shared writer atomically replaces generated files, runs the complete semantic check, and rolls back every replacement on failure. The closing check includes the canonical manifest index snapshot, so shallow history cannot open a race. Commands prove the lock token and directory identity before authority writes and release.
 
-Stale recovery quarantines the judged directory and compares its device and inode before deletion. A replacement lease is restored under an atomically reserved path and recovery fails. An ordinary release cleanup error preserves a durable success. Lost ownership exits 3 with a durable-mutation, do-not-retry message.
+Directory identity is the device, the inode, and a random `lease.nonce` file written at acquisition. A recreated directory can reuse an inode, and restore never copies the nonce, so a replaced lease fails closed on every filesystem. Stale recovery quarantines the judged directory and compares its identity before deletion. A replacement lease is restored under an atomically reserved path and recovery fails. An ordinary release cleanup error preserves a durable success. Lost ownership exits 3 with a durable-mutation, do-not-retry message.
 
 The clone-wide lock lives at `<git-common-dir>/code-ops-record-locks/<collectionUuid>.lock/owner.json`. Its owner stores `pid`, `token`, and `acquiredAt`. A live or recent owner fails with `collection mutation lock is held`. A dead owner at least ten minutes old is recoverable.
 
