@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bd522df3a3b8bb0cf2b479cd3a3f9fc682a41097",
+      "verifiedAt": "afef5a68dfbf08b4b58c284359db80e8d0fa4880",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -331,7 +331,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "082a2875061d32b506e32e2d5a080b5863ba9150bb59722a5dd0486064bb55a8"
+      "verifiedDigest": "d9e60612cf267bc28f08d3f0d3c5d9c470d267d86a726f9d469bcc24fa208048"
     },
     {
       "slug": "gate-scripts",
@@ -340,7 +340,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bd522df3a3b8bb0cf2b479cd3a3f9fc682a41097",
+      "verifiedAt": "afef5a68dfbf08b4b58c284359db80e8d0fa4880",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -414,7 +414,7 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 267,
+          "line": 276,
           "anchor": "// bytes, which are immutable and hash-chained, so they cannot gain note frontma"
         },
         {
@@ -434,27 +434,32 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 304,
+          "line": 313,
           "anchor": "else if (v < MIN_STANDARD_VERSION)"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 390,
+          "line": 408,
           "anchor": "checked.push({ path: notePath, text, fm });"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 458,
+          "line": 475,
           "anchor": "for (const [status, entries] of groups) {"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 482,
-          "anchor": "const readOrEmpty = (path) => { try { return readFileSync(join(vault, path), 'ut"
+          "line": 511,
+          "anchor": "if (docsManifestVersion !== 3) { console.log('(vault) render skipped: DOCS_MANIF"
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 504,
+          "line": 518,
+          "anchor": "const { readRunIndex, renderRunIndex } = await import('./docs-manifest.mjs');"
+        },
+        {
+          "file": "scripts/check-vault-standard.mjs",
+          "line": 526,
           "anchor": "if (mode === 'stamp') {"
         },
         {
@@ -908,7 +913,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "bd1d00dc7445c3b44b48a13980220b41e783f42e40effb3d06836a9d5cb122c4"
+      "verifiedDigest": "244e8f9e436b8e8c7fa0f030b9404b1eab089340a7d02a9bb4cdc80b737e9152"
     },
     {
       "slug": "evals-and-calibration",
@@ -916,8 +921,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bd522df3a3b8bb0cf2b479cd3a3f9fc682a41097",
-      "verifiedDigest": "24baf57ea337b9da874f964d7f0a7d9529d124877604530b3113cdc93b2a76da",
+      "verifiedAt": "afef5a68dfbf08b4b58c284359db80e8d0fa4880",
+      "verifiedDigest": "e15b85efc03d0e7c54de24b1d1a990a6b4319ec9e76771d33c0f74779247dcbc",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1239,7 +1244,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bd522df3a3b8bb0cf2b479cd3a3f9fc682a41097",
+      "verifiedAt": "afef5a68dfbf08b4b58c284359db80e8d0fa4880",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1352,7 +1357,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "d52a052f8cc79b868cf68b050cf5f6e021707dd7fbb0e709731d7ead53e13921"
+      "verifiedDigest": "6db189a1de76762a1dcd0fd54965cd8b078ade9e712c7bda62d6ce42cd38b6fa"
     },
     {
       "slug": "ci-workflows",
@@ -1443,7 +1448,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bd522df3a3b8bb0cf2b479cd3a3f9fc682a41097",
+      "verifiedAt": "afef5a68dfbf08b4b58c284359db80e8d0fa4880",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1462,7 +1467,7 @@
         },
         {
           "file": "scripts/check-vault-standard.mjs",
-          "line": 191,
+          "line": 195,
           "anchor": "let out;"
         },
         {
@@ -1520,7 +1525,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "f314b60cdec8a2af1749137080a594222ae5d05dc388aeeafbdecaa5bae84a84"
+      "verifiedDigest": "1d7716ff69da2b7c4e2073a7f2d3b7ca281e48bfbbea3ac0ac36cf424a554977"
     },
     {
       "slug": "root-contracts",

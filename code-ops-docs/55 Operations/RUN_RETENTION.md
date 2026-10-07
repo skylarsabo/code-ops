@@ -35,6 +35,14 @@ node scripts/docs-manifest.mjs runs [--root <repo>] [--now <YYYY-MM-DD>]
 
 The command lists each directory directly under `<hub>/80 Runs/` by tier, oldest first, with its age, its source, and its name. Plain files such as `INDEX.md` are skipped. `--now` fixes today for a repeatable report. The command reads the file system and writes nothing.
 
+## Run index
+
+```
+node scripts/check-vault-standard.mjs <hub> --render [--now <YYYY-MM-DD>]
+```
+
+On a manifest v3 hub, `--render` also writes `80 Runs/INDEX.md` when that folder exists. The page is generated, so nobody edits it, and the `80 Runs/` ignore rule keeps it out of git. It lists each run folder (dot folders excluded) newest first with its tier, its age, a status, and relative links to `RUN_LOG.md`, `TASKS.md`, and `reports/` where they exist. The tier and age come from `listRunTiers`, so the page adds no age rule. The status is the last `Verdict:` or `Status:` line of the first of `CLOSEOUT.md`, `EXECUTIVE_SUMMARY.md`, `RUN_LOG.md`, and `TASKS.md` that has one, else the `TASKS.md` checkbox count such as `2/3 tasks done`, else `-`. No artifact needs a new format. Check mode never compares the page, because ages move each day, and it exempts the page from the note rules only while the page carries the generated marker. A hub that tracks its run folders in git must also ignore `80 Runs/INDEX.md`.
+
 ## Source of the rules
 
 No committed document defined these tiers before this page. The tier names, the 30-day and 180-day limits, and the mtime fallback come from the design reports of the program redesign run (`2026-10-06-program-redesign`, `reports/D-003.md` line 21 and `reports/D-019.md` lines 36 and 88). That run folder is not tracked, so this page is the committed record. The operator has not yet ratified the limits. Change them in `RUN_TIER_DAYS` and in the table above in one commit.
