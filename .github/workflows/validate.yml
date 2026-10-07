@@ -88,6 +88,18 @@ jobs:
           node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
           node scripts/branch-name.mjs check "$HEAD_REF"
 
+      # Advisory only: prints a note when the body links no row of the direction note's gap table
+      # and exits 0 either way. It stays a separate step so the fail-closed traceless step above
+      # never carries an advisory. Promotion to a failing gate waits for zero false positives.
+      - name: Direction gap link (advisory)
+        if: github.event_name == 'pull_request'
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          pr_body="$RUNNER_TEMP/pr-body.md"
+          node -e 'require("node:fs").writeFileSync(process.argv[1], process.env.PR_BODY || "")' "$pr_body"
+          node scripts/check-gap-link.mjs "$pr_body"
+
   # Shard 2: the slow orchestration and runtime evals (median 108 s).
   structural-lint-shard-2:
     runs-on: ubuntu-latest
@@ -215,6 +227,9 @@ jobs:
 
       - name: Branch-name rule and hook eval
         run: node evals/branch-name/run.mjs
+
+      - name: Direction gap-link advisory eval (accepted link, advisory note, never a failure)
+        run: node evals/direction-alignment/run.mjs
 
       - name: lib-docs engine eval
         run: node evals/lib-docs/run.mjs
@@ -609,6 +624,9 @@ jobs:
 
       - name: Standards alignment eval
         run: node evals/docs-alignment/run.mjs
+
+      - name: Direction gap-link advisory eval (accepted link, advisory note, never a failure)
+        run: node evals/direction-alignment/run.mjs
 
       - name: Atlas-check regression eval
         run: node evals/atlas-check/run.mjs
