@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -883,7 +883,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "d95040ee16445eaa966b7833aa5a327aadfd0a9ca423e8f0e6d0ac51ae2445a0"
+      "verifiedDigest": "28bd6ee285523731341a65ca42aba429449fd79395ddb187e1b8a94284403670"
     },
     {
       "slug": "evals-and-calibration",
@@ -891,8 +891,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
-      "verifiedDigest": "4bca45d3de2208e4c05b90f624df827c8d33dab6c3a2b67a2920bd06dd23706c",
+      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
+      "verifiedDigest": "f83c5f9f2a1510b83c6706bca1830ea988fe305c155828f40d56d4ad2df4abbc",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1335,8 +1335,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
-      "verifiedDigest": "21a086abd3edd9b03e3d413938502837b96d6a5af2a6de6800b4daf35e8dfdfe",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
+      "verifiedDigest": "5ca9324a3ae49dbc42a3a9c4431a329d7199224b1e0fb477a3895f09860f0621",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1418,7 +1418,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1495,7 +1495,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "c0a00484ab6726c1d506ecea0f154691fa459ed6cafabf7ed3bf7a0d63375131"
+      "verifiedDigest": "0e1cd0c4e5afeb9c468542d883a205cd9a10a9bbe8b9a9fa8e42956d695eb0c0"
     },
     {
       "slug": "root-contracts",
