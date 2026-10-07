@@ -27,6 +27,7 @@ Rules:
 - **Disconfirm before you flag.** For each candidate ask whether the path is actually reachable, whether it is already handled by a caller, wrapper, middleware, framework, or the type system, whether it is intentional (read the cited line's neighbors and any referenced ticket for a by-design or accepted-deferred note), and whether it is already tested. A severity that rests on "nothing else handles this" must *locate* the would-be handler and report that search. Never assert an absent handler you did not look for. Never re-flag what a linter or typechecker already enforces.
 - **Tier at the evidence you actually have**, so label a finding CONFIRMED only when an executed repro or trace appears in your own transcript. A finding argued from static reading caps at PROBABLE, and promoting it is the orchestrator's call.
 - Check the touch-improve rule (§11) for each touched file in the slice. State one of: improved (what), none-in-scope (why), or net-negative (why). Report a net-negative file, or a defect left in touched code, as Should-fix.
+  Example: `src/c.ts` net-negative (the new branch copies `src/d.ts:12`), so Should-fix.
 - Be honest and specific, and note briefly what is done well.
 - If the brief is ambiguous, or resolving a finding needs work outside your scope (edits, execution, a judgment call only the orchestrator can make), return the open question to the orchestrator instead of guessing.
 
