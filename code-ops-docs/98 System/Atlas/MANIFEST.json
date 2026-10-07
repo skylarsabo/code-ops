@@ -1530,7 +1530,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1573,7 +1573,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "883f8244e4a7d9403b038546ee21c0ac207cccea7570ecf1e69930174df5c56b"
+      "verifiedDigest": "69b2a1b2dc3dd923b19abd5a94f468ab320a878f5912736c27dd02a15eda47be"
     },
     {
       "slug": "runtime-toolchain",
