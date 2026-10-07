@@ -22,6 +22,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { assembleChangelog, readFragments } from './changelog-fragments.mjs';
 import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS } from './model-tiers.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
@@ -578,7 +579,9 @@ function buildExpectedFiles() {
     add(`${base}/README.md`, generatedReadme(spec, sourceManifest, skills));
     add(`${base}/PLATFORM_COMPATIBILITY.md`, compatibilityNotes(spec, sourceManifest));
     add(`${base}/CONVENTIONS.md`, portableText(readText(sourcePath(spec.name, 'CONVENTIONS.md'))));
-    add(`${base}/CHANGELOG.md`, portableText(readText(sourcePath(spec.name, 'CHANGELOG.md'))).replace('`.claude-plugin/plugin.json` and the matching entry in the marketplace.', 'the source plugin manifest and matching marketplace entries.'));
+    // Unassembled changelog.d/ fragments render under the current version, so the output is the same bytes once they are folded into CHANGELOG.md.
+    const changelog = assembleChangelog(readText(sourcePath(spec.name, 'CHANGELOG.md')), readFragments(sourceDir).map((f) => f.body), sourceManifest.version);
+    add(`${base}/CHANGELOG.md`, portableText(changelog).replace('`.claude-plugin/plugin.json` and the matching entry in the marketplace.', 'the source plugin manifest and matching marketplace entries.'));
     addSourceTree(sourcePath(spec.name, 'scripts'), `${base}/scripts`, portableRuntimeText);
     // Skills cite vendored execution specs under reference/, so they carry CONVENTIONS.md's transform.
     addSourceTree(sourcePath(spec.name, 'reference'), `${base}/reference`, (text) => portableText(text));

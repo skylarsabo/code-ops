@@ -2,7 +2,10 @@
 // Bump a plugin's version across the three places CLAUDE.md requires it to move together:
 // plugin.json, the matching marketplace.json entry, and a new CHANGELOG.md section.
 //
-//   node scripts/bump-plugin-version.mjs <plugin> <major|minor|patch|X.Y.Z>
+//   node scripts/bump-plugin-version.mjs <plugin> <major|minor|patch|X.Y.Z> [--fragment]
+//
+// --fragment skips the CHANGELOG.md section: the entry goes in a new plugins/<plugin>/changelog.d/
+// file instead (check-plugin-bump.mjs accepts either), so the changelog head is never edited.
 //
 // Exit 0 = bumped, 1 = failure (bad plugin, malformed/out-of-sync files), 2 = bad invocation
 // (wrong arg count, unrecognized bump spec).
@@ -22,9 +25,11 @@ const readText = (p) => readFileSync(p, 'utf8').replace(/^﻿/, ''); // tolerate
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 const rel = (p) => p.slice(ROOT.length + 1).replaceAll('\\', '/');
 
-const argv = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
+const fragmentMode = rawArgs.includes('--fragment');
+const argv = rawArgs.filter((a) => a !== '--fragment');
 if (argv.length !== 2 || argv.some((a) => !a || a.startsWith('--'))) {
-  console.error('usage: node scripts/bump-plugin-version.mjs <plugin> <major|minor|patch|X.Y.Z>');
+  console.error('usage: node scripts/bump-plugin-version.mjs <plugin> <major|minor|patch|X.Y.Z> [--fragment]');
   process.exit(2);
 }
 const [pluginName, spec] = argv;
@@ -127,31 +132,37 @@ const newMarketplaceText =
   marketplaceText.slice(absVersionStart + versionMatch[0].length);
 
 // ---- CHANGELOG.md: prepend a new version section right after the intro block ----
+// Skipped under --fragment, so no stub and no write touch the changelog head.
 const changelogPath = join(pluginDir, 'CHANGELOG.md');
-if (!existsSync(changelogPath)) {
-  console.error(`x missing ${rel(changelogPath)}`);
-  process.exit(1);
+let newChangelogText = null;
+if (!fragmentMode) {
+  if (!existsSync(changelogPath)) {
+    console.error(`x missing ${rel(changelogPath)}`);
+    process.exit(1);
+  }
+  const changelogText = readText(changelogPath);
+  const firstHeading = changelogText.search(/^##\s+/m);
+  if (firstHeading === -1) {
+    console.error(`x plugins/${pluginName}/CHANGELOG.md has no existing "## <version>" section to anchor the insertion`);
+    process.exit(1);
+  }
+  // A heading for this version already exists (a re-run, or an entry written first), so a
+  // stub would duplicate it.
+  const hasSection = changelogText.split(/\r?\n/).some((line) => line.trim() === `## ${newVersion}`);
+  const newSection = hasSection ? '' : `## ${newVersion}\n- **TODO** — describe the change.\n\n`;
+  newChangelogText = changelogText.slice(0, firstHeading) + newSection + changelogText.slice(firstHeading);
 }
-const changelogText = readText(changelogPath);
-const firstHeading = changelogText.search(/^##\s+/m);
-if (firstHeading === -1) {
-  console.error(`x plugins/${pluginName}/CHANGELOG.md has no existing "## <version>" section to anchor the insertion`);
-  process.exit(1);
-}
-// A heading for this version already exists (a re-run, or an entry written first), so a
-// stub would duplicate it.
-const hasSection = changelogText.split(/\r?\n/).some((line) => line.trim() === `## ${newVersion}`);
-const newSection = hasSection ? '' : `## ${newVersion}\n- **TODO** — describe the change.\n\n`;
-const newChangelogText = changelogText.slice(0, firstHeading) + newSection + changelogText.slice(firstHeading);
 
 // ---- write all three, only after every computation above has succeeded ----
 writeFileSync(pluginJsonPath, newPluginJsonText);
 writeFileSync(marketplacePath, newMarketplaceText);
-writeFileSync(changelogPath, newChangelogText);
+if (newChangelogText !== null) writeFileSync(changelogPath, newChangelogText);
 
 console.log(`${pluginName}: ${oldVersion} -> ${newVersion}`);
 console.log(`  ${rel(pluginJsonPath)}`);
 console.log(`  ${rel(marketplacePath)}`);
-console.log(`  ${rel(changelogPath)}`);
-console.log('Fill in the CHANGELOG bullet, then regenerate: node scripts/build-codex-marketplace.mjs');
+if (newChangelogText !== null) console.log(`  ${rel(changelogPath)}`);
+console.log(fragmentMode
+  ? `Add the entry as a new plugins/${pluginName}/changelog.d/<slug>.md, then regenerate: node scripts/build-codex-marketplace.mjs`
+  : 'Fill in the CHANGELOG bullet, then regenerate: node scripts/build-codex-marketplace.mjs');
 process.exit(0);

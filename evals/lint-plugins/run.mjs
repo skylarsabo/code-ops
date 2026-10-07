@@ -1037,6 +1037,19 @@ No completion heading here on purpose (case 3 mutation).
   const r16c = withChangelog('case16c-changelog-duplicate', '## 0.1.0\n- Fixture entry.\n\n## 0.1.0\n- Same version again.\n');
   check('16c. a duplicated version heading exits 1', r16c.status === 1 && r16c.all.includes('plugins/rigor/CHANGELOG.md:6: duplicate "## 0.1.0" heading'));
 
+  // 16d-16f. CHANGELOG FRAGMENTS (lint check 29) — a written fragment passes; a blank one or one
+  // carrying the bump-script TODO placeholder fails closed and names the file.
+  const withFragment = (label, text) => {
+    const dir = clone(label);
+    put(dir, 'plugins/rigor/changelog.d/fixture.md', text);
+    return runLint(dir);
+  };
+  check('16d. a written changelog fragment exits 0', withFragment('case16d-fragment-ok', '- Fixture fragment entry.\n').status === 0);
+  const r16e = withFragment('case16e-fragment-empty', '\n  \n');
+  check('16e. an empty changelog fragment exits 1', r16e.status === 1 && r16e.all.includes('plugins/rigor/changelog.d/fixture.md: empty changelog fragment'));
+  const r16f = withFragment('case16f-fragment-todo', '- **TODO** — describe the change.\n');
+  check('16f. a TODO placeholder fragment exits 1', r16f.status === 1 && r16f.all.includes('plugins/rigor/changelog.d/fixture.md:1: placeholder "**TODO**" line'));
+
   // 17a/17b. SHARD AGGREGATE WIRING (check 23) — the rule runs only for the code-ops
   // marketplace, so each case names it and adds the dependency-policy files. A gate job
   // that needs every shard passes. A shard missing from needs: fails closed.
