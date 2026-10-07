@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.48.0
+- `check-vault-standard.mjs` gains rule 16, the decision register. A vault that carries `20 Decisions/REGISTER.md` keeps it whole: ids come from the D, ADR, DEC, EVO, and RBS families and stay unique, every `DEC-<n>` cited in the vault has a row, every decision note and ADR has a row, and each row has a valid date and status. A committed link in a Source cell must resolve. A run folder or program ledger is a code-span path under `80 Runs/`, checked for form only, and a link into that gitignored folder fails. A vault with no register sees no change.
+- This repository adds `20 Decisions/REGISTER.md` with 108 rows for its decision notes, ADRs, and program ledgers.
+
 ## 2.47.0
 - `route-unit.mjs` is the one source of unit kinds. `CONTRACT_KIND_OF` maps each route kind to the kind a run contract records, and `run-contract.mjs` derives its accepted kinds from it. A bad kind now fails with the allowed list and names the contract kind to record for a route kind.
 - Version 4 contract units accept an optional `size` (`S`, `M`, or `L`) and `roundBudget`, and briefs may carry a `Size:` line. Every size defaults to the 40-round budget, because no unit has recorded a size yet. An advisory fires when a budget sits below the measured median for its size, and it stays silent until a median is measured.
