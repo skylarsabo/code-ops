@@ -28,6 +28,7 @@ import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
 import { summarizeTranscript, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor, projectSlug } from '../../scripts/transcript-lib.mjs';
 import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
+import { countAgentCalls, runContractPath, authorityOf, RUN_CONTRACT_LINE } from '../../scripts/context-audit.mjs';
 import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -540,6 +541,80 @@ expect(badDate.status === 2, `a non-ISO cutoff exits 2, got ${badDate.status}`);
 const rcOther = run([cli, 'receipts', '--ledger', ledger, '--cwd', tmp, '--json']);
 expect(rcOther.status === 0 && JSON.parse(rcOther.stdout || '{}').sessions === 0, 'receipts --cwd filters rows to that directory');
 
+// compliance: counts only. Every fixture prompt, command, brief, script, and result carries SENTINEL,
+// so any text leaking into stdout, `--out`, or the report fails closed.
+const SENTINEL = 'SENTINEL-7c1e4d92';
+const compClaude = join(here, 'fixture-compliance');
+const compCodex = join(here, 'fixture-compliance-codex');
+const authorityCounts = (gitPush, ghPrCreate, ghPrMerge, ghRelease) => ({ gitPush, ghPrCreate, ghPrMerge, ghRelease });
+const compClaudeRow = { id: 'comp-claude-1', host: 'claude', operatorPrompts: 2, dispatches: { Agent: 2, Workflow: 2, Task: 1 }, dispatchTotal: 5,
+  denied: 1, deniedDispatch: 1, workflow: { launches: 2, withContract: 1, withoutContract: 1, agentCalls: 5 }, briefs: 3,
+  briefsWithoutRoundBudget: 1, authority: authorityCounts(2, 1, 1, 1), authorityTotal: 5 };
+const compCodexRow = { id: 'comp-codex-1', host: 'codex', operatorPrompts: 2, dispatches: { spawn_agent: 2 }, dispatchTotal: 2,
+  denied: 1, deniedDispatch: 1, workflow: { launches: 0, withContract: 0, withoutContract: 0, agentCalls: 0 }, briefs: 2,
+  briefsWithoutRoundBudget: 1, authority: authorityCounts(1, 0, 1, 1), authorityTotal: 3 };
+const totalsOf = (row) => Object.fromEntries(Object.entries(row).filter(([k]) => k !== 'id' && k !== 'host'));
+const compClaudeTotals = totalsOf(compClaudeRow), compCodexTotals = totalsOf(compCodexRow);
+const compClaudeRun = run([cli, 'compliance', compClaude, '--json']);
+try {
+  const rep = JSON.parse(compClaudeRun.stdout);
+  expect(compClaudeRun.status === 0 && JSON.stringify(rep.sessions) === JSON.stringify([compClaudeRow]) && JSON.stringify(rep.totals) === JSON.stringify(compClaudeTotals),
+    `compliance --json gives exact Claude counts, got ${compClaudeRun.stdout.slice(0, 400)}`);
+  expect(JSON.stringify(rep.skipped) === '{"sidechain":1,"unrecognized":1,"grok":1}' && rep.unsupported.join() === 'grok,opencode',
+    `compliance skips subagent, Grok, and unreadable transcripts apart and names the unsupported hosts, got ${JSON.stringify(rep.skipped)}`);
+} catch { fails.push(`compliance --json must parse, got ${compClaudeRun.stdout.slice(0, 160)}${compClaudeRun.stderr.slice(0, 160)}`); }
+const compCodexRun = run([cli, 'compliance', compCodex, '--host', 'codex', '--json']);
+try {
+  const rep = JSON.parse(compCodexRun.stdout);
+  expect(compCodexRun.status === 0 && JSON.stringify(rep.sessions) === JSON.stringify([compCodexRow]) && JSON.stringify(rep.totals) === JSON.stringify(compCodexTotals),
+    `compliance --host codex --json gives exact Codex counts, got ${compCodexRun.stdout.slice(0, 400)}`);
+} catch { fails.push(`compliance --host codex --json must parse, got ${compCodexRun.stdout.slice(0, 160)}${compCodexRun.stderr.slice(0, 160)}`); }
+const compText = run([cli, 'compliance', compClaude]);
+const compOut = join(tmp, 'compliance-out.md');
+const compFile = run([cli, 'compliance', join(compClaude, 'comp-claude-1.jsonl'), '--out', compOut]);
+expect(compText.status === 0 && compText.stdout.includes('| comp-claude-1 | claude | 2 | 5 | 1 | 2 | 1 | 3 | 1 | 5 |'),
+  `compliance prints a counts table, got:\n${compText.stdout}`);
+for (const [label, text] of [['json', compClaudeRun.stdout + compCodexRun.stdout], ['text', compText.stdout],
+  ['--out', existsSync(compOut) ? readFileSync(compOut, 'utf8') : ''], ['stderr', compClaudeRun.stderr + compCodexRun.stderr + compText.stderr + compFile.stderr]]) {
+  expect(!text.includes('SENTINEL') && !text.includes(SENTINEL) && !text.includes('PreToolUse') && !text.includes('git push origin'),
+    `compliance ${label} output carries no transcript text`);
+}
+expect(existsSync(compOut) && compFile.stdout === '', 'compliance --out writes the report to the file and prints nothing');
+const compSession = run([cli, 'compliance', '--session', 'comp-claude-1', '--transcripts', compClaude, '--json']);
+expect(compSession.status === 0 && JSON.parse(compSession.stdout || '{}').sessions?.[0]?.id === 'comp-claude-1', 'compliance --session finds the transcript by id');
+const compCodexSession = run([cli, 'compliance', '--session', 'comp-codex-1', '--host', 'codex', '--transcripts', compCodex, '--json']);
+expect(compCodexSession.status === 0 && JSON.parse(compCodexSession.stdout || '{}').sessions?.[0]?.id === 'comp-codex-1', 'compliance --session finds a nested Codex rollout by id');
+expect(run([cli, 'compliance', '--session', 'no-such-id', '--transcripts', compClaude]).status === 1, 'compliance exits 1 when no transcript matches');
+expect(run([cli, 'compliance']).status === 2 && run([cli, 'compliance', '--session', '../x']).status === 2 && run([cli, 'compliance', '--bogus']).status === 2,
+  'compliance exits 2 for no input, an unsafe session id, or an unknown flag');
+
+// The helpers behind the counts.
+expect(countAgentCalls('await agent({}); agent ( x ); myagent(1); // agents') === 2, 'countAgentCalls counts agent( calls on a word boundary');
+expect(countAgentCalls('') === 0 && countAgentCalls(undefined) === 0, 'countAgentCalls reads an empty or missing script as zero');
+expect(runContractPath('// Run contract: a/RUN_CONTRACT.json\nx') === 'a/RUN_CONTRACT.json' && runContractPath('/* Run contract: p */') === 'p'
+  && runContractPath(' * Run contract: q') === 'q' && runContractPath('Run contract: r') === 'r', 'runContractPath reads the line bare or inside a comment');
+expect(runContractPath('no line here') === null && runContractPath('// Run contract:') === null && runContractPath('xRun contract: s') === null,
+  'runContractPath is null with no line, an empty path, or a prefixed word');
+const authorityCases = [
+  ['git push origin main', ['gitPush']], ['git -C repo push', ['gitPush']], ['gh pr create --fill', ['ghPrCreate']],
+  ['gh -R o/r pr merge 3', ['ghPrMerge']], ['gh release create v1', ['ghRelease']], ['FOO=1 git push && gh pr merge 2', ['gitPush', 'ghPrMerge']],
+  ['echo git push', []], ['git commit -m "push"', []], ['gh pr view 3', []], ['git status', []],
+  [['bash', '-lc', 'git push'], ['gitPush']], [undefined, []],
+];
+for (const [command, want] of authorityCases) {
+  expect(authorityOf(command).join() === want.join(), `authorityOf(${JSON.stringify(command)}) is [${want}], got [${authorityOf(command)}]`);
+}
+// The Run contract pattern must stay byte-identical to the dispatch guard's, once the guard declares it.
+const guardText = readFileSync(join(root, 'plugins', 'code-ops-suite', 'hooks', 'dispatch-guard.mjs'), 'utf8');
+const guardLiteral = /^const RUN_CONTRACT_LINE = \/(.+)\/([a-z]*);$/m.exec(guardText);
+let contractPinPending = false;
+if (guardLiteral) {
+  expect(new RegExp(guardLiteral[1], guardLiteral[2]).source === RUN_CONTRACT_LINE.source && guardLiteral[2] === RUN_CONTRACT_LINE.flags,
+    'RUN_CONTRACT_LINE in scripts/context-audit.mjs is byte-identical to the dispatch guard\'s');
+} else if (guardText.includes('Run contract:')) {
+  fails.push('the dispatch guard mentions "Run contract:" but declares no RUN_CONTRACT_LINE literal this eval can compare');
+} else contractPinPending = true;
+
 rmSync(tmp, { recursive: true, force: true });
 rmSync(empty, { recursive: true, force: true });
 rmSync(codexLinkDir, { recursive: true, force: true });
@@ -557,4 +632,8 @@ console.log('ok   receipts record the handoff band and whether the operator ran 
 console.log('ok   receipts count skill invocations by id from Skill calls and slash commands; none records {}');
 console.log('ok   --purge-before rewrites the ledger by date and reports what it removed');
 console.log('ok   context shape: per-turn bands, cache rewrites, agent types, and --all across projects');
+console.log('ok   compliance: exact Claude and Codex counts, subagent/Grok/unreadable skipped apart, and no fixture text in any output');
+console.log(contractPinPending
+  ? 'note RUN_CONTRACT_LINE pin pending: the dispatch guard declares no Run contract line yet (PR 262); the pin binds once it lands'
+  : 'ok   RUN_CONTRACT_LINE is byte-identical to the dispatch guard\'s');
 console.log('\ncontext-audit eval passed');

@@ -1,0 +1,1 @@
+{"type":"assistant","sessionId":"comp-claude-side","timestamp":"2026-10-01T10:00:00.000Z","isSidechain":true,"message":{"id":"msg_s1","model":"model-x","role":"assistant","content":[{"type":"tool_use","id":"tu_s1","name":"Bash","input":{"command":"git push SENTINEL-7c1e4d92"}}],"usage":{"input_tokens":1,"output_tokens":1}}}

@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.6.2
+- The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.
+
 ## 3.6.1
 - The vendored `co.mjs` lists the new `co churn` command. This plugin does not bundle `churn.mjs`, so `co churn` reports that it is not bundled here.
 
