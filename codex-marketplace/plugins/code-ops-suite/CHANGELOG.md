@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.52.0
+- New `co churn` command (`scripts/churn.mjs`) reports the circling measures over a git window and the run folders: the re-fix share, reverts, fix-of-fix commits per merged PR split into restamps and review fixes, repeated `Next:` lines, and ids reopened within one program. It is report-only and always exits 0. Two `git log` calls cover any window.
+- Over the D-009 window (`3c1fa907`, 2026-09-06 to 2026-10-06) it reproduces the baseline git measures exactly. The "Circling" entry in MEASUREMENTS.md gives the command and the run-folder readings.
+- A new churn eval pins each signal on a scratch repository, with a mutation control. CI runs it in one Ubuntu shard and one Windows shard.
+
 ## 2.51.0
 - `check-vault-standard.mjs` gains rule 16, the decision register. A vault that carries `20 Decisions/REGISTER.md` keeps it whole: ids come from the D, ADR, DEC, EVO, and RBS families and stay unique, every `DEC-<n>` cited in the vault has a row, every decision note and ADR has a row, and each row has a valid date and status. A committed link in a Source cell must resolve. A run folder or program ledger is a code-span path under `80 Runs/`, checked for form only, and a link into that gitignored folder fails. A vault with no register sees no change.
 - This repository adds `20 Decisions/REGISTER.md` with 108 rows for its decision notes, ADRs, and program ledgers.

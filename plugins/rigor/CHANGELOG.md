@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.6.1
+- The vendored `co.mjs` lists the new `co churn` command. This plugin does not bundle `churn.mjs`, so `co churn` reports that it is not bundled here.
+
 ## 3.6.0
 - The vendored `scan-overbuild.mjs` reads removed lines and prints a touched-file delta advisory after its tells. Each touched source file reads `IMPROVED`, `WORSE`, `MIXED`, or unchanged by the pass-through shape and the exported-helper pattern in its removed lines. The advisory adds no hit and never changes the exit code.
 

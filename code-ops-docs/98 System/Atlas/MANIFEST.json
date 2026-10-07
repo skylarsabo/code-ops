@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "7fa7fc4d4f8cbc9fa8ff539e7f758d76da7b9cb7",
+      "verifiedAt": "1a14cac2e84dcaf96005af693850189d57b191ba",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -181,6 +181,11 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "plugins/code-ops-suite/scripts/churn.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
           "file": "scripts/agent-ledger.mjs",
           "line": 227,
           "anchor": "const agent_id = payload.agent_id || payload.subagentId;"
@@ -331,7 +336,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "6fe2259770a226298e91619ff6042ffb67fdeb32d6b2cba5b379ab6b7dae75a7"
+      "verifiedDigest": "da0e524aa612469f9028872c66b5c059b25add99230a0e15278d129fddf3cd02"
     },
     {
       "slug": "gate-scripts",
@@ -340,7 +345,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "7fa7fc4d4f8cbc9fa8ff539e7f758d76da7b9cb7",
+      "verifiedAt": "1a14cac2e84dcaf96005af693850189d57b191ba",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -674,7 +679,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 150,
+          "line": 154,
           "anchor": "// Route basis lines for one unit and its binding on each host. Read-only."
         },
         {
@@ -744,7 +749,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 153,
+          "line": 157,
           "anchor": "// COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peer"
         },
         {
@@ -913,7 +918,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "37d462d61069c672050ce646065cbe1d732f94f19621500f68a366c875dddd14"
+      "verifiedDigest": "970941e87c3b71c559121a40da749b6e23768913967c23b54ac9e9ed7656f338"
     },
     {
       "slug": "evals-and-calibration",
@@ -921,8 +926,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "7fa7fc4d4f8cbc9fa8ff539e7f758d76da7b9cb7",
-      "verifiedDigest": "03dcea7c8ce8bc31fec7da425991de97507004b7e90d3c1073086af2e3a7f1ed",
+      "verifiedAt": "1a14cac2e84dcaf96005af693850189d57b191ba",
+      "verifiedDigest": "dd8389e674af0b998284c55a70f2f3140cf3df225e6f90b79dc7c743aeebcf3f",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1077,7 +1082,7 @@
         {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
-          "anchor": "const COMMANDS = ['brief', 'burndown', 'route', 'snapshot'];"
+          "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot'];"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -1244,7 +1249,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "7fa7fc4d4f8cbc9fa8ff539e7f758d76da7b9cb7",
+      "verifiedAt": "1a14cac2e84dcaf96005af693850189d57b191ba",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1357,7 +1362,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "e94ab6c25e6421874770d98e3fc56fa8f8cf405af25158af7bf47ba582bb520a"
+      "verifiedDigest": "e2eb2844177af8fe8dd9e065b4124f1f819149e5476575ba63198bbee49a0efa"
     },
     {
       "slug": "ci-workflows",
@@ -1365,8 +1370,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "7029528632e8f7a303170133ffec1705cd1f6572",
-      "verifiedDigest": "c3bbdf3435d76fa77ebbd428d5878058bc91f0d0fc4f5020a5de4a9d227529c0",
+      "verifiedAt": "2f51c9cc2fa43e988dbd7855908860a652beec66",
+      "verifiedDigest": "ebb0043779affbb2383a7c4ba8f4f0abeea806c138ef955b4778ff290fe34e47",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1448,7 +1453,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "7fa7fc4d4f8cbc9fa8ff539e7f758d76da7b9cb7",
+      "verifiedAt": "1a14cac2e84dcaf96005af693850189d57b191ba",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1525,7 +1530,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "008012c322d806cc987b96287f4bbc1d0b81ace4993cf7396e5e758c06a8eada"
+      "verifiedDigest": "4cc969cf2ef61e53fe07096156981ba8270a3aac1e6011f036456628c4cb29dd"
     },
     {
       "slug": "root-contracts",
