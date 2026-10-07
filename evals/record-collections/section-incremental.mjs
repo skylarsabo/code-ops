@@ -730,9 +730,10 @@ export function runSection() {
   const lostLeaseCommonDir = resolve(lostLeaseRepo, git(['rev-parse', '--git-common-dir'], lostLeaseRepo).trim());
   rmSync(join(lostLeaseCommonDir, 'code-ops-record-locks', `${UUID}.lock`), { recursive: true, force: true });
 
+  // The old lock directory is renamed aside, not removed, so the new one cannot reuse its inode and the lease identity check sees a new directory on every filesystem.
   const identityOnlyLostLeaseScript = instrumentedRecordsScript('identity-only-lost-lease-script', (source) => source.replace(
     /function releaseMutationLock\(lease\) \{\r?\n/,
-    (match) => `${match}  if (process.env.CODE_OPS_EVAL_REPLACE_LEASE_IDENTITY === '1') {\n    rmSync(lease.lock, { recursive: true, force: true });\n    mkdirSync(lease.lock);\n    writeFileSync(lease.owner, JSON.stringify({ pid: 1, token: lease.token, acquiredAt: '2026-08-28T03:35:00.000Z' }) + '\\n');\n  }\n`,
+    (match) => `${match}  if (process.env.CODE_OPS_EVAL_REPLACE_LEASE_IDENTITY === '1') {\n    renameSync(lease.lock, lease.lock + '.replaced');\n    mkdirSync(lease.lock);\n    writeFileSync(lease.owner, JSON.stringify({ pid: 1, token: lease.token, acquiredAt: '2026-08-28T03:35:00.000Z' }) + '\\n');\n  }\n`,
   ));
   const identityOnlyLostLeaseRepo = join(work, 'identity-only-lost-lease-after-success'); cpSync(incrementalRepo, identityOnlyLostLeaseRepo, { recursive: true });
   const identityOnlyLostLeaseLedger = generated(identityOnlyLostLeaseRepo, 'curation.jsonl');
