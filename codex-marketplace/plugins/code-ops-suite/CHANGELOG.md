@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.54.0
+- The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry short examples of the touch-improve outcomes. The ship text shows improved, none-in-scope, and net-negative report lines, and says the reviewer reports a net-negative file as Should-fix. Each agent carries one example sized to its role.
+
 ## 2.53.0
 - `check-vault-standard.mjs --render` also writes `80 Runs/INDEX.md` on a manifest v3 hub whose `80 Runs/` folder exists. The page lists each run folder newest first with its retention tier, its age, a status, and relative links to `RUN_LOG.md`, `TASKS.md`, and `reports/`. The status is the last `Verdict:` or `Status:` line already in a run's `CLOSEOUT.md`, `EXECUTIVE_SUMMARY.md`, `RUN_LOG.md`, or `TASKS.md`, else the `TASKS.md` checkbox count, else `-`. Tier and age reuse `listRunTiers`.
 - `--render --now <YYYY-MM-DD>` fixes the day the ages count to, so the page repeats byte for byte. Check mode never compares the page, and exempts it from the note rules only while it carries the generated marker.

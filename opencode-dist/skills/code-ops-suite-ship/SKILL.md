@@ -61,7 +61,12 @@ its added, removed, and net line counts, with a one-line reason when net lines a
 
 Every brief carries the touch-improve rule (`§11`). The operative leaves each touched file better in
 modularity, performance, and quality. Its report states, for each touched file, one of: improved
-(what), none-in-scope (why), or net-negative (why).
+(what), none-in-scope (why), or net-negative (why). Three report lines show the outcomes:
+
+- `src/a.ts`: improved (the per-item lookup in the loop became one map built before it).
+- `docs/b.md`: none-in-scope (a one-word fix, and the file has no other defect).
+- `src/c.ts`: net-negative (the fix added a 30-line branch). The report names that cost, the reason it
+  was unavoidable, and a follow-up to remove it. The reviewer reports a net-negative file as Should-fix.
 
 ## Phase 3: the proof
 
