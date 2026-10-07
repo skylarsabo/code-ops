@@ -346,6 +346,173 @@ try {
   }
 
   // ================================================================================
+  // 1e2. check-plugin-bump.mjs — changelog.d/ fragments. A NEW non-blank fragment satisfies the
+  // changelog rule in place of the CHANGELOG.md head; the version rule still applies; an edited,
+  // renamed, or deleted fragment never counts.
+  // ================================================================================
+  {
+    const FRAGMENT = 'changelog.d/add-thing.md';
+    const mkFragmentFixture = (caseName) => {
+      const caseDir = join(work, caseName);
+      const scriptPath = copyScript('check-plugin-bump.mjs', join(caseDir, 'scripts'));
+      copyScript('changelog-fragments.mjs', join(caseDir, 'scripts'));
+      git(['init', '--quiet', '-b', 'main'], caseDir);
+      const pluginDir = join(caseDir, 'plugins', 'demo-plugin');
+      mkdirSync(join(pluginDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(pluginDir, 'changelog.d'), { recursive: true });
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.0.0"\n}\n');
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.0.0\n- initial.\n');
+      writeFileSync(join(pluginDir, 'changelog.d', 'older.md'), '- An earlier fragment already on the base.\n');
+      git(['add', '-A'], caseDir);
+      gitCommit(caseDir, 'base');
+      const baseSha = git(['rev-parse', 'HEAD'], caseDir).trim();
+      const bump = () => writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.1.0"\n}\n');
+      const finish = (message) => { git(['add', '-A'], caseDir); gitCommit(caseDir, message); return run(scriptPath, ['--base', baseSha], { cwd: caseDir }); };
+      return { caseDir, pluginDir, bump, finish };
+    };
+
+    // I. version bumped + a new non-blank fragment, CHANGELOG.md untouched -> exit 0.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-ok');
+      f.bump();
+      writeFileSync(join(f.pluginDir, FRAGMENT), '- Added the thing.\n');
+      const r = f.finish('bump plus new fragment');
+      check('check-plugin-bump: bump + new non-blank fragment (CHANGELOG.md untouched) exits 0', r.status === 0 && r.stdout.includes('OK'));
+    }
+
+    // J. a new fragment with only blank lines -> exit 1, names the fragment.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-empty');
+      f.bump();
+      writeFileSync(join(f.pluginDir, FRAGMENT), '\n\n  \n');
+      const r = f.finish('bump plus blank fragment');
+      check('check-plugin-bump: a blank fragment exits 1 and says it adds no non-blank line', r.status === 1 && r.stderr.includes(`plugins/demo-plugin/${FRAGMENT} adds no non-blank line`));
+    }
+
+    // K. a valid new fragment but the version did not move -> exit 1 (the version rule stays).
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-unbumped');
+      writeFileSync(join(f.pluginDir, FRAGMENT), '- Added the thing.\n');
+      const r = f.finish('fragment without a bump');
+      check('check-plugin-bump: a fragment with the version unchanged exits 1', r.status === 1 && r.stderr.includes('version unchanged'));
+    }
+
+    // L. a fragment that exists at the base and is only edited -> exit 1.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-edited');
+      f.bump();
+      writeFileSync(join(f.pluginDir, 'changelog.d', 'older.md'), '- An earlier fragment already on the base.\n- A line this PR appended.\n');
+      const r = f.finish('bump plus edited old fragment');
+      check('check-plugin-bump: an edited (not new) fragment exits 1 and says it is not new', r.status === 1 && r.stderr.includes('is not a new file'));
+    }
+
+    // L2. a fragment that is only renamed, and one that is only deleted -> exit 1.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-renamed');
+      f.bump();
+      git(['mv', 'plugins/demo-plugin/changelog.d/older.md', `plugins/demo-plugin/${FRAGMENT}`], f.caseDir);
+      const r = f.finish('bump plus renamed fragment');
+      check('check-plugin-bump: a renamed fragment exits 1', r.status === 1 && r.stderr.includes('is not a new file'));
+      const g = mkFragmentFixture('check-plugin-bump-fragment-deleted');
+      g.bump();
+      rmSync(join(g.pluginDir, 'changelog.d', 'older.md'));
+      const r2 = g.finish('bump plus deleted fragment');
+      check('check-plugin-bump: a deleted fragment exits 1 with the changelog-not-touched reason', r2.status === 1 && r2.stderr.includes('not touched'));
+    }
+
+    // M. both paths together: a CHANGELOG.md head entry and a new fragment -> exit 0.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-both');
+      f.bump();
+      writeFileSync(join(f.pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.1.0\n- Head entry.\n\n## 1.0.0\n- initial.\n');
+      writeFileSync(join(f.pluginDir, FRAGMENT), '- Added the thing.\n');
+      const r = f.finish('bump plus head entry plus fragment');
+      check('check-plugin-bump: a CHANGELOG.md entry and a new fragment together exit 0', r.status === 0 && r.stdout.includes('OK'));
+    }
+
+    // N. a blank CHANGELOG.md touch beside a real fragment -> exit 0 (the fragment carries the entry);
+    // a blank CHANGELOG.md touch beside a blank fragment -> exit 1 naming both.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-blank-head');
+      f.bump();
+      writeFileSync(join(f.pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.0.0\n- initial.\n\n');
+      writeFileSync(join(f.pluginDir, FRAGMENT), '- Added the thing.\n');
+      check('check-plugin-bump: a blank CHANGELOG.md touch beside a real fragment exits 0', f.finish('blank head plus fragment').status === 0);
+      const g = mkFragmentFixture('check-plugin-bump-fragment-both-blank');
+      g.bump();
+      writeFileSync(join(g.pluginDir, 'CHANGELOG.md'), '# demo-plugin changelog\n\n## 1.0.0\n- initial.\n\n');
+      writeFileSync(join(g.pluginDir, FRAGMENT), '\n');
+      const r2 = g.finish('blank head plus blank fragment');
+      check('check-plugin-bump: a blank CHANGELOG.md touch beside a blank fragment exits 1 naming both', r2.status === 1 && r2.stderr.includes('CHANGELOG.md touched but adds no non-blank line') && r2.stderr.includes('adds no non-blank line — a fragment'));
+    }
+
+    // O. a plugin edit with no bump, no changelog, and no fragment still fails closed. The
+    // missing-base skip (case C above) stays the only fail-open path.
+    {
+      const f = mkFragmentFixture('check-plugin-bump-fragment-failopen');
+      writeFileSync(join(f.pluginDir, 'other.md'), 'edited\n');
+      const r = f.finish('edit without bump, changelog, or fragment');
+      check('check-plugin-bump: a plugin edit with no bump, changelog, or fragment still exits 1', r.status === 1);
+    }
+
+    // P. bump-plugin-version.mjs --fragment bumps both manifests and leaves CHANGELOG.md alone.
+    {
+      const caseDir = join(work, 'bump-fragment-flag');
+      const scriptPath = copyScript('bump-plugin-version.mjs', join(caseDir, 'scripts'));
+      const pluginDir = join(caseDir, 'plugins', 'demo-plugin');
+      mkdirSync(join(pluginDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(caseDir, '.claude-plugin'), { recursive: true });
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), '{\n  "name": "demo-plugin",\n  "version": "1.2.3"\n}\n');
+      writeFileSync(join(caseDir, '.claude-plugin', 'marketplace.json'), '{\n  "plugins": [\n    {\n      "name": "demo-plugin",\n      "version": "1.2.3"\n    }\n  ]\n}\n');
+      const changelog = '# demo-plugin changelog\n\n## 1.2.3\n- initial.\n';
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), changelog);
+      const r = run(scriptPath, ['demo-plugin', 'minor', '--fragment']);
+      check('bump-plugin-version: --fragment bump exits 0 and moves both versions', r.status === 0
+        && readFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8').includes('"1.3.0"')
+        && readFileSync(join(caseDir, '.claude-plugin', 'marketplace.json'), 'utf8').includes('"1.3.0"'));
+      check('bump-plugin-version: --fragment leaves CHANGELOG.md byte-identical (no stub)', readFileSync(join(pluginDir, 'CHANGELOG.md'), 'utf8') === changelog && r.stdout.includes('changelog.d/<slug>.md'));
+      check('bump-plugin-version: an unknown flag still exits 2', run(scriptPath, ['demo-plugin', 'minor', '--bogus']).status === 2);
+    }
+  }
+
+  // ================================================================================
+  // 1e3. changelog-fragments.mjs — the one rule that folds fragments into a changelog. Folding is
+  // idempotent and the dist render equals the assembled file, so --check holds before and after.
+  // ================================================================================
+  {
+    const frag = await import(pathToFileURL(join(SCRIPTS_DIR, 'changelog-fragments.mjs')).href);
+    const head = '# Changelog\n\nIntro.\n\n';
+    const old = '## 1.0.0\n- Older.\n';
+    check('changelog-fragments: no fragment (or only blank ones) returns the text unchanged',
+      frag.assembleChangelog(head + old, [], '1.1.0') === head + old && frag.assembleChangelog(head + old, ['\n \n'], '1.1.0') === head + old);
+    const folded = frag.assembleChangelog(head + old, ['- A.\n', '- B.\n'], '1.1.0');
+    check('changelog-fragments: fragments become a new section above the first existing one, in order',
+      folded === `${head}## 1.1.0\n- A.\n- B.\n\n${old}`);
+    check('changelog-fragments: an assembled changelog renders to itself (stable before and after assembly)',
+      frag.assembleChangelog(folded, [], '1.1.0') === folded);
+    const headed = `${head}## 1.1.0\n- Head entry.\n\n${old}`;
+    check('changelog-fragments: with a "## <version>" section present, fragments join the end of that section',
+      frag.assembleChangelog(headed, ['- A.\n'], '1.1.0') === `${head}## 1.1.0\n- Head entry.\n- A.\n\n${old}`);
+    check('changelog-fragments: a final section takes fragments before its trailing newline',
+      frag.assembleChangelog('# C\n\n## 1.1.0\n- Head.\n', ['- A.\n'], '1.1.0') === '# C\n\n## 1.1.0\n- Head.\n- A.\n');
+    check('changelog-fragments: a changelog with no sections gets one appended',
+      frag.assembleChangelog('# C\n', ['- A.\n'], '1.1.0') === '# C\n\n## 1.1.0\n- A.\n');
+    check('changelog-fragments: the changelog keeps its CRLF line endings',
+      frag.assembleChangelog((head + old).replace(/\n/g, '\r\n'), ['- A.\n- B.\n'], '1.1.0') === folded.replace(/\n/g, '\r\n'));
+    check('changelog-fragments: FRAGMENT_PATH_RE matches one file directly under changelog.d/ only',
+      frag.FRAGMENT_PATH_RE.test('plugins/rigor/changelog.d/x.md') && !frag.FRAGMENT_PATH_RE.test('plugins/rigor/changelog.d/sub/x.md')
+      && !frag.FRAGMENT_PATH_RE.test('plugins/rigor/changelog.d/x.txt') && !frag.FRAGMENT_PATH_RE.test('codex-marketplace/plugins/rigor/changelog.d/x.md'));
+    const fragDir = join(work, 'frag-read');
+    mkdirSync(join(fragDir, 'changelog.d'), { recursive: true });
+    writeFileSync(join(fragDir, 'changelog.d', 'b.md'), '- B.\r\n');
+    writeFileSync(join(fragDir, 'changelog.d', 'a.md'), '- A.\n');
+    writeFileSync(join(fragDir, 'changelog.d', 'note.txt'), 'ignored\n');
+    check('changelog-fragments: readFragments returns the .md files sorted by name with LF endings',
+      JSON.stringify(frag.readFragments(fragDir)) === JSON.stringify([{ name: 'a.md', body: '- A.\n' }, { name: 'b.md', body: '- B.\n' }])
+      && frag.readFragments(join(work, 'no-such-dir')).length === 0);
+  }
+
+  // ================================================================================
   // 1f. integrate-branch.mjs — pure, git-free exports only (parseWorkflowJobSteps,
   // classifyStep, selectSteps, pluginNeedsBump, integrationLinks). Everything else in that script shells out
   // to git and to the real gate/build scripts, which is what its --dry-run smoke run
@@ -544,6 +711,11 @@ try {
       mod.replaceChangelogStub(changelog, '- **Fixed** - the thing.\n') === '# Changelog\n\n## 1.2.0\n- **Fixed** - the thing.\n\n## 1.1.0\n- Older.\n');
     check('integrate-branch: replaceChangelogStub returns null when no stub remains (idempotent re-run)',
       mod.replaceChangelogStub('# Changelog\n\n## 1.2.0\n- Done.\n', '- X.\n') === null);
+    // --changelog writes plugins/<plugin>/changelog.d/<slug>.md, named for the branch.
+    check('integrate-branch: fragmentSlug turns a topic branch into a file-safe name',
+      mod.fragmentSlug('eng/Changelog Fragments') === 'eng-changelog-fragments' && mod.fragmentSlug('eng/x.y_z') === 'eng-x.y_z');
+    check('integrate-branch: fragmentSlug refuses a branch that names no topic',
+      ['', 'HEAD', 'main', 'master', '///', null, undefined].every((b) => mod.fragmentSlug(b) === null));
     check('integrate-branch: replaceChangelogStub gives the entry the file\'s CRLF line endings',
       mod.replaceChangelogStub(changelog.replace(/\n/g, '\r\n'), '- A.\n- B.\n').includes('- A.\r\n- B.\r\n\r\n## 1.1.0'));
   }

@@ -100,7 +100,8 @@
 //  28. A SKILL.md whose body mentions CONVENTIONS.md carries the exact sentence in
 //      CONVENTIONS_READ_BOUND, so a skill never loads the whole file by default.
 //  29. Every plugins/<plugin>/CHANGELOG.md is free of the bump script's `**TODO**` placeholder
-//      line and never repeats a `## <version>` heading, so an unwritten stub cannot ship.
+//      line and never repeats a `## <version>` heading, so an unwritten stub cannot ship. Every
+//      plugins/<plugin>/changelog.d/*.md fragment holds a non-blank line and no `**TODO**` line.
 //  30. Every bundled agent's optional frontmatter `effort:` value, when present, is one of
 //      low | medium | high — xhigh and max are lead-only dials, never a subagent's declared
 //      floor (the operator's effort cap for every dispatched subagent).
@@ -1002,6 +1003,17 @@ function checkConventionsReadBound({ plugins }) {
 // ---- 29. CHANGELOG placeholders and duplicate version headings ----------------------
 function checkChangelogs({ plugins }) {
   for (const p of plugins) {
+    const fragmentDir = join(p.dir, 'changelog.d');
+    if (existsSync(fragmentDir)) {
+      for (const entry of readdirSync(fragmentDir, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.md')).sort((a, b) => a.name.localeCompare(b.name))) {
+        const fragment = join(fragmentDir, entry.name);
+        const lines = readText(fragment).split(/\r?\n/);
+        if (lines.every((line) => line.trim() === '')) fail(`${rel(fragment)}: empty changelog fragment — write the change description`);
+        lines.forEach((line, i) => {
+          if (/^\s*-\s*\*\*TODO\*\*/.test(line)) fail(`${rel(fragment)}:${i + 1}: placeholder "**TODO**" line — write the real change description`);
+        });
+      }
+    }
     const path = join(p.dir, 'CHANGELOG.md');
     if (!existsSync(path)) continue;
     const seen = new Set();

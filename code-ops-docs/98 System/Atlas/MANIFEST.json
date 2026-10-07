@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "1b16b433a18ec842d6c9845c8d1b5878b45ed2d6",
+      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -364,17 +364,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 953,
+          "line": 954,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1529,
+          "line": 1541,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1539,
+          "line": 1551,
           "anchor": "function checkDocsStandardsAlignment() {"
         },
         {
@@ -384,7 +384,7 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 454,
+          "line": 455,
           "anchor": "function checkScriptDomains() {"
         },
         {
@@ -394,17 +394,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 126,
+          "line": 127,
           "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 127,
+          "line": 128,
           "anchor": "import { LAYOUT, layoutPath } from './layout-manifest.mjs';"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 821,
+          "line": 822,
           "anchor": "function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {"
         },
         {
@@ -499,7 +499,7 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 298,
+          "line": 317,
           "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
@@ -769,12 +769,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 547,
+          "line": 566,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 574,
+          "line": 593,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -874,17 +874,17 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 361,
+          "line": 362,
           "anchor": "['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe bou"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 355,
+          "line": 356,
           "anchor": "['routing-card.mjs', 'prints the routing card at session start, the compaction s"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 356,
+          "line": 357,
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
@@ -936,9 +936,24 @@
           "file": "scripts/co.mjs",
           "line": 95,
           "anchor": "distill: 'distill-check.mjs',"
+        },
+        {
+          "file": "scripts/changelog-fragments.mjs",
+          "line": 19,
+          "anchor": "export const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
+        },
+        {
+          "file": "scripts/changelog-fragments.mjs",
+          "line": 37,
+          "anchor": "export function assembleChangelog(text, bodies, version) {"
+        },
+        {
+          "file": "scripts/check-plugin-bump.mjs",
+          "line": 89,
+          "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "46a533be3b38548963ba9b719222fb9aa5aaab696685b7aed99716a0a78e68e7"
+      "verifiedDigest": "e2fdcd2949e11da5ef335c360520fd98043d6cbbb5f10774a61ace55802d622c"
     },
     {
       "slug": "evals-and-calibration",
@@ -946,8 +961,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "aa504892bd7a6d7a8780de156de54fae4445eb67",
-      "verifiedDigest": "be1a8bb6ac5bdf576b5cdc111090c6bd30111579f36d5448496c903302bc0ddf",
+      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
+      "verifiedDigest": "5b75315b30f0a8f9278e80198580e472bdf24475f10473a6016de5564d97102a",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1289,11 +1304,11 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5eb51032956923beff50ae5acae893a7b7d73984",
+      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 583,
+          "line": 586,
           "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
         },
         {
@@ -1318,12 +1333,12 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 252,
+          "line": 253,
           "anchor": "function codexRungMap() {"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 260,
+          "line": 261,
           "anchor": "function codexRoutingInstruction() {"
         },
         {

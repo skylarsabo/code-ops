@@ -25,6 +25,7 @@
     "calibration-graph.mjs": "calibration",
     "calibration-metrics.mjs": "calibration",
     "change-feed.mjs": "program",
+    "changelog-fragments.mjs": "release",
     "check-action-pins.mjs": "gates",
     "check-autofix-scope.mjs": "gates",
     "check-doc-citations.mjs": "gates",

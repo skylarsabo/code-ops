@@ -5,12 +5,16 @@
 //   node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...
 //                                      [--changelog <plugin>=<file>]... [--full] [--dry-run] [--jobs <n>]
 //
-// --changelog <plugin>=<file> (repeatable, one per plugin) replaces the TODO stub the bump script
-// leaves in that plugin's CHANGELOG.md with the file's text, inside step 1, before the host
-// distributions regenerate. Those distributions copy the changelog, so authoring it afterwards
-// would change scoped bytes after the docs manifest sync and the atlas stamp. The file is the
-// stub's replacement: bullets only, no "## <version>" heading. An empty file, one that still holds
-// **TODO**, or an unreadable one exits 2 before any write. A changelog with no stub is left alone.
+// --changelog <plugin>=<file> (repeatable, one per plugin) writes the file's text as a NEW changelog
+// fragment, plugins/<plugin>/changelog.d/<branch-slug>.md, inside step 1, before the host
+// distributions regenerate. The bump runs with --fragment, so CHANGELOG.md is never edited and two
+// PRs never share a changelog line. The Codex distribution renders the fragment with the changelog,
+// so authoring it afterwards would change scoped bytes after the docs manifest sync and the atlas
+// stamp. The file is bullets only, no "## <version>" heading. The slug is the current branch name
+// (a detached HEAD, main, or master exits 2). An empty file, one that still holds **TODO**, or an
+// unreadable one exits 2 before any write. A plugin whose CHANGELOG.md still carries the bump
+// script's TODO stub (an earlier bump without --changelog) has that stub replaced instead, so no
+// placeholder outlives the run. A re-run rewrites the same fragment.
 //
 // Default --base is origin/main. Steps, in order:
 //   1. Plugin version bump - any plugins/<name>/ path in the changed set whose version still
@@ -61,7 +65,7 @@
 // invocation.
 
 import { execFile, execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { availableParallelism } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -167,14 +171,29 @@ export function replaceChangelogStub(text, entry) {
   return text.replace(TODO_STUB, () => body);
 }
 
-function applyChangelogEntry(name, entry, dryRun, log) {
+// The fragment file name for a branch: lowercase, every run of characters outside [a-z0-9._-]
+// becomes one "-", edge dashes and dots dropped. Returns null for a branch that names no topic
+// (empty, detached HEAD, main, master), so two PRs never share one fragment name. Pure.
+export function fragmentSlug(branch) {
+  const slug = String(branch ?? '').toLowerCase().replace(/[^a-z0-9._-]+/g, '-').replace(/^[-.]+|[-.]+$/g, '');
+  return slug === '' || ['head', 'main', 'master'].includes(slug) ? null : slug;
+}
+
+function applyChangelogEntry(name, entry, slug, dryRun, log) {
   const abs = join(ROOT, 'plugins', name, 'CHANGELOG.md');
   const text = existsSync(abs) ? readFileSync(abs, 'utf8') : '';
   const next = replaceChangelogStub(text, entry);
-  if (next === null) { log(`  ${name}: CHANGELOG.md has no TODO stub, so --changelog is left unapplied (idempotent re-run)`); return; }
-  if (dryRun) { log(`  would replace the ${name} CHANGELOG.md TODO stub - --dry-run, not writing`); return; }
-  writeFileSync(abs, next);
-  log(`  replaced the ${name} CHANGELOG.md TODO stub with the --changelog entry`);
+  if (next !== null) {
+    if (dryRun) { log(`  would replace the ${name} CHANGELOG.md TODO stub - --dry-run, not writing`); return; }
+    writeFileSync(abs, next);
+    log(`  replaced the ${name} CHANGELOG.md TODO stub with the --changelog entry`);
+    return;
+  }
+  const fragmentRel = `plugins/${name}/changelog.d/${slug}.md`;
+  if (dryRun) { log(`  would write ${fragmentRel} - --dry-run, not writing`); return; }
+  mkdirSync(join(ROOT, 'plugins', name, 'changelog.d'), { recursive: true });
+  writeFileSync(join(ROOT, ...fragmentRel.split('/')), `${entry.replace(/\r\n/g, '\n').trim()}\n`);
+  log(`  wrote ${fragmentRel}`);
 }
 
 function todoStub(name) {
@@ -220,7 +239,7 @@ function planBump(base, changed) {
   return plan;
 }
 
-function runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log }) {
+function runBumpStep({ base, changed, bumpMap, changelogMap, slug, dryRun, log }) {
   const plan = planBump(base, changed);
   const result = { failed: [], bumped: [], skippedAlreadyBumped: [], judgmentItems: [] };
   if (plan.touched.length === 0) { log('  no plugins/<name>/ paths in the changed set.'); return result; }
@@ -240,7 +259,7 @@ function runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log }) {
     if (dryRun) { log(`  would bump ${name} (${spec}) - --dry-run, not writing`); result.bumped.push(name); continue; }
     const script = join(ROOT, 'scripts', 'bump-plugin-version.mjs');
     try {
-      const out = execFileSync(process.execPath, [script, name, spec], { cwd: ROOT, encoding: 'utf8', timeout: 20000 });
+      const out = execFileSync(process.execPath, [script, name, spec, ...(changelogMap.has(name) ? ['--fragment'] : [])], { cwd: ROOT, encoding: 'utf8', timeout: 20000 });
       for (const line of out.trim().split('\n')) log(`    ${line}`);
       result.bumped.push(name);
     } catch (e) {
@@ -250,7 +269,7 @@ function runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log }) {
   }
 
   for (const [name, entry] of changelogMap) {
-    if (plan.touched.includes(name)) applyChangelogEntry(name, entry, dryRun, log);
+    if (plan.touched.includes(name)) applyChangelogEntry(name, entry, slug, dryRun, log);
     else { log(`  x --changelog names ${name}, which has no plugins/${name}/ path in the changed set`); result.failed.push(name); }
   }
 
@@ -620,6 +639,11 @@ async function main() {
     if (problem) { console.error(`x --changelog ${m[1]}=${m[2]} ${problem}`); process.exit(2); }
     changelogMap.set(m[1], entry);
   }
+  let slug = null;
+  if (changelogMap.size > 0) {
+    slug = fragmentSlug(gitTry(['rev-parse', '--abbrev-ref', 'HEAD']).out.trim());
+    if (slug === null) { console.error('x --changelog needs a topic branch: its name becomes the fragment file name (not main, master, or a detached HEAD)'); process.exit(2); }
+  }
   if (!gitTry(['rev-parse', '--verify', '--quiet', `${base}^{commit}`]).ok) {
     console.error(`x --base ${base} does not resolve to a commit`);
     process.exit(2);
@@ -638,7 +662,7 @@ async function main() {
   const judgmentItems = [];
 
   console.log('\n== step 1: plugin version bump ==');
-  const bumpResult = runBumpStep({ base, changed, bumpMap, changelogMap, dryRun, log: (l) => console.log(l) });
+  const bumpResult = runBumpStep({ base, changed, bumpMap, changelogMap, slug, dryRun, log: (l) => console.log(l) });
   if (bumpResult.failed.length) anyFailed = true;
   judgmentItems.push(...bumpResult.judgmentItems);
 
