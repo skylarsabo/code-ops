@@ -309,6 +309,9 @@ jobs:
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs
 
+      - name: Standards alignment eval
+        run: node evals/docs-alignment/run.mjs
+
       - name: Release-tooling eval
         run: node evals/release-tooling/run.mjs
 
@@ -588,6 +591,9 @@ jobs:
 
       - name: Lint-gate fixture eval
         run: node evals/lint-plugins/run.mjs
+
+      - name: Standards alignment eval
+        run: node evals/docs-alignment/run.mjs
 
       - name: Doc-citation checker eval
         run: node evals/doc-citations/run.mjs
