@@ -367,7 +367,8 @@ its oracle, required proof, blocking state, and acceptance owner. A unit has a s
 tier, effort, short brief, scope, artifact, dependencies, and linked criteria.
 Version 4 units also declare `validates` and `independentOf` relationships. Task-based units
 also declare `routingRationale`; a frontier peer adds `peerException` with class, rationale,
-and stopping criterion.
+and stopping criterion. A version 4 unit may also record an optional `size` (`S`, `M`, or `L`)
+and `roundBudget`; the work kind is one of the contract kinds that `route-unit.mjs` derives.
 
 The compiler rejects unknown keys, stale HEADs, invalid routing, dependency cycles,
 overlapping same-wave writes, undeclared criteria, and budgets smaller than the graph.

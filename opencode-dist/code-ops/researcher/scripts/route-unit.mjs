@@ -26,6 +26,43 @@ import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS, TIER_ORDER } from './model-tiers.mjs
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 export const KINDS = ['breadth', 'mechanical-read', 'mechanical-edit', 'gate-run', 'execution', 'judgment', 'review', 'refutation', 'peer'];
+
+// The kind a run contract records for each route kind. This table is the one source of unit kinds:
+// run-contract.mjs derives its accepted set from it. A contract keeps one kind for the three
+// mechanical route kinds, because they share one effort ceiling and no contract floor, and keeps
+// `judgment` for a peer, because a peer without the Run Contract exception routes as judgment.
+export const CONTRACT_KIND_OF = {
+  breadth: 'breadth',
+  'mechanical-read': 'mechanical',
+  'mechanical-edit': 'mechanical',
+  'gate-run': 'mechanical',
+  execution: 'execution',
+  judgment: 'judgment',
+  review: 'review',
+  refutation: 'refutation',
+  peer: 'judgment',
+};
+export const CONTRACT_KINDS = [...new Set(Object.values(CONTRACT_KIND_OF))];
+
+// Unit sizes a brief or a contract unit may record, and the round budget each defaults to. Every
+// size defaults to the dispatch guard's 40-round fallback, because no unit has recorded a size
+// yet (MEASUREMENTS.md, registry rows P12-M1b and P12-M1d), so the data cannot justify a
+// different number per size. A measured median replaces a `null` in SIZE_MEDIAN_ROUNDS and the
+// default for that size in one edit; until then budgetAdvisory stays silent.
+export const UNIT_SIZES = ['S', 'M', 'L'];
+export const DEFAULT_ROUND_BUDGET = 40;
+export const SIZE_ROUND_BUDGET = Object.fromEntries(UNIT_SIZES.map((size) => [size, DEFAULT_ROUND_BUDGET]));
+export const SIZE_MEDIAN_ROUNDS = Object.fromEntries(UNIT_SIZES.map((size) => [size, null]));
+
+// The advisory text when a declared round budget sits below the measured median for its size, or
+// null. It never denies: the median is an observation, and a smaller budget can be deliberate.
+export function budgetAdvisory(size, budget, medians = SIZE_MEDIAN_ROUNDS) {
+  const median = Object.hasOwn(medians, size) ? medians[size] : null;
+  return Number.isFinite(median) && Number.isFinite(budget) && budget < median
+    ? `Round budget ${budget} is below the measured median of ${median} rounds for size ${size}`
+    : null;
+}
+
 export const AMBIGUITIES = ['low', 'medium', 'high'];
 export const SURFACES = ['none', 'security', 'egress', 'migration', 'public-contract', 'gate-script'];
 // Dispatch rungs, weakest first. `premium` sits between strong and frontier for routing, but it

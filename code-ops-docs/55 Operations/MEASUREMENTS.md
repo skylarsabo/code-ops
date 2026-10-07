@@ -798,6 +798,53 @@ Four rules bind every entry:
 - **Decision rule.** The CI step "M5 gate ratchet" fails when a count falls below the stored
   baseline. A lower count enters only through a reviewed edit of the baseline file.
 
+### Round budgets and report shape
+
+The baselines below come from the D-016 report, `80 Runs/2026-10-07-program-build/reports/D-016.md`.
+No unit recorded a size before P12-BudgetSize, so no per-size median exists. Every size defaults
+to the dispatch guard's 40-round fallback, and the budget advisory in `scripts/route-unit.mjs`
+stays silent until P12-M1d fills a median.
+
+**P12-M1a report presence.**
+
+- **Source and owner.** Ledger rows that name an artifact whose file exists and is nonempty, over
+  all ledger rows that name an artifact. The agent ledger and the run folders are the source. The
+  implementer owns it (P12-BudgetSize).
+- **Baseline.** 65 of 83 raw, for 2026-08-18 to 2026-09-27 across 21 run folders (D-016). Most of
+  the 17 misses are review files in subfolders the resolver skipped, so the raw rate understates
+  presence.
+- **Decision rule.** This rate informs only. Report failures are rare, so a deny gate on a missing
+  report buys little (D-016). No threshold is set.
+
+**P12-M1b round-budget stop.**
+
+- **Source and owner.** Units whose report shows a stop phrase and a unit id, over listed units.
+  The run-folder reports are the source. The implementer owns it (P12-BudgetSize).
+- **Baseline.** 9 of 157, for 2026-08-18 to 2026-10-07 (D-016). It is an upper bound, because the
+  CHECKPOINT and "reached the" phrases over-match. All 9 stops sit in the two newest run folders.
+- **Decision rule.** A rise after the size defaults ship goes to the operator. Set the per-size
+  budgets from P12-M1d, never from this count.
+
+**P12-M1c agent terminal failure.**
+
+- **Source and owner.** Agent ledger units with a failed or no terminal row, over dispatched units.
+  The agent ledger is the source. The implementer owns it (P12-BudgetSize).
+- **Baseline.** 9 of 1419, for the agent ledger 2026-09-30 to 2026-10-06 (D-016). Of the 9, 5 are
+  failures, and all 5 are lead stops or superseded results.
+- **Decision rule.** This rate informs only. A threshold, if one is ever wanted, is set from the
+  first window after the size defaults ship.
+
+**P12-M1d median rounds per recorded size.**
+
+- **Source and owner.** The rounds each operative report states, grouped by the unit `size` in
+  `RUN_CONTRACT.json` (S, M, or L). The implementer owns it (P12-BudgetSize).
+- **Baseline.** None. No unit has recorded a size, so no median exists, and `SIZE_MEDIAN_ROUNDS`
+  holds `null` for each size.
+- **Decision rule.** After the first window with at least one recorded unit per size, set each
+  size's `SIZE_MEDIAN_ROUNDS` and `SIZE_ROUND_BUDGET` value from that size's median, in one edit
+  with a dated amendment here. Until then every size keeps the 40-round default, and
+  `budgetAdvisory` returns no advisory.
+
 ### Quality ratchet
 
 **R1 lapse rate.**
