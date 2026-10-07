@@ -1,7 +1,7 @@
 ---
 type: design
 status: draft
-updated: 2026-09-03
+updated: 2026-10-07
 tags:
   - design
   - roadmap
@@ -37,6 +37,25 @@ The suite is production-ready for single-repo adoption. The gaps cluster in thre
 8. **Calibration lesson export.** Lessons stay in the graph. A sanitized lesson library, holding counts and classes and no internals, could seed other installations.
 9. **Vault adoption is optional.** `conform` reports ABSENT, and nothing requires a vault. Decide whether to require one or keep the report advisory.
 10. **Atlas and vault freshness are two mechanisms.** Both cache judgment under different staleness models. A unified freshness check is worth a design pass, not a merge by default.
+
+## Gap table
+
+One row per ranked gap, in the same order. Status reads `open`, `partial`, or `shipped`, set from the tree on 2026-10-07: a script that exists, or a merged change that closed the gap. Friction holds a short measured note, or `-` while no measure exists. `scripts/churn.mjs` reports the circling measures and is the source for any number entered here.
+
+| Id | Gap | Status | Friction |
+| --- | --- | --- | --- |
+| G1 | Multi-repo orchestration | partial: `scripts/check-fleet.mjs` and the `conform` fleet mode ship, cross-repo deduplication open | - |
+| G2 | Tier floors on a host that ignores agent frontmatter | partial: `scripts/preflight.mjs` prints each floor, no mechanical carrier | - |
+| G3 | Pre-run cost estimation | shipped: `scripts/estimate-run-cost.mjs` | - |
+| G4 | Partial-plugin adoption paths | open | - |
+| G5 | Standards propagation | shipped: the `conform` fleet mode | - |
+| G6 | Audit-trail generation | open | - |
+| G7 | CI host coverage | open | - |
+| G8 | Calibration lesson export | open | - |
+| G9 | Vault adoption is optional | open: needs a decision | - |
+| G10 | Atlas and vault freshness are two mechanisms | open: needs a design pass | - |
+
+A pull request that advances a gap links its row in the body, either as `Gap: G4` (a comma list names several) or as `[[Suite direction 2026-08#G4]]`. `scripts/check-gap-link.mjs` reads the body in CI. A body with no link, or a link to an id this table lacks, gets an advisory note and never fails the run. Update the row's Status in the pull request that changes it.
 
 ## Innovation directions worth building
 
