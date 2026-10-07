@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.60.0
+- The `implementer` agent declares `effort: medium` instead of `high`. A paired replay of four merged PRs, one sample per arm, finished three of four with passing gates at medium against two of four at high, with 18% fewer output tokens. The priced saving was about 5%, because the medium arms made more requests. A judgment unit still routes to high, and the brief's `Effort:` line with a matching Agent `effort` delivers it. The `subagent-trade-offs.md` routing table matches.
+- The dispatch guard reads the Agent call's own `effort` (CLI 2.1.292 and later) as the effort the dispatch runs at, and falls back to the frontmatter effort when the call passes none. A brief `Effort` above that effort still denies, and the denial now points to the Agent `effort` input as well as to Workflow `agent()`. An Agent `effort` other than low, medium, or high denies. The dispatch-guard eval adds four cases, and its implementer calls pass `effort: 'high'` for their judgment brief.
+
 ## 2.59.0
 - `records.mjs` writes a random `lease.nonce` file into the collection mutation lock at acquisition and makes it part of the lock identity, beside the device and inode. A filesystem such as ext4 can give a removed and recreated directory the same inode, and stale-recovery restore copies `owner.json` with its token. Before this change, such a replacement passed as the original lease and the "durable mutation completed ... do not retry" path never fired. A lock from an older version carries no nonce, and stale recovery still compares it by device and inode.
 - The record-collections eval adds a same-inode case. It refills the lock directory in place with the same token, so it reproduces inode reuse on every platform and fails against the previous library. The remove-and-recreate case now passes whatever inode the filesystem assigns.
