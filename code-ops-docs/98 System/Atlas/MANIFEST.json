@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -809,7 +809,7 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 874,
+          "line": 919,
           "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
         },
         {
@@ -953,7 +953,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "e2fdcd2949e11da5ef335c360520fd98043d6cbbb5f10774a61ace55802d622c"
+      "verifiedDigest": "c0e687fef600d4df9e3aa64b00651b2dfc2e368f50d168c5bae0aa3b41309e45"
     },
     {
       "slug": "evals-and-calibration",
@@ -961,8 +961,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
-      "verifiedDigest": "5b75315b30f0a8f9278e80198580e472bdf24475f10473a6016de5564d97102a",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
+      "verifiedDigest": "0f1941c7536f634ea8492d22d48d269a0b958aeb8a4bca30a083a0d45b6d6ff5",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1056,12 +1056,12 @@
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 136,
+          "line": 138,
           "anchor": "${c.name}: still passes with the ladder filter removed (${JSON.stringify(bound(m"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 206,
+          "line": 310,
           "anchor": "${c.name}: still denied with assertDispatchModel removed (${String(mutant.denied"
         },
         {
@@ -1304,7 +1304,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "66ac6aee7146737e608fc176fa3421e947cbd4a4",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1413,11 +1413,11 @@
         },
         {
           "file": "opencode-dist/plugins/code-ops-lifecycle.js",
-          "line": 87,
+          "line": 88,
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "5974c4d9244cfd48b30c16d0a4dc9bed539f10c87534f28b272a5c9ebe9195a1"
+      "verifiedDigest": "ba15e12832c09a1323434a186e4fd3bd75c4407377c789d9a2b7e51093035d46"
     },
     {
       "slug": "ci-workflows",
@@ -1520,7 +1520,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5eb51032956923beff50ae5acae893a7b7d73984",
+      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1597,7 +1597,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "9f5fc60895957bf2c43cff1451a63af081c796e147933fc0d333ce80a70c0078"
+      "verifiedDigest": "56346aae1e4e1d3d05150acf481b84a659cef2835491767403fadbf9ce078923"
     },
     {
       "slug": "root-contracts",
