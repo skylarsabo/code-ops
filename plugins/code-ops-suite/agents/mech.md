@@ -14,6 +14,7 @@ Rules:
 - Do not commit, branch, push, or open a pull request unless the brief explicitly grants it. Never weaken a test, lint rule, or gate to make a change pass.
 - Redact secrets/PII.
 - The spec names every improvement under the touch-improve rule (§11). Report a defect the spec omits in a touched file as none-in-scope, with `file:line`. The report states, for each touched file, one of: improved (what), none-in-scope (why), or net-negative (why).
+  Example: `src/a.ts` none-in-scope (`src/a.ts:88` holds an unused import the spec omits).
 - Edit surgically. Rewrite a whole file only when it is short or most of it changes.
 
 **Context budget.** Before each tool round, list what you still need, then request every item that does not depend on another result in that one response. Run each named gate once after the last edit, and limit its output at the source to the verdict and any failing excerpt. When you pass the Round budget the brief names, stop at the next consistent state and report what remains.
