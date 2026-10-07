@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "ca98e03f107092f8ac42032c57a834c53cb664a7",
+      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -57,7 +57,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 168,
+          "line": 170,
           "anchor": "// HOST CONTRACT (confirmed against the installed host 2.1.276 bundle, byte offs"
         },
         {
@@ -112,18 +112,23 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 216,
+          "line": 218,
           "anchor": "// controller binding instead fails closed for that id: it must never silently g"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 225,
+          "line": 227,
           "anchor": "import { agentFile } from './agent-file.mjs';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 928,
-          "anchor": "async function reviewWorkflow(script, denials, advisories, sessionId) {"
+          "line": 963,
+          "anchor": "async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 946,
+          "anchor": "function reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, adviso"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -132,17 +137,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 798,
+          "line": 801,
           "anchor": "async function ceilingGate(payload) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1263,
+          "line": 1303,
           "anchor": "${skeleton.join('\\n')}\\n${prose}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1089,
+          "line": 1128,
           "anchor": "function routeChecks(libs, input, type, prompt, sessionId, denials, advisories)"
         },
         {
@@ -152,7 +157,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 504,
+          "line": 506,
           "anchor": "let emitted = false;"
         },
         {
@@ -162,7 +167,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 514,
+          "line": 516,
           "anchor": "const GATES = ["
         },
         {
@@ -237,7 +242,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1218,
+          "line": 1257,
           "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
         },
         {
@@ -336,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "2844dbf3cb568b115a6c97e47c6ea07f72d2bf5a0ab48d06b111989d15b4718c"
+      "verifiedDigest": "9aee3771cca7e5336ffd598de18898b89abaa99f181d9951f02b51504cc8ee38"
     },
     {
       "slug": "gate-scripts",
@@ -941,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "ca98e03f107092f8ac42032c57a834c53cb664a7",
-      "verifiedDigest": "58d2beb632155d0b61f0ce2d63ff1936168f091a2e822c3f860cff10e6b3d814",
+      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
+      "verifiedDigest": "e9d8a29a3da18500da50eeccdd75fbeb293e1f03dfabd90b67241a3ef7fc5bfa",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1131,7 +1136,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 805,
+          "line": 852,
           "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
@@ -1264,7 +1269,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "ca98e03f107092f8ac42032c57a834c53cb664a7",
+      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1348,7 +1353,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 504,
+          "line": 506,
           "anchor": "let emitted = false;"
         },
         {
@@ -1377,7 +1382,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "c30ed5beb151f2af5b1243b8f7e26c06d1300dea0d9cdef4bac8d26e9b100dd9"
+      "verifiedDigest": "bf869aa4c54647f71f51cc072d52969df2f6fc0908210a7cd2896da2217fb155"
     },
     {
       "slug": "ci-workflows",
@@ -1480,7 +1485,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ca98e03f107092f8ac42032c57a834c53cb664a7",
+      "verifiedAt": "274f33492445a557ee74f67c4ff94d1e80205f82",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1557,7 +1562,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "b42d9f78dfe9130096edf5d52c2f74b404e543da57993b699ed5569c0d4798f6"
+      "verifiedDigest": "e6e45c7674ebcab59d0039a4ea47360aaa12f894e4cd5e22d5f39e464e90454b"
     },
     {
       "slug": "root-contracts",

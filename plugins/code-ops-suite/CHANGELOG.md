@@ -4,10 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
-## 2.55.0
+## 2.56.0
 - New `compliance` subcommand of `context-audit.mjs` counts, from the two supported transcript formats, operator prompts, dispatch calls by tool, guard denials, Workflow launches with and without a Run-contract line, briefs without a `Round budget` line, and authority-bearing shell commands (`git push`, `gh pr create`, `gh pr merge`, `gh release`). It prints counts and ids only, never prompt, command, brief, or result text. Subagent threads, unreadable files, and transcripts of the other hosts are counted apart as skipped. Flags: `--json`, `--out`, `--session`, `--host`, `--all`.
 - `context-audit.mjs` now runs its command line only when invoked as a script, and exports the pure counting helpers, so the eval imports them. The eval pins `RUN_CONTRACT_LINE` to the dispatch guard's literal and fails when the two differ.
 - The `context-audit` eval gains fixtures for both formats with a seeded sentinel string that must never appear in any output. MEASUREMENTS.md pre-registers three compliance rows with decision rules fixed before data.
+
+## 2.55.0
+- The dispatch guard adds one advisory for a `Workflow` script that makes two or more `agent()` calls, or any call it cannot read, and has no readable `Run contract: <path>` line. The line may be bare or in a comment. The path resolves against the session directory and must name a JSON file with a non-empty `runId`. The note gives the call count against a guideline of 10 and how many calls set no effort. It never denies, and a script the guard cannot parse skips it.
+- A `Workflow` decision row gains a `contract` flag, true when the script carries a `Run contract:` line, and the gate table gains the `workflow-contract` id. The dispatch-guard eval covers the advisory, the silent forms, each bad-path case, and the row flag. CONTRACTS.md describes the advisory.
 
 ## 2.54.0
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry short examples of the touch-improve outcomes. The ship text shows improved, none-in-scope, and net-negative report lines, and says the reviewer reports a net-negative file as Should-fix. Each agent carries one example sized to its role.
