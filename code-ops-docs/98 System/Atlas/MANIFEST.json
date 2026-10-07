@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "02f3cd9362da4bec26f44ca743c8bceeff18846b",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -339,17 +339,27 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 946,
+          "line": 951,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1522,
+          "line": 1527,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 449,
+          "line": 1537,
+          "anchor": "function checkDocsStandardsAlignment() {"
+        },
+        {
+          "file": "scripts/check-docs-standards-alignment.mjs",
+          "line": 48,
+          "anchor": "export function checkDocsStandards(root) {"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 454,
           "anchor": "function checkScriptDomains() {"
         },
         {
@@ -359,17 +369,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 121,
+          "line": 126,
           "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 122,
+          "line": 127,
           "anchor": "import { LAYOUT, layoutPath } from './layout-manifest.mjs';"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 816,
+          "line": 821,
           "anchor": "function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {"
         },
         {
@@ -888,7 +898,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "1715b1676e883d35b851992e1137f76c2538f0b6cd9ce97880a6389134cdee25"
+      "verifiedDigest": "e71950975b2f9c3b17dd117d97cb78ac3e1e2ed409b9213cd2896d996f9b3b55"
     },
     {
       "slug": "evals-and-calibration",
@@ -896,8 +906,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
-      "verifiedDigest": "4d2b1a9ba9db170187d0757101bf89bb824cf1c13a7e9d4110d91a9bcf4eca42",
+      "verifiedAt": "02f3cd9362da4bec26f44ca743c8bceeff18846b",
+      "verifiedDigest": "0f510b55c5931a9c3287e2eb44a5d31bfc9b7e911120f002255330fd4456b7c4",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1340,8 +1350,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
-      "verifiedDigest": "5ca9324a3ae49dbc42a3a9c4431a329d7199224b1e0fb477a3895f09860f0621",
+      "verifiedAt": "7029528632e8f7a303170133ffec1705cd1f6572",
+      "verifiedDigest": "c3bbdf3435d76fa77ebbd428d5878058bc91f0d0fc4f5020a5de4a9d227529c0",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1349,27 +1359,27 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 128
+          "line": 136
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 544
+          "line": 592
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 208
+          "line": 231
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 647
+          "line": 692
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 253
+          "line": 278
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 542
+          "line": 583
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1390,7 +1400,7 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 460
+          "line": 470
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1398,7 +1408,7 @@
         },
         {
           "file": "github/workflows/validate.yml",
-          "line": 463
+          "line": 501
         }
       ]
     },

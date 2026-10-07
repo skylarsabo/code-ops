@@ -21,121 +21,185 @@
     "source": "gh api repos/skylarsabo/code-ops/actions/runs/<id>/jobs?per_page=100",
     "measure": "completed_at minus started_at in whole seconds; queue time excluded"
   },
+  "windowsSample": {
+    "repository": "skylarsabo/code-ops",
+    "workflow": "validate.yml",
+    "events": [
+      "push",
+      "pull_request"
+    ],
+    "conclusion": "success",
+    "window": "2026-10-07",
+    "n": 6,
+    "runIds": [
+      37565121136,
+      37571313080,
+      37571437534,
+      37565687123,
+      37565451260,
+      37565382208
+    ],
+    "commits": "headSha is 6ef5b0bf or a descendant of it (the record speed-up merge)",
+    "source": "gh api repos/skylarsabo/code-ops/actions/runs/<id>/jobs?per_page=100 (paginated)",
+    "measure": "completed_at minus started_at in whole seconds; queue time excluded",
+    "layout": "The Windows shard rows hold the pre-rebalance step times from these runs, re-assigned to the shard each step now runs in. Each wallSeconds value is replayed per run: that run's fixed overhead for the shard plus the measured seconds of the steps now assigned to it.",
+    "beforeRebalance": {
+      "structural-lint-windows-shard-1": {
+        "wallMedianSeconds": 291.5,
+        "wallMaxSeconds": 329,
+        "billedMinutesMedian": 5,
+        "billedMinutesMax": 6
+      },
+      "structural-lint-windows-shard-2": {
+        "wallMedianSeconds": 114,
+        "wallMaxSeconds": 129,
+        "billedMinutesMedian": 2,
+        "billedMinutesMax": 3
+      },
+      "structural-lint-windows-shard-3": {
+        "wallMedianSeconds": 18,
+        "wallMaxSeconds": 410,
+        "billedMinutesMedian": 1,
+        "billedMinutesMax": 7
+      },
+      "structural-lint-windows-shard-4": {
+        "wallMedianSeconds": 307,
+        "wallMaxSeconds": 326,
+        "billedMinutesMedian": 6,
+        "billedMinutesMax": 6
+      },
+      "structural-lint-windows-shard-5": {
+        "wallMedianSeconds": 167,
+        "wallMaxSeconds": 178,
+        "billedMinutesMedian": 3,
+        "billedMinutesMax": 3
+      }
+    }
+  },
   "rule": "budgetSeconds equals the measured maximum over the samples of that job or step, so no budget is invented. A step that was skipped in a run has no sample for that run. The runner steps Set up job, Post, and Complete job count in the job wall time only. The samples field gives n per row. Re-sample after any shard change and set each budgetSeconds from the new measurement.",
+  "billing": "billedMinutes is each job's wallSeconds median and max rounded up to whole minutes, because hosted runners bill each job by the started minute. The wall time excludes queue time and counts job set-up. It is a runner-minute count with no platform multiplier.",
   "caveats": [
-    "structural-lint-windows-shard-3 runs the record-collection eval only when record inputs changed, so that step has samples=1 and its max is the single 571 s run; the other seven runs skipped it.",
-    "structural-lint-windows-shard-3 wall time has a 591 s maximum for the same reason, against a 24.5 s median.",
+    "The Windows rows come from windowsSample (6 runs), not from sample. The Ubuntu rows still come from sample (8 pull request runs).",
+    "The Windows shard wallSeconds values are a replay of the measured step times on the new layout. Re-sample after the first runs on the rebalanced shards and rewrite the Windows rows from the new measurement.",
+    "structural-lint-windows-shard-3 runs the record-collection eval only when record inputs changed, so that step has samples=1 and its max is the single 394 s run. Its wall time has a 576 s replayed maximum for the same run and a 182.5 s median.",
     "host-evals-macos is skipped on pull requests and has no budget."
   ],
   "platforms": {
     "windows": {
       "structural-lint-windows-shard-1": {
-        "wallSeconds": { "samples": 8, "min": 244, "median": 285, "max": 326, "budgetSeconds": 326 },
+        "wallSeconds": { "samples": 6, "min": 149, "median": 173, "max": 195, "budgetSeconds": 195 },
+        "billedMinutes": { "median": 3, "max": 4 },
         "steps": {
-          "Run actions/checkout": { "samples": 8, "min": 6, "median": 7, "max": 12, "budgetSeconds": 12 },
-          "Run actions/setup-node": { "samples": 8, "min": 4, "median": 5, "max": 9, "budgetSeconds": 9 },
-          "Attack-chain graph regression eval": { "samples": 8, "min": 59, "median": 66.5, "max": 73, "budgetSeconds": 73 },
-          "Context snapshot and bundle regression evals": { "samples": 8, "min": 15, "median": 17, "max": 20, "budgetSeconds": 20 },
-          "Documentation extraction regression eval": { "samples": 8, "min": 18, "median": 22, "max": 32, "budgetSeconds": 32 },
-          "Docs gate regression eval": { "samples": 8, "min": 15, "median": 17, "max": 27, "budgetSeconds": 27 },
-          "Docs relocation regression eval": { "samples": 8, "min": 83, "median": 99.5, "max": 115, "budgetSeconds": 115 },
-          "Distill no-loss regression eval": { "samples": 8, "min": 5, "median": 6, "max": 9, "budgetSeconds": 9 },
-          "Distill vault-mode state regression eval": { "samples": 8, "min": 27, "median": 33.5, "max": 36, "budgetSeconds": 36 }
+          "Run actions/checkout": { "samples": 6, "min": 7, "median": 7.5, "max": 8, "budgetSeconds": 8 },
+          "Run actions/setup-node": { "samples": 6, "min": 5, "median": 5.5, "max": 8, "budgetSeconds": 8 },
+          "Attack-chain graph regression eval": { "samples": 6, "min": 52, "median": 66.5, "max": 79, "budgetSeconds": 79 },
+          "Documentation extraction regression eval": { "samples": 6, "min": 24, "median": 27, "max": 31, "budgetSeconds": 31 },
+          "Distill no-loss regression eval": { "samples": 6, "min": 6, "median": 7, "max": 14, "budgetSeconds": 14 },
+          "Vault-standard regression eval": { "samples": 6, "min": 10, "median": 15, "max": 17, "budgetSeconds": 17 },
+          "Dispatch guard hook eval (round budget + dispatch advisories)": { "samples": 6, "min": 33, "median": 39, "max": 43, "budgetSeconds": 43 }
         }
       },
       "structural-lint-windows-shard-2": {
-        "wallSeconds": { "samples": 8, "min": 96, "median": 121, "max": 141, "budgetSeconds": 141 },
+        "wallSeconds": { "samples": 6, "min": 163, "median": 181.5, "max": 193, "budgetSeconds": 193 },
+        "billedMinutes": { "median": 4, "max": 4 },
         "steps": {
-          "Run actions/checkout": { "samples": 8, "min": 5, "median": 7, "max": 7, "budgetSeconds": 7 },
-          "Run actions/setup-node": { "samples": 8, "min": 4, "median": 5.5, "max": 12, "budgetSeconds": 12 },
-          "Long-horizon runtime regression eval": { "samples": 8, "min": 44, "median": 61, "max": 76, "budgetSeconds": 76 },
-          "Local review and judgment orchestration evals": { "samples": 8, "min": 34, "median": 40.5, "max": 57, "budgetSeconds": 57 }
+          "Run actions/checkout": { "samples": 6, "min": 5, "median": 6.5, "max": 7, "budgetSeconds": 7 },
+          "Run actions/setup-node": { "samples": 6, "min": 5, "median": 5, "max": 10, "budgetSeconds": 10 },
+          "Context snapshot and bundle regression evals": { "samples": 6, "min": 17, "median": 18, "max": 21, "budgetSeconds": 21 },
+          "Docs relocation regression eval": { "samples": 6, "min": 85, "median": 94.5, "max": 100, "budgetSeconds": 100 },
+          "Distill vault-mode state regression eval": { "samples": 6, "min": 33, "median": 37.5, "max": 42, "budgetSeconds": 42 },
+          "Doc-citation checker eval": { "samples": 6, "min": 9, "median": 11, "max": 18, "budgetSeconds": 18 }
         }
       },
       "structural-lint-windows-shard-3": {
-        "wallSeconds": { "samples": 8, "min": 16, "median": 24.5, "max": 591, "budgetSeconds": 591 },
+        "wallSeconds": { "samples": 6, "min": 141, "median": 182.5, "max": 576, "budgetSeconds": 576 },
+        "billedMinutes": { "median": 4, "max": 10 },
         "steps": {
-          "Run actions/checkout": { "samples": 8, "min": 5, "median": 7, "max": 13, "budgetSeconds": 13 },
-          "Run actions/setup-node": { "samples": 8, "min": 5, "median": 5, "max": 24, "budgetSeconds": 24 },
-          "Detect record-collection inputs": { "samples": 8, "min": 0, "median": 0.5, "max": 1, "budgetSeconds": 1 },
-          "Durable record-collection regression eval": { "samples": 1, "min": 571, "median": 571, "max": 571, "budgetSeconds": 571 }
+          "Run actions/checkout": { "samples": 6, "min": 5, "median": 6, "max": 11, "budgetSeconds": 11 },
+          "Run actions/setup-node": { "samples": 6, "min": 4, "median": 5, "max": 6, "budgetSeconds": 6 },
+          "Docs gate regression eval": { "samples": 6, "min": 16, "median": 17.5, "max": 28, "budgetSeconds": 28 },
+          "Ladder card hook eval (opt-in switch + implementer filter)": { "samples": 6, "min": 7, "median": 10, "max": 10, "budgetSeconds": 10 },
+          "Derived-file merge driver regression eval": { "samples": 6, "min": 99, "median": 136, "max": 153, "budgetSeconds": 153 },
+          "Detect record-collection inputs": { "samples": 6, "min": 0, "median": 0.5, "max": 1, "budgetSeconds": 1 },
+          "Durable record-collection regression eval": { "samples": 1, "min": 394, "median": 394, "max": 394, "budgetSeconds": 394 }
         }
       },
       "structural-lint-windows-shard-4": {
-        "wallSeconds": { "samples": 8, "min": 168, "median": 217.5, "max": 245, "budgetSeconds": 245 },
+        "wallSeconds": { "samples": 6, "min": 141, "median": 177, "max": 199, "budgetSeconds": 199 },
+        "billedMinutes": { "median": 3, "max": 4 },
         "steps": {
-          "Run actions/checkout": { "samples": 8, "min": 5, "median": 6, "max": 12, "budgetSeconds": 12 },
-          "Run actions/setup-node": { "samples": 8, "min": 4, "median": 5, "max": 7, "budgetSeconds": 7 },
-          "GitHub Action pin policy": { "samples": 8, "min": 0, "median": 0, "max": 1, "budgetSeconds": 1 },
-          "GitHub Action pin regression eval": { "samples": 8, "min": 2, "median": 3, "max": 4, "budgetSeconds": 4 },
-          "Structural lint (the gate)": { "samples": 8, "min": 0, "median": 1, "max": 2, "budgetSeconds": 2 },
-          "Zero-dependency guard": { "samples": 8, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
-          "Codex marketplace render + drift check": { "samples": 8, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
-          "Global contract render + drift check": { "samples": 1, "min": 1, "median": 1, "max": 1, "budgetSeconds": 1 },
-          "opencode distribution render + drift check": { "samples": 8, "min": 0, "median": 0.5, "max": 1, "budgetSeconds": 1 },
-          "Model-tier registry shape check": { "samples": 8, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
-          "Vault conformance (this repo's own vault)": { "samples": 8, "min": 0, "median": 0, "max": 1, "budgetSeconds": 1 },
-          "Context audit eval (transcript parser + SessionEnd receipt hook)": { "samples": 8, "min": 3, "median": 5, "max": 10, "budgetSeconds": 10 },
-          "Script facade eval (co.mjs verb table + cli-lib)": { "samples": 8, "min": 5, "median": 7, "max": 8, "budgetSeconds": 8 },
-          "File skim regression eval (outline and range reading)": { "samples": 8, "min": 2, "median": 2.5, "max": 3, "budgetSeconds": 3 },
-          "Output-digest eval (shape detectors + must-keep contract)": { "samples": 8, "min": 2, "median": 3, "max": 5, "budgetSeconds": 5 },
-          "Digest rewrite hook eval (opt-in switch + simple-command contract)": { "samples": 8, "min": 4, "median": 4.5, "max": 5, "budgetSeconds": 5 },
-          "Over-build scanner eval (decoy garden + mutation control)": { "samples": 8, "min": 5, "median": 6, "max": 6, "budgetSeconds": 6 },
-          "Deferral harvest eval (register shape + stable ids)": { "samples": 8, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
-          "Ladder card hook eval (opt-in switch + implementer filter)": { "samples": 8, "min": 8, "median": 10, "max": 10, "budgetSeconds": 10 },
-          "Subagent report hook eval (verdict token + report cap, advisory)": { "samples": 8, "min": 3, "median": 3, "max": 4, "budgetSeconds": 4 },
-          "Handoff card hook eval (opt-in switch + context-band threshold)": { "samples": 8, "min": 15, "median": 18, "max": 19, "budgetSeconds": 19 },
-          "Context query eval (symbol index, call edges, stale banner, refresh hook, providers)": { "samples": 8, "min": 5, "median": 7, "max": 13, "budgetSeconds": 13 },
-          "Context query MCP eval (stdio server, two tools, JSON-RPC errors)": { "samples": 8, "min": 1, "median": 1, "max": 3, "budgetSeconds": 3 },
-          "Documentation manifest freshness": { "samples": 8, "min": 1, "median": 1.5, "max": 2, "budgetSeconds": 2 },
-          "Vault-standard regression eval": { "samples": 8, "min": 12, "median": 15, "max": 17, "budgetSeconds": 17 },
-          "Fleet-standard regression eval": { "samples": 8, "min": 4, "median": 5, "max": 7, "budgetSeconds": 7 },
-          "opencode distribution regression eval": { "samples": 8, "min": 2, "median": 2, "max": 3, "budgetSeconds": 3 },
-          "Derived-file merge driver regression eval": { "samples": 8, "min": 30, "median": 42.5, "max": 58, "budgetSeconds": 58 },
-          "opencode lifecycle regression eval": { "samples": 8, "min": 0, "median": 1, "max": 2, "budgetSeconds": 2 },
-          "opencode enabled models regression eval": { "samples": 8, "min": 2, "median": 2, "max": 3, "budgetSeconds": 3 },
-          "Preflight regression eval": { "samples": 8, "min": 2, "median": 3, "max": 3, "budgetSeconds": 3 },
-          "Repo-map regression eval": { "samples": 8, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
-          "Release-tooling eval": { "samples": 8, "min": 3, "median": 3, "max": 4, "budgetSeconds": 4 },
-          "Documentation link gate and regression eval": { "samples": 8, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
-          "Script-guard regression eval (2026-06-23 audit fixes)": { "samples": 8, "min": 4, "median": 5.5, "max": 6, "budgetSeconds": 6 },
-          "Global sync regression eval": { "samples": 8, "min": 4, "median": 4.5, "max": 5, "budgetSeconds": 5 },
-          "Global contract render regression eval": { "samples": 1, "min": 2, "median": 2, "max": 2, "budgetSeconds": 2 },
-          "Proof-receipts regression eval": { "samples": 8, "min": 3, "median": 4, "max": 5, "budgetSeconds": 5 },
-          "Register-staleness regression eval": { "samples": 8, "min": 2, "median": 3, "max": 3, "budgetSeconds": 3 },
-          "Import-graph regression eval": { "samples": 8, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
-          "Run-contract regression eval": { "samples": 8, "min": 13, "median": 14, "max": 15, "budgetSeconds": 15 },
-          "Tier-routing rubric eval (rubric table, grid properties, mutants, co route CLI)": { "samples": 8, "min": 2, "median": 3, "max": 4, "budgetSeconds": 4 },
-          "Routing judgment eval (key equals rubric, material leak scan, mutants)": { "samples": 8, "min": 1, "median": 1, "max": 1, "budgetSeconds": 1 },
-          "Atlas freshness (this repo's own Atlas)": { "samples": 8, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
-          "Performance measurement regression eval": { "samples": 8, "min": 1, "median": 1, "max": 1, "budgetSeconds": 1 }
+          "Run actions/checkout": { "samples": 6, "min": 5, "median": 6, "max": 9, "budgetSeconds": 9 },
+          "Run actions/setup-node": { "samples": 6, "min": 4, "median": 5, "max": 6, "budgetSeconds": 6 },
+          "GitHub Action pin policy": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "GitHub Action pin regression eval": { "samples": 6, "min": 2, "median": 2, "max": 3, "budgetSeconds": 3 },
+          "Structural lint (the gate)": { "samples": 6, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
+          "Zero-dependency guard": { "samples": 6, "min": 0, "median": 0.5, "max": 1, "budgetSeconds": 1 },
+          "Codex marketplace render + drift check": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Global contract render + drift check": { "samples": 6, "min": 0, "median": 0, "max": 1, "budgetSeconds": 1 },
+          "opencode distribution render + drift check": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Model-tier registry shape check": { "samples": 6, "min": 0, "median": 0, "max": 1, "budgetSeconds": 1 },
+          "Vault conformance (this repo's own vault)": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Context audit eval (transcript parser + SessionEnd receipt hook)": { "samples": 6, "min": 3, "median": 4, "max": 4, "budgetSeconds": 4 },
+          "Script facade eval (co.mjs verb table + cli-lib)": { "samples": 6, "min": 5, "median": 6.5, "max": 8, "budgetSeconds": 8 },
+          "File skim regression eval (outline and range reading)": { "samples": 6, "min": 1, "median": 2, "max": 3, "budgetSeconds": 3 },
+          "Output-digest eval (shape detectors + must-keep contract)": { "samples": 6, "min": 2, "median": 3, "max": 3, "budgetSeconds": 3 },
+          "Digest rewrite hook eval (opt-in switch + simple-command contract)": { "samples": 6, "min": 4, "median": 4.5, "max": 5, "budgetSeconds": 5 },
+          "Over-build scanner eval (decoy garden + mutation control)": { "samples": 6, "min": 3, "median": 5.5, "max": 6, "budgetSeconds": 6 },
+          "Deferral harvest eval (register shape + stable ids)": { "samples": 6, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
+          "Subagent report hook eval (verdict token + report cap, advisory)": { "samples": 6, "min": 3, "median": 3, "max": 4, "budgetSeconds": 4 },
+          "Handoff card hook eval (opt-in switch + context-band threshold)": { "samples": 6, "min": 13, "median": 18.5, "max": 19, "budgetSeconds": 19 },
+          "Context query eval (symbol index, call edges, stale banner, refresh hook, providers)": { "samples": 6, "min": 4, "median": 6, "max": 6, "budgetSeconds": 6 },
+          "Context query MCP eval (stdio server, two tools, JSON-RPC errors)": { "samples": 6, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
+          "Documentation manifest freshness": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Fleet-standard regression eval": { "samples": 6, "min": 4, "median": 5, "max": 6, "budgetSeconds": 6 },
+          "opencode distribution regression eval": { "samples": 6, "min": 2, "median": 3, "max": 6, "budgetSeconds": 6 },
+          "opencode lifecycle regression eval": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "opencode enabled models regression eval": { "samples": 6, "min": 2, "median": 2, "max": 2, "budgetSeconds": 2 },
+          "Preflight regression eval": { "samples": 6, "min": 2, "median": 2.5, "max": 3, "budgetSeconds": 3 },
+          "Repo-map regression eval": { "samples": 6, "min": 0, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Release-tooling eval": { "samples": 6, "min": 3, "median": 3.5, "max": 4, "budgetSeconds": 4 },
+          "Documentation link gate and regression eval": { "samples": 6, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
+          "Script-guard regression eval (2026-06-23 audit fixes)": { "samples": 6, "min": 3, "median": 5, "max": 6, "budgetSeconds": 6 },
+          "Global sync regression eval": { "samples": 6, "min": 3, "median": 4, "max": 5, "budgetSeconds": 5 },
+          "Global contract render regression eval": { "samples": 6, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
+          "Proof-receipts regression eval": { "samples": 6, "min": 2, "median": 4, "max": 4, "budgetSeconds": 4 },
+          "Register-staleness regression eval": { "samples": 6, "min": 2, "median": 2, "max": 3, "budgetSeconds": 3 },
+          "Import-graph regression eval": { "samples": 6, "min": 1, "median": 1, "max": 2, "budgetSeconds": 2 },
+          "Run-contract regression eval": { "samples": 6, "min": 10, "median": 13.5, "max": 17, "budgetSeconds": 17 },
+          "Tier-routing rubric eval (rubric table, grid properties, mutants, co route CLI)": { "samples": 6, "min": 2, "median": 2.5, "max": 3, "budgetSeconds": 3 },
+          "Routing judgment eval (key equals rubric, material leak scan, mutants)": { "samples": 6, "min": 1, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Atlas freshness (this repo's own Atlas)": { "samples": 6, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
+          "Performance measurement regression eval": { "samples": 6, "min": 1, "median": 1, "max": 1, "budgetSeconds": 1 },
+          "Local review and judgment orchestration evals": { "samples": 6, "min": 28, "median": 38, "max": 45, "budgetSeconds": 45 }
         }
       },
       "structural-lint-windows-shard-5": {
-        "wallSeconds": { "samples": 8, "min": 145, "median": 161.5, "max": 204, "budgetSeconds": 204 },
+        "wallSeconds": { "samples": 6, "min": 148, "median": 171.5, "max": 186, "budgetSeconds": 186 },
+        "billedMinutes": { "median": 3, "max": 4 },
         "steps": {
-          "Run actions/checkout": { "samples": 8, "min": 5, "median": 7, "max": 12, "budgetSeconds": 12 },
-          "Run actions/setup-node": { "samples": 8, "min": 4, "median": 5, "max": 26, "budgetSeconds": 26 },
-          "Dispatch guard hook eval (round budget + dispatch advisories)": { "samples": 8, "min": 39, "median": 40, "max": 55, "budgetSeconds": 55 },
-          "Peer surface note eval (declared surfaces, merge diffs, process kills, handed-off peers)": { "samples": 8, "min": 2, "median": 3, "max": 3, "budgetSeconds": 3 },
-          "Agent ledger hook eval (launch and report records, pending list)": { "samples": 8, "min": 4, "median": 5, "max": 5, "budgetSeconds": 5 },
-          "Burn-down counter eval (active cap, growth, read-only)": { "samples": 8, "min": 2, "median": 2, "max": 2, "budgetSeconds": 2 },
-          "Compact snapshot eval (record shapes, budgets, stale boundary, masking, run folder fallback)": { "samples": 8, "min": 9, "median": 9.5, "max": 10, "budgetSeconds": 10 },
-          "Lint-gate fixture eval": { "samples": 8, "min": 21, "median": 25, "max": 33, "budgetSeconds": 33 },
-          "Doc-citation checker eval": { "samples": 8, "min": 10, "median": 11, "max": 13, "budgetSeconds": 13 },
-          "Atlas-check regression eval": { "samples": 8, "min": 42, "median": 44, "max": 51, "budgetSeconds": 51 }
+          "Run actions/checkout": { "samples": 6, "min": 7, "median": 10.5, "max": 13, "budgetSeconds": 13 },
+          "Run actions/setup-node": { "samples": 6, "min": 5, "median": 5, "max": 10, "budgetSeconds": 10 },
+          "Peer surface note eval (declared surfaces, merge diffs, process kills, handed-off peers)": { "samples": 6, "min": 2, "median": 3, "max": 3, "budgetSeconds": 3 },
+          "Agent ledger hook eval (launch and report records, pending list)": { "samples": 6, "min": 4, "median": 5, "max": 5, "budgetSeconds": 5 },
+          "Burn-down counter eval (active cap, growth, read-only)": { "samples": 6, "min": 1, "median": 2, "max": 2, "budgetSeconds": 2 },
+          "Compact snapshot eval (record shapes, budgets, stale boundary, masking, run folder fallback)": { "samples": 6, "min": 13, "median": 15, "max": 17, "budgetSeconds": 17 },
+          "Lint-gate fixture eval": { "samples": 6, "min": 21, "median": 27, "max": 29, "budgetSeconds": 29 },
+          "Atlas-check regression eval": { "samples": 6, "min": 34, "median": 43.5, "max": 49, "budgetSeconds": 49 },
+          "Long-horizon runtime regression eval": { "samples": 6, "min": 43, "median": 57.5, "max": 62, "budgetSeconds": 62 }
         }
       }
     },
     "ubuntu": {
       "structural-lint": {
         "wallSeconds": { "samples": 8, "min": 2, "median": 3, "max": 6, "budgetSeconds": 6 },
+        "billedMinutes": { "median": 1, "max": 1 },
         "steps": {
           "Require every shard to succeed": { "samples": 8, "min": 0, "median": 0, "max": 4, "budgetSeconds": 4 }
         }
       },
       "structural-lint-shard-1": {
         "wallSeconds": { "samples": 8, "min": 92, "median": 103.5, "max": 125, "budgetSeconds": 125 },
+        "billedMinutes": { "median": 2, "max": 3 },
         "steps": {
           "Run actions/checkout": { "samples": 8, "min": 1, "median": 2, "max": 3, "budgetSeconds": 3 },
           "Run actions/setup-node": { "samples": 8, "min": 0, "median": 1, "max": 5, "budgetSeconds": 5 },
@@ -152,6 +216,7 @@
       },
       "structural-lint-shard-2": {
         "wallSeconds": { "samples": 8, "min": 87, "median": 108, "max": 114, "budgetSeconds": 114 },
+        "billedMinutes": { "median": 2, "max": 2 },
         "steps": {
           "Run actions/checkout": { "samples": 8, "min": 1, "median": 2, "max": 3, "budgetSeconds": 3 },
           "Run actions/setup-node": { "samples": 8, "min": 0, "median": 0.5, "max": 2, "budgetSeconds": 2 },
@@ -170,6 +235,7 @@
       },
       "structural-lint-shard-3": {
         "wallSeconds": { "samples": 8, "min": 103, "median": 126, "max": 149, "budgetSeconds": 149 },
+        "billedMinutes": { "median": 3, "max": 3 },
         "steps": {
           "Run actions/checkout": { "samples": 8, "min": 1, "median": 1.5, "max": 2, "budgetSeconds": 2 },
           "Run actions/setup-node": { "samples": 8, "min": 0, "median": 1, "max": 5, "budgetSeconds": 5 },
@@ -246,6 +312,7 @@
       },
       "structural-lint-windows": {
         "wallSeconds": { "samples": 8, "min": 2, "median": 3, "max": 5, "budgetSeconds": 5 },
+        "billedMinutes": { "median": 1, "max": 1 },
         "steps": {
           "Require every shard to succeed": { "samples": 8, "min": 0, "median": 0, "max": 1, "budgetSeconds": 1 }
         }
