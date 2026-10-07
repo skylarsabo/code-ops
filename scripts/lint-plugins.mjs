@@ -859,6 +859,8 @@ function checkAgentEffort({ plugins }) {
   // values. `xhigh` and `max` exist in the provider vocabulary but are reserved for the lead's
   // own dial (subagent-trade-offs.md), never a bundled subagent's declared floor.
   const ALLOWED_EFFORT = new Set(['low', 'medium', 'high']);
+  // The light rung runs at its default effort (Haiku 5.5 defaults to medium), so it may omit `effort:`.
+  const LIGHT_MODELS = new Set(Object.entries(CLAUDE_ALIAS_TIER).filter(([, tier]) => tier === 'light').map(([id]) => id));
   for (const p of plugins) {
     const agentsDir = join(p.dir, 'agents');
     if (!existsSync(agentsDir)) continue;
@@ -868,7 +870,7 @@ function checkAgentEffort({ plugins }) {
       const em = fm && fm[1].match(/^effort:[ \t]*(\S+)/m);
       const model = fm && fm[1].match(/^model:[ \t]*(\S+)/m);
       // An omitted effort inherits the session dial, which may run above the cap.
-      if (!em && model && model[1] !== 'haiku')
+      if (!em && model && !LIGHT_MODELS.has(model[1]))
         fail(`${p.name}/${f}: model "${model[1]}" declares no effort — declare low, medium, or high so the agent never inherits a session dial above the operator cap`);
       if (!em) continue;
       if (!ALLOWED_EFFORT.has(em[1]))

@@ -36,6 +36,9 @@ export const CLAUDE_ALIAS_TIER = {
   // model, yet it ranks mid and fails a strong floor. Only the full id clears one. That
   // difference is intended, and it errs toward refusing.
   'claude-sonnet-5-5': 'strong',
+  // Full model id for the same reason: the `haiku` alias resolved to claude-haiku-4-5-20251001 in
+  // recent transcripts and stays on 4.5 on cloud hosts, so the light agents pin the id directly.
+  'claude-haiku-5-5': 'light',
 };
 
 // Which concrete model serves each rung, per provider. A provider whose lineup has no
@@ -49,6 +52,8 @@ export const CLAUDE_ALIAS_TIER = {
 //
 // Adding a provider is one entry here plus one PROVIDER_SLUG_PATTERNS line. Nothing else in
 // the suite hardcodes a model name.
+// Held at 2026-10-01: models.dev did not list `claude-haiku-5-5` on 2026-10-07, so `--fetch` fails for
+// that one pin until the registry catches up. Bump the date after a passing `--fetch`.
 export const REGISTRY_VERIFIED_AT = '2026-10-01';
 
 // `premium` is a dispatch-only binding, never a rung. It ranks `strong`, so it clears only
@@ -68,14 +73,14 @@ export const PROVIDER_TIERS = {
     // pin applies; `premium: 'opus'` is the one rung where the alias and the pin differ.
     dispatchAlias: { light: 'haiku', mid: 'sonnet', strong: null, premium: 'opus', frontier: 'fable' },
     models: {
-      light: 'claude-haiku-4-5-20251001',
+      light: 'claude-haiku-5-5',
       mid: 'claude-sonnet-5-5',
       strong: 'claude-sonnet-5-5',
       premium: 'claude-opus-5-5',
       frontier: 'claude-fable-5-1',
     },
     premiumCollapse: null,
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute), 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20 (the pricing table value, which the page prose contradicts), cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), batch $2/$10) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. Decision 2026-10-07: `light` binds Claude Haiku 5.5 (`claude-haiku-5-5`, a dateless pinned snapshot the `haiku` alias resolves to on the Anthropic API only), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output, default effort `medium`. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
   },
   xai: {
     id: 'xai',
@@ -276,6 +281,8 @@ export const ACCEPTED_MODELS = {
   // to strong and frontier, so this entry also keeps its class a single rung, not `ambiguous`.
   'gpt-6-sol': ['frontier'],
   'grok-4.6': ['light', 'mid', 'strong', 'frontier'],
+  // Previous `light` pin, kept for a historical stamp and for the cloud hosts that still serve Haiku 4.5.
+  'claude-haiku-4-5-20251001': ['light'],
   'claude-haiku-4-5': ['light'],
   'claude-haiku-4.5': ['light'],
   'claude-opus-5.5': ['strong'],

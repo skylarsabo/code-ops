@@ -4,9 +4,14 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
-## 2.55.1
+## 2.59.0
 - `records.mjs` writes a random `lease.nonce` file into the collection mutation lock at acquisition and makes it part of the lock identity, beside the device and inode. A filesystem such as ext4 can give a removed and recreated directory the same inode, and stale-recovery restore copies `owner.json` with its token. Before this change, such a replacement passed as the original lease and the "durable mutation completed ... do not retry" path never fired. A lock from an older version carries no nonce, and stale recovery still compares it by device and inode.
 - The record-collections eval adds a same-inode case. It refills the lock directory in place with the same token, so it reproduces inode reuse on every platform and fails against the previous library. The remove-and-recreate case now passes whatever inode the filesystem assigns.
+
+## 2.56.0
+- The Anthropic `light` rung binds `claude-haiku-5-5` in `scripts/model-tiers.mjs`, replacing `claude-haiku-4-5-20251001`. The `explorer` agent declares `model: claude-haiku-5-5` instead of the `haiku` alias, which resolved to Haiku 4.5 in recent sessions. `CLAUDE_ALIAS_TIER` ranks the id `light`, and lint check 30 lets a light agent omit `effort:`, because Haiku 5.5 defaults to medium. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5, so the dated id stays in `ACCEPTED_MODELS` as a `light` pin and a historical stamp keeps its rung. The Copilot host ladder and its `haiku` specialist are unchanged, because Copilot availability of Haiku 5.5 is unverified.
+- The Anthropic price notes carry the 1-hour cache-write rates (Sonnet 5.5 $4, Opus 5.5 $8, Haiku 5.5 $0.20), the batch rates, and the Haiku 5.5 rates above a 100,000-token prompt. The Sonnet 5.5 cache read records the pricing table value of $0.20, which the page prose contradicts. `REGISTRY_VERIFIED_AT` stays at 2026-10-01 because models.dev did not list `claude-haiku-5-5` on 2026-10-07.
+- The `subagent-trade-offs.md` binding table and price lines match the new light rung. `evals/FLOOR_TABLE.md` records that the weak arm has not been re-measured on it.
 
 ## 2.55.0
 - The dispatch guard adds one advisory for a `Workflow` script that makes two or more `agent()` calls, or any call it cannot read, and has no readable `Run contract: <path>` line. The line may be bare or in a comment. The path resolves against the session directory and must name a JSON file with a non-empty `runId`. The note gives the call count against a guideline of 10 and how many calls set no effort. It never denies, and a script the guard cannot parse skips it.

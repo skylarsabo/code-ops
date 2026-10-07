@@ -31,7 +31,7 @@ const RANK = {
 };
 const KNOWN_MODELS = {
   "anthropic": {
-    "claude-haiku-4-5-20251001": "light",
+    "claude-haiku-5-5": "light",
     "claude-sonnet-5-5": "strong",
     "claude-fable-5-1": "frontier"
   },
@@ -88,6 +88,7 @@ const KNOWN_MODELS = {
     "gpt-5.6-sol": "frontier",
     "gpt-6-sol": "frontier",
     "grok-4.6": "frontier",
+    "claude-haiku-4-5-20251001": "light",
     "claude-haiku-4-5": "light",
     "claude-haiku-4.5": "light",
     "claude-opus-5.5": "strong",
@@ -97,7 +98,7 @@ const KNOWN_MODELS = {
   }
 };
 const TIER_BY_ID = {
-  "claude-haiku-4-5-20251001": "light",
+  "claude-haiku-5-5": "light",
   "claude-sonnet-5-5": "strong",
   "claude-fable-5-1": "frontier",
   "grok-4.7": "frontier",
@@ -131,6 +132,7 @@ const TIER_BY_ID = {
   "gpt-5.6-terra": "strong",
   "gpt-5.6-sol": "frontier",
   "grok-4.6": "frontier",
+  "claude-haiku-4-5-20251001": "light",
   "claude-haiku-4-5": "light",
   "claude-opus-5-5": "strong",
   "claude-fable-5.1": "frontier",

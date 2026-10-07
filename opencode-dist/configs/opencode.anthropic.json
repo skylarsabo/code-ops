@@ -3,7 +3,7 @@
   "model": "anthropic/claude-fable-5-1",
   "agent": {
     "code-ops-suite-explorer": {
-      "model": "anthropic/claude-haiku-4-5-20251001"
+      "model": "anthropic/claude-haiku-5-5"
     },
     "code-ops-suite-implementer": {
       "model": "anthropic/claude-sonnet-5-5"
@@ -24,7 +24,7 @@
       "model": "anthropic/claude-sonnet-5-5"
     },
     "privacy-opsec-suite-explorer": {
-      "model": "anthropic/claude-haiku-4-5-20251001"
+      "model": "anthropic/claude-haiku-5-5"
     },
     "privacy-opsec-suite-privacy-reviewer": {
       "model": "anthropic/claude-sonnet-5-5"
@@ -39,7 +39,7 @@
       "model": "anthropic/claude-sonnet-5-5"
     },
     "researcher-gatherer": {
-      "model": "anthropic/claude-haiku-4-5-20251001"
+      "model": "anthropic/claude-haiku-5-5"
     }
   },
   "permission": {
