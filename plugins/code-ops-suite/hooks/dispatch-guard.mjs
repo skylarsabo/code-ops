@@ -81,8 +81,9 @@
 //      `routeUnit` of the basis with the derived surface and the ledger-derived attempt, unless a
 //      `Route override:` line is present and the shortfall comes from the ambiguity or attempt
 //      triggers (rules 7b, 7c) or the table rows; the surface triggers (7a, 7d) are never cleared,
-//      (e) a brief `Effort` above the agent's frontmatter effort, because the Agent tool carries no
-//      effort (Workflow `agent()` does), (f) a literal `xhigh` or `max` brief `Effort`, and (g) a
+//      (e) a brief `Effort` above the effort the dispatch runs at: the Agent call's own `effort`
+//      (CLI 2.1.292 and later), else the frontmatter effort, and an Agent `effort` that is
+//      not low, medium, or high, (f) a literal `xhigh` or `max` brief `Effort`, and (g) a
 //      second frontier dispatch in the session, counted from agent-ledger rows (a Workflow script
 //      counts its literal frontier `model` calls with them: more than one in total denies), and
 //      (h) a `Route basis` surface that is not a surface. The Scope block ends at a blank line or any
@@ -91,7 +92,7 @@
 //      is raised to the agent's minimum (AGENT_MIN_KIND in route-unit.mjs: reviewer and
 //      privacy-reviewer review, verifier refutation, tracer judgment) with an advisory. A rung
 //      above `routeUnit`, a raised kind, a `model` override that cannot be ranked (Tier goes
-//      unchecked), a brief `Effort` below the frontmatter effort, and a non-literal Workflow
+//      unchecked), a brief `Effort` below the effort the dispatch runs at, and a non-literal Workflow
 //      `model` or `effort` are advisories. A Workflow `agent()` call also denies a literal `model`
 //      below the floor of its literal `agentType`, and `spawn_subagent` or `spawn_agent` input with a
 //      literal `xhigh` or `max` effort denies. scripts/route-unit.mjs and scripts/agent-ledger.mjs
@@ -523,7 +524,7 @@ const GATES = [
   ['effort-cap', /effort is at most high|is not an effort/, []],
   ['brief-fields', /requires these brief fields, missing/, ['GD-06']],
   ['budget-missing', /No Round budget in the brief/, ['GC-25']],
-  ['route-tier', /is not a rung|cannot be ranked|, below its .* floor|but the dispatch runs at|\bruns at; the Agent tool|Tier \S+ \/ Effort|is above the routed|below the \S+ floor of/, ['GC-05', 'GC-06']],
+  ['route-tier', /is not a rung|cannot be ranked|, below its .* floor|but the dispatch runs at|(?:runs at|the Agent call passes)\. Pass effort|The Agent call passes effort "|Tier \S+ \/ Effort|is above the routed|below the \S+ floor of/, ['GC-05', 'GC-06']],
   ['route-basis', /Route basis/, []],
   ['frontier', /only one frontier peer/, []],
   ['workflow-opaque', /Workflow agent\(\) calls pass (?:options the guard cannot read|a model or effort that is not a literal)/, []],
@@ -1167,16 +1168,22 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
     if (prior >= 1) denials.push(`A frontier dispatch already ran in this session (${prior} in the ledger); only one frontier peer runs per run. Dispatch at premium or strong.`);
   }
 
-  // Effort the host can deliver: the Agent tool has no effort parameter.
+  // Effort the host delivers: the Agent call's own `effort` (CLI 2.1.292 and later), else the frontmatter.
+  const callEffort = typeof input.effort === 'string' ? input.effort.trim() : null;
+  if (callEffort !== null && !libs.efforts.includes(callEffort)) {
+    denials.push(`The Agent call passes effort "${callEffort}"; pass low, medium, or high, because effort is at most high.`);
+  }
   const fmEffort = fm?.effort && libs.efforts.includes(fm.effort) ? fm.effort : null;
-  if (effortOk && fmEffort) {
+  const runEffort = callEffort !== null && libs.efforts.includes(callEffort) ? callEffort : fmEffort;
+  if (effortOk && runEffort) {
     const asked = libs.efforts.indexOf(effort);
-    const given = libs.efforts.indexOf(fmEffort);
+    const given = libs.efforts.indexOf(runEffort);
+    const source = runEffort === callEffort ? 'the Agent call passes' : `${type} runs at`;
     if (asked > given) {
-      denials.push(`Effort: ${effort} is above the ${fmEffort} that ${type} runs at; the Agent tool carries no effort. `
-        + 'Use Workflow agent({ agentType, model, effort }) to dispatch at that effort.');
+      denials.push(`Effort: ${effort} is above the ${runEffort} that ${source}. `
+        + `Pass effort: "${effort}" on the Agent call, or use Workflow agent({ agentType, model, effort }).`);
     } else if (asked < given) {
-      advisories.push(`Effort: ${effort} is below the ${fmEffort} that ${type} runs at; the Agent tool cannot lower it. Use Workflow agent() to run at ${effort}.`);
+      advisories.push(`Effort: ${effort} is below the ${runEffort} that ${source}. Pass effort: "${effort}" on the Agent call, or use Workflow agent() to run at ${effort}.`);
     }
   }
 

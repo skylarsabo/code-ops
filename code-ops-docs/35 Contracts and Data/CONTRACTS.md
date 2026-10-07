@@ -1153,8 +1153,10 @@ these, and `warn` turns each into an advisory:
   attempt. A `Route override:` line clears the ambiguity and attempt triggers (7b, 7c) and the
   table rows. It never clears a surface trigger (7a review on a surface, 7d public-contract
   judgment at high ambiguity).
-- A brief `Effort` above the agent's frontmatter effort. The Agent tool carries no effort
-  parameter, so the denial points to Workflow `agent({ agentType, model, effort })`.
+- A brief `Effort` above the effort the dispatch runs at. That is the Agent call's own `effort`
+  (CLI 2.1.292 and later), else the agent's frontmatter effort. The denial points to the
+  Agent `effort` input or to Workflow `agent({ agentType, model, effort })`. An Agent `effort` that
+  is not low, medium, or high is denied.
 - A literal `xhigh` or `max` brief `Effort`.
 - A second frontier dispatch in the session, counted from `dispatched` ledger rows that asked for
   frontier or applied a frontier model. A Workflow script counts its literal frontier `model` calls
@@ -1162,7 +1164,7 @@ these, and `warn` turns each into an advisory:
 
 The advisories are a `Tier` above the routed rung, a declared kind raised to the agent's minimum, a
 `model` override the gate cannot rank (it leaves `Tier` unchecked), a brief `Effort` below the
-frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A readable Workflow
+effort the dispatch runs at, and a Workflow `model` or `effort` that is not a literal string. A readable Workflow
 script that makes two or more `agent()` calls, or any call the guard cannot read, earns one more advisory
 when it has no script-wide `Run contract: <path>` line (bare or in a comment) or when that path, resolved
 against the session directory, is missing or is not JSON with a non-empty `runId`. The note also gives the
@@ -1611,7 +1613,7 @@ Failure ordering protects existing evidence first. Commands validate mode, clean
 
 Commands build the complete mutation in memory after validation. One shared writer atomically replaces generated files, runs the complete semantic check, and rolls back every replacement on failure. The closing check includes the canonical manifest index snapshot, so shallow history cannot open a race. Commands prove the lock token and directory identity before authority writes and release.
 
-Stale recovery quarantines the judged directory and compares its device and inode before deletion. A replacement lease is restored under an atomically reserved path and recovery fails. An ordinary release cleanup error preserves a durable success. Lost ownership exits 3 with a durable-mutation, do-not-retry message.
+Directory identity is the device, the inode, and a random `lease.nonce` file written at acquisition. A recreated directory can reuse an inode, and restore never copies the nonce, so a replaced lease fails closed on every filesystem. Stale recovery quarantines the judged directory and compares its identity before deletion. A replacement lease is restored under an atomically reserved path and recovery fails. An ordinary release cleanup error preserves a durable success. Lost ownership exits 3 with a durable-mutation, do-not-retry message.
 
 The clone-wide lock lives at `<git-common-dir>/code-ops-record-locks/<collectionUuid>.lock/owner.json`. Its owner stores `pid`, `token`, and `acquiredAt`. A live or recent owner fails with `collection mutation lock is held`. A dead owner at least ten minutes old is recoverable.
 

@@ -4,8 +4,16 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.58.0
+## 2.61.0
 - The explorer, reviewer, and mech agents name the file:line link standard in their Return section. A report cites code as `[name](repo-relative/path:line)`. The Handbook page `standards/file-line-links.md` states the form and points to where its grammar lives.
+
+## 2.60.0
+- The `implementer` agent declares `effort: medium` instead of `high`. A paired replay of four merged PRs, one sample per arm, finished three of four with passing gates at medium against two of four at high, with 18% fewer output tokens. The priced saving was about 5%, because the medium arms made more requests. A judgment unit still routes to high, and the brief's `Effort:` line with a matching Agent `effort` delivers it. The `subagent-trade-offs.md` routing table matches.
+- The dispatch guard reads the Agent call's own `effort` (CLI 2.1.292 and later) as the effort the dispatch runs at, and falls back to the frontmatter effort when the call passes none. A brief `Effort` above that effort still denies, and the denial now points to the Agent `effort` input as well as to Workflow `agent()`. An Agent `effort` other than low, medium, or high denies. The dispatch-guard eval adds four cases, and its implementer calls pass `effort: 'high'` for their judgment brief.
+
+## 2.59.0
+- `records.mjs` writes a random `lease.nonce` file into the collection mutation lock at acquisition and makes it part of the lock identity, beside the device and inode. A filesystem such as ext4 can give a removed and recreated directory the same inode, and stale-recovery restore copies `owner.json` with its token. Before this change, such a replacement passed as the original lease and the "durable mutation completed ... do not retry" path never fired. A lock from an older version carries no nonce, and stale recovery still compares it by device and inode.
+- The record-collections eval adds a same-inode case. It refills the lock directory in place with the same token, so it reproduces inode reuse on every platform and fails against the previous library. The remove-and-recreate case now passes whatever inode the filesystem assigns.
 
 ## 2.57.0
 - New `compliance` subcommand of `context-audit.mjs` counts, from the two supported transcript formats, operator prompts, dispatch calls by tool, guard denials, Workflow launches with and without a Run-contract line, briefs without a `Round budget` line, and authority-bearing shell commands (`git push`, `gh pr create`, `gh pr merge`, `gh release`). It prints counts and ids only, never prompt, command, brief, or result text. Subagent threads, unreadable files, and transcripts of the other hosts are counted apart as skipped. Flags: `--json`, `--out`, `--session`, `--host`, `--all`.
