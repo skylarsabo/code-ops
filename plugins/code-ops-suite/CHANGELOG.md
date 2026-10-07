@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.50.0
+- New `co churn` command (`scripts/churn.mjs`) reports the circling measures over a git window and the run folders: the re-fix share, reverts, fix-of-fix commits per merged PR split into restamps and review fixes, repeated `Next:` lines, and ids reopened within one program. It is report-only and always exits 0. Two `git log` calls cover any window.
+- Over the D-009 window (`3c1fa907`, 2026-09-06 to 2026-10-06) it reproduces the baseline git measures exactly. The "Circling" entry in MEASUREMENTS.md gives the command and the run-folder readings.
+- A new churn eval pins each signal on a scratch repository, with a mutation control. CI runs it in one Ubuntu shard and one Windows shard.
+
 ## 2.49.0
 - The dispatch guard appends one decision row to `guard-decisions.jsonl`, beside the session-receipt ledger, for each output that denies or advises. A row holds ids and counts only: the gate ids that fired, the contract-rule ids they back, the tool, the decision, and a Workflow call count. `CODE_OPS_RECEIPTS=off` stops the rows, and a write error fails open.
 - The dispatch-guard eval fires every gate id in the guard's table, including the peer note through a seeded presence board, and fails when a reworded message no longer matches its gate.

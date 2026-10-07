@@ -38,6 +38,7 @@
     "check-plugin-bump.mjs": "gates",
     "check-proof-integrity.mjs": "gates",
     "check-vault-standard.mjs": "gates",
+    "churn.mjs": "calibration",
     "ci-budget.mjs": "gates",
     "citation-lib.mjs": "docs",
     "cli-lib.mjs": "cli",

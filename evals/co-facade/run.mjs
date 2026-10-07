@@ -120,7 +120,7 @@ for (const [verb, script] of SCAN_VERBS) {
 }
 
 // Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
-const COMMANDS = ['brief', 'burndown', 'route', 'snapshot'];
+const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot'];
 const tableCommands = [...tableBlock.matchAll(/^ {2}([a-z][a-z-]*): '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
 expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
 for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);
@@ -129,6 +129,12 @@ for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \
 const burn = run([co, 'burndown', '--root', root]);
 const burnDirect = run([join(root, 'scripts', 'burndown.mjs'), '--root', root]);
 expect(burn.status === burnDirect.status && burn.stdout === burnDirect.stdout, `co burndown must match burndown.mjs, got ${burn.status}/${JSON.stringify(burn.stdout)} vs ${burnDirect.status}/${JSON.stringify(burnDirect.stdout)}`);
+
+// `co churn` passes its range and flags through to churn.mjs and prints the same report. A
+// shallow clone fails both calls the same way, so the comparison still holds.
+const churn = run([co, 'churn', 'HEAD~3..HEAD', '--repo', root, '--json']);
+const churnDirect = run([join(root, 'scripts', 'churn.mjs'), 'HEAD~3..HEAD', '--repo', root, '--json']);
+expect(churn.status === churnDirect.status && churn.stdout === churnDirect.stdout && churn.stderr === churnDirect.stderr, `co churn must match churn.mjs, got ${churn.status} vs ${churnDirect.status}`);
 
 // `co brief <plugin>:<agent>` prints the agent's Contract fields, one `Label:` line each, byte
 // for byte as brief-template.mjs does, and `co context brief` still reaches worker-brief.mjs.
