@@ -24,6 +24,8 @@
 //     rigor, privacy-opsec-suite, researcher (~22 sentences shared across most of them),
 //     plus 'always-gated-core' which ALSO requires
 //     plugins/code-ops-suite/skills/everything/SKILL.md to exist and carry its sentence.
+// Check 12 also fails closed when the subagent-trade-offs doc is missing, so the baseline
+// writes a fixture copy (tradeoffsDoc below) that states the fixture's agent counts and rows.
 // Contrast: the agent-related checks (9/10/12, AGENT_MODEL_FLOORS included) and the
 // per-skill handbook checks ARE properly conditional (an agents/ dir, a code-ops-docs/40 Engineering/Handbook/
 // commands/ dir, a plugin's own skill list) and skip cleanly when a fixture omits them —
@@ -175,6 +177,25 @@ const STATE_MACHINE_FIXTURE = [
   '', '## Next section', '',
 ].join('\n');
 
+// Fixture routing table for check 12's count claims. The defaults match the 13 fixture agents
+// written in buildBaseline (10 read-only, 3 write); a case overrides one field to go stale.
+const TRADEOFFS_PATH = 'code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md';
+const FIXTURE_READ_ONLY = ['code-ops `explorer`', 'rigor `tracer`', 'privacy-opsec `explorer`', 'researcher `gatherer`',
+  'researcher `claim-checker`', 'code-ops `reviewer`', 'privacy-opsec `privacy-reviewer`', 'code-ops `mech-review`',
+  'code-ops `web-researcher`', 'code-ops `probe`'];
+const FIXTURE_WRITING = ['rigor `verifier`', 'code-ops `implementer`', 'code-ops `mech`'];
+function tradeoffsDoc({ total = 'thirteen', readOnly = 'ten', writing = 'Three', readOnlyAgents = FIXTURE_READ_ONLY, writingAgents = FIXTURE_WRITING } = {}) {
+  return [
+    '# Subagent trade-offs (fixture)', '',
+    `The suite ships ${total} subagents, and they split into two kinds.`, '',
+    '| Kind | Agents | Tools | Notes |', '| --- | --- | --- | --- |',
+    `| **Read-only** — investigate | ${readOnlyAgents.join(', ')} | \`Read, Grep, Glob\` | fixture row |`,
+    `| **Write / execute** — produce artifacts | ${writingAgents.join(', ')} | \`Read, Write\` | fixture row |`, '',
+    `These ${readOnly} never edit, so the orchestrator spawns as many as the work warrants.`, '',
+    `${writing} agents in the suite can write, so the orchestrator keeps their files disjoint.`, '',
+  ].join('\n');
+}
+
 const FIXTURE_CONTRACT ='# Fixture standards contract\n\nStands in for the repo contract that AGENTS.md carries and CLAUDE.md imports.\n';
 
 // Builds a MINIMAL tree that scripts/lint-plugins.mjs (copied in, unmodified) passes.
@@ -188,6 +209,7 @@ function buildBaseline(root) {
   copyFileSync(REAL_LEDGER_GRAMMAR, join(root, 'scripts', 'ledger-grammar.mjs'));
   for (const [from, name] of REAL_SIBLINGS) copyFileSync(from, join(root, 'scripts', name));
   put(root, STATE_MACHINE_PATH, STATE_MACHINE_FIXTURE);
+  put(root, TRADEOFFS_PATH, tradeoffsDoc());
   // The standards contract lives in AGENTS.md and CLAUDE.md is only its import line
   // (check 20). Cases 11 through 11f mutate one side each.
   put(root, 'CLAUDE.md', '@AGENTS.md\n');
@@ -555,6 +577,44 @@ No completion heading here on purpose (case 3 mutation).
   const r7c = runLint(d7c);
   check('7c. oversized agent report cap exits 1', r7c.status === 1);
   check('7c. message names the oversized cap', r7c.all.includes('plugins/rigor/agents/tracer.md: report cap of 5000 words is outside 100-800'));
+
+  // 7d-7i. AGENT COUNT CLAIMS (check 12) — the routing table states how many agents ship and
+  // lists each in its Kind table; both derive from plugins/*/agents/*.md and fail closed.
+  const d7d = clone('case7d-agent-count-stale-total');
+  put(d7d, TRADEOFFS_PATH, tradeoffsDoc({ total: 'nine' }));
+  const r7d = runLint(d7d);
+  check('7d. a stale shipped-agent total exits 1', r7d.status === 1);
+  check('7d. message names both counts', r7d.all.includes('states 9 shipped subagents but plugins/*/agents/*.md ships 13'));
+
+  const d7e = clone('case7e-agent-count-omitted-agent');
+  put(d7e, TRADEOFFS_PATH, tradeoffsDoc({ readOnly: 'nine', readOnlyAgents: FIXTURE_READ_ONLY.filter((a) => a !== 'code-ops `probe`') }));
+  const r7e = runLint(d7e);
+  check('7e. a Kind table omitting a shipped agent exits 1', r7e.status === 1);
+  check('7e. message names the omitted agent', r7e.all.includes('omits shipped agent code-ops-suite/probe'));
+
+  const d7f = clone('case7f-agent-count-unknown-agent');
+  put(d7f, TRADEOFFS_PATH, tradeoffsDoc({ readOnly: 'eleven', readOnlyAgents: [...FIXTURE_READ_ONLY, 'code-ops `ghost`'] }));
+  const r7f = runLint(d7f);
+  check('7f. a Kind table naming an unshipped agent exits 1', r7f.status === 1);
+  check('7f. message names the unknown agent', r7f.all.includes('lists code-ops-suite/ghost but no plugin ships it'));
+
+  const d7g = clone('case7g-agent-count-stale-read-only');
+  put(d7g, TRADEOFFS_PATH, tradeoffsDoc({ readOnly: 'nine' }));
+  const r7g = runLint(d7g);
+  check('7g. a stale read-only count exits 1', r7g.status === 1);
+  check('7g. message names both counts', r7g.all.includes('states 9 read-only agents but the Kind table lists 10'));
+
+  const d7h = clone('case7h-agent-count-stale-writing');
+  put(d7h, TRADEOFFS_PATH, tradeoffsDoc({ writing: 'Two' }));
+  const r7h = runLint(d7h);
+  check('7h. a stale writing-agent count exits 1', r7h.status === 1);
+  check('7h. message names both counts', r7h.all.includes('states 2 writing agents but the Kind table lists 3'));
+
+  const d7i = clone('case7i-agent-count-doc-missing');
+  rmSync(join(d7i, TRADEOFFS_PATH));
+  const r7i = runLint(d7i);
+  check('7i. a missing routing table exits 1', r7i.status === 1);
+  check('7i. message names the missing doc', r7i.all.includes('subagent-trade-offs.md: missing'));
 
   // 8. BOGUS COMPOSITION EDGE — code-ops-docs/40 Engineering/Techniques/skill-composition.md table cell names a
   // plugin:skill edge that does not resolve to a real plugins/<plugin>/skills/<skill>/ dir.
