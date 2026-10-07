@@ -25,6 +25,7 @@ import {
   statSync,
   writeFileSync,
 } from 'node:fs';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { basename, dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -552,10 +553,12 @@ function listChooserModels(raw) {
   return readChooserCache();
 }
 
-// WHY a cache and never a subprocess: this plugin runs inside the host it would
-// be asking. `opencode models` loads this plugin again, whose config hook asks
-// again, and the chain of blocked hosts never ends. The config hook therefore
-// reads only what a previous session learned from the host client.
+// WHY a cache first: this plugin runs inside the host it would be asking, and the
+// server is not up when the config hook runs, so the hook reads what an earlier
+// session learned from the host client. A plain `opencode models` loads this plugin
+// again, whose config hook asks again, and the chain of blocked hosts never ends
+// (probed on opencode 1.17.15). A machine with no cache yet asks once through
+// askHostModels, which passes `--pure` so the child loads no plugin.
 function chooserCachePath() {
   const env = process.env.CODE_OPS_CHOOSER_CACHE;
   if (typeof env === 'string' && env.trim()) return env.trim();
@@ -580,6 +583,53 @@ function readChooserCache() {
   return Array.isArray(ids) ? ids.map(parseChooserLine).filter(Boolean) : [];
 }
 
+function writeChooserCache(ids) {
+  const path = chooserCachePath();
+  mkdirSync(dirname(path), { recursive: true });
+  const hosts = { ...readCacheFile().hosts, [hostKey()]: { ids } };
+  writeFileSync(path, `${JSON.stringify({ hosts }, null, 2)}\n`);
+}
+
+// The command that runs the host: CODE_OPS_OPENCODE_CMD (a JSON array, for a wrapper or a
+// test double), else this process when it is the OpenCode binary. Never a bare `opencode`
+// from PATH, which could be a different install than the host that loaded this plugin.
+function hostCommand() {
+  const raw = process.env.CODE_OPS_OPENCODE_CMD?.trim();
+  if (raw) {
+    try {
+      const cmd = JSON.parse(raw);
+      return Array.isArray(cmd) && cmd.length && cmd.every((part) => typeof part === 'string') ? cmd : null;
+    } catch { return null; }
+  }
+  return /^opencode(\.exe)?$/i.test(basename(process.execPath)) ? [process.execPath] : null;
+}
+
+const ASK_TIMEOUT_MS = 8000;
+
+// The models this host has enabled, listed by the host's own CLI. It honors
+// `enabled_providers` and `disabled_providers` and lists only connected providers
+// (probed on opencode 1.17.15). A failure returns no ids and the reason, which the
+// caller shows; it never throws. CODE_OPS_CHOOSER_CHILD stops a host without `--pure`
+// from asking again out of the child.
+function askHostModels(directory) {
+  if (process.env.CODE_OPS_CHOOSER_CHILD) return Promise.resolve({ ids: [], reason: 'this process is the model-list child' });
+  const cmd = hostCommand();
+  if (!cmd) return Promise.resolve({ ids: [], reason: 'no OpenCode binary to ask; set CODE_OPS_OPENCODE_CMD' });
+  return new Promise((resolve) => {
+    execFile(cmd[0], [...cmd.slice(1), 'models', '--pure'], {
+      cwd: directory,
+      timeout: ASK_TIMEOUT_MS,
+      maxBuffer: 4_000_000,
+      windowsHide: true,
+      env: { ...process.env, CODE_OPS_CHOOSER_CHILD: '1' },
+    }, (error, stdout) => {
+      if (error) return resolve({ ids: [], reason: `opencode models failed (${error.killed ? 'timed out' : `exit ${error.code ?? 'unknown'}`})` });
+      const ids = [...new Set(String(stdout).split(/\r?\n/).map(parseChooserLine).filter(Boolean))].sort();
+      resolve({ ids, reason: ids.length ? null : 'opencode models listed nothing' });
+    });
+  });
+}
+
 // The host lists only the providers this user is connected to, so the catalog
 // never names a model the user cannot reach.
 async function refreshChooserCache(client) {
@@ -594,12 +644,7 @@ async function refreshChooserCache(client) {
     .sort();
   if (!ids.length) return null;
   const changed = JSON.stringify(ids) !== JSON.stringify(readChooserCache().slice().sort());
-  if (changed) {
-    const path = chooserCachePath();
-    mkdirSync(dirname(path), { recursive: true });
-    const hosts = { ...readCacheFile().hosts, [hostKey()]: { ids } };
-    writeFileSync(path, `${JSON.stringify({ hosts }, null, 2)}\n`);
-  }
+  if (changed) writeChooserCache(ids);
   const variants = {};
   for (const p of providers) {
     for (const [model, info] of Object.entries(p?.models ?? {})) {
@@ -890,10 +935,15 @@ function buildChooserLadder(catalog = listChooserModels(), profile = readProfile
   for (const tier of ['light', 'mid', 'strong', 'frontier']) {
     byTier[tier] = pickChooserModel(tier, ids, profile);
   }
+  const picked = { ...byTier };
   if (!byTier.frontier) byTier.frontier = byTier.strong;
   if (!byTier.strong) byTier.strong = byTier.mid || byTier.light;
   if (!byTier.mid) byTier.mid = byTier.strong || byTier.light;
   if (!byTier.light) byTier.light = byTier.mid || byTier.strong;
+  // A rung with no enabled model of its class borrows a neighbor's; each borrow is reported.
+  const fallbacks = Object.keys(picked)
+    .filter((tier) => !picked[tier] && byTier[tier])
+    .map((tier) => `${tier} has no enabled model of its class and uses ${byTier[tier]}.`);
   // Null means premium collapses to strong; the dispatch note and the routing card say so.
   byTier.premium = pickPremiumModel(pickChooserModel('strong', ids, profile), ids, profile);
   const agents = {};
@@ -905,7 +955,7 @@ function buildChooserLadder(catalog = listChooserModels(), profile = readProfile
   const warning = allowed && catalog.length && !catalog.some(allowed)
     ? `code-ops: the enabled list in ${profilePath()} names no model this host offers. Suite agents keep their configured models.`
     : null;
-  return { byTier, agents, catalog: ids, profile, warning };
+  return { byTier, agents, catalog: ids, profile, warning, fallbacks };
 }
 
 function chooserKnownModels(catalog) {
@@ -985,7 +1035,7 @@ function pickVariant(variants, level) {
   return null;
 }
 
-function routingCard(byTier, profile) {
+function routingCard(byTier, profile, fallbacks = []) {
   const bound = ROUTE_TIERS.map((t) => {
     if (t === 'premium' && !byTier?.premium) return byTier?.strong ? PREMIUM_COLLAPSED : 'premium=unbound';
     const row = byTier?.[t] ? profileRow(byTier[t], profile) : null;
@@ -1002,6 +1052,8 @@ function routingCard(byTier, profile) {
     ...budget,
     'code-ops tier and effort routing: choose both per unit, from the task. Add either line to a Task brief.',
     `Tier: light | mid | strong | premium | frontier | lead. This host binds ${bound}. lead inherits your own model.`,
+    // Present only while a fallback is active, so the happy-path prefix stays byte-identical.
+    ...(fallbacks.length ? [`Ladder fallbacks on this host: ${fallbacks.join(' ')}`] : []),
     'A tier below the agent floor runs at the floor: explorer and gatherer light, claim-checker mid, every other suite agent strong. premium binds a second enabled strong-class model for strong-floor agents; with none, it runs at strong and the dispatch says so.',
     'Effort: low | medium | high sets that subagent\'s reasoning level. With no line: breadth low, implementer and claim-checker medium, review, trace, and verify high.',
     'Tier follows the judgment the unit needs. Effort follows its ambiguity. Review never runs low. Effort never runs above high; a higher request runs at high.',
@@ -1017,7 +1069,7 @@ function routingLog(entry) {
   } catch { /* fail open */ }
 }
 
-function rewriteTaskDefinition(output, byTier, profile) {
+function rewriteTaskDefinition(output, byTier, profile, fallbacks) {
   if (!output || typeof output !== 'object') return;
   const listed = SUITE_AGENTS.map((line) => `- ${line}`).join('\n');
   const extra = [
@@ -1026,7 +1078,7 @@ function rewriteTaskDefinition(output, byTier, profile) {
     listed,
     'Never invoke general, explore, scout, or general-purpose.',
     'Each brief names Objective, Scope, Round budget, Report path, and Escalation.',
-    routingCard(byTier, profile),
+    routingCard(byTier, profile, fallbacks),
   ].join('\n');
   const desc = typeof output.description === 'string' ? output.description : '';
   output.description = desc
@@ -1290,6 +1342,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   let byTier = {};
   let profile = {};
   let chooserWarning = null;
+  // Fallback notes for this launch: no list (static ladder stays), a rung borrowed from a neighbor.
+  let chooserFallbacks = [];
   const clones = new Set();
   const agentModels = {};
 
@@ -1344,7 +1398,23 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         config.agent ??= {};
         // The switches come first, so the ladder binds only a model the provider settings allow.
         switches = providerSwitches(config);
-        const ladder = buildChooserLadder(undefined, undefined, switches);
+        // A machine with no cached list asks the host once, so the first launch already binds
+        // the models this machine enables. The answer is cached for later launches.
+        let catalog = listChooserModels();
+        let askReason = null;
+        if (!catalog.length) {
+          const asked = await askHostModels(directory);
+          catalog = asked.ids;
+          askReason = asked.reason;
+          if (catalog.length) { try { writeChooserCache(catalog); } catch { /* the list still binds this launch */ } }
+        }
+        const ladder = buildChooserLadder(catalog, undefined, switches);
+        chooserFallbacks = [...ladder.fallbacks];
+        if (!catalog.length) {
+          chooserFallbacks.unshift(`No enabled-model list for this host (${askReason ?? 'none found'}); suite agents keep the static ladder from opencode.json.`);
+        } else if (!Object.keys(ladder.agents).length) {
+          chooserFallbacks.unshift('No enabled model this host lists meets a rung of the verified tier table; suite agents keep the static ladder from opencode.json.');
+        }
         if (Object.keys(ladder.agents).length) {
           for (const [name, model] of Object.entries(ladder.agents)) {
             const agent = config.agent[name] ??= {};
@@ -1368,7 +1438,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
     'tool.definition': async (input, output) => {
       try {
         const id = String(input?.toolID ?? '').toLowerCase();
-        if (id === 'task' || id === 'agent') rewriteTaskDefinition(output, byTier, profile);
+        if (id === 'task' || id === 'agent') rewriteTaskDefinition(output, byTier, profile, chooserFallbacks);
       } catch { /* fail open */ }
     },
     'chat.params': async (input, output) => {
@@ -1450,7 +1520,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (!isSubagent(row)) {
           push(ASSESS_CARD);
           push(TASK_ROUTE);
-          if (on('CODE_OPS_TIER_ROUTING') || on('CODE_OPS_EFFORT_ROUTING')) push(routingCard(byTier, profile));
+          if (on('CODE_OPS_TIER_ROUTING') || on('CODE_OPS_EFFORT_ROUTING')) push(routingCard(byTier, profile, chooserFallbacks));
         }
         if (on('CODE_OPS_LADDER_CARD') && implementerClass(row.agent) && (!row.ladderDone || row.ladderViaSystem)) {
           push(LADDER_CARD);
@@ -1613,9 +1683,10 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         // Any event means the host finished startup. Not awaited: discovery must
         // never hold up the host.
         chooserRefreshed = true;
-        if (chooserWarning) {
+        const shown = [chooserWarning, ...chooserFallbacks].filter(Boolean).map((note) => (note.startsWith('code-ops:') ? note : `code-ops: ${note}`)).join(' ');
+        if (shown) {
           Promise.resolve()
-            .then(() => client?.tui?.showToast?.({ body: { message: chooserWarning, variant: 'warning' } }))
+            .then(() => client?.tui?.showToast?.({ body: { message: shown, variant: 'warning' } }))
             .catch(() => { /* fail open */ });
         }
         refreshLive().then((result) => {
