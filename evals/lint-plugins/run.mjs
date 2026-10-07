@@ -46,7 +46,7 @@
 //   node evals/lint-plugins/run.mjs   (exit 0 = pass)
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, copyFileSync, cpSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, copyFileSync, cpSync, rmSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -114,6 +114,17 @@ const put = (root, relPath, content) => {
   const full = join(root, ...relPath.split('/'));
   mkdirSync(dirname(full), { recursive: true });
   writeFileSync(full, content);
+};
+
+// Registers every script now under the fixture's scripts/ in scripts/SCRIPT_DOMAINS.json, which
+// the gate requires of each script (check 6, domains). A case that adds a root script calls
+// this after adding it; the missing-domain case 6c skips the call on purpose.
+const syncDomains = (root) => {
+  const names = readdirSync(join(root, 'scripts')).filter((f) => /\.m?js$/.test(f)).sort();
+  put(root, 'scripts/SCRIPT_DOMAINS.json', `${JSON.stringify({
+    domains: { fixture: 'Fixture scripts for the lint-plugins regression eval.' },
+    scripts: Object.fromEntries(names.map((n) => [n, 'fixture'])),
+  }, null, 2)}\n`);
 };
 
 // Fixture descriptions name no repository-root path: check 24 reports a shipped citation of a
@@ -344,6 +355,7 @@ function buildBaseline(root) {
     '        run: node evals/fixture-check/run.mjs',
     '',
   ].join('\n'));
+  syncDomains(root);
 }
 
 const work = mkdtempSync(join(tmpdir(), 'coh-lintp-'));
@@ -451,6 +463,7 @@ No completion heading here on purpose (case 3 mutation).
       declared.push({ name: 'scan-narration.mjs', plugins: ['rigor'] });
     }
     put(dir, 'scripts/vendored-manifest.mjs', `export const RUNTIME_SCRIPTS = ${JSON.stringify(declared, null, 2)};\n`);
+    syncDomains(dir);
     put(dir, 'plugins/rigor/agents/tracer.md', `${readIn(dir, 'plugins/rigor/agents/tracer.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan narration REPORT.md.\n`);
     return runLint(dir);
   };
@@ -467,6 +480,7 @@ No completion heading here on purpose (case 3 mutation).
   const d5h = clone('case5h-facade-unknown-verb');
   copyFileSync(REAL_CO, join(d5h, 'scripts', 'co.mjs'));
   copyFileSync(REAL_CO, join(d5h, 'plugins', 'rigor', 'scripts', 'co.mjs'));
+  syncDomains(d5h);
   put(d5h, 'scripts/vendored-manifest.mjs', "export const RUNTIME_SCRIPTS = [\n  { name: 'fixture-tool.mjs', plugins: ['rigor'] },\n  { name: 'co.mjs', plugins: ['rigor'] },\n];\n");
   put(d5h, 'plugins/rigor/agents/tracer.md', `${readIn(d5h, 'plugins/rigor/agents/tracer.md')}\nRun \${CLAUDE_PLUGIN_ROOT}/scripts/co.mjs scan nosuchverb REPORT.md.\n`);
   const r5h = runLint(d5h);
@@ -488,6 +502,7 @@ No completion heading here on purpose (case 3 mutation).
       declared.push({ name: 'brief-template.mjs', plugins: ['rigor'] });
     }
     put(dir, 'scripts/vendored-manifest.mjs', `export const RUNTIME_SCRIPTS = ${JSON.stringify(declared, null, 2)};\n`);
+    syncDomains(dir);
     put(dir, 'plugins/rigor/agents/tracer.md', `${readIn(dir, 'plugins/rigor/agents/tracer.md')}\n${sentence}\n`);
     return runLint(dir);
   };
@@ -506,9 +521,37 @@ No completion heading here on purpose (case 3 mutation).
   // as advisory text but must NEVER fail the run.
   const d6 = clone('case6-advisory-orphan');
   put(d6, 'scripts/orphan-tool.mjs', '// Never referenced under evals/ on purpose (case 6 mutation).\nexport const ORPHAN = true;\n');
+  syncDomains(d6);
   const r6 = runLint(d6);
   check('6. orphan script stays advisory-only, exit 0', r6.status === 0);
   check('6. output flags it as advisory', r6.all.includes('advisory:') && r6.all.includes('orphan-tool.mjs'));
+
+  // 6c-6f. SCRIPT DOMAINS (check 6, domains) — scripts/SCRIPT_DOMAINS.json names one declared
+  // domain for every script under scripts/, apart from the vendored list. It fails closed.
+  const d6c = clone('case6c-script-without-domain');
+  put(d6c, 'scripts/undomained-tool.mjs', '// Registered nowhere on purpose (case 6c mutation).\nexport const UNDOMAINED = true;\n');
+  const r6c = runLint(d6c);
+  check('6c. a script with no domain exits 1', r6c.status === 1);
+  check('6c. message names the script and the registry', r6c.all.includes('scripts/undomained-tool.mjs has no domain in scripts/SCRIPT_DOMAINS.json'));
+
+  const d6d = clone('case6d-domain-registry-missing');
+  rmSync(join(d6d, 'scripts', 'SCRIPT_DOMAINS.json'));
+  const r6d = runLint(d6d);
+  check('6d. a missing registry exits 1', r6d.status === 1 && r6d.all.includes('missing scripts/SCRIPT_DOMAINS.json'));
+
+  const d6e = clone('case6e-domain-stale-or-undeclared');
+  const registry6e = JSON.parse(readIn(d6e, 'scripts/SCRIPT_DOMAINS.json'));
+  registry6e.scripts['gone-tool.mjs'] = 'fixture';
+  registry6e.scripts['fixture-tool.mjs'] = 'nodomain';
+  put(d6e, 'scripts/SCRIPT_DOMAINS.json', JSON.stringify(registry6e, null, 2));
+  const r6e = runLint(d6e);
+  check('6e. an entry for a script that is gone exits 1', r6e.status === 1 && r6e.all.includes('lists scripts/gone-tool.mjs, which does not exist'));
+  check('6e. an undeclared domain exits 1', r6e.all.includes('scripts/fixture-tool.mjs the undeclared domain "nodomain"'));
+
+  const d6f = clone('case6f-domain-registry-malformed');
+  put(d6f, 'scripts/SCRIPT_DOMAINS.json', '{ "domains": ');
+  const r6f = runLint(d6f);
+  check('6f. a malformed registry exits 1', r6f.status === 1 && r6f.all.includes('scripts/SCRIPT_DOMAINS.json is not valid JSON'));
 
   // 7. AGENT PASSAGE DRIFT — an agents/*.md pinned doctrine clause (AGENT_SHARED_PASSAGES)
   // diverges from its canonical text; must fail closed same as the CONVENTIONS.md-level
@@ -562,6 +605,7 @@ No completion heading here on purpose (case 3 mutation).
   // 10. AUTO-MERGE DENYLIST (check 19) — a script wiring `gh pr merge --auto`.
   const d10 = clone('case10-auto-merge');
   put(d10, 'scripts/auto-merger.mjs', "// Fixture script (case 10 mutation): wires PR auto-merge, which is denylisted.\nconst cmd = 'gh pr merge --auto';\n");
+  syncDomains(d10);
   const r10 = runLint(d10);
   check('10. gh pr merge --auto exits 1', r10.status === 1);
   check('10. message flags the auto-merge denylist', r10.all.includes('auto-merge denylist'));
@@ -965,6 +1009,7 @@ No completion heading here on purpose (case 3 mutation).
     const mp = JSON.parse(readIn(dir, '.claude-plugin/marketplace.json'));
     put(dir, '.claude-plugin/marketplace.json', JSON.stringify({ name: 'code-ops', ...mp }, null, 2));
     for (const path of ['.node-version', '.github/actions-lock.json', '.github/dependabot.yml', 'scripts/check-action-pins.mjs']) put(dir, path, '\n');
+    syncDomains(dir);
     const job = (id, os) => [`  ${id}:`, `    runs-on: ${os}`, '    steps:', '      - run: node scripts/check-action-pins.mjs'];
     const shard = (id) => [`  ${id}:`, '    runs-on: ubuntu-latest', '    steps:', '      - run: node scripts/lint-plugins.mjs'];
     const gate = (id, shardIds) => [`  ${id}:`, '    if: always()', `    needs: [${shardIds.join(', ')}]`, '    runs-on: ubuntu-latest', '    steps:', '      - run: node -e \'if (Object.keys(needs).filter((id) => needs[id].result !== "success").length) process.exit(1)\''];

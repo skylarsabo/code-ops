@@ -21,7 +21,9 @@
 //   6. Every ${CLAUDE_PLUGIN_ROOT}/scripts/X a skill references is bundled in that
 //      plugin and byte-identical to the canonical scripts/X. A façade reference
 //      (`co.mjs <domain> <verb>`) resolves through co.mjs's verb table to the sibling
-//      script it runs, so it carries the same requirement as the direct path.
+//      script it runs, so it carries the same requirement as the direct path. Separately,
+//      every script under scripts/ names one declared domain in scripts/SCRIPT_DOMAINS.json,
+//      and the registry lists no script that is gone (fails closed; not the vendored list).
 //   7. No skill copy-pastes a 40+ word passage verbatim out of its CONVENTIONS.md.
 //   8. (when code-ops-docs/40 Engineering/Handbook/commands/ exists) every skill has an entry heading
 //      `### `/<plugin>:<skill>`` in code-ops-docs/40 Engineering/Handbook/commands/<plugin>.md AND a qualified
@@ -433,6 +435,33 @@ function checkBundledScripts({ plugins, pluginByName }) {
       else if (!existsSync(canonical)) fail(`${p.name}: ${sourceList} references bundled scripts/${name}, which has no canonical scripts/${name} at the repo root`);
       else if (readFileSync(copy, 'utf8') !== readFileSync(canonical, 'utf8')) fail(`${p.name}: scripts/${name} drifted from the canonical scripts/${name} — re-copy it`);
     }
+  }
+}
+
+// ---- 6 (domains). every script under scripts/ names exactly one declared domain ----
+// The domain registry is scripts/SCRIPT_DOMAINS.json, kept apart from RUNTIME_SCRIPTS: an entry
+// there means "vendor this copy into a plugin", while a domain says which area owns a script,
+// and most scripts are root-only. The check fails closed, so a missing file, a malformed
+// registry, an unregistered script, a stale entry, or an undeclared domain all fail.
+function checkScriptDomains() {
+  const registryPath = join(ROOT, 'scripts', 'SCRIPT_DOMAINS.json');
+  if (!existsSync(registryPath)) { fail('missing scripts/SCRIPT_DOMAINS.json (the domain of every script under scripts/)'); return; }
+  let registry;
+  try { registry = JSON.parse(readText(registryPath)); } catch (e) { fail(`scripts/SCRIPT_DOMAINS.json is not valid JSON: ${e.message}`); return; }
+  const isMap = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const { domains, scripts } = isMap(registry) ? registry : {};
+  if (!isMap(domains) || !isMap(scripts)) { fail('scripts/SCRIPT_DOMAINS.json must hold a "domains" object and a "scripts" object'); return; }
+  for (const [id, description] of Object.entries(domains)) {
+    if (typeof description !== 'string' || !description.trim()) fail(`scripts/SCRIPT_DOMAINS.json: domain "${id}" needs a description`);
+  }
+  const onDisk = new Set(readdirSync(join(ROOT, 'scripts'), { withFileTypes: true })
+    .filter((e) => e.isFile() && /\.m?js$/.test(e.name)).map((e) => e.name));
+  for (const name of [...onDisk].sort()) {
+    if (!Object.hasOwn(scripts, name)) fail(`scripts/${name} has no domain in scripts/SCRIPT_DOMAINS.json`);
+  }
+  for (const [name, domain] of Object.entries(scripts)) {
+    if (!onDisk.has(name)) fail(`scripts/SCRIPT_DOMAINS.json lists scripts/${name}, which does not exist`);
+    if (typeof domain !== 'string' || !Object.hasOwn(domains, domain)) fail(`scripts/SCRIPT_DOMAINS.json gives scripts/${name} the undeclared domain ${JSON.stringify(domain)}`);
   }
 }
 
@@ -1619,6 +1648,7 @@ function main() {
   checkSkills(ctx);
   checkRootReadmeCounts(ctx);
   checkBundledScripts(ctx);
+  checkScriptDomains();
   checkConventionsCopies(ctx);
   checkHandbookCommands(ctx);
   checkTechniquesIndex();

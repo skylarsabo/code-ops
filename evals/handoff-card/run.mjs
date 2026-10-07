@@ -18,7 +18,7 @@
 //     reads updates.jsonl and emits one additionalContext per new band, with hookEventName
 //     PostToolUse and no systemMessage;
 //   - on Claude and Codex (DEC-73) band 1 names host auto-compaction as the relief and asks the lead
-//     to checkpoint (TASKS.md current, a RUN_LOG.md `Next:` line); Claude ends with the PreCompact
+//     to checkpoint (TASKS.md current, the four RUN_LOG.md tag lines `Decision:`, `Grant:`, `In flight:`, `Next:`); Claude ends with the PreCompact
 //     snapshot sentence and Codex with `co snapshot`, and Codex is any non-Grok host without
 //     CLAUDECODE or CLAUDE_PROJECT_DIR. Band 2 and above says to finish the step, checkpoint, ask
 //     for /compact if the host has not compacted, and hand off only for new work or a clean session.
@@ -121,7 +121,8 @@ function parseOut(r) {
 
 // The exact Claude and Codex card text (DEC-73). Each piece is pinned here so a wording drift fails.
 const held = (approx) => `This session holds approximately ${approx} tokens of context. `;
-const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a `Next:` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ';
+const TAGS = 'append tagged lines to RUN_LOG.md: `Decision:` (id, choice, rejected options), `Grant:` (operator authority, verbatim), `In flight:` (file:line, done or partial), and `Next:` (the step in flight and its next command)';
+const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and ' + TAGS + '. ';
 const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running work, and peers.';
 const SNAPSHOT_CODEX = 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
 const BAND2 = 'Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.';
@@ -350,6 +351,7 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
   // Grok asks for a suite compact and never gets the Claude setting line.
   const grokBand = (parseOut(runHook(payloadFor({ transcript: writeTranscript(dir, grokUsageLine(160_000), 'grok-band-updates.jsonl'), sessionId: 'sess-band-grok', eventName: 'PostToolUse' }), { home, grok: true, env: { CLAUDECODE: '1' } })) || {}).hookSpecificOutput?.additionalContext || '';
   expect(/The host compacts near 184,000 tokens/.test(grokBand) && /newest compaction segment/.test(grokBand) && !/Ask the operator to run \/compact/.test(grokBand) && !SETTING.test(grokBand) && !/auto-compaction/.test(grokBand), `Grok band 1 must wait for the host compact and name the segment, got ${grokBand}`);
+  expect(grokBand.includes(`checkpoint before the 200,000-token price line: keep TASKS.md current and ${TAGS}.`), `Grok band 1 must name all four RUN_LOG.md tags, got ${grokBand}`);
   rmSync(dir, { recursive: true, force: true });
   cleanup();
   console.log('ok   Claude and Codex cards pin exact text, with auto-compaction as the relief and no assessment; Claude gets the window setting line only while it is unset; Grok waits for the host compact near 184,000');
@@ -488,7 +490,8 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
   writeFileSync(join(againDir, 'signals.json'), `${JSON.stringify({ compactionCount: 1 })}\n`);
   writeFileSync(join(againDir, 'compaction', 'segment_000.md'), '# segment\n');
   const againNote = message(runHook(payloadFor({ transcript: againUpdates, sessionId: 'sess-grok-again', cwd: project, eventName: 'PostToolUse' }), { home, grok: true }));
-  expect(/already compacted once/.test(againNote) && /segment_000\.md/.test(againNote), `a Grok session that already compacted must name the segment and a new session, got ${againNote}`);
+  expect(againNote.includes(`Checkpoint first: keep TASKS.md current and ${TAGS}.`), `a Grok session that already compacted must name all four RUN_LOG.md tags, got ${againNote}`);
+  expect(/already compacted once/.test(againNote) &&/segment_000\.md/.test(againNote), `a Grok session that already compacted must name the segment and a new session, got ${againNote}`);
   expect(message(grokAt(206_000, 'sess-point-grok-fresh')) === '', 'the Grok handoff-point card must fire once per arm');
   grokAt(160_000, 'sess-grok-point');
   expect(grokAt(170_000, 'sess-grok-point', 'UserPromptSubmit').stdout === '', 'Grok UserPromptSubmit stays silent while it records the prompt');

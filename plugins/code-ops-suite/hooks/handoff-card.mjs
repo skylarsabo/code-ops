@@ -52,8 +52,8 @@
 //
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
 // auto-compaction, never a handoff, and the card asks for a checkpoint, not an assessment. Band 1
-// says to keep TASKS.md current and append a `Next:` line to RUN_LOG.md (the step in flight, its
-// next command, and the file:line it edits). On Claude it ends by naming the PreCompact snapshot;
+// says to keep TASKS.md current and append the four tagged RUN_LOG.md lines the compaction snapshot
+// reads: `Decision:`, `Grant:`, `In flight:`, and `Next:` (CHECKPOINT_TAGS). On Claude it ends by naming the PreCompact snapshot;
 // on Codex, where PreCompact does not fire, it says to run `co snapshot`. Band 2 and above
 // says to finish the step, checkpoint as above, ask the operator to run /compact if the host has
 // not, and hand off only for new work or a clean session that loads updated code-ops plugins
@@ -128,6 +128,8 @@ const RUN_LOG_TAIL = 64 * 1024;
 const HANDOFF_COMMAND = /code-ops-suite[:-]handoff/;
 const BOUND_LINE = /^[ \t>*-]*Continue-until:[ \t]*(.*?)[ \t]*$/gm;
 const BOUND_VALUE = /^(\d{1,3}(?:,\d{3})+|\d+)\s+(tokens|turns)$/i;
+// The four RUN_LOG.md tags the compaction snapshot reads (CARRIED_FIELDS in compact-snapshot.mjs).
+const CHECKPOINT_TAGS = 'append tagged lines to RUN_LOG.md: `Decision:` (id, choice, rejected options), `Grant:` (operator authority, verbatim), `In flight:` (file:line, done or partial), and `Next:` (the step in flight and its next command)';
 
 // The marker body. `band` is the live band, which a re-arm resets to 0; `handoffPeakBand`
 // (transcript-lib.mjs) reads `peak`, the highest band the session ever reached. `point` and
@@ -399,7 +401,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
       ? 'The PreCompact snapshot keeps operator words, running work, and peers.'
       : 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
     advice = band === 1
-      ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append a \`Next:\` line to RUN_LOG.md naming the step in flight, its next command, and the file:line it edits. ${snapshot}${setting}`
+      ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and ${CHECKPOINT_TAGS}. ${snapshot}${setting}`
       : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;
   } else if (autonomous) {
     advice = `This session is past the 200,000-token price line, and no operator prompt has arrived since the last card. At the next phase boundary, checkpoint and stop new work so the operator can run /compact. Do not write a handoff for the token count.`;
@@ -408,9 +410,9 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   } else if (band === 1 && pastPoint) {
     advice = 'This session is past the 200,000-token price line, where input is billed double. The host compact did not run. Finish the step in flight, checkpoint, and ask the operator to run /compact. Then read the newest compaction segment. Hand off only when a compact has failed or the next step is new work.';
   } else if (band === 1 && again) {
-    advice = 'This session already compacted once. Start a new session and point it at the newest compaction segment. Another compact summarizes a summary. Checkpoint first: keep TASKS.md current and append a `Next:` line to RUN_LOG.md.';
+    advice = `This session already compacted once. Start a new session and point it at the newest compaction segment. Another compact summarizes a summary. Checkpoint first: keep TASKS.md current and ${CHECKPOINT_TAGS}.`;
   } else if (band === 1) {
-    advice = 'At the next safe boundary, checkpoint before the 200,000-token price line: keep TASKS.md current and append a `Next:` line to RUN_LOG.md. The host compacts near 184,000 tokens. After it, read the newest compaction segment before trusting the host summary. A token count does not select a handoff.';
+    advice = `At the next safe boundary, checkpoint before the 200,000-token price line: keep TASKS.md current and ${CHECKPOINT_TAGS}. The host compacts near 184,000 tokens. After it, read the newest compaction segment before trusting the host summary. A token count does not select a handoff.`;
   } else if (again) {
     advice = 'Finish the step in flight and checkpoint. This session already compacted once. Start a new session and point it at the newest compaction segment. Ask the operator to run /compact only when that session cannot be started.';
   } else {

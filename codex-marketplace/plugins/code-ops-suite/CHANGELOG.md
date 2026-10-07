@@ -4,6 +4,16 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.45.0
+- The compaction snapshot now carries what a handoff carries. It adds four sections read from tagged `RUN_LOG.md` lines: decisions with their rejected options, authority grants, in-flight `file:line` boundaries, and the next command. The header gains a `Run:` line and counts for the new sections. The next command is never cut, grants stay whole while the snapshot fits its 12,000 characters, and every new line passes the same redaction pass as the transcript text.
+- `CARRIED_FIELDS` in `scripts/compact-snapshot.mjs` is the one list that maps each handoff `Write` field to its snapshot section and tag. `co snapshot --fields` prints it, the handoff skill cites it, and the eval fails when a handoff field has no entry.
+- The compact card reads a snapshot as fresh when the host has not yet flushed the boundary row, provided the snapshot was written at or after the newest boundary. `snapshotState` keeps its strict two-argument form. The card also prints `snapshot also holds:` and, for a partial snapshot, `Snapshot partial: missing <inputs>` with the rebuild command.
+- The standard card names the four tags. The checkpoint advice on every host, including both Grok notes, asks for `Decision:`, `Grant:`, `In flight:`, and `Next:` lines.
+- `run-contract.mjs init` records the session in `SESSION.json` (`--session`, `--host-session`, or the host session environment variable), so the run folder is found by session id. It leaves a file that names another session unchanged.
+- OpenCode compaction push carries the same four tag lines, read by the same rules, so OpenCode keeps parity.
+- Fixes in touched files: the compact-snapshot eval trims trailing space from a fixture grant, and each pushed OpenCode open-item and dispatch line is cut at 200 characters at its source.
+- Review fixes: past the total budget, the snapshot keeps the newest grants within their 800 characters and adds one `N older grants in RUN_LOG.md` line, so 40 long grants no longer write a file past 12,000 characters. The OpenCode compaction push replaces secret shapes (bearer tokens, `api_key=` values, GitHub tokens, AWS keys, private key headers) with `<REDACTED:secret>` in the tag, open-item, and dispatch lines it copies. Both tag parsers also accept the colon outside the bold (`**Decision**:`).
+
 ## 2.44.0
 - The implementation loop replaces the report-never-fix rule with the touch-improve rule. An operative leaves every touched file better in modularity, performance, and quality. It fixes defects found in touched code in the same change. It reports problems outside touched files as follow-ups.
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry the touch-improve duty. Each report states, for each touched file, improved (what), none-in-scope (why), or net-negative (why).

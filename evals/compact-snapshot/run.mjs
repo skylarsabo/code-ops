@@ -31,10 +31,10 @@ import { tally } from '../harness.mjs';
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SCRIPTS = join(REPO, 'scripts');
 const load = (name) => import(pathToFileURL(join(SCRIPTS, name)).href);
-const { conversationOf, countBoundaries } = await load('transcript-lib.mjs');
+const { conversationOf, countBoundaries, boundaryInfo } = await load('transcript-lib.mjs');
 const snap = await load('compact-snapshot.mjs');
 const { reportPathOf } = await load('agent-ledger.mjs');
-const { buildSnapshot, readSnapshotHeader, snapshotState, findRunFolder, homeSnapshotPath, homeSnapshotPaths, BUDGET } = snap;
+const { buildSnapshot, readSnapshotHeader, snapshotState, findRunFolder, homeSnapshotPath, homeSnapshotPaths, BUDGET, CARRIED_FIELDS, readRunLog } = snap;
 
 const same = (a, b) => { try { return realpathSync(a) === realpathSync(b); } catch { return false; } };
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
@@ -557,6 +557,156 @@ try {
   check('8f. a payload with no session id prints no Routing line', c.status === 0 && routingOf(c).length === 0, c.stdout);
   c = cardFor(STARVED, 'compact', { CODE_OPS_AGENT_LEDGER: 'off' });
   check('8g. CODE_OPS_AGENT_LEDGER=off prints no Routing line', c.status === 0 && routingOf(c).length === 0 && c.stdout.includes('code-ops standard operating mode'), c.stdout);
+
+  // ---- 9. compaction carries what a handoff carries (D-010) ----
+  const FID = 'Fidelity-session-0001';
+  const fidRepo = initRepo('repo-fidelity', true);
+  const fidRun = runFolder(fidRepo, '2026-10-07-fidelity-ho1', { sessionId: FID, name: 'Fidelity HO 1' });
+  const fidSnap = join(fidRun, 'COMPACT_SNAPSHOT.md');
+  const GRANT = 'Operator granted: create branch eng/x and open one PR, never merge (2026-10-06, verbatim)';
+  writeFileSync(join(fidRun, 'RUN_LOG.md'), [
+    '# Run log', '- 2026-10-06T10:00:00Z: opened',
+    '- Decision: DEC-1 use the run folder path over a copy; rejected: a second field list, because it drifts',
+    '**Decision:** DEC-2 keep grants uncut; rejected: truncating grants',
+    `Grant: ${GRANT}`, `Grant: token ${secret} stays out`,
+    'In flight: scripts/compact-snapshot.mjs:120-180 partial', 'In flight: plugins/code-ops-suite/hooks/routing-card.mjs:275 done',
+    'Next: node evals/compact-snapshot/run.mjs', ''].join('\r\n'));
+  const fidSteps = [enqueue('fidelity directive words'), peer('Fid Peer', 'local_fid-1111', 'answer me please'), enqueue('second fidelity words')];
+  const fidT = join(tmp, 'fid.jsonl');
+  const fidCard = (extra = {}) => runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact', session_id: FID, transcript_path: fidT, cwd: fidRepo, ...extra }), {}, fidRepo);
+  const fidPre = () => runHook('compact-snapshot.mjs', JSON.stringify({ hook_event_name: 'PreCompact', session_id: FID, transcript_path: fidT, cwd: fidRepo }), {}, fidRepo);
+  const dated = (offsetMs, o = {}) => rec({ timestamp: new Date(Date.now() + offsetMs).toISOString(), type: 'system', subtype: 'compact_boundary', content: 'Conversation compacted', ...o });
+  writeFileSync(fidT, `${fidSteps.join('\n')}\n`);
+  fidPre();
+  const fidText = existsSync(fidSnap) ? readFileSync(fidSnap, 'utf8') : '';
+  const fidHeader = readSnapshotHeader(fidText);
+  const missingFields = CARRIED_FIELDS.filter((e) => (e.section === 'header' ? !/^Run: 80 Runs\/2026-10-07-fidelity-ho1$/m.test(fidText) : !fidText.includes(`\n## ${e.section}`))).map((e) => e.section);
+  check('9a. PARITY: every CARRIED_FIELDS section, and the Run: path, is in a simulated compaction snapshot', missingFields.length === 0 && CARRIED_FIELDS.length >= 8, `${missingFields.join(',')}\n${fidText.slice(0, 400)}`);
+  check('9b. the tagged lines land verbatim: both decisions with rejected options, the grant, in-flight file:line, and the next command',
+    fidText.includes('- DEC-1 use the run folder path over a copy; rejected: a second field list, because it drifts') && fidText.includes('- DEC-2 keep grants uncut; rejected: truncating grants')
+    && fidText.includes(`- ${GRANT}`) && fidText.includes('- scripts/compact-snapshot.mjs:120-180 partial') && fidText.includes('- node evals/compact-snapshot/run.mjs'), fidText);
+  check('9c. a grant passes the redaction scanner like other text, and the header counts the new sections',
+    fidText.includes('- <REDACTED:secret-shape>') && !fidText.includes(secret) && fidHeader?.counts?.decisions === 2 && fidHeader.counts.grants === 2 && fidHeader.counts.flight === 2 && fidHeader.run === '80 Runs/2026-10-07-fidelity-ho1', JSON.stringify(fidHeader));
+  const skillText = readFileSync(join(REPO, 'plugins', 'code-ops-suite', 'skills', 'handoff', 'SKILL.md'), 'utf8');
+  const writeBullets = [...(skillText.split(/^## Write/m)[1]?.split(/^## /m)[0] ?? '').matchAll(/^- \*\*([^:*]+):\*\*/gm)].map((m) => m[1]);
+  const covered = new Set(CARRIED_FIELDS.flatMap((e) => e.fields.map((f) => f.replace(/ \(.*\)$/, ''))));
+  check('9d. PARITY: every handoff Write field has a CARRIED_FIELDS entry, and the skill cites the list instead of copying it',
+    writeBullets.length >= 9 && writeBullets.every((name) => covered.has(name)) && skillText.includes('CARRIED_FIELDS') && skillText.includes('co snapshot --fields'), `${writeBullets.join('|')}`);
+  const fieldsRun = cli(repo, ['--fields']);
+  const tags = CARRIED_FIELDS.filter((e) => e.tag).map((e) => e.tag);
+  check('9e. co snapshot --fields prints each tag line from the one list, and the startup card names the same tags',
+    fieldsRun.status === 0 && tags.length === 4 && tags.every((t) => fieldsRun.stdout.includes(`"${t}: <text>"`))
+    && tags.every((t) => runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', session_id: FID, cwd: fidRepo }), {}, fidRepo).stdout.includes(`${t}:`)), `${fieldsRun.status} ${fieldsRun.stdout}`);
+
+  // the card on a fresh snapshot: the new line, and no regression of the existing ones
+  writeFileSync(fidT, `${[...fidSteps, boundary()].join('\n')}\n`);
+  c = fidCard();
+  cl = linesOf(c);
+  check('9f. the fresh card says what else the snapshot holds and names its run folder',
+    cl.some((l) => /^Snapshot fresh \(2 operator words, 0 running, 2 items, 1 reply-owed peers\): /.test(l)) && cl.includes('snapshot also holds: 2 decisions, 2 authority grants, 2 in-flight lines, the next command, run folder 80 Runs/2026-10-07-fidelity-ho1') && !c.stdout.includes('Snapshot partial'), c.stdout);
+
+  // the race: the host flushes the boundary row after SessionStart can already run
+  const prior = [...fidSteps, dated(-5000), enqueue('after the first compaction')];
+  writeFileSync(fidT, `${prior.join('\n')}\n`);
+  fidPre();
+  const raced = readSnapshotHeader(readFileSync(fidSnap, 'utf8'));
+  c = fidCard();
+  check('9g. RACE: the card counts the header number (the new boundary row has not landed) and the snapshot is still fresh', raced?.boundaries === 1 && linesOf(c).some((l) => l.startsWith('Snapshot fresh (')) && !c.stdout.includes('Snapshot STALE'), c.stdout);
+  writeFileSync(fidT, `${[...prior, dated(0), enqueue('after the second compaction')].join('\n')}\n`);
+  const oneLater = linesOf(fidCard());
+  writeFileSync(fidT, `${[...prior, dated(0), dated(1), enqueue('x')].join('\n')}\n`);
+  const twoLater = linesOf(fidCard());
+  check('9h. the same snapshot is fresh one boundary later, and stale two later',
+    oneLater.some((l) => l.startsWith('Snapshot fresh (')) && twoLater.some((l) => l.startsWith('Snapshot STALE:')), `${oneLater.join('|')}\n${twoLater.join('|')}`);
+  writeFileSync(fidT, `${[...fidSteps, dated(3_600_000)].join('\n')}\n`);
+  c = fidCard();
+  check('9i. an old snapshot stays stale: same count as the header, but written before the latest boundary', raced?.boundaries === 1 && linesOf(c).some((l) => l.startsWith('Snapshot STALE:')) && !c.stdout.includes('Snapshot fresh'), c.stdout);
+
+  // the library rule behind 9g and 9i
+  const hdr = (boundaries, writtenAt = '2026-10-07T00:00:10.000Z') => ({ boundaries, writtenAt });
+  const at = Date.parse('2026-10-07T00:00:05.000Z');
+  check('9j. RACE rule: header N, count N, Written at or after the latest boundary is fresh; before it is stale',
+    snapshotState(hdr(2), 2, at) === 'fresh' && snapshotState(hdr(2), 2, Date.parse('2026-10-07T00:00:10.000Z')) === 'fresh' && snapshotState(hdr(2), 2, Date.parse('2026-10-07T00:00:11.000Z')) === 'stale');
+  check('9k. RACE rule fails closed: the strict form, an unknown boundary time, a bad Written time, and any other count stay stale',
+    snapshotState(hdr(2), 2) === 'stale' && snapshotState(hdr(2), 2, null) === 'stale' && snapshotState(hdr(2, 'garbage'), 2, at) === 'stale'
+    && snapshotState(hdr(2), 4, at) === 'stale' && snapshotState(hdr(2), 1, at) === 'stale' && snapshotState(hdr(2), 3, at) === 'fresh' && snapshotState(hdr(2), NaN, at) === 'stale' && snapshotState(null, 2, at) === 'stale');
+  check('9l. before the first compaction lands, header 0 and count 0 is fresh only with the race argument', snapshotState(hdr(0), 0, null) === 'fresh' && snapshotState(hdr(0), 0) === 'stale');
+  const info = boundaryInfo(`${[enqueue('a'), dated(-60_000), dated(-1000), enqueue('b')].join('\n')}\n`);
+  check('9m. boundaryInfo returns the count and the newest boundary time, null when there is none', info.count === 2 && Math.abs(info.lastAt - (Date.now() - 1000)) < 60_000 && boundaryInfo('').lastAt === null && boundaryInfo('').count === 0 && countBoundaries(`${dated(0)}\n`) === 1);
+
+  // an older snapshot header, without the new counts, still reads, and the card adds no new-section line for it
+  const oldHeader = readSnapshotHeader('# Compact snapshot\nWritten: 2026-10-01T00:00:00.000Z\nSession: s\nBoundaries: 1\nStatus: complete\nCounts: operator words 1, running work 0, active items 2, reply-owed peers 0\n\n## x\n');
+  check('9n. an older header reads: the first four counts parse, the new ones are undefined, and no Run: is a blank', oldHeader?.counts?.items === 2 && oldHeader.counts.decisions === undefined && oldHeader.run === '', JSON.stringify(oldHeader));
+
+  // partial: the card names the missing piece
+  const PART = 'Partial-session-0001';
+  const partRepo = initRepo('repo-partial', false);
+  const partT = join(tmp, 'part.jsonl');
+  writeFileSync(partT, `${[enqueue('partial directive words')].join('\n')}\n`);
+  runHook('compact-snapshot.mjs', JSON.stringify({ hook_event_name: 'PreCompact', session_id: PART, transcript_path: partT, cwd: partRepo }), {}, partRepo);
+  writeFileSync(partT, `${[enqueue('partial directive words'), boundary()].join('\n')}\n`);
+  c = runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact', session_id: PART, transcript_path: partT, cwd: partRepo }), {}, partRepo);
+  check('9o. PARTIAL: the card prints Snapshot partial with the missing input and how to rebuild it',
+    c.status === 0 && linesOf(c).some((l) => /^Snapshot partial: missing run folder; rebuild that input from the run folder or run co snapshot --session Partial-session-0001$/.test(l)) && linesOf(c).some((l) => l.startsWith('Snapshot fresh (')), c.stdout);
+  c = fidCard();
+  check('9p. a complete snapshot prints no Snapshot partial line', !c.stdout.includes('Snapshot partial'), c.stdout);
+
+  // the tag parser
+  const logDir = join(tmp, 'taglog');
+  mkdirSync(logDir, { recursive: true });
+  writeFileSync(join(logDir, 'RUN_LOG.md'), ['See Decision: not at line start', '- **Grant:** one', '* Grant: two', 'Grant: one', 'Decision: d1', 'Decision: d1', 'In flight: a:1', 'In flight: b:2', 'In flight: none.', 'In flight: c:3', 'Next: first', 'Next: second', 'Decision:', 'Decision:no space', '- **Decision**: d2', '**Grant**: three', '**In flight**: c:4', '**Next**: third'].join('\r\n'));
+  const parsed = readRunLog(logDir);
+  check('9q. the tag parser: bullets and bold match with the colon inside or outside the bold, CRLF is fine, duplicates keep their first place, In flight: none clears, the last Next wins, a mid-line tag is ignored',
+    JSON.stringify(parsed) === JSON.stringify({ decisions: ['d1', 'no space', 'd2'], grants: ['one', 'two', 'three'], flight: ['c:3', 'c:4'], next: 'third' }), JSON.stringify(parsed));
+  check('9r. a missing RUN_LOG.md reads as null and the builder renders none in each new section without going partial',
+    readRunLog(join(tmp, 'no-such-log-dir')) === null && (() => { const b2 = buildSnapshot({ conversation: manyWords, running: [], items: { total: 0, lines: [] }, runLog: null, runFolder: 'r', now, sessionId: SID, mask: id }); return b2.status === 'complete' && /## Authority grants \(0, verbatim, RUN_LOG\.md\)\nnone\n/.test(b2.text); })());
+
+  // budgets: the new sections cut by the documented order, and the never-cut set survives a full snapshot
+  const bigLog = {
+    decisions: Array.from({ length: 30 }, (_, i) => `DEC-${i + 1} chose option ${i} over the other because ${'z'.repeat(500)}`),
+    grants: Array.from({ length: 6 }, (_, i) => `Grant ${i}: operator said ${'verbatim words '.repeat(8)}`.trimEnd()),
+    flight: Array.from({ length: 8 }, (_, i) => `src/file${i}.mjs:${i + 10}-${i + 40} ${'partial '.repeat(40)}`),
+    next: `node scripts/long-command.mjs --flag ${'arg '.repeat(50)}`.trim(),
+  };
+  const manyAgents = Array.from({ length: 20 }, (_, i) => ({ agent_id: `bigagent${i}`, agent_type: 'suite:implementer', description: `big description ${i} ${'d'.repeat(60)}`, age_ms: 60_000, report_path: `reports/u${i}.md` }));
+  const big = buildSnapshot({ conversation: manyWords, running: manyAgents, items: items(16, 200), runLog: bigLog, runFolder: '80 Runs/big', now, sessionId: SID, mask: id });
+  const shownIds = [...big.text.matchAll(/^- (DEC-\d+) /gm)].map((m) => m[1]);
+  check('9s. a full snapshot fits 12,000 characters', big.chars <= BUDGET.total && !big.overBudget, `${big.chars}`);
+  check('9t. never cut: every grant and the next command stay whole, the newest decisions keep their ids, and the run path stays',
+    bigLog.grants.every((g) => big.text.includes(`- ${g}\n`)) && big.text.includes(`- ${bigLog.next}\n`) && shownIds.includes('DEC-30') && shownIds.length >= 6 && big.text.includes('Run: 80 Runs/big') && manyAgents.every((a) => big.text.includes(a.agent_id)), `${shownIds.join(',')}`);
+  check('9u. decision text cuts before older decisions drop, and the newest in-flight line survives', /^- DEC-30 [^\n]*…$/m.test(big.text) && big.text.includes('src/file7.mjs:17-47'), big.text.slice(-1500));
+  // 40 grants of 590 characters (24,000 characters uncut) must not push the file past the total budget.
+  const grantFlood = Array.from({ length: 40 }, (_, i) => `G-${String(i + 1).padStart(2, '0')} ${'g'.repeat(586)}`);
+  const flood = buildSnapshot({ conversation: manyWords, running: manyAgents, items: items(16, 200), runLog: { ...bigLog, grants: grantFlood }, runFolder: '80 Runs/big', now, sessionId: SID, mask: id });
+  check('9s2. 40 long grants stay within 12,000 characters: the newest grants stay within 800, one line counts the older ones, and the next command and Run: line stay',
+    flood.chars <= BUDGET.total && !flood.overBudget && /^- \d+ older grants in RUN_LOG\.md$/m.test(flood.text) && flood.text.includes('- G-40 ') && !flood.text.includes('- G-01 ')
+    && /## Authority grants \(1 of 40 shown, verbatim, RUN_LOG\.md\)\n- 39 older grants in RUN_LOG\.md\n/.test(flood.text) && flood.text.includes(`- ${bigLog.next}\n`) && flood.text.includes('Run: 80 Runs/big') && /grants 40,/.test(flood.text), `${flood.chars}`);
+  const maskOff = buildSnapshot({ conversation: null, running: [], items: null, runLog: bigLog, now, sessionId: SID, mask: () => { throw new Error('scanner down'); } });
+  check('9v. a failing mask withholds grants and the next command rather than writing them raw', !maskOff.text.includes('verbatim words') && !maskOff.text.includes('long-command') && (maskOff.text.match(/\[withheld: masking failed\]/g) ?? []).length >= 7, maskOff.text.slice(0, 200));
+
+  // init records the session, so the lookup by SESSION.json finds a hand-made run folder
+  const initRoot = join(tmp, 'init-root');
+  mkdirSync(join(initRoot, '80 Runs', '2026-10-07-init-eval'), { recursive: true });
+  const sh = (...args) => spawnSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.invalid', ...args], { cwd: initRoot, encoding: 'utf8' });
+  sh('init', '-q');
+  sh('config', 'core.autocrlf', 'false');
+  writeFileSync(join(initRoot, 'AGENTS.md'), '# Contract\n');
+  writeFileSync(join(initRoot, '.gitignore'), '80 Runs/\n');
+  sh('add', '.');
+  sh('commit', '-qm', 'init');
+  const initRun = join(initRoot, '80 Runs', '2026-10-07-init-eval');
+  const initEnv = { ...process.env, CODE_OPS_HOME: home, CLAUDE_CODE_SESSION_ID: '', CODEX_SESSION_ID: '' };
+  const runInit = (extra, env = initEnv) => spawnSync(process.execPath, [join(SCRIPTS, 'run-contract.mjs'), 'init', '--root', initRoot, '--run', initRun, '--lead-model', 'claude-opus-5-5', '--force', ...extra], { encoding: 'utf8', timeout: 120_000, env });
+  let ri = runInit([]);
+  check('9w. init with no session id says so and writes no SESSION.json', ri.status === 0 && /no session id/.test(ri.stdout) && !existsSync(join(initRun, 'SESSION.json')), `${ri.status} ${ri.stdout}${ri.stderr}`);
+  ri = runInit(['--session', 'init-session-0001', '--host-session', 'local_init-1']);
+  const recorded = existsSync(join(initRun, 'SESSION.json')) ? JSON.parse(readFileSync(join(initRun, 'SESSION.json'), 'utf8')) : {};
+  check('9x. init --session records the session, and findRunFolder resolves the folder by either id',
+    ri.status === 0 && recorded.sessionId === 'init-session-0001' && recorded.hostSessionId === 'local_init-1' && recorded.name === '2026-10-07-init-eval' && same(findRunFolder(initRoot, 'init-session-0001') ?? '', initRun) && same(findRunFolder(initRoot, 'local_init-1') ?? '', initRun), `${ri.stdout}${ri.stderr} ${JSON.stringify(recorded)}`);
+  ri = runInit([], { ...initEnv, CLAUDE_CODE_SESSION_ID: 'init-session-0001' });
+  check('9y. init takes the session from the host environment, and re-running keeps the other recorded fields', ri.status === 0 && JSON.parse(readFileSync(join(initRun, 'SESSION.json'), 'utf8')).hostSessionId === 'local_init-1', `${ri.stdout}${ri.stderr}`);
+  ri = runInit(['--session', 'another-session']);
+  check('9z. init leaves a SESSION.json that names another session alone and says so', ri.status === 0 && /names session init-session-0001, not another-session; left unchanged/.test(ri.stdout) && JSON.parse(readFileSync(join(initRun, 'SESSION.json'), 'utf8')).sessionId === 'init-session-0001', `${ri.stdout}${ri.stderr}`);
 } finally {
   rmSync(tmp, { recursive: true, force: true });
 }
