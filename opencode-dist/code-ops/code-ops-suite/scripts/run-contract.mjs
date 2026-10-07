@@ -9,6 +9,7 @@ import { LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-
 import { git, repoRelative, scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
 import { validateRuntimeConfig, verifyRuntimeConfig } from './runtime-lib.mjs';
 import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './acceptance-lib.mjs';
+import { CONTRACT_KINDS, CONTRACT_KIND_OF, UNIT_SIZES, budgetAdvisory } from './route-unit.mjs';
 
 const TOP_V1 = ['version', 'revision', 'runId', 'head', 'objective', 'nonGoals', 'lead', 'quality', 'budget', 'sharedContext', 'replanOn', 'units'];
 const TOP_V2 = new Set([...TOP_V1, 'context']);
@@ -24,16 +25,17 @@ const QUALITY = new Set(['dimensions', 'criteria']);
 const CRITERION = new Set(['id', 'dimension', 'description', 'oracle', 'proof', 'blocking', 'owner']);
 const BUDGET = new Set(['maxDispatches', 'maxParallel', 'maxRetriesPerUnit']);
 const UNIT = new Set(['id', 'phase', 'wave', 'lens', 'mode', 'role', 'kind', 'model', 'tier', 'effort', 'brief', 'scope', 'artifact', 'dependsOn', 'qualityCriteria', 'tokenBudget']);
-const UNIT_V4 = new Set([...UNIT, 'validates', 'independentOf', 'routingRationale', 'peerException']);
+const UNIT_V4 = new Set([...UNIT, 'validates', 'independentOf', 'routingRationale', 'peerException', 'size', 'roundBudget']);
 const OPTIONAL_UNIT = new Set(['tokenBudget']);
-const OPTIONAL_UNIT_V4 = new Set([...OPTIONAL_UNIT, 'routingRationale', 'peerException']);
+const OPTIONAL_UNIT_V4 = new Set([...OPTIONAL_UNIT, 'routingRationale', 'peerException', 'size', 'roundBudget']);
 const ORCHESTRATION = new Set(['mode', 'minOperatives', 'minParallel', 'singleUnitReason']);
 const OPTIONAL_ORCHESTRATION = new Set(['singleUnitReason']);
 const TOKEN_BUDGET = new Set(['input', 'output', 'reasoning']);
 const DIMENSIONS = new Set(['correctness', 'evidence', 'coverage', 'security', 'privacy', 'usability', 'performance', 'documentation', 'efficiency', 'maintainability']);
 const ORACLES = new Set(['command', 'receipt', 'review', 'artifact']);
 const OWNERS = new Set(['lead', 'reviewer', 'tool', 'user']);
-const KINDS = new Set(['mechanical', 'breadth', 'execution', 'judgment', 'review', 'refutation']);
+// route-unit.mjs owns the unit kinds; a contract accepts the kinds its CONTRACT_KIND_OF table maps to.
+const KINDS = new Set(CONTRACT_KINDS);
 const EFFORTS = new Set(['low', 'medium', 'high', 'xhigh']);
 const PEER_CLASSES = new Set(['architecture', 'refutation', 'mathematics', 'synthesis']);
 const PEER_EXCEPTION = new Set(['class', 'rationale', 'stoppingCriterion']);
@@ -197,7 +199,15 @@ function validate(c, root, warnings = []) {
     const expected = `D-${String(index + 1).padStart(3, '0')}`;
     if (unit.id !== expected || unitIds.has(unit.id)) errors.push(`unit ${index + 1} must be ${expected}`); unitIds.add(unit.id); byId.set(unit.id, unit);
     if (!Number.isInteger(unit.wave) || unit.wave < 1 || typeof unit.phase !== 'string' || !unit.phase || typeof unit.lens !== 'string' || !unit.lens) errors.push(`${unit.id || expected} needs phase, lens, positive wave`);
-    if (!['read', 'write'].includes(unit.mode) || !KINDS.has(unit.kind) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
+    if (!['read', 'write'].includes(unit.mode) || !EFFORTS.has(unit.effort) || !TIER_ORDER.includes(unit.tier) || !tierFor(unit.model, unit.tier)) errors.push(`${unit.id || expected} has invalid routing fields`);
+    if (!KINDS.has(unit.kind)) {
+      const mapped = Object.hasOwn(CONTRACT_KIND_OF, unit.kind) ? `; ${unit.kind} is a route kind, so record ${CONTRACT_KIND_OF[unit.kind]}` : '';
+      errors.push(`${unit.id || expected} kind must be one of ${CONTRACT_KINDS.join(', ')}${mapped}`);
+    }
+    if ('size' in unit && !UNIT_SIZES.includes(unit.size)) errors.push(`${unit.id || expected} size must be one of ${UNIT_SIZES.join(', ')}`);
+    if ('roundBudget' in unit && !(Number.isSafeInteger(unit.roundBudget) && unit.roundBudget > 0)) errors.push(`${unit.id || expected} roundBudget must be a positive safe integer`);
+    const advice = UNIT_SIZES.includes(unit.size) ? budgetAdvisory(unit.size, unit.roundBudget) : null;
+    if (advice) warnings.push(`${unit.id || expected} ${advice}`);
     const rank = TIER_RANK[unit.tier];
     if (taskBased && unit.effort === 'xhigh') errors.push(`${unit.id || expected} effort xhigh is above the high ceiling for task-based contracts`);
     if (calibrated && rank > TIER_RANK[c.lead.tier]) errors.push(`${unit.id || expected} must not run above the lead tier`);

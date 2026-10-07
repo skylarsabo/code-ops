@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.47.0
+- `route-unit.mjs` is the one source of unit kinds. `CONTRACT_KIND_OF` maps each route kind to the kind a run contract records, and `run-contract.mjs` derives its accepted kinds from it. A bad kind now fails with the allowed list and names the contract kind to record for a route kind.
+- Version 4 contract units accept an optional `size` (`S`, `M`, or `L`) and `roundBudget`, and briefs may carry a `Size:` line. Every size defaults to the 40-round budget, because no unit has recorded a size yet. An advisory fires when a budget sits below the measured median for its size, and it stays silent until a median is measured.
+- The bundled `artifact-grammars.md` reference lists the optional unit `size` and `roundBudget` fields.
+
 ## 2.46.1
 - `records.mjs` reuses Git reads within one run. It resolves HEAD to an object ID once, caches the tracked-path list, and reads citation and index blobs in one `cat-file --batch`. The record-collections eval makes 23% fewer Git calls (15,376 to 11,844) and runs about 25% faster (608 s to 457 s).
 - `record-lib.mjs` clears these caches on any Git command that can change state and on every file write. A library caller gets the cache only if it calls `enableGitReadCache`, so other scripts keep reading live state. The index, the worktree, and receipt bindings are never cached.
