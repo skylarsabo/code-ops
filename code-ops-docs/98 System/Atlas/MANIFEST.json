@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5eb51032956923beff50ae5acae893a7b7d73984",
+      "verifiedAt": "77c9b72f8326053b1ab02adb8ba036b52e11f60f",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -322,17 +322,17 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 85,
+          "line": 87,
           "anchor": "On Claude and Codex, context size alone never selects HANDOFF. Claude Code compa"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 99,
+          "line": 101,
           "anchor": "On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,00"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 103,
+          "line": 105,
           "anchor": ". The latest such line wins, and a malformed one sets no bound. The card stays q"
         },
         {
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "e5d9885c995488f96a50bbc214eeb4c47fbdedb1d1b74afa3a666cc2ff987368"
+      "verifiedDigest": "c1937e117cba3377d3421b838d5f01f128197a752e4e9aba579c9207b01d624a"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "21d370d92152ae958c1f5a8afb447b60516b93dc",
+      "verifiedAt": "dbb4277cba50d4077ae523bbd97b41185097987a",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -594,7 +594,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 146,
+          "line": 148,
           "anchor": "import { ANCHOR_RE, anchorValue, extractRefs, createResolver, resolveRef, readLi"
         },
         {
@@ -604,7 +604,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 69,
+          "line": 71,
           "anchor": "//  19. Convergence (DEC-74). A PROGRAM.md"
         },
         {
@@ -649,7 +649,7 @@
         },
         {
           "file": "scripts/check-handoff.mjs",
-          "line": 508,
+          "line": 514,
           "anchor": "function agreedWithWarning(line, peer, own, peerFile) {"
         },
         {
@@ -953,7 +953,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "bfc2250d4ce056af332355c5ef3d58b6a99c042ceb66269eba51a0e5e801a6ea"
+      "verifiedDigest": "df33a5a3f45e1d534911919b98ac38032c6dfb21390a55a50677747a9aa9ff70"
     },
     {
       "slug": "evals-and-calibration",
@@ -961,8 +961,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "21d370d92152ae958c1f5a8afb447b60516b93dc",
-      "verifiedDigest": "267de6d68517a16ab0047e1ca85c0f7a77f046894859a1f45cd82f31010c79de",
+      "verifiedAt": "dbb4277cba50d4077ae523bbd97b41185097987a",
+      "verifiedDigest": "71cab462ea0337d192ea0428c6cfe5e18528d0162d18a585509ab208fc6534d1",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1106,7 +1106,7 @@
         },
         {
           "file": "evals/handoff-check/run.mjs",
-          "line": 366,
+          "line": 377,
           "anchor": "// Agreed-with (design 2026-09 item 4): warn only, exit 0, when the peer program"
         },
         {
@@ -1304,7 +1304,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
+      "verifiedAt": "77c9b72f8326053b1ab02adb8ba036b52e11f60f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1408,7 +1408,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 238,
+          "line": 240,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -1417,7 +1417,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "ba15e12832c09a1323434a186e4fd3bd75c4407377c789d9a2b7e51093035d46"
+      "verifiedDigest": "0e14f20f08dc65726d21977ffd47d5e8bc776f768f7cc15abd853654dc61d8c3"
     },
     {
       "slug": "ci-workflows",
@@ -1425,7 +1425,7 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "21d370d92152ae958c1f5a8afb447b60516b93dc",
+      "verifiedAt": "dbb4277cba50d4077ae523bbd97b41185097987a",
       "verifiedDigest": "e8a3b0ba039a6c96ad6ac1dbdaff9c679e57f88710c0a81bffb76315403f1a76",
       "claims": [
         {
@@ -1520,7 +1520,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "1927701f9707281996b212cf94f8511e2bf6843b",
+      "verifiedAt": "77c9b72f8326053b1ab02adb8ba036b52e11f60f",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1544,8 +1544,8 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 72,
-          "anchor": "token pressure. First persist decisions, rejected approaches, authority boundari"
+          "line": 76,
+          "anchor": ". Execute the host action only through a callable host"
         },
         {
           "file": "scripts/run-contract.mjs",
@@ -1556,11 +1556,6 @@
           "file": "scripts/context-bundle.mjs",
           "line": 139,
           "anchor": "const contractRequired = contract.context.requiredViewSections ?? [...OPTIONAL_V"
-        },
-        {
-          "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 74,
-          "anchor": ". Execute the host action only through a callable host"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -1597,7 +1592,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "56346aae1e4e1d3d05150acf481b84a659cef2835491767403fadbf9ce078923"
+      "verifiedDigest": "2057da34ae48faa5aeb541e9d09e2deb8cce15fb4ec3b5bce1b36545cae22037"
     },
     {
       "slug": "root-contracts",

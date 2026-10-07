@@ -539,6 +539,14 @@ try {
   check(`a long predecessor's carried bullets stay under 8 KB and count the rest (${Buffer.byteLength(capped)} B, ${kept} kept)`,
     Buffer.byteLength(capped) < 8 * 1024 && kept > 0 && kept + left === many.length && capped.includes('80 Runs/cap-pred/HANDOFF.md'));
   check('draft keeps the recorded case of the session base name', /^Session: Single tap ledger2 data HO 2$/m.test(capped));
+
+  // OI-9: a first hop that kept an existing session's name (no HO suffix) chains on as "<name> HO 2".
+  mkdirSync(join(repo, '80 Runs', 'bare-pred'));
+  mkdirSync(join(repo, '80 Runs', 'bare-run'));
+  writeFileSync(join(repo, '80 Runs', 'bare-pred', 'HANDOFF.md'), '# HANDOFF\n\n## Program\n\nSession: CodeOps Master\nHop: 1\n');
+  writeFileSync(join(repo, '80 Runs', 'bare-run', 'SESSION.json'), JSON.stringify({ v: 1, sessionId: null, name: 'CodeOps Master', hop: 1, predecessor: '80 Runs/bare-pred/HANDOFF.md' }));
+  const bareNext = inRepo([co, 'handoff', 'draft', '--run', '80 Runs/bare-run']).stdout;
+  check('draft after a bare-name first hop appends HO 2 to the recorded name', /^Session: CodeOps Master HO 2$/m.test(bareNext) && /^Hop: 2$/m.test(bareNext));
 } finally {
   rmSync(repo, { recursive: true, force: true });
   rmSync(home, { recursive: true, force: true });

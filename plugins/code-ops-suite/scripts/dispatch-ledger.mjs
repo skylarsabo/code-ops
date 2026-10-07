@@ -6,6 +6,7 @@
 //   node scripts/dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <id>]
 //   node scripts/dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <id>] [--report <path> [--sections <a,b>]]
 //   node scripts/dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>
+//   node scripts/dispatch-ledger.mjs skip --ledger <path> --id D-NNN --reason <text> [--contract <path>]
 //   node scripts/dispatch-ledger.mjs check --ledger <path> [--strict]
 //
 // WHY: a dispatch ledger is the record that an operative was sent out at all — the
@@ -24,6 +25,15 @@
 // stretch, the one thing the per-row stamp can't show; `check` accepts it and fails closed on a
 // line that starts `> phase:` without matching the grammar. Parsers that read only pipe rows
 // ignore it, so ledgers stay readable by every existing consumer.
+//
+// Not-dispatched marker (written by `skip`): `> not-dispatched: D-NNN · <reason>` on its own line
+// declares a planned unit that will never run, so a ledger can close it without a dispatch and
+// without an invented actor id (`add` requires the agent id the host returned). It writes no row
+// and no journal entry. `add` skips a declared id when it mints the next serial id and refuses
+// `--contract --unit` for one; `check` lists it and fails closed on a malformed marker, a repeated
+// one, or an id that is declared and also has a row. run-contract.mjs reconcile and
+// run-runtime.mjs status honor the declaration; a final reconcile still refuses a declared unit
+// until a replan drops it from the contract.
 //
 // WHY role@model: a real-scale calibration run found a lead silently substituting one
 // model tier down mid-run with no artifact recording which model actually executed a
@@ -79,13 +89,14 @@
 // every later add on that ledger must stay on the same run, and a bound journal's `update
 // --status redispatched` inherits the same actor requirement.
 //
-// Exit: add/update/phase -> 0 on success, 1 on a validation rejection (bad brief length,
+// Exit: add/update/phase/skip -> 0 on success, 1 on a validation rejection (bad brief length,
 // missing/unresolvable --model, unknown id, invalid transition, a report file that fails the
 // shape gate, a phase title carrying the marker's own delimiters, a --contract unit that is
 // unknown or whose row would not match it exactly, a duplicate contract-unit dispatch, a
 // version 4 dispatch or bound redispatch missing --actor-id or reusing one across units, a
 // --contract add that breaks the ledger's runId binding, or a version 4 --contract add that
-// tries to start a binding on an already-written but unbound ledger), 2 on a usage error
+// tries to start a binding on an already-written but unbound ledger; for skip: a missing ledger, an
+// id with a row or a journal entry, an id already declared, or a --contract without that unit), 2 on a usage error
 // (including --contract without --unit, or --unit without --contract).
 // check -> 0 (schema clean; any dangling/unstamped rows and an absent journal are printed as
 // advisories), 1 on a schema violation, on a journal violation (phantom row, out-of-band status
@@ -96,7 +107,7 @@
 import { readFileSync, writeFileSync, appendFileSync, existsSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
-import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
+import { LEDGER_HEADER, LEDGER_ROW_RE, LEDGER_STATUSES, NOT_DISPATCHED_PREFIX, parseNotDispatched, replayDispatchJournal } from './ledger-grammar.mjs';
 
 // Grammar (a) comes from scripts/ledger-grammar.mjs so this writer and the two readers
 // (calibration-metrics.mjs, estimate-run-cost.mjs) cannot drift apart.
@@ -113,6 +124,7 @@ function usage() {
   console.error('usage: dispatch-ledger.mjs add --ledger <path> --role <r> --brief <text> --artifact <a> --model <m> [--actor-id <host-session-or-agent-id>] [--contract <path> --unit <D-NNN>]');
   console.error('       dispatch-ledger.mjs update --ledger <path> --id D-NNN --status <s> [--actor-id <host-session-or-agent-id>] [--report <path> [--sections <a,b>]]');
   console.error('       dispatch-ledger.mjs phase --ledger <path> --title <t> --lead-model <m>');
+  console.error('       dispatch-ledger.mjs skip --ledger <path> --id D-NNN --reason <text> [--contract <path>]');
   console.error('       dispatch-ledger.mjs check --ledger <path> [--strict]');
   process.exit(2);
 }
@@ -164,13 +176,19 @@ function parseRows(text) {
     if (!STATUSES.includes(status)) { malformed.push(`L${idx + 1}: ${id}: invalid status '${status}'`); return; }
     rows.push({ id, role, brief, artifact, status, line: idx + 1 });
   });
-  return { rows, phases, malformed };
+  // A `> not-dispatched:` declaration closes a planned unit that never ran, so it must not share an
+  // id with a row: one id is either a dispatch or a declared non-dispatch, never both.
+  const notDispatched = parseNotDispatched(text);
+  malformed.push(...notDispatched.malformed);
+  const declared = notDispatched.declared;
+  for (const r of rows) if (declared.has(r.id)) malformed.push(`${r.id}: declared not-dispatched and also has a row (line ${r.line})`);
+  return { rows, phases, declared, malformed };
 }
 
-function nextId(rows) {
+function nextId(rows, declared = new Map()) {
   let max = 0;
-  for (const r of rows) {
-    const n = Number(r.id.slice(2));
+  for (const id of [...rows.map((r) => r.id), ...declared.keys()]) {
+    const n = Number(id.slice(2));
     if (Number.isFinite(n)) max = Math.max(max, n);
   }
   return `D-${String(max + 1).padStart(3, '0')}`;
@@ -321,7 +339,7 @@ function cmdAdd(args) {
       process.exit(1);
     }
   }
-  const { rows } = text === null ? { rows: [] } : parseRows(text);
+  const { rows, declared } = text === null ? { rows: [], declared: new Map() } : parseRows(text);
 
   // L-053/L-054: read the journal's binding state before deciding this add's id and legality. A
   // ledger binds to a contract run the first time a version 4 `--contract` add stamps a runId
@@ -360,6 +378,10 @@ function cmdAdd(args) {
       process.exit(1);
     }
     id = unit.id;
+    if (declared.has(id)) {
+      console.error(`x ${id} is declared not dispatched (${declared.get(id)}) — it cannot also be dispatched; replan the contract if the unit will run after all`);
+      process.exit(1);
+    }
     const dupRow = rows.some((r) => r.id === id);
     const dupJournal = priorJournal ? priorJournal.expected.has(id) : false;
     if (dupRow || dupJournal) {
@@ -368,7 +390,7 @@ function cmdAdd(args) {
     }
     if (contract.version === 4) {
       if (!('--actor-id' in f)) {
-        console.error('x --actor-id is required to dispatch against a version 4 contract — strict reconciliation (run-contract.mjs reconcile) rejects an activation with no actor, and the append-only journal cannot be corrected after the fact');
+        console.error(`x --actor-id is required to dispatch against a version 4 contract — supply the agent id the host returned for this dispatch, never an invented one. Strict reconciliation (run-contract.mjs reconcile) rejects an activation with no actor, and the append-only journal cannot be corrected after the fact. A unit that will never run is not added: declare it with 'dispatch-ledger.mjs skip --ledger ${f['--ledger']} --id ${id} --reason <text>'`);
         process.exit(1);
       }
       if (text !== null) {
@@ -389,7 +411,7 @@ function cmdAdd(args) {
       }
     }
   } else {
-    id = nextId(rows);
+    id = nextId(rows, declared);
   }
 
   const role = `${f['--role']}@${f['--model']}`;
@@ -443,6 +465,39 @@ function cmdPhase(args) {
   journalAppend(path, { op: 'phase', title }, text === null);
   writeFileSync(path, body);
   console.log(`(dispatch-ledger) phase '${title}' lead@${lead} -> ${f['--ledger']}`);
+}
+
+// ---------------------------------------------------------------- skip
+
+// A planned unit that will never be dispatched is declared, not added: `add` requires the agent id
+// the host returned, and a unit that never ran has none to give. The marker writes no row and no
+// journal entry, so the unit never appears as a dispatch. run-contract.mjs reconcile and
+// run-runtime.mjs status read the declaration; a final reconcile still refuses the unit until a
+// replan drops it from the contract.
+function cmdSkip(args) {
+  const f = parseFlags(args, new Set(['--ledger', '--id', '--reason', '--contract']));
+  for (const req of ['--ledger', '--id', '--reason'])
+    if (!(req in f)) { console.error(`x skip needs ${req}`); usage(); }
+  const id = f['--id'];
+  const reason = f['--reason'].trim();
+  if (!/^D-\d+$/.test(id)) { console.error(`x --id must look like D-NNN: ${JSON.stringify(id)}`); process.exit(1); }
+  if (/[\r\n]/.test(reason)) { console.error('x --reason must be a single line'); process.exit(1); }
+  const path = resolve(f['--ledger']);
+  const text = readLedger(path);
+  if (text === null) { console.error(`x ledger not found: ${f['--ledger']} — skip declares a unit in an existing ledger`); process.exit(1); }
+  const { rows, declared, malformed } = parseRows(text);
+  if (malformed.length) {
+    console.error(`x refusing to append to a malformed ledger — fix these rows first:\n  ${malformed.join('\n  ')}`);
+    process.exit(1);
+  }
+  if ('--contract' in f) loadContractUnit(f['--contract'], id);
+  if (rows.some((r) => r.id === id)) { console.error(`x ${id} already has a ledger row — a dispatched unit cannot be declared not dispatched`); process.exit(1); }
+  if (declared.has(id)) { console.error(`x ${id} is already declared not dispatched (${declared.get(id)})`); process.exit(1); }
+  const jPath = journalPathFor(path);
+  const journal = existsSync(jPath) ? replayDispatchJournal(readFileSync(jPath, 'utf8')) : null;
+  if (journal?.expected.has(id)) { console.error(`x ${id} is in the dispatch journal — a dispatched unit cannot be declared not dispatched`); process.exit(1); }
+  writeFileSync(path, `${text.endsWith('\n') ? text : `${text}\n`}${NOT_DISPATCHED_PREFIX} ${id} · ${reason}\n`);
+  console.log(`(dispatch-ledger) ${id} not dispatched (${reason}) -> ${f['--ledger']}`);
 }
 
 // ---------------------------------------------------------------- update
@@ -541,7 +596,7 @@ function cmdUpdate(args) {
     const bound = priorJournal ? priorJournal.events.some((e) => e.op === 'add' && e.runId) : false;
     if (bound) {
       if (!('--actor-id' in f)) {
-        console.error(`x ${f['--id']} redispatch on a bound journal requires --actor-id`);
+        console.error(`x ${f['--id']} redispatch on a bound journal requires --actor-id — supply the agent id the host returned for the new dispatch, never an invented one`);
         process.exit(1);
       }
       const conflict = actorBoundToOtherUnit(priorJournal.events, f['--actor-id'], f['--id']);
@@ -580,9 +635,10 @@ function cmdCheck(args) {
   const text = readLedger(path);
   if (text === null) { console.error(`x ledger not found: ${f['--ledger']}`); process.exit(1); }
 
-  const { rows, phases, malformed } = parseRows(text);
+  const { rows, phases, declared, malformed } = parseRows(text);
   for (const m of malformed) console.log(`  !! MALFORMED  ${m}`);
   for (const ph of phases) console.log(`  phase: ${ph.title} · lead@${ph.lead} (line ${ph.line})`);
+  for (const [id, reason] of declared) console.log(`  not dispatched: ${id} (${reason})`);
 
   // Monotonically increasing ids: each id's numeric part must exceed the previous row's.
   let prev = 0;
@@ -677,6 +733,7 @@ function cmdCheck(args) {
 const argv = process.argv.slice(2);
 if (argv[0] === 'add') cmdAdd(argv.slice(1));
 else if (argv[0] === 'phase') cmdPhase(argv.slice(1));
+else if (argv[0] === 'skip') cmdSkip(argv.slice(1));
 else if (argv[0] === 'update') cmdUpdate(argv.slice(1));
 else if (argv[0] === 'check') cmdCheck(argv.slice(1));
 else usage();

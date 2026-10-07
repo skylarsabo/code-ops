@@ -5,7 +5,7 @@ import { basename, dirname, isAbsolute, resolve } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { TIER_ORDER, TIER_RANK, modelRankOf, modelSupportsTier, providerOfConfigSlug } from './model-tiers.mjs';
-import { LEDGER_ROW_RE, LEDGER_STATUSES, replayDispatchJournal } from './ledger-grammar.mjs';
+import { LEDGER_ROW_RE, LEDGER_STATUSES, parseNotDispatched, replayDispatchJournal } from './ledger-grammar.mjs';
 import { git, repoRelative, scopesIntersect, verifySnapshotReceipt } from './context-index-lib.mjs';
 import { validateRuntimeConfig, verifyRuntimeConfig } from './runtime-lib.mjs';
 import { ACCEPT_HEADER, actorError, parseAcceptance as readAcceptance } from './acceptance-lib.mjs';
@@ -303,13 +303,16 @@ function validate(c, root, warnings = []) {
 function parseLedger(path) {
   if (!existsSync(path)) die(`ledger does not exist: ${path}`);
   const rows = []; const malformed = [];
-  readFileSync(path, 'utf8').split(/\r?\n/).forEach((line, index) => {
+  const text = readFileSync(path, 'utf8');
+  text.split(/\r?\n/).forEach((line, index) => {
     if (!line.startsWith('|') || /^\|\s*(id|---)/i.test(line)) return;
     const match = line.match(LEDGER_ROW_RE);
     if (!match) { malformed.push(index + 1); return; }
     rows.push({ id: match[1], role: match[2], brief: match[3], artifact: match[4], status: match[5] });
   });
-  return { rows, malformed };
+  // `> not-dispatched: D-NNN · <reason>` declares a planned unit that never ran (dispatch-ledger.mjs skip).
+  const marked = parseNotDispatched(text);
+  return { rows, malformed, declared: marked.declared, markerProblems: marked.malformed };
 }
 // WHY (calibration lesson L-055): a version 4 dispatch journal accrues permanent violations
 // (a missing actor, a reused actor, an early activation, a non-independent validator, a
@@ -374,7 +377,7 @@ function walkDispatchJournal(contract, journal) {
 // only once the run finishes. `final` keeps every existing strict outcome unchanged.
 function reconcile(contract, ledgerPath, mode) {
   const final = mode === 'final';
-  const { rows, malformed } = parseLedger(ledgerPath); const errors = []; const warnings = []; const byId = new Map(contract.units.map((x) => [x.id, x])); const seen = new Set();
+  const { rows, malformed, declared, markerProblems } = parseLedger(ledgerPath); const errors = []; const warnings = []; const byId = new Map(contract.units.map((x) => [x.id, x])); const seen = new Set();
   if (malformed.length) errors.push(`malformed ledger rows at ${malformed.join(', ')}`);
   for (const row of rows) {
     const unit = byId.get(row.id); if (!unit) { errors.push(`unplanned ledger row ${row.id}`); continue; }
@@ -385,7 +388,20 @@ function reconcile(contract, ledgerPath, mode) {
     if (!LEDGER_STATUSES.includes(row.status)) errors.push(`${row.id} has unknown status ${row.status}`);
     if (final && row.status !== 'reported') errors.push(`${row.id} is not reported`);
   }
-  for (const unit of contract.units) if (!seen.has(unit.id)) (final ? errors : warnings).push(`missing planned ledger row ${unit.id}`);
+  errors.push(...markerProblems);
+  // WHY: a unit that will never run is declared (dispatch-ledger.mjs skip), not given an invented
+  // actor id. A declaration quiets the missing-row warning mid-run; a final reconcile still fails
+  // until a replan drops the unit, so no dispatched unit ever finalizes without a real actor.
+  for (const [id] of declared) {
+    if (!byId.has(id)) errors.push(`${id} is declared not dispatched but the contract does not plan it`);
+    else if (seen.has(id)) errors.push(`${id} is declared not dispatched and has a ledger row`);
+  }
+  const isDeclared = (id) => declared.has(id) && byId.has(id) && !seen.has(id);
+  for (const unit of contract.units) {
+    if (seen.has(unit.id)) continue;
+    if (!isDeclared(unit.id)) (final ? errors : warnings).push(`missing planned ledger row ${unit.id}`);
+    else if (final) errors.push(`${unit.id} is declared not dispatched; drop it from the contract with a replan before finalizing`);
+  }
   const journalPath = `${ledgerPath}.journal.jsonl`;
   let journal = null;
   if (existsSync(journalPath)) {
@@ -408,7 +424,7 @@ function reconcile(contract, ledgerPath, mode) {
       const walked = walkDispatchJournal(contract, journal);
       errors.push(...walked.errors);
       if (final) {
-        for (const unit of contract.units) if (!walked.actorByUnit.has(unit.id)) errors.push(`dispatch journal does not identify the actor for ${unit.id}`);
+        for (const unit of contract.units) if (!walked.actorByUnit.has(unit.id) && !isDeclared(unit.id)) errors.push(`dispatch journal does not identify the actor for ${unit.id}`);
         if (walked.widestOverlap < contract.orchestration.minParallel) errors.push(`dispatch journal records at most ${walked.widestOverlap} overlapping active work intervals; orchestration.minParallel is ${contract.orchestration.minParallel}`);
       }
     }

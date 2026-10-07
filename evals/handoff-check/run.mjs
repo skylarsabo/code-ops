@@ -157,6 +157,17 @@ const rNoHop = run([withChain(['Session: Ledger2 AMM HO 1'])]);
 check('a Session line without a Hop line fails', rNoHop.status === 1 && /found: no Hop line/.test(outOf(rNoHop)));
 const rNoBase = run([withChain(['Session: HO 1', 'Hop: 1'])]);
 check('a Session line with no base name fails', rNoBase.status === 1 && /Session: must end with " HO 1"/.test(outOf(rNoBase)));
+// OI-9: a first hop may carry an existing session's name without the HO suffix; later hops may not,
+// and a suffix that disagrees with Hop fails on every hop.
+check('a first hop carries an existing session name with no HO suffix', run([withChain(['Session: CodeOps Master', 'Hop: 1'])]).status === 0);
+const rBareHop2 = run([withChain(['Session: CodeOps Master', 'Hop: 2'])]);
+check('a bare session name on hop 2 fails with the rule named', rBareHop2.status === 1 && /Session: must end with " HO 2"/.test(outOf(rBareHop2)));
+const rSuffixMismatch = run([withChain(['Session: CodeOps Master HO 2', 'Hop: 1'])]);
+check('a first hop whose suffix disagrees with Hop fails', rSuffixMismatch.status === 1 && /Session: must end with " HO 1"/.test(outOf(rSuffixMismatch)));
+const rGluedSuffix = run([withChain(['Session: CodeOps Master HO1', 'Hop: 1'])]);
+check('a first hop with a malformed suffix fails', rGluedSuffix.status === 1 && /Session: must end with " HO 1"/.test(outOf(rGluedSuffix)));
+const rBareSuffix = run([withChain(['Session: HO 1 ', 'Hop: 1'])]);
+check('a first hop that is only an HO suffix fails', rBareSuffix.status === 1);
 
 // === unfilled draft placeholder ===
 const unfilled = write('unfilled.md', buildHandoff({ carriedContext: '## Carried context\n\n- [FILL: analyses the successor needs]\n' }));
