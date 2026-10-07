@@ -75,6 +75,7 @@
     "lib-docs.mjs": "docs",
     "lint-plugins.mjs": "gates",
     "local-review-gate.mjs": "gates",
+    "measure-redundancy.mjs": "gates",
     "model-tiers.mjs": "dispatch",
     "opencode-cost-report.mjs": "release",
     "opencode-lifecycle.js": "release",
