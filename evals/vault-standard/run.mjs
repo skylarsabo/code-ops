@@ -501,9 +501,82 @@ expect(tracked.status === 1 && /Unfronted\.md: no YAML frontmatter block/.test(t
   && /Local note\.md: no YAML frontmatter block/.test(tracked.out),
   `a tracked note matching an ignore pattern must still fail, got ${tracked.status}:\n${tracked.out}`);
 
+// ---- rule 16: the decision register (opt in by writing `20 Decisions/REGISTER.md`) -----------------
+// One passing register covers the five id families, and every failing case changes one row or one
+// note. A vault with no register is silent, so rule 16 never fails a vault that did not opt in.
+const REG_HEAD = '---\ntype: decision-register\nstatus: current\nupdated: 2026-10-07\n---\n\n# Decision register\n\n| ID | Date | Decision | Status | Source |\n| --- | --- | --- | --- | --- |\n';
+const LEDGER = '`80 Runs/programs/demo/PROGRAM.md`';
+const regRow = (id, { date = '2026-09-01', status = 'in-force', source = LEDGER } = {}) => `| ${id} | ${date} | A decision. | ${status} | ${source} |`;
+const GOOD_ROWS = [
+  regRow('D-001', { source: '[[D-001 adopt]]' }),
+  regRow('ADR-0001', { source: '[[0001-first]]' }),
+  regRow('DEC-1', { source: `\`80 Runs/2026-09-01-demo/\`, ${LEDGER}` }),
+  regRow('EVO-1'),
+  regRow('RBS-1'),
+];
+const registerVault = (rows, files = {}) => scaffold({
+  '20 Decisions/REGISTER.md': `${REG_HEAD}${rows.join('\n')}\n`,
+  '20 Decisions/D-001 adopt.md': note('current', today, { type: 'decision' }),
+  '20 Decisions/ADRs/0001-first.md': note('current', today, { type: 'decision' }),
+  ...files,
+});
+const withRow = (id, row) => GOOD_ROWS.map((r) => (r.startsWith(`| ${id} `) ? row : r));
+const registerFails = (label, vault, re) => {
+  const r = run(vault);
+  expect(r.status === 1 && re.test(r.out), `${label}, got ${r.status}:\n${r.out}`);
+};
+
+const regOk = run(registerVault(GOOD_ROWS, { '10 Design/A note.md': note('draft', today, { body: 'The ruling is DEC-1.\n' }) }));
+expect(regOk.status === 0 && !/REGISTER/.test(regOk.out), `a register with all five id families must pass, got ${regOk.status}:\n${regOk.out}`);
+const regAbsent = run(scaffold({
+  '20 Decisions/D-001 adopt.md': note('current', today, { type: 'decision' }),
+  '10 Design/A note.md': note('draft', today, { body: 'The ruling is DEC-9.\n' }),
+}));
+expect(regAbsent.status === 0, `a vault with no REGISTER.md must pass, got ${regAbsent.status}:\n${regAbsent.out}`);
+
+registerFails('a duplicate id must fail', registerVault([...GOOD_ROWS, GOOD_ROWS[2]]), /row DEC-1: the id appears twice/);
+registerFails('a DEC cited with no row must fail',
+  registerVault(GOOD_ROWS, { '10 Design/A note.md': note('draft', today, { body: 'The ruling is DEC-99.\n' }) }),
+  /A note\.md: cites DEC-99, which has no row/);
+registerFails('a decision note with no row must fail',
+  registerVault(GOOD_ROWS, { '20 Decisions/D-002 second.md': note('current', today, { type: 'decision' }) }),
+  /D-002 second\.md: decision D-002 has no row/);
+registerFails('an ADR with no row must fail',
+  registerVault(GOOD_ROWS, { '20 Decisions/ADRs/0002-second.md': note('current', today, { type: 'decision' }) }),
+  /0002-second\.md: decision ADR-0002 has no row/);
+registerFails('a wiki link to no note must fail', registerVault(withRow('D-001', regRow('D-001', { source: '[[No such note]]' }))),
+  /row D-001: link target 'No such note' does not resolve/);
+registerFails('a Markdown link to no file must fail', registerVault(withRow('D-001', regRow('D-001', { source: '[note](missing.md)' }))),
+  /row D-001: link target 'missing\.md' does not resolve/);
+registerFails('a Markdown link into 80 Runs must fail',
+  registerVault(withRow('EVO-1', regRow('EVO-1', { source: `[log](../80%20Runs/2026-09-01-demo/RUN_LOG.md), ${LEDGER}` }))),
+  /row EVO-1: a link into 80 Runs\/ resolves on one machine only/);
+registerFails('a wiki link into 80 Runs must fail',
+  registerVault(withRow('EVO-1', regRow('EVO-1', { source: `[[80 Runs/2026-09-01-demo/RUN_LOG]], ${LEDGER}` }))),
+  /row EVO-1: a link into 80 Runs\/ resolves on one machine only/);
+registerFails('a DEC row with no program ledger must fail',
+  registerVault(withRow('DEC-1', regRow('DEC-1', { source: '`80 Runs/2026-09-01-demo/`' }))),
+  /row DEC-1: a DEC, EVO, or RBS row must cite its program ledger/);
+registerFails('an EVO row with no program ledger must fail',
+  registerVault(withRow('EVO-1', regRow('EVO-1', { source: '[[D-001 adopt]]' }))),
+  /row EVO-1: a DEC, EVO, or RBS row must cite its program ledger/);
+registerFails('a source cell that cites nothing must fail', registerVault(withRow('D-001', regRow('D-001', { source: 'memory' }))),
+  /row D-001: the Source cell cites no run folder/);
+registerFails('a malformed run path must fail',
+  registerVault(withRow('DEC-1', regRow('DEC-1', { source: `\`80 Runs/../elsewhere/\`, ${LEDGER}` }))),
+  /row DEC-1: source path `80 Runs\/\.\.\/elsewhere\/` is malformed/);
+registerFails('a status outside the closed set must fail', registerVault(withRow('DEC-1', regRow('DEC-1', { status: 'maybe', source: LEDGER }))),
+  /row DEC-1: status 'maybe' is not one of/);
+registerFails('a malformed date must fail', registerVault(withRow('DEC-1', regRow('DEC-1', { date: '2026/09/01' }))),
+  /row DEC-1: date '2026\/09\/01' is not a YYYY-MM-DD date/);
+registerFails('an id outside the five families must fail', registerVault([...GOOD_ROWS, regRow('DEX-4')]),
+  /row DEX-4: the id must look like/);
+registerFails('a row with the wrong cell count must fail', registerVault([...GOOD_ROWS, '| DEC-2 | 2026-09-01 | Short row. |']),
+  /row DEC-2 has 3 cells, not the 5/);
+
 if (fails.length) {
   console.error('FAIL — vault-standard eval:');
   for (const f of fails) console.error('  x ' + f);
   process.exit(1);
 }
-console.log('PASS — vault-standard eval: the conformant fixture exits 0 with only the expected `80 Runs` warning and every exemption intact; the violating fixture reports all ten rules; the two earlier fail-open reproductions (a borrowed profile status, a non-root bare-stem README) still fail closed; and the synthesized cases pin the nine canonical run artifacts as exempt, a below-floor `standard-version` as a failure, and quoted YAML scalars as valid; and the manifest-v3 draft rules (statuses, superseded-by, promotion markers, generated INDEX and TRIAGE, sources digests) hold under v3 and stay dormant under v2.');
+console.log('PASS — vault-standard eval: the conformant fixture exits 0 with only the expected `80 Runs` warning and every exemption intact; the violating fixture reports all ten rules; the two earlier fail-open reproductions (a borrowed profile status, a non-root bare-stem README) still fail closed; and the synthesized cases pin the nine canonical run artifacts as exempt, a below-floor `standard-version` as a failure, and quoted YAML scalars as valid; and the manifest-v3 draft rules (statuses, superseded-by, promotion markers, generated INDEX and TRIAGE, sources digests) hold under v3 and stay dormant under v2; and the decision register (rule 16) passes with all five id families, stays silent when absent, and fails a duplicate id, an uncovered DEC citation, a decision note or ADR with no row, an unresolved link, a link into `80 Runs/`, a ledger-less DEC, EVO, or RBS row, a malformed run path, a bad status, a bad date, an unknown id family, and a short row.');
