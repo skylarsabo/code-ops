@@ -946,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d3afe56ee34307bebc5fef674a690586085db88d",
-      "verifiedDigest": "f1c692dc075a4f80cd701ab1fd8264988beed5675b125d07d5cb034f3c147781",
+      "verifiedAt": "64b38f63561c5c6b9b968032bc484c31709aa9fc",
+      "verifiedDigest": "5ddfee3185b4cc9557e779fc226cdb200aaf9e5dfc17ee8389b51720a6ad759c",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1103,6 +1103,11 @@
           "file": "evals/bench-hooks/run.mjs",
           "line": 2,
           "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
+        },
+        {
+          "file": "evals/record-collections/harness.mjs",
+          "line": 23,
+          "anchor": "// copies the fixture repo, which fails the copy with ENOENT. Every child git, i"
         },
         {
           "file": "scripts/agent-ledger.mjs",
