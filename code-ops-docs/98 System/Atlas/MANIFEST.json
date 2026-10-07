@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "d1b8848b10de76ce533f4890bcc5bb8c53673c28",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "35b37ba6140868b9a50c96dac4bb759e3f7977012314e17c0028fbd8759efb96"
+      "verifiedDigest": "d943949686a0130e90fbe6a76420376a18aba51a5c5348316ea64019b2d19647"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "02f3cd9362da4bec26f44ca743c8bceeff18846b",
+      "verifiedAt": "d1b8848b10de76ce533f4890bcc5bb8c53673c28",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -898,7 +898,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "e71950975b2f9c3b17dd117d97cb78ac3e1e2ed409b9213cd2896d996f9b3b55"
+      "verifiedDigest": "eed2548714bccfe710bfa90127ed0220c37a929a086ba74093a75d708ed74515"
     },
     {
       "slug": "evals-and-calibration",
@@ -906,8 +906,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "02f3cd9362da4bec26f44ca743c8bceeff18846b",
-      "verifiedDigest": "0f510b55c5931a9c3287e2eb44a5d31bfc9b7e911120f002255330fd4456b7c4",
+      "verifiedAt": "d1b8848b10de76ce533f4890bcc5bb8c53673c28",
+      "verifiedDigest": "168ed805ed09d94435cebf09124b012f492b622555a3673bf16b5abd2b73b34a",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1229,7 +1229,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "d1b8848b10de76ce533f4890bcc5bb8c53673c28",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1342,7 +1342,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "a112bea6f3750334f3bca4441fb2a8d7534b59a5262ee96b0c3b4514dd8d2ce0"
+      "verifiedDigest": "b576b837f731da028b634af4f80f7d3b95a588b0c2d95d60668c937a0964b414"
     },
     {
       "slug": "ci-workflows",
@@ -1433,7 +1433,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "d1b8848b10de76ce533f4890bcc5bb8c53673c28",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1510,7 +1510,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "5a0777ce36f8a30a5859315e0052fe774c5c2bef5e6bd34e1b8fa93190714871"
+      "verifiedDigest": "8d7962d19cb3a658b9cf090e9c6babd21864b4cf1e2b02e88a7df3a19e87a85d"
     },
     {
       "slug": "root-contracts",

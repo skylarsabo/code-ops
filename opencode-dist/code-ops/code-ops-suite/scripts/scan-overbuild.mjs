@@ -28,6 +28,13 @@
 //   PLACEHOLDER-COMMENT an added comment that defers the work it stands in for.
 //   EMOJI-IN-CODE      an added source line that carries an emoji.
 //
+// Delta advisory (R1, the touched-file duty), reported after the tells as `~~ VERDICT  file:line  note`:
+// per touched source file, the same PASS-THROUGH shape and exported-helper pattern run over the
+// removed lines. `IMPROVED` removes a pass-through or a duplicate helper and adds none, `WORSE`
+// adds one and removes none, `MIXED` does both, and an unchanged file prints only in the count.
+// A removal's line is its line at <base>; an addition's line is its line at <head>. The advisory
+// adds no hit and never changes the exit code; `--json` carries it as `delta`.
+//
 // Ceiling: the tells are line-shaped heuristics for JavaScript, TypeScript, and Python, not a
 // parse, and the last three are language-agnostic line patterns. A pass-through hidden behind a
 // destructured parameter, an implementor registered by string, or a config key read through a
@@ -98,21 +105,30 @@ for (const row of git(['ls-tree', '-r', headRef]).split('\n')) {
 }
 const tree = [...blobOf.keys()];
 
-// Added lines with their line numbers at <head>, grouped by file.
+// Added lines with their line numbers at <head>, and removed lines with theirs at <base>,
+// grouped by the file's path at <head> (its path at <base> when the file is deleted).
 const added = new Map();
+const removed = new Map();
 {
   let file = null;
+  let oldFile = null;
   let line = 0;
+  let oldLine = 0;
+  let inHunk = false;
+  const push = (map, key, entry) => { if (!map.has(key)) map.set(key, []); map.get(key).push(entry); };
   for (const row of git(['diff', '-U0', '--no-color', span]).split('\n')) {
-    if (row.startsWith('+++ ')) { file = row.slice(4).replace(/^b\//, ''); if (file === '/dev/null') file = null; continue; }
-    if (row.startsWith('--- ') || row.startsWith('diff ') || row.startsWith('index ')) continue;
-    const h = /^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(row);
-    if (h) { line = Number(h[1]); continue; }
-    if (file && !excluded(file) && row.startsWith('+')) {
-      if (!added.has(file)) added.set(file, []);
-      added.get(file).push({ line, text: row.slice(1) });
-      line++;
+    if (row.startsWith('diff ')) { inHunk = false; continue; }
+    const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@/.exec(row);
+    if (h) { inHunk = true; oldLine = Number(h[1]); line = Number(h[2]); continue; }
+    if (!inHunk) {
+      if (row.startsWith('--- ')) oldFile = row.slice(4).replace(/^a\//, '');
+      else if (row.startsWith('+++ ')) { file = row.slice(4).replace(/^b\//, ''); if (file === '/dev/null') file = null; }
+      continue;
     }
+    const key = file ?? oldFile;
+    if (!key || excluded(key)) continue;
+    if (row.startsWith('+')) { if (file) push(added, file, { line, text: row.slice(1) }); line++; }
+    else if (row.startsWith('-')) { push(removed, key, { line: oldLine, text: row.slice(1) }); oldLine++; }
   }
 }
 
@@ -141,6 +157,8 @@ function treeGrep(pattern, { fixed = false, exclude = null } = {}) {
 
 const hits = [];
 const hit = (tell, file, line, message, blocking = false) => hits.push({ tell, file, line, message, blocking });
+// The added side of the touched-file delta: each PASS-THROUGH and DUPLICATE-HELPER hit, by name.
+const addedPatterns = [];
 
 // ---------------------------------------------------------------- NEW-FILE-RATIO
 
@@ -176,31 +194,38 @@ const NEW_FILE_MIN_LINES = 44;
 
 const params = (s) => s.split(',').map((p) => p.trim().replace(/[:=].*$/, '').replace(/^\.\.\./, '').trim()).filter(Boolean).join(',');
 const callArgs = (s) => s.split(',').map((p) => p.trim().replace(/^\.\.\./, '')).filter(Boolean).join(',');
-{
-  const FN_RE = /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*\{\s*(.*)$/;
-  const ARROW_RE = /^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?\(([^)]*)\)\s*=>\s*(.*)$/;
-  const DEF_RE = /^\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*[^:]+)?:\s*$/;
-  const FORWARD_RE = /^\s*(?:return\s+)?(?:await\s+)?([\w.]+)\(([^()]*)\);?\s*\}?\s*$/;
-  for (const [file, rows] of added) {
-    if (!isSource(file)) continue;
-    const byLine = new Map(rows.map((r) => [r.line, r.text]));
-    for (const { line, text } of rows) {
-      let name; let sig; let body;
-      let m = FN_RE.exec(text) || ARROW_RE.exec(text);
-      if (m) {
-        [, name, sig, body] = m;
-        if (!body.trim() || body.trim() === '{') body = byLine.get(line + 1) ?? '';
-      } else if ((m = DEF_RE.exec(text))) {
-        [, name, sig] = m;
-        body = byLine.get(line + 1) ?? '';
-      } else continue;
-      const f = FORWARD_RE.exec(body);
-      if (!f) continue;
-      const callee = f[1].split('.').pop();
-      if (callee === name) continue;
-      const self = /^self\.|^this\./.test(sig) ? sig.replace(/^(self|this)\s*,?\s*/, '') : sig;
-      if (params(self) === callArgs(f[2])) hit('PASS-THROUGH', file, line, `${name} forwards its parameters to ${f[1]} and adds nothing`);
-    }
+const FN_RE = /^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+(\w+)\s*\(([^)]*)\)\s*\{\s*(.*)$/;
+const ARROW_RE = /^\s*(?:export\s+)?(?:const|let)\s+(\w+)\s*=\s*(?:async\s+)?\(([^)]*)\)\s*=>\s*(.*)$/;
+const PY_DEF_RE = /^\s*def\s+(\w+)\s*\(([^)]*)\)\s*(?:->\s*[^:]+)?:\s*$/;
+const FORWARD_RE = /^\s*(?:return\s+)?(?:await\s+)?([\w.]+)\(([^()]*)\);?\s*\}?\s*$/;
+// The pass-through shape over one file's rows, added or removed: [{line, name, callee}].
+function passThroughs(rows) {
+  const byLine = new Map(rows.map((r) => [r.line, r.text]));
+  const found = [];
+  for (const { line, text } of rows) {
+    let name; let sig; let body;
+    let m = FN_RE.exec(text) || ARROW_RE.exec(text);
+    if (m) {
+      [, name, sig, body] = m;
+      if (!body.trim() || body.trim() === '{') body = byLine.get(line + 1) ?? '';
+    } else if ((m = PY_DEF_RE.exec(text))) {
+      [, name, sig] = m;
+      body = byLine.get(line + 1) ?? '';
+    } else continue;
+    const f = FORWARD_RE.exec(body);
+    if (!f) continue;
+    const callee = f[1].split('.').pop();
+    if (callee === name) continue;
+    const self = /^self\.|^this\./.test(sig) ? sig.replace(/^(self|this)\s*,?\s*/, '') : sig;
+    if (params(self) === callArgs(f[2])) found.push({ line, name, callee: f[1] });
+  }
+  return found;
+}
+for (const [file, rows] of added) {
+  if (!isSource(file)) continue;
+  for (const p of passThroughs(rows)) {
+    hit('PASS-THROUGH', file, p.line, `${p.name} forwards its parameters to ${p.callee} and adds nothing`);
+    addedPatterns.push({ tell: 'PASS-THROUGH', file, line: p.line, name: p.name });
   }
 }
 
@@ -299,18 +324,24 @@ const nonBlank = (text) => text.split('\n').filter((l) => l.trim()).length;
 
 // ---------------------------------------------------------------- DUPLICATE-HELPER
 
-{
-  const EXPORT_RE = /^\s*export\s+(?:async\s+)?(?:function|const|let|class)\s+(\w+)|^\s*module\.exports\.(\w+)\s*=|^def\s+(\w+)\s*\(|^class\s+(\w+)\b/;
-  for (const [file, rows] of added) {
-    if (!isSource(file)) continue;
-    for (const { line, text } of rows) {
-      const m = EXPORT_RE.exec(text);
-      if (!m) continue;
-      const name = m[1] ?? m[2] ?? m[3] ?? m[4];
-      if (name.length < 3) continue;
-      const others = treeGrep(`(export${SP}+(async${SP}+)?(function|const|let|class)${SP}+${name}${END}|module\\.exports\\.${name}${SP}*=|^def${SP}+${name}${SP}*\\(|^class${SP}+${name}${END})`, { exclude: file })
-        .filter((r) => blobOf.get(r.file) !== blobOf.get(file));
-      if (others.length > 0) hit('DUPLICATE-HELPER', file, line, `${name} is already exported by ${others[0].file}:${others[0].line}`);
+const EXPORT_RE = /^\s*export\s+(?:async\s+)?(?:function|const|let|class)\s+(\w+)|^\s*module\.exports\.(\w+)\s*=|^def\s+(\w+)\s*\(|^class\s+(\w+)\b/;
+const exportName = (text) => {
+  const m = EXPORT_RE.exec(text);
+  const name = m && (m[1] ?? m[2] ?? m[3] ?? m[4]);
+  return name && name.length >= 3 ? name : null;
+};
+// Other files at <head> that export `name`, not counting a byte-identical vendored copy of `file`.
+const exportedElsewhere = (name, file) => treeGrep(`(export${SP}+(async${SP}+)?(function|const|let|class)${SP}+${name}${END}|module\\.exports\\.${name}${SP}*=|^def${SP}+${name}${SP}*\\(|^class${SP}+${name}${END})`, { exclude: file })
+  .filter((r) => blobOf.get(r.file) !== blobOf.get(file));
+for (const [file, rows] of added) {
+  if (!isSource(file)) continue;
+  for (const { line, text } of rows) {
+    const name = exportName(text);
+    if (!name) continue;
+    const others = exportedElsewhere(name, file);
+    if (others.length > 0) {
+      hit('DUPLICATE-HELPER', file, line, `${name} is already exported by ${others[0].file}:${others[0].line}`);
+      addedPatterns.push({ tell: 'DUPLICATE-HELPER', file, line, name });
     }
   }
 }
@@ -359,6 +390,36 @@ const nonBlank = (text) => text.split('\n').filter((l) => l.trim()).length;
   }
 }
 
+// ---------------------------------------------------------------- touched-file delta (advisory)
+
+// R1, the touched-file duty: a file the change touches is left better. The delta reads the
+// removed lines through the two tells that name dead weight: the PASS-THROUGH shape, and an
+// exported helper whose name another file still exports (the inverse of DUPLICATE-HELPER).
+// A pattern a file loses and re-adds under the same name moved or was edited, so it is not a removal.
+// Per touched source file: `improved` (removes some, adds none), `worse` (adds some, removes
+// none), `mixed`, or `unchanged`. It never changes the exit code and adds no hit.
+const delta = [];
+for (const file of changedFiles) {
+  if (!isSource(file)) continue;
+  const rows = removed.get(file) ?? [];
+  const addedHere = addedPatterns.filter((p) => p.file === file);
+  const kept = new Set(addedHere.map((p) => `${p.tell}:${p.name}`));
+  const addedNames = new Set((added.get(file) ?? []).map((r) => exportName(r.text)).filter(Boolean));
+  const gone = passThroughs(rows).map((p) => ({ tell: 'PASS-THROUGH', line: p.line, name: p.name }));
+  for (const { line, text } of rows) {
+    const name = exportName(text);
+    if (name && !addedNames.has(name) && exportedElsewhere(name, file).length > 0) gone.push({ tell: 'DUPLICATE-HELPER', line, name });
+  }
+  const lost = new Set(gone.map((p) => `${p.tell}:${p.name}`));
+  const removes = gone.filter((p) => !kept.has(`${p.tell}:${p.name}`));
+  const adds = addedHere.filter((p) => !lost.has(`${p.tell}:${p.name}`));
+  const verdict = removes.length && adds.length ? 'mixed' : removes.length ? 'improved' : adds.length ? 'worse' : 'unchanged';
+  const first = removes[0] ?? adds[0];
+  const items = [...removes.map((p) => `removes ${p.tell} ${p.name} (base line ${p.line})`), ...adds.map((p) => `adds ${p.tell} ${p.name}`)];
+  const note = items.slice(0, 3).join('; ') + (items.length > 3 ? `; and ${items.length - 3} more` : '');
+  delta.push({ file, line: first?.line ?? 1, verdict, removes, adds, note });
+}
+
 // ---------------------------------------------------------------- report
 
 hits.sort((a, b) => Number(b.blocking) - Number(a.blocking) || a.file.localeCompare(b.file) || a.line - b.line);
@@ -367,10 +428,13 @@ const addedLines = [...numstat.values()].reduce((n, s) => n + s.added, 0);
 const removedLines = [...numstat.values()].reduce((n, s) => n + s.deleted, 0);
 const netLines = addedLines - removedLines;
 if (json) {
-  process.stdout.write(`${JSON.stringify({ range: span, files: changedFiles.length, newFiles: newFiles.length, addedLines, removedLines, netLines, hits, blocking }, null, 2)}\n`);
+  process.stdout.write(`${JSON.stringify({ range: span, files: changedFiles.length, newFiles: newFiles.length, addedLines, removedLines, netLines, hits, blocking, delta }, null, 2)}\n`);
 } else {
   console.log(`# ${span} (+${addedLines} -${removedLines} lines, net ${netLines}, in ${changedFiles.length} files, ${newFiles.length} new)`);
   for (const h of hits) console.log(`  !! ${h.tell.padEnd(18)} ${posix.normalize(h.file)}:${h.line}  ${h.message}${h.blocking ? ' (blocking)' : ''}`);
   console.log(hits.length ? `\n${hits.length} over-build tell(s), ${blocking} blocking.` : '\nclean: no over-build tells.');
+  const count = (v) => delta.filter((d) => d.verdict === v).length;
+  console.log(`\ndelta advisory (touched source files; never changes the exit code): ${count('improved')} improved, ${count('worse')} worse, ${count('mixed')} mixed, ${count('unchanged')} unchanged.`);
+  for (const d of delta.filter((x) => x.verdict !== 'unchanged')) console.log(`  ~~ ${d.verdict.toUpperCase().padEnd(8)} ${posix.normalize(d.file)}:${d.line}  ${d.note}`);
 }
 process.exit(blocking > 0 && !reportOnly ? 1 : 0);

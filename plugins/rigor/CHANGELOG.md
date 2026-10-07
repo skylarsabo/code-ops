@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.6.0
+- The vendored `scan-overbuild.mjs` reads removed lines and prints a touched-file delta advisory after its tells. Each touched source file reads `IMPROVED`, `WORSE`, `MIXED`, or unchanged by the pass-through shape and the exported-helper pattern in its removed lines. The advisory adds no hit and never changes the exit code.
+
 ## 3.5.2
 - The vendored `route-unit.mjs` exports the contract kind table and the unit sizes that `run-contract.mjs` reads, and the bundled `artifact-grammars.md` reference lists the optional unit `size` and `roundBudget` fields.
 

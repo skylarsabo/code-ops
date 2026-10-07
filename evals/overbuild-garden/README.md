@@ -13,6 +13,11 @@ with a same-line reason, a placeholder row, and an arrow symbol.
 asserts no hit outside the key, exactly one blocking tell, the exit codes, and a mutation
 control that removes the new-file bound and must fail the score.
 
+`delta/` is a second, smaller fixture for the touched-file delta advisory, built the same way. It holds
+one net-negative file (drops a pass-through and a duplicate helper), one net-positive file (adds
+a pass-through), and one file that edits neither. The run asserts the improved, worse, and
+unchanged verdicts, that the advisory adds no hit, and a mutant that cuts the removed-line read.
+
 ```
 node evals/overbuild-garden/run.mjs
 node evals/score.mjs evals/overbuild-garden/ANSWER_KEY.json --check
