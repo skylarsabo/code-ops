@@ -53,6 +53,7 @@
     "context-query-mcp.mjs": "context",
     "context-query.mjs": "context",
     "context-snapshot.mjs": "context",
+    "cost-split.mjs": "context",
     "derived-merge.mjs": "release",
     "digest-lib.mjs": "context",
     "digest.mjs": "context",
