@@ -23,6 +23,8 @@ export const RUNTIME_SCRIPTS = [
   { name: 'citation-lib.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'revalidate-register.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'scan-ai-tells.mjs', plugins: ['privacy-opsec-suite', 'code-ops-suite'] },
+  // The branch-name rule. hooks/enforce-traceless.mjs imports it as ../scripts/branch-name.mjs.
+  { name: 'branch-name.mjs', plugins: ['code-ops-suite'] },
   { name: 'lib-docs.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   { name: 'lib-docs-mcp.mjs', plugins: ['code-ops-suite'] },
   { name: 'research-manifest.mjs', plugins: ['researcher'] },

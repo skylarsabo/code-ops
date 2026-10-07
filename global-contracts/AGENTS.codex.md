@@ -149,7 +149,8 @@ https://github.com/skylarsabo/code-ops/blob/main/code-ops-docs/40%20Engineering/
 Preserve unrelated user changes in dirty worktrees. Use explicit paths for staging. Do not
 create branches, commits, pushes, pull requests, releases, or external messages without
 authority. When publishing is authorized, use atomic changes and professional traceless
-prose: no AI attribution, assistant voice, emoji, or generated-by trailers.
+prose: no AI attribution, assistant voice, emoji, or generated-by trailers. Name each branch
+for its topic, such as `eng/<topic>`, never with an AI tool prefix or a generated name.
 
 At safe phase boundaries or observed context pressure, assess whether to continue, compact, or
 hand off. Checkpoint durable state first. A pending host command is not execution, and existing

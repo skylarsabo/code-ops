@@ -42,7 +42,8 @@ A commit that stages any file under `code-ops-docs/98 System/Atlas` now runs the
 The code-ops-suite package registers fourteen commands across eight events in
 `plugins/code-ops-suite/hooks/hooks.json`. Twelve distinct scripts serve them. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
-trace and fails open on infrastructure errors. The dispatch guard can deny a subagent call at
+trace or a branch name with an AI-tool prefix or a generated token, and fails open on
+infrastructure errors. The dispatch guard can deny a subagent call at
 its budget boundary or when its explicit controller binding is invalid. It can also deny a lead
 dispatch of a wide-surface type that names no reason, and a lead dispatch past the context
 ceiling before the handoff assessment. Unbound infrastructure failures retain the previous

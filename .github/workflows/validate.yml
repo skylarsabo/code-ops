@@ -81,10 +81,12 @@ jobs:
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           PR_TITLE: ${{ github.event.pull_request.title }}
           PR_BODY: ${{ github.event.pull_request.body }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           pr_text="$RUNNER_TEMP/pr-title-body.md"
           node -e 'require("node:fs").writeFileSync(process.argv[1], `${process.env.PR_TITLE}\n\n${process.env.PR_BODY}\n`)' "$pr_text"
           node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
+          node scripts/branch-name.mjs check "$HEAD_REF"
 
   # Shard 2: the slow orchestration and runtime evals (median 108 s).
   structural-lint-shard-2:
@@ -204,6 +206,9 @@ jobs:
 
       - name: AI-trace scanner eval
         run: node evals/ai-tells/run.mjs
+
+      - name: Branch-name rule and hook eval
+        run: node evals/branch-name/run.mjs
 
       - name: lib-docs engine eval
         run: node evals/lib-docs/run.mjs

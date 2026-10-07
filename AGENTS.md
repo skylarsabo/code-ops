@@ -13,6 +13,9 @@ to break silently.
 - **Traceless publishing on ALL paths:** the `enforce-traceless` hook and the CI step
   "Traceless publishing (PR commits, title, body)" block AI attribution, emoji, and
   assistant voice (`plugins/code-ops-suite/hooks/enforce-traceless.mjs`; no off switch).
+  The same hook, the tracked pre-commit and pre-push hooks, and that CI step also block a
+  branch name that starts with an AI tool name (`claude/`, `codex/`) or ends in a generated
+  token (`scripts/branch-name.mjs`). Name each branch for its topic, such as `eng/<topic>`.
   Self-gate: `node scripts/scan-ai-tells.mjs <files...>` (or `--git <range>`).
 - **Model review gates are opt-in, and rare.** The deterministic gate chain and the lead's
   own read of the final diff run on every change. `code-ops-suite:local-review-gate` (deep

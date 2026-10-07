@@ -418,6 +418,17 @@ fail-closed backstop is the `Traceless publishing (PR commits, title, body)` ste
 The match tolerates a `git -C <dir>` or `git --flag=val` prefix ahead of the subcommand.
 Evidence: `plugins/code-ops-suite/hooks/enforce-traceless.mjs:1-23`.
 
+The same hook enforces the branch-name rule in `scripts/branch-name.mjs`. A branch name fails
+when its first segment is an AI tool name (`AI_PREFIXES` at `scripts/branch-name.mjs:35`) or
+its last token is a generated mix of six or more letters and digits
+(`branchNameProblems` at `scripts/branch-name.mjs:48`). The hook checks the branch a command
+creates, renames, commits on, pushes, or opens a pull request from
+(`commandBranchViolations` at `scripts/branch-name.mjs:183`) and exits `2` on a problem. The
+tracked `.githooks/pre-commit` checks the current branch, and `.githooks/pre-push` checks each
+pushed branch, so a host without the tool hook is covered. The fail-closed backstop is the
+same CI step, which checks the pull request head ref passed through the environment
+(`.github/workflows/validate.yml:89`). The rule has no off switch.
+
 ## Local judgment gate
 
 `local-review-gate.mjs` creates an ignored review plan for a clean non-default feature
