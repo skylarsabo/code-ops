@@ -32,6 +32,8 @@ family when `scripts/model-tiers.mjs` repinned the ladder: the strong arm from
 which is still the `light` rung. Do not compare a snapshot taken after that bump against the
 three below without re-running the baseline arm.
 
+On 2026-10-07 the `light` rung moved to `claude-haiku-5-5`. No snapshot here ran on it, so the weak arm has not been re-measured.
+
 ## Baseline — pre-hardening skill text
 
 Run: `28813316068` (dispatched on main at the pre-gate snapshot, models pinned:
