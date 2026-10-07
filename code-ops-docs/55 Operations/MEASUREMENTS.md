@@ -839,7 +839,9 @@ Four rules bind every entry:
   ba472ed0, the last commit before D-016 ran, and 15,872 words with nothing excluded. At 96178115
   it gives 12,383 words in 75 passages. The rise of 3,280 words has three causes: the touch-improve
   rule adds 204 to the `CONVENTIONS.md` blocks (PR 239), the per-host contract renders add 2,988
-  to the global-contract overlap (PR 237), and CHANGELOG repeats add 88.
+  to the global-contract overlap (PR 237), and CHANGELOG repeats add 88. `scripts/measure-redundancy.mjs`
+  implements the method and reproduces both readings with `node scripts/measure-redundancy.mjs --rev ba472ed0`
+  and `--rev 96178115`.
 - **Classes, owners, and targets.**
 
   | Class | Words at 96178115 | Owner | Target |

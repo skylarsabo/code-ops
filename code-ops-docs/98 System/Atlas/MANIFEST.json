@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -873,7 +873,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "7911b5dca4e793809dbfb09aca16c0b038ef2e083821b9a84f973d0097a288e2"
+      "verifiedDigest": "737b3b5c0f1e910e41203dd596b66f8cd4608a266a60afa9736df3b289cce13d"
     },
     {
       "slug": "evals-and-calibration",
@@ -881,8 +881,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
-      "verifiedDigest": "8f2d140a823faf3643816c85bff09057d171c1b493bb108b3d8f69c13da869f2",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
+      "verifiedDigest": "61ed4c2bd97971e00d4fa8c4a942abc200a61d584ae5985dd7bde94d6ef59a8d",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1325,8 +1325,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "68bdba9447a5d05c5fddcd62716832706878852c",
-      "verifiedDigest": "21a086abd3edd9b03e3d413938502837b96d6a5af2a6de6800b4daf35e8dfdfe",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
+      "verifiedDigest": "5ca9324a3ae49dbc42a3a9c4431a329d7199224b1e0fb477a3895f09860f0621",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1408,7 +1408,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5c7c92dfe010bb4e0aa8f64547d7095cb5d198d3",
+      "verifiedAt": "b4e0d2f2c48973b58b33c78894622a2cb11b1f36",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1485,7 +1485,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "01b46413258d01a6486fb6c2e6c2d36e92a985d97279abf289027de219434b6d"
+      "verifiedDigest": "b598dea620d11b27e66d8cf7da41863829d66a4dd3f4f32e3043fb2c45065ec3"
     },
     {
       "slug": "root-contracts",
