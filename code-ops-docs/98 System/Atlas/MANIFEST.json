@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
+      "verifiedAt": "d3afe56ee34307bebc5fef674a690586085db88d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -58,7 +58,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 170,
-          "anchor": "// HOST CONTRACT (confirmed against the installed host 2.1.276 bundle, byte offs"
+          "anchor": "//"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -113,22 +113,22 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 218,
-          "anchor": "// controller binding instead fails closed for that id: it must never silently g"
+          "anchor": "// FAIL-OPEN on host input and absent binding evidence. A present but malformed"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 227,
-          "anchor": "import { agentFile } from './agent-file.mjs';"
+          "anchor": "import { fileURLToPath, pathToFileURL } from 'node:url';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 963,
-          "anchor": "async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {"
+          "anchor": "// call (a wide-surface reason excuses it); a literal effort above high never pa"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 946,
-          "anchor": "function reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, adviso"
+          "anchor": "// an internal error adds nothing."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -138,17 +138,17 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 801,
-          "anchor": "async function ceilingGate(payload) {"
+          "anchor": "// input is missing or unreadable (fail open)."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1303,
-          "anchor": "${skeleton.join('\\n')}\\n${prose}"
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1128,
-          "anchor": "function routeChecks(libs, input, type, prompt, sessionId, denials, advisories)"
+          "anchor": "// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
@@ -158,7 +158,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 506,
-          "anchor": "let emitted = false;"
+          "anchor": "let legacy = null;"
         },
         {
           "file": "scripts/collision-lib.mjs",
@@ -168,7 +168,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 516,
-          "anchor": "const GATES = ["
+          "anchor": "// eval fires every row, so a reworded message that no longer matches fails ther"
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
@@ -243,7 +243,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1257,
-          "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
+          "anchor": "if (spawn) {"
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "8830debe5166fd1b1d2dc464c522379edb5995e49e78e8a1cb6687d32c1b1c9a"
+      "verifiedDigest": "fbba6071c03e9053e1720f8f6a7f3b468fe544c345023b074f2823e855af8ca5"
     },
     {
       "slug": "gate-scripts",
@@ -946,8 +946,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "69ec27ac39fdbb868f4965a9ce52559cb968b012",
-      "verifiedDigest": "7115a645806536506bc7a7c474e00fbee0b09803bd693c9649e1afd1d1742365",
+      "verifiedAt": "d3afe56ee34307bebc5fef674a690586085db88d",
+      "verifiedDigest": "f1c692dc075a4f80cd701ab1fd8264988beed5675b125d07d5cb034f3c147781",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1284,7 +1284,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f66f2f0f890daa0acf5d6105b95a8fb53c47a389",
+      "verifiedAt": "d3afe56ee34307bebc5fef674a690586085db88d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1369,7 +1369,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 506,
-          "anchor": "let emitted = false;"
+          "anchor": "let legacy = null;"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -1397,7 +1397,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "0316b295b8ac1b987ca7cd8d9d2bd0c1585ebd26df1250aca91cb25203c310b5"
+      "verifiedDigest": "436ac65d5931ce898b1365e8f855ad539a6dd4ef4e515d46d75f2b4d01df6898"
     },
     {
       "slug": "ci-workflows",
@@ -1500,7 +1500,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "69ec27ac39fdbb868f4965a9ce52559cb968b012",
+      "verifiedAt": "d3afe56ee34307bebc5fef674a690586085db88d",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1577,7 +1577,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "6ff630fd375e4afa9169b5f751601ffc098a9ab61008b6bb3e167e657f87c813"
+      "verifiedDigest": "ab164d5afbe51050cdfdbeaffddb4f390a852476a173cc068a8b1c77bb5c7a7c"
     },
     {
       "slug": "root-contracts",

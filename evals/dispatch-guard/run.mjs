@@ -469,7 +469,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   console.log('ok   a Workflow is checked per agent() call, effort above high denies, an options variable is an advisory, and the script-wide mutant fails');
 
   // A clean dispatch: narrow agent, no override, a Round budget in the brief.
-  const clean = runHook(dispatchCall({ description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' }), { home });
+  const clean = runHook(dispatchCall({ description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home });
   expect(clean.status === 0 && clean.stdout === '', `a clean dispatch must be silent, got ${clean.status}/${JSON.stringify(clean.stdout)}`);
   cleanup();
   console.log('ok   a wide dispatch denies unless it states a reason, warn downgrades it, and a clean dispatch is silent');
@@ -483,7 +483,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const brief = (drop) => FULL_BRIEF.split('\n').filter((line) => !line.startsWith(drop)).join('\n');
 
   // A missing field denies and names it; the other fields are not named.
-  let out = parseOut(runHook(dispatchCall({ prompt: brief('Report path'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  let out = parseOut(runHook(dispatchCall({ prompt: brief('Report path'), subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home }));
   let text = reasonOf(out) ?? '';
   expect(deny(out) && /missing: Report path;/.test(text) && /code-ops-suite:implementer Contract/.test(text),
     `a brief missing a Contract field must deny and name it, got ${JSON.stringify(out)}`);
@@ -515,11 +515,11 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const loose = 'scope (edit authority): one file.\n## Objective\nfix it.\n**Round budget:** 10\n'
     + '- Report cap: 100 words.\n  1. Report path: r.md\n* EXPECTED RETURN: a line.\n'
     + '**Unit:** loose-unit\n- TIER: strong\n  effort (high only): high\n1. Route basis: judgment; surface=none; ambiguity=high; reversible=yes';
-  let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer' }), { home });
+  let r = runHook(dispatchCall({ prompt: loose, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home });
   expect(r.status === 0 && r.stdout === '', `a brief with every field in loose form must pass, got ${JSON.stringify(r.stdout)}`);
 
   // A label inside a longer word, or with no colon, does not count.
-  out = parseOut(runHook(dispatchCall({ prompt: brief('Scope').replace('Objective:', 'Microscope: x\nObjective is'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Scope').replace('Objective:', 'Microscope: x\nObjective is'), subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home }));
   expect(deny(out) && /missing: Scope, Objective;/.test(reasonOf(out) ?? ''), `an embedded or colonless label must not count, got ${JSON.stringify(out)}`);
 
   // The label must start its line: `Out of scope:`, an inline mid-sentence `Scope:`, and a
@@ -529,23 +529,23 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     ['mid-sentence', 'Edit only the files relevant to Scope: a path'],
     ['after another field', 'Objective: fix it. Scope: one file.'],
   ]) {
-    out = parseOut(runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home }));
+    out = parseOut(runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home }));
     expect(deny(out) && /missing: Scope;/.test(reasonOf(out) ?? ''), `${label} must not satisfy Scope, got ${JSON.stringify(out)}`);
   }
   // A bold list item with a parenthetical, and a heading, do count.
   for (const line of ['- **Scope (edit authority):** x', '## Scope']) {
-    r = runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer' }), { home });
+    r = runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home });
     expect(r.status === 0 && r.stdout === '', `${JSON.stringify(line)} must satisfy Scope, got ${JSON.stringify(r.stdout)}`);
   }
 
   // A field denial that names Round budget carries no separate Round budget advisory.
-  out = parseOut(runHook(dispatchCall({ prompt: brief('Round budget'), subagent_type: 'code-ops-suite:implementer' }), { home }));
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Round budget'), subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home }));
   text = reasonOf(out) ?? '';
   expect(deny(out) && /missing: Round budget;/.test(text) && !/No Round budget/.test(text),
     `a Round budget field denial must not repeat as an advisory, got ${JSON.stringify(out)}`);
 
   // Warn mode downgrades the denial to an advisory.
-  out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer' }), { home, guard: 'warn' }));
+  out = parseOut(runHook(dispatchCall({ prompt: brief('Objective'), subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home, guard: 'warn' }));
   expect(!deny(out) && /missing: Objective;/.test(contextOf(out) ?? '') && (contextOf(out) ?? '').startsWith('Objective:\n'),
     `warn mode must downgrade the field denial and keep its skeleton, got ${JSON.stringify(out)}`);
 
@@ -578,7 +578,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(deny(out) && /missing: Gadget;/.test(reasonOf(out) ?? ''), `the cache layout must resolve rigor 10.0.0, got ${JSON.stringify(out)}`);
   r = runHook(dispatchCall({ prompt: 'Scope: x\nGadget: y\nRound budget: 5', subagent_type: 'rigor:tracer' }), { home, pluginRoot: suiteRoot });
   expect(r.stdout === '', `only the Contract section's line binds, got ${JSON.stringify(r.stdout)}`);
-  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'code-ops-suite:implementer' }), { home, pluginRoot: suiteRoot }));
+  out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home, pluginRoot: suiteRoot }));
   expect(deny(out) && /missing: Widget;/.test(reasonOf(out) ?? ''), `the hook's own cached plugin must resolve, got ${JSON.stringify(out)}`);
   r = runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'rigor:bare' }), { home, pluginRoot: suiteRoot });
   expect(r.stdout === '', `an agent without a Contract must pass, got ${JSON.stringify(r.stdout)}`);
@@ -598,7 +598,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
 
   // Lead dispatch events have no child agent id. A matching type after this event must not
   // inherit the registration by timing or type; it remains on the legacy fallback.
-  const lead = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' }, { cwd }), { home, budget: 3 });
+  const lead = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' }, { cwd }), { home, budget: 3 });
   expect(lead.stdout === '', `a clean lead dispatch must not auto-bind a future worker, got ${lead.stdout}`);
   for (let i = 0; i < 2; i++) expect(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 }).stdout === '', 'an unregistered same-type worker must retain its own legacy counter');
   const fallbackWarning = contextOf(parseOut(runHook(subagentCall(otherId, { cwd }), { home, budget: 3 })));
@@ -774,7 +774,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const dir = mkdtempSync(join(tmpdir(), 'dispatch-ceiling-'));
   const cwd = root;
   const session = 'sess-ceil';
-  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' };
+  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
   const dispatchAt = (context, opts = {}, sessionId = session) => runHook(dispatchCall(clean, {
     cwd, session_id: sessionId, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
   }), { home, ...opts });
@@ -930,7 +930,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   writeFileSync(join(repoA, '.git'), 'gitdir: elsewhere\n');
   mkdirSync(join(repoB, '.git'));
   const session = 'sess-stateroot';
-  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer' };
+  const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
   const dispatchFrom = (cwd, context = 310_000) => runHook(dispatchCall(clean, {
     cwd, session_id: session, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
   }), { home });
@@ -1537,6 +1537,11 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   denied(send('code-ops-suite:steady', { effort: 'high' }), /Effort: high is above the medium that code-ops-suite:steady runs at.*Workflow agent\(/, 'Agent Effort above the frontmatter effort');
   advised(send('code-ops-suite:steady', { effort: 'low', override: 'small unit' }),/Effort: low is below the medium that code-ops-suite:steady runs at.*Workflow agent\(\)/, 'Agent Effort below the frontmatter effort');
   quiet(send('code-ops-suite:steady', { effort: 'medium' }), 'Agent Effort equal to the frontmatter effort');
+  // The Agent call's own effort (CLI 2.1.292 and later) replaces the frontmatter effort.
+  quiet(send('code-ops-suite:steady', { effort: 'high' }, { effort: 'high' }), 'Agent effort that raises the run to the brief Effort');
+  quiet(send('code-ops-suite:steady', { effort: 'low', override: 'small unit' }, { effort: 'low' }), 'Agent effort that lowers the run to the brief Effort');
+  denied(send('code-ops-suite:steady', { effort: 'high' }, { effort: 'medium' }), /Effort: high is above the medium that the Agent call passes\. Pass effort: "high"/, 'Agent effort below the brief Effort');
+  denied(send('code-ops-suite:steady', { effort: 'medium' }, { effort: 'xhigh' }), /The Agent call passes effort "xhigh"; pass low, medium, or high/, 'Agent effort above high');
   denied(send(IMP, { effort: 'xhigh' }), /Effort: xhigh is above high/, 'a brief Effort of xhigh');
   denied(send(IMP, { effort: 'max', override: 'x' }), /Effort: max is above high/, 'a brief Effort of max with a Route override');
 
