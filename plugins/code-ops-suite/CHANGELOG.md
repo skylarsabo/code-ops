@@ -7,7 +7,7 @@ All notable changes to this plugin are documented here. Versions track
 ## 2.48.0
 - The dispatch guard appends one decision row to `guard-decisions.jsonl`, beside the session-receipt ledger, for each output that denies or advises. A row holds ids and counts only: the gate ids that fired, the contract-rule ids they back, the tool, the decision, and a Workflow call count. `CODE_OPS_RECEIPTS=off` stops the rows, and a write error fails open.
 - The dispatch-guard eval fires every gate id in the guard's table, including the peer note through a seeded presence board, and fails when a reworded message no longer matches its gate.
-- The legacy path library denies an edit under a derived tree. It uses the manifest's `derived` entries when it lists any, and the built-in list (`.agents/`, `codex-marketplace/`, `opencode-dist/`) otherwise, so the deny stays live while `docs-manifest.mjs` does not accept the `derived` disposition.
+- The legacy path library denies an edit under a derived tree. It uses the manifest's `derived` entries when it lists any, and the built-in list (`.agents/`, `codex-marketplace/`, `opencode-dist/`) otherwise, each entry only where its generator script exists, so the deny stays live while `docs-manifest.mjs` does not accept the `derived` disposition.
 - The "Dispatch guard hook" section of CONTRACTS.md documents the row file, its fields, the off switch, and the derived path deny.
 
 ## 2.47.0
