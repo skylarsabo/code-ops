@@ -49,6 +49,7 @@ export const SURFACE_PATTERNS = [
     pattern: /(?:^|[/\\])(?:code-ops-docs[/\\]35 Contracts and Data[/\\]CONTRACTS\.md|\.claude-plugin[/\\](?:plugin|marketplace)\.json)$/i,
   },
   { surface: 'gate-script', pattern: /(?:^|[/\\])scripts[/\\]lint-plugins\.mjs$/i },
+  { surface: 'gate-script', pattern: /(?:^|[/\\])scripts[/\\](?:doctrine-passages|layout-manifest|check-duplication)\.mjs$/i },
   { surface: 'gate-script', pattern: /(?:^|[/\\])evals[/\\]score\.mjs$/i },
   { surface: 'gate-script', pattern: /(?:^|[/\\])\.github[/\\]workflows[/\\]/i },
   { surface: 'gate-script', pattern: /(?:^|[/\\])plugins[/\\]code-ops-suite[/\\]hooks[/\\]dispatch-guard\.mjs$/i },

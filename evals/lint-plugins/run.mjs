@@ -36,12 +36,9 @@
 // dirs must ALSO be registered marketplace entries (else the separate "unregistered plugin
 // dir" check fires on them) and, since code-ops-docs/40 Engineering/Handbook/commands/ exists in this fixture, each
 // needs a stub handbook page and a "**0 commands**" router bullet (0 skills each keeps every
-// per-skill requirement moot). The PINNED_TEXTS/ALWAYS_GATED_TEXT constants below are
-// transcribed verbatim from SHARED_PASSAGES in scripts/lint-plugins.mjs as of this writing.
-// If that array's `text` values ever change, this eval's baseline case starts failing loudly
-// (a mismatched pinned string is a missing substring) — that is the intended fail-closed
-// behavior for a pinned-content fixture, not a bug in this eval; update PINNED_TEXTS/
-// ALWAYS_GATED_TEXT to match.
+// per-skill requirement moot). The PINNED_TEXTS/ALWAYS_GATED_TEXT constants below derive from
+// SHARED_PASSAGES in scripts/doctrine-passages.mjs, the registry the real lint reads too, so a
+// changed passage needs no edit here. The fixture copies the real registry and layout map.
 //
 //   node evals/lint-plugins/run.mjs   (exit 0 = pass)
 
@@ -51,6 +48,7 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { tally } from '../harness.mjs';
+import { SHARED_PASSAGES } from '../../scripts/doctrine-passages.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const REPO = resolve(HERE, '..', '..');
@@ -73,41 +71,17 @@ const runLint = (dir) => {
   }
 };
 
-// ---- pinned doctrine text (SHARED_PASSAGES in scripts/lint-plugins.mjs) -----------------
-const PINNED_TEXTS = [
-  'The objective is ordered: correctness and the safety floor, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines wins only between candidates equal on the first four.',
-  "Before writing code, climb the ladder in order: does it need to exist (scope is the request), does it exist here (search before you write), does the standard library, the platform, or an installed dependency do it (verified against current docs, never from memory), does it fit inside the owning module (extend before you add a file), and is there evidence to extract (a second caller, a unit that needs its own test, or a file past the repository's own size norm). Then write the minimum edge-case-correct implementation.",
-  "A broad whole-repo sweep that launches its entire fan-out at once will trip platform rate-limits and can lose the whole run. Do not rely on the platform's concurrency cap as the limiter",
-  'skim first (structure, exports/signatures, the risky regions) and deepen on what matters, rather than reading it end-to-end',
-  "take the union of every slice's skipped/traced note. A high-risk area that no slice covered is itself a finding (a coverage gap), not silence",
-  "read the cited line's immediate neighbors and any referenced ticket/finding id for an explicit by-design / accepted-deferred / KNOWN annotation, or a docstring/comment that matches the observed behavior",
-  'must actively LOCATE the would-be handler (the caller, wrapper, middleware, second gate, sole-caller invariant, or a separate CI/test enforcement)',
-  'do not block: auto-scope from the repo, proceed on the safe default',
-  'are deferred and reported, never silently applied. Surface every decision and critical finding in the final report instead of pausing',
-  'stop the fix loop. A cascading cluster is evidence of an architectural problem, not a bug collection',
-  'present options at a checkpoint instead of attempting the next fix. In a headless run, defer the remaining cluster and report it',
-  'For a secret-bearing line the Anchor MUST be a non-secret substring of that line (the variable name or keyword, never any part of the value). If no safe substring exists, use Anchor: `<REDACTED-LINE>`, which the checker treats as line-existence-only.',
-  'A consumed item ends in exactly one pinned terminal form (`closed-with-proof <commit/PR>`, `deferred-with-reason <reason>`, or `OBSOLETE-AT <sha>`) and never silently disappears',
-  'Read-once: if this file is already live in the current context (not evicted or compacted away), do not re-read it',
-  'Pre-filter first, read narrow: at a phase boundary run the checker BEFORE any wholesale register read, then read only the non-FRESH/DRIFTED entries in full',
-  'is NOT re-paneled. The receipts are the verdict, and any drift forces a fresh panel. Hand each panelist the finding block under test plus the cited region (anchor ±30 lines) inline, never the full register',
-  'hand the verified context artifact to every operative brief. Operatives consult it first and use search only to go deeper than it reaches, never to re-derive layout or find definitions it already lists',
-  "failed dispatch, not a weak signal. Never synthesize around a missing report or fill its gap from the orchestrator's own assumptions",
-  'redispatch once with a tightened, smaller brief. Then escalate at the next checkpoint',
-  'The row is written **at dispatch time**, atomically with the dispatch call itself, never a turn earlier or later, because a row written before its dispatch is a phantom indistinguishable from a hung operative',
-  "Every operative report lands as a file in the run's artifact folder, at the exact path its brief names. That path governs over any default reporting instruction in the agent definition. An operative with a file-write tool writes its full report to that path and returns only a pointer: the path, a one-line verdict, and counts. The lead verifies that file through the shape gate and never re-emits its body. It reads the body only when synthesis needs it. An operative without a write tool returns its report inline. The lead writes that report to the named path in the turn it arrives, before any other work. A report that exists only in the conversation is one blocked turn away from being lost.",
-  'A brief that never reached its operative is indistinguishable in the dispatch record from a completed dispatch until the report is read. Gate every report on shape (expected sections present, non-empty, evidence attached) before its unit counts as covered. A pointed-to report file that is missing, empty, or malformed fails that gate exactly as a malformed inline report does.',
-  "an operative labels a finding CONFIRMED only when an executed repro or trace appears in its own transcript. A finding argued from static reading caps at PROBABLE, and promotion to CONFIRMED is the lead's act on executed evidence",
-  "Panelists get **distinct lenses** (correctness, configuration-reading, reachability), never N identical skeptics. Identical readers repeat one another's misreads, and diversity catches what redundancy cannot.",
-  'On a host that ignores agent `model:` frontmatter the lead acknowledges that printed floor table and routes every dispatch at or above its floor by hand. A below-floor dispatch is a doctrine violation that `run-cost-audit` records as a `tier-routing` FAIL.',
-  'Before ending a turn, read the last paragraph: if it is a plan, an unasked question, or a promise of work not yet done, do that work now.',
-  'Apply the touch-improve rule: leave every file the change touches better in modularity, performance, and quality. Fix any defect, slow path, or standards violation you find in touched code, in the same change. Name each fix in the unit report. Report as a follow-up any problem outside the touched files. Report as a follow-up any fix that changes what the task does not name: a public contract, data handling, or user-visible behavior. When unsure, confirm with the developer first (§3). A touched file that ends worse in modularity, performance, or quality needs a stated reason in the report.',
-  'Write to the house writing standard: one term per concept, active voice, one instruction per sentence, 20 words for instructions and 25 for explanation. Identifiers, paths, commands, and quoted output count as one word and are never reworded to fit a limit.',
-  "Every reply to the operator links each repository file, run folder, open-item pointer, and PR it names. A skill's final report is a reply. Write a file as `[name](repo-relative/path:line)` and a PR as its full URL. A bare `#123` is never enough. Artifacts keep backticked `file:line` citations with anchors, because the checkers parse them.",
-  "Design every change before writing it, sized to the change. Write the smallest correct, readable solution, and abstract only on evidence. Choose efficient algorithms, and measure before micro-optimizing. Comment reasons, never narration. Follow the language's style and the repository's toolchain. Test and review in proportion to risk. Never repeat a check whose input has not changed. Leave what you change in a better state than you found it. Improve its modularity, its performance, and its quality, and keep that improvement inside the change.",
-];
-const ALWAYS_GATED_TEXT = '**Always gated, regardless of level:** security/auth changes, secret handling, data migrations or destructive/irreversible operations, and public API/contract changes. **Never auto-merge';
+// ---- pinned doctrine text (SHARED_PASSAGES in scripts/doctrine-passages.mjs) -------------
+// The registry is the one source: the real lint reads it too, so the fixture CONVENTIONS files
+// carry exactly the spans check 14 pins. The floor below keeps an emptied registry from turning
+// the baseline and the drift cases vacuous.
+const ALWAYS_GATED_ID = 'always-gated-core';
+const ALWAYS_GATED_TEXT = SHARED_PASSAGES.find((p) => p.id === ALWAYS_GATED_ID)?.text ?? '';
+const PINNED_TEXTS = SHARED_PASSAGES.filter((p) => p.id !== ALWAYS_GATED_ID).map((p) => p.text);
+const REGISTRY_FLOOR = 31; // CONVENTIONS passages pinned when the registry was extracted
 const DOCTRINE_BLOB = [...PINNED_TEXTS, ALWAYS_GATED_TEXT].join('\n\n');
+check(`0. the doctrine registry pins at least ${REGISTRY_FLOOR} CONVENTIONS passages, each id once, with the always-gated core`,
+  SHARED_PASSAGES.length >= REGISTRY_FLOOR && new Set(SHARED_PASSAGES.map((p) => p.id)).size === SHARED_PASSAGES.length && ALWAYS_GATED_TEXT !== '');
 
 // ---- fixture writer ----------------------------------------------------------------
 const put = (root, relPath, content) => {
@@ -145,9 +119,8 @@ The fixture task is complete${doneRevalidate ? ` and revalidate-register.mjs ${d
 // scripts/lint-plugins.mjs) — each bundled agent must exist with a frontmatter `model:`
 // tier at or above its AGENT_MODEL_FLOORS entry, and carry whichever pinned doctrine
 // clauses that agent's file path is listed under. Sentences below are transcribed
-// verbatim from AGENT_SHARED_PASSAGES; if that array's `text` values ever change, this
-// eval's baseline starts failing loudly — update these to match, same contract as
-// PINNED_TEXTS/ALWAYS_GATED_TEXT above.
+// verbatim from AGENT_SHARED_PASSAGES (scripts/doctrine-passages.mjs); if that array's `text`
+// values ever change, this eval's baseline starts failing loudly — update these to match.
 const AGENT_ESCALATE = 'If the question is ambiguous, return the open question to the orchestrator instead of guessing.';
 const AGENT_REDACT_FULL = 'Redact any secrets/PII to `<REDACTED:reason>`. Never reproduce a secret value.';
 const AGENT_REDACT_SHORT = 'Redact secrets/PII.';
@@ -188,6 +161,8 @@ const MECH_OPTS = { tools: 'Read, Edit, Write, Bash, Grep, Glob', contract: agen
 // The gate imports LEDGER_STATUSES from this sibling and compares it with the Unit states in
 // CONTRACTS.md. Copy the REAL file so the drift case is judged against the actual statuses.
 const REAL_LEDGER_GRAMMAR = join(REPO, 'scripts', 'ledger-grammar.mjs');
+// lint-plugins.mjs imports the doctrine registry and the layout map as siblings; copy the REAL files.
+const REAL_SIBLINGS = ['doctrine-passages.mjs', 'layout-manifest.mjs'].map((name) => [join(REPO, 'scripts', name), name]);
 const STATE_MACHINE_PATH = 'code-ops-docs/35 Contracts and Data/CONTRACTS.md';
 const STATE_MACHINE_FIXTURE = [
   '# Fixture contracts', '', '## Agent state machine', '',
@@ -211,6 +186,7 @@ function buildBaseline(root) {
   copyFileSync(REAL_LINT, join(root, 'scripts', 'lint-plugins.mjs'));
   copyFileSync(REAL_MODEL_TIERS, join(root, 'scripts', 'model-tiers.mjs'));
   copyFileSync(REAL_LEDGER_GRAMMAR, join(root, 'scripts', 'ledger-grammar.mjs'));
+  for (const [from, name] of REAL_SIBLINGS) copyFileSync(from, join(root, 'scripts', name));
   put(root, STATE_MACHINE_PATH, STATE_MACHINE_FIXTURE);
   // The standards contract lives in AGENTS.md and CLAUDE.md is only its import line
   // (check 20). Cases 11 through 11f mutate one side each.

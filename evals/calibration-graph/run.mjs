@@ -177,7 +177,7 @@ try {
   const qL24 = run(['query', 'lesson', 'L-024']);
   check('c. L-024 is ENFORCED via a COMMIT: fix and a GATE: check',
     qL24.status === 0 && /fixed-in\s+COMMIT:314cc77/.test(qL24.stdout)
-    && /enforced-by\s+GATE:scripts\/lint-plugins\.mjs#panel-lens-diversity/.test(qL24.stdout)
+    && /enforced-by\s+GATE:scripts\/doctrine-passages\.mjs#panel-lens-diversity/.test(qL24.stdout)
     && /derived status: ENFORCED/.test(qL24.stdout), qL24.stdout + qL24.stderr);
 
   const qDef = run(['query', 'deferred']);
