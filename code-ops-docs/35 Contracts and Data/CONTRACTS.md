@@ -1272,10 +1272,34 @@ refresh, then the environment catalog and the model cache filtered by the last t
 When no source yields the model, a lead clone falls back to the lead model only if the lead meets
 all four conditions and the agent floor. Otherwise the dispatch throws. The check runs whatever
 `CODE_OPS_TIER_ROUTING` says and ignores `CODE_OPS_DISPATCH_GUARD=warn`. The startup chooser ladder
-filters by the same provider switches. Whether `client.config.providers()` already honors the two
-switches is UNVERIFIED, and so is OpenCode's own reading of an empty `enabled_providers`. Evidence:
-`scripts/opencode-lifecycle.js` (`providerSwitches`, `assertDispatchModel`, `buildChooserLadder`)
-and `evals/opencode-enabled-models/run.mjs`.
+filters by the same provider switches.
+
+The config hook binds the suite agents from the models this machine enables. It reads
+`CODE_OPS_OPENCODE_MODELS`, else the model cache. With neither, it asks the host once by running
+`<opencode> models --pure`, caches the answer, and binds from it, so the first launch is already
+bound. The command is `CODE_OPS_OPENCODE_CMD` (a JSON array), else this process when it is the
+OpenCode binary. It is never a bare `opencode` from `PATH`. The call times out after 8 seconds and
+sets `CODE_OPS_CHOOSER_CHILD`, which stops a child from asking again. The `--pure` flag keeps the
+child from loading this plugin. A plain `opencode models` loads it and recurses.
+
+A launch that cannot bind keeps the static ladder from `opencode.json` and says why. Three
+fallback notes exist. The first says no list arrived and names the failed command, the empty list,
+or the missing binary. The second says no listed model meets a rung of the verified tier table.
+The third says a rung with no enabled model of its class borrows a neighbor's model. The routing
+card prints these notes under `Ladder fallbacks on this host:` only while one is active. The
+first-event toast repeats them.
+
+The ask is a local process, not a request by the plugin. On OpenCode 1.17.15 with an empty cache
+directory, `models --pure` wrote a 5 MB `models.json`, and it wrote none with the network
+blocked. The host CLI therefore fetches its model catalog on a cold cache, and the build wording
+says the adapters make no network request of their own.
+
+On OpenCode 1.17.15, `models --pure` and `client.config.providers()` both honor
+`disabled_providers`. Only `models --pure` was probed for `enabled_providers`, which it honors.
+Both list connected providers only. OpenCode's own reading of an empty `enabled_providers` is
+UNVERIFIED. Evidence:
+`scripts/opencode-lifecycle.js` (`providerSwitches`, `assertDispatchModel`, `buildChooserLadder`,
+`askHostModels`) and `evals/opencode-enabled-models/run.mjs`.
 
 ## Agent state machine
 
