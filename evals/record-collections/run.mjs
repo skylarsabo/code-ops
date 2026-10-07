@@ -15,7 +15,7 @@ const SCRIPT = join(ROOT, 'scripts', 'records.mjs');
 const failures = [];
 const UUID = '11111111-1111-4111-8111-111111111111';
 const COLLECTION = ['--collection', 'evidence'];
-const expectedCases = process.platform === 'win32' ? 267 : 270;
+const expectedCases = process.platform === 'win32' ? 268 : 271;
 const GENERATED_NAMES = ['inventory.json', 'citations.json', 'curation.jsonl', 'index.md'];
 let executedCases = 0;
 let spawnCount = 0;
@@ -1375,6 +1375,26 @@ try {
   check('post-write verification closes the manifest index race even without history', result.status === 1
     && result.output.includes('documentation manifest Git-index state changed during operation')
     && generatedMatches(shallowManifestRaceRepo, shallowManifestRaceSnapshot), result.output);
+
+  const readCacheRepo = join(work, 'git-read-cache-invalidation'); cpSync(incrementalRepo, readCacheRepo, { recursive: true });
+  write(readCacheRepo, 'cache-probe.md', '# Cache probe\n');
+  const readCacheScript = instrumentedRecordsScript('git-read-cache-invalidation-script', (source) => source.replace(
+    '  manifestSha256(context);\n  const { rows } = collect(context);',
+    `  manifestSha256(context);
+  const probe = 'cache-probe.md'; const failures = [];
+  if (trackedPaths(context.root).includes(probe)) failures.push('probe was tracked before git add');
+  if (pathHasHistory(context.root, probe)) failures.push('probe had history before git commit');
+  git(context.root, ['add', probe]);
+  if (!trackedPaths(context.root).includes(probe)) failures.push('tracked-path read is stale after git add');
+  git(context.root, ['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', 'cache probe']);
+  if (!pathHasHistory(context.root, probe)) failures.push('history read is stale after git commit');
+  console.log(failures.length ? 'git-read-cache stale: ' + failures.join('; ') : 'git-read-cache fresh');
+  process.exit(failures.length ? 1 : 0);
+  const { rows } = collect(context);`,
+  ));
+  result = runWithScript(readCacheScript, ['check', '--root', readCacheRepo, ...COLLECTION], readCacheRepo);
+  check('cached Git reads refresh after this process stages and commits', result.status === 0
+    && result.output.includes('git-read-cache fresh'), result.output);
 
   const precedenceRepo = join(work, 'pending-evidence-precedence'); cpSync(incrementalRepo, precedenceRepo, { recursive: true });
   write(precedenceRepo, 'records/pending-with-index-failure.md', '# Pending while evidence is invalid\n');

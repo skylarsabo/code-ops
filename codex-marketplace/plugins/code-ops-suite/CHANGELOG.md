@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.46.1
+- `records.mjs` reuses Git reads within one run. It resolves HEAD to an object ID once, caches the tracked-path list, and reads citation and index blobs in one `cat-file --batch`. The record-collections eval makes 23% fewer Git calls (15,376 to 11,844) and runs about 25% faster (608 s to 457 s).
+- `record-lib.mjs` clears these caches on any Git command that can change state and on every file write. A library caller gets the cache only if it calls `enableGitReadCache`, so other scripts keep reading live state. The index, the worktree, and receipt bindings are never cached.
+- A new eval case stages and commits inside one process and checks that the cached reads refresh.
+
 ## 2.46.0
 - A branch-name rule blocks branches that start with an AI tool name (`claude/`, `codex/`, and similar) or end in a generated token such as `beautiful-lehmann-0bd3b1`. `scripts/branch-name.mjs` owns the rule and its `check` command.
 - The traceless hook applies the rule to commands that create or rename a branch, commit, push, or open a pull request, and blocks with the rename command. The OpenCode traceless plugin applies the same rule.
