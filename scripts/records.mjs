@@ -7,8 +7,8 @@ import { randomUUID } from 'node:crypto';
 import { dirname, join, relative, resolve } from 'node:path';
 import {
   adoptionHistory, adoptionHistoryProfiles, canonical, citationAuthority, classificationProblems, classify, cleanWorktree,
-  completeHistory, digestJson, dirtyIndexPaths, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
-  gitObjectQuery, gitPaths, historicalTarget, isAncestorCommit, objectFormat, revisionBlobs, showRevision, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
+  completeHistory, digestJson, dirtyIndexPaths, enableGitReadCache, extractCitations, filteredBlobOid, findBlobByDigest, FULL_ID_RE, git,
+  gitObjectQuery, gitPaths, historicalTarget, isAncestorCommit, objectFormat, prefetchBlobs, revisionBlobs, revisionQuery, showRevision, indexSemantic, indexSnapshot, jsonl, nativePath, pathHasHistory, physicalRoot, posix,
   maskMarkdownFenceAndTopLevelIndentBlocks, readJson, readJsonl, recordId, relativeRoot, renderIndex, resolveCitation,
   resolvePrefix, safePath, sha256, targetAt, targetsAt, trackedPaths, treePathsAt,
   validateCollection, validateLedger, verifyIndex, writeAtomically,
@@ -464,7 +464,11 @@ function collectionOutputPaths(context, key, manifestVersions = context.manifest
 function committedFileVersions(root, paths) {
   const candidates = Array.isArray(paths) ? [...new Set(paths)] : [paths];
   let commits = [];
-  try { commits = git(root, ['log', '--format=%H', '--reverse', '--', ...candidates.map(literalPath)]).trim().split(/\s+/).filter(Boolean); }
+  try {
+    commits = revisionQuery(root, 'HEAD', (rev) => [
+      'log', '--format=%H', '--reverse', ...(rev === 'HEAD' ? [] : [rev]), '--', ...candidates.map(literalPath),
+    ]).trim().split(/\s+/).filter(Boolean);
+  }
   catch (error) { throw new Error(`cannot read generated-file history: ${error.message}`); }
   const blobs = revisionBlobs(root, commits.flatMap((commit) => candidates.map((path) => `${commit}:${path}`)));
   return commits.map((commit) => {
@@ -1260,10 +1264,7 @@ function reviewBase(root, commit) {
   catch { return null; }
 }
 
-function commitIsReachable(root, commit) {
-  try { git(root, ['merge-base', '--is-ancestor', commit, 'HEAD']); return true; }
-  catch { return false; }
-}
+function commitIsReachable(root, commit) { return isAncestorCommit(root, commit, 'HEAD'); }
 
 function validateAuthorityBatches(inventory, { root = null, historyComplete = false } = {}) {
   if (!Array.isArray(inventory.authorityBatches) || !inventory.authorityBatches.length) {
@@ -1714,6 +1715,7 @@ function runCheck(context, {
   const recordById = new Map((inventory.entries || []).map((entry) => [entry.id, entry]));
   const allIds = allCollectionIds(context);
   const allowedStates = new Set(['resolved-immutable', 'resolved-mutable', 'dead-at-adoption', 'ambiguous', 'external', 'glob', 'redirected', 'tombstoned']);
+  prefetchBlobs(context.root, (citations.entries || []).map((citation) => citation?.target?.blobOid));
   for (const citation of citations.entries || []) {
     if (!ids.has(citation.recordId)) throw new Error(`citation references unknown record ${citation.recordId}`);
     if (!allowedStates.has(citation.state) || !Array.isArray(citation.resolvedVia)
@@ -2343,6 +2345,7 @@ function classifyCommand(context) {
 // Inline rather than cli-lib exitOnHelp: this script runs standalone, without cli-lib beside it.
 const RECORDS_USAGE = 'usage: records.mjs <classify|plan-adoption|adopt|re-review|curate|append|intake|seal|relocate-root|render [--register]|check|verify-history|reindex-locators> [--root <dir>] [--manifest <file>] [--collection <id>] [command options]';
 const [command, ...argv] = process.argv.slice(2);
+enableGitReadCache();
 if (argv.concat(command).some((a) => a === '--help' || a === '-h')) { console.log(RECORDS_USAGE); process.exit(0); }
 try {
   const options = parseArgs(argv);

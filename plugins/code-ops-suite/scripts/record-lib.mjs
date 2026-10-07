@@ -29,6 +29,19 @@ const OBJECT_FORMATS = new Map();
 const OBJECT_STORES = new Map();
 const MAX_CACHED_BLOB_BYTES = 64 * 1024 * 1024;
 const OBJECT_ID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
+// Reads of mutable Git state (the object ID HEAD names and the tracked-path list) are cached only after a
+// standalone command calls `enableGitReadCache`, which is sound only where every Git command the process
+// runs goes through `git` or `gitInput`. Such a cached read lives until the process runs a Git command that
+// could change it or writes a file, so none outlives a write of its own. A library caller that also runs Git
+// itself never enables the cache and so always reads the live state. The index, the worktree, and every
+// receipt binding are never cached.
+const MUTABLE_READS = new Map();
+let mutableReadCache = false;
+export function enableGitReadCache() { mutableReadCache = true; }
+const READ_ONLY_GIT = new Set([
+  'cat-file', 'check-ignore', 'diff', 'for-each-ref', 'hash-object', 'log', 'ls-files', 'ls-tree',
+  'merge-base', 'rev-list', 'rev-parse', 'show', 'status',
+]);
 
 export const sha256 = (value) => createHash('sha256').update(value).digest('hex');
 export const canonical = (value) => Array.isArray(value)
@@ -89,13 +102,25 @@ export function objectFormat(root) {
   return OBJECT_FORMATS.get(key);
 }
 
+function noteGitCommand(args) {
+  const subcommand = args.find((arg, index) => !arg.startsWith('-') && args[index - 1] !== '-c');
+  if (!READ_ONLY_GIT.has(subcommand) || (subcommand === 'hash-object' && args.includes('-w'))) MUTABLE_READS.clear();
+}
+function mutableReads(root) {
+  const key = resolve(root);
+  if (!MUTABLE_READS.has(key)) MUTABLE_READS.set(key, {});
+  return MUTABLE_READS.get(key);
+}
+
 export function git(root, args, binary = false) {
+  noteGitCommand(args);
   return execFileSync('git', args, {
     cwd: root, encoding: binary ? 'buffer' : 'utf8', timeout: 30000,
     maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'pipe'],
   });
 }
 function gitInput(root, args, input, binary = false, maxBuffer = 64 * 1024 * 1024) {
+  noteGitCommand(args);
   return execFileSync('git', args, {
     cwd: root, input, encoding: binary ? 'buffer' : 'utf8', timeout: 30000,
     maxBuffer, stdio: ['pipe', 'pipe', 'pipe'],
@@ -104,7 +129,12 @@ function gitInput(root, args, input, binary = false, maxBuffer = 64 * 1024 * 102
 export function gitPaths(root, args) {
   return git(root, args, true).toString('utf8').split('\0').filter(Boolean).map(posix);
 }
-export function trackedPaths(root) { return gitPaths(root, ['ls-files', '-z']); }
+export function trackedPaths(root) {
+  if (!mutableReadCache) return gitPaths(root, ['ls-files', '-z']);
+  const reads = mutableReads(root);
+  reads.tracked ??= gitPaths(root, ['ls-files', '-z']);
+  return [...reads.tracked];
+}
 
 export class GitStateError extends Error {}
 
@@ -123,9 +153,10 @@ function objectStore(root) {
 
 // Runs a read-only Git query and reuses its result when every named revision is a full object ID.
 // A nonzero Git exit is reused as the same thrown error; a spawn failure or timeout is not reused.
+const queryKey = (args, binary) => `${binary}\0${args.join('\0')}`;
 export function gitObjectQuery(root, revisions, args, binary = false) {
   if (!revisions.every((revision) => OBJECT_ID_RE.test(revision))) return git(root, args, binary);
-  const queries = objectStore(root).queries; const key = `${binary}\0${args.join('\0')}`;
+  const queries = objectStore(root).queries; const key = queryKey(args, binary);
   if (!queries.has(key)) {
     try { queries.set(key, { value: git(root, args, binary) }); }
     catch (error) {
@@ -138,8 +169,33 @@ export function gitObjectQuery(root, revisions, args, binary = false) {
   return entry.value;
 }
 
+// The object ID HEAD names, or null when HEAD does not resolve. It lasts until this process writes (MUTABLE_READS).
+function headRevision(root) {
+  const reads = mutableReads(root);
+  if (reads.head === undefined) {
+    try {
+      const oid = git(root, ['rev-parse', '--verify', '--quiet', 'HEAD']).trim();
+      reads.head = OBJECT_ID_RE.test(oid) ? oid : null;
+    } catch { reads.head = null; }
+  }
+  return reads.head;
+}
+
+// Runs a read-only Git query over `revision`, with `buildArgs(revision)` giving its arguments. HEAD is
+// replaced by the object ID it names once the read cache is enabled, so a full object ID (or HEAD) reuses
+// one result per process.
+// Any other revision, an unresolvable HEAD, or a name in `others` that is not a full object ID runs
+// uncached against the original revision, so a failure reads as it did before. In that case `buildArgs`
+// receives 'HEAD' itself.
+export function revisionQuery(root, revision, buildArgs, others = [], binary = false) {
+  if (revision === 'HEAD' && !mutableReadCache) return git(root, buildArgs(revision), binary);
+  const bound = revision === 'HEAD' ? headRevision(root) : revision;
+  if (!bound) return git(root, buildArgs(revision), binary);
+  return gitObjectQuery(root, [bound, ...others], buildArgs(bound), binary);
+}
+
 export function isAncestorCommit(root, ancestor, descendant) {
-  try { gitObjectQuery(root, [ancestor, descendant], ['merge-base', '--is-ancestor', ancestor, descendant]); return true; }
+  try { revisionQuery(root, descendant, (rev) => ['merge-base', '--is-ancestor', ancestor, rev], [ancestor]); return true; }
   catch { return false; }
 }
 
@@ -211,6 +267,33 @@ export function revisionBlobs(root, specs) {
 // A read that must fail as `git show <spec>` fails: a spec it cannot resolve reruns that command.
 export function showRevision(root, spec, blobs = revisionBlobs(root, [spec])) {
   return blobs.get(spec) ?? git(root, ['show', spec], true);
+}
+
+// Reads the blobs named by full object ID through one `cat-file --batch` and seeds the per-process stores
+// that the blob metadata read, the blob content read, and `cat-file -p <oid>` consult, so their readers
+// spawn nothing. An object that is missing, is not a blob, exceeds MAX_BLOB_BATCH_BYTES, or fails to parse
+// is left unseeded, and so is every object when the batch itself fails: the caller's own command then runs
+// as before and decides the result and the error.
+export function prefetchBlobs(root, oids) {
+  const cache = objectStore(root);
+  const wanted = [...new Set(oids)].filter((oid) => typeof oid === 'string' && OBJECT_ID_RE.test(oid));
+  const pending = wanted.filter((oid) => !cache.blobs.get(oid)?.bytes);
+  let parsed = null;
+  if (pending.length) {
+    try { parsed = parseRevisionBatch(gitInput(root, ['cat-file', '--batch'], oidInput(pending), true), pending); }
+    catch { parsed = null; }
+  }
+  for (const oid of wanted) {
+    let blob = cache.blobs.get(oid); const object = parsed?.get(oid);
+    if (!blob?.bytes && object?.bytes && object.oid === oid && object.bytes.length <= MAX_BLOB_BATCH_BYTES) {
+      const targetSha256 = sha256(object.bytes);
+      blob = retainBlobBytes(cache, object.bytes) ? { bytes: object.bytes, targetSha256 } : { targetSha256 };
+      cache.blobs.set(oid, blob);
+      cache.metadata.set(oid, { oid, type: 'blob', size: object.bytes.length });
+    }
+    const key = queryKey(['cat-file', '-p', oid], true);
+    if (blob?.bytes && !cache.queries.has(key)) cache.queries.set(key, { value: blob.bytes });
+  }
 }
 
 function objectMetadata(root, oids) {
@@ -346,6 +429,7 @@ export function indexSnapshot(root, paths) {
     entries.set(path, matches[0]);
   }
   const oids = [...new Set([...entries.values()].map((entry) => entry.blobOid))].sort();
+  prefetchBlobs(root, oids);
   const metadata = blobMetadata(root, oids);
   const oversized = metadata.find((entry) => entry.size > MAX_BLOB_BATCH_BYTES);
   if (oversized) {
@@ -600,23 +684,25 @@ function parseHistory(output) {
 }
 
 function pathHistory(root, path, follow = false, revision = 'HEAD') {
-  return parseHistory(git(root, [
+  return parseHistory(revisionQuery(root, revision, (rev) => [
     'log', '--topo-order', ...(follow ? ['--follow'] : []),
-    '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev', revision,
+    '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '-M', '--no-abbrev', rev,
     '--', `:(literal)${path}`,
-  ], true).toString('utf8'));
+  ], [], true).toString('utf8'));
 }
 
 function pathsHistory(root, paths, revision = 'HEAD') {
-  return parseHistory(git(root, [
-    'log', '--topo-order', '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '--no-renames', '--no-abbrev', revision,
+  return parseHistory(revisionQuery(root, revision, (rev) => [
+    'log', '--topo-order', '--diff-merges=first-parent', '--format=%H%x00', '--raw', '-z', '--no-renames', '--no-abbrev', rev,
     '--', ...paths.map((path) => `:(literal)${path}`),
-  ], true).toString('utf8'));
+  ], [], true).toString('utf8'));
 }
 
 export function pathHasHistory(root, path) {
   if (!safePath(path)) throw new Error(`invalid history path: ${path}`);
-  return Boolean(git(root, ['log', '--full-history', '--format=%H', '--', `:(literal)${path}`]).trim());
+  return Boolean(revisionQuery(root, 'HEAD', (rev) => [
+    'log', '--full-history', '--format=%H', ...(rev === 'HEAD' ? [] : [rev]), '--', `:(literal)${path}`,
+  ]).trim());
 }
 
 export function historyPathBatches(paths) {
@@ -650,7 +736,7 @@ function repositoryHistory(root, rows, revision = 'HEAD') {
       if (discovered.size > MAX_HISTORY_EVENTS) throw new Error(`record history profile exceeds ${MAX_HISTORY_EVENTS} relevant events`);
     }
   }
-  const commitRows = git(root, ['rev-list', '--topo-order', '--parents', revision]).trim().split(/\r?\n/)
+  const commitRows = revisionQuery(root, revision, (rev) => ['rev-list', '--topo-order', '--parents', rev]).trim().split(/\r?\n/)
     .filter(Boolean).map((line) => line.split(/\s+/));
   const commitOrder = new Map(commitRows.map(([commit], index) => [commit, index]));
   const commitParents = new Map(commitRows.map(([commit, ...parents]) => [commit, parents]));
@@ -724,7 +810,7 @@ function treeBlobOids(root, commit, paths) {
   for (const batch of historyPathBatches(requested)) {
     let output;
     try {
-      output = git(root, ['ls-tree', '-r', '-z', '--full-tree', commit, '--', ...batch.map(literalPath)], true);
+      output = revisionQuery(root, commit, (rev) => ['ls-tree', '-r', '-z', '--full-tree', rev, '--', ...batch.map(literalPath)], [], true);
     } catch (error) {
       throw new GitStateError(`git-state: Git subprocess failed while reading ${commit} tree state: ${error.message}`);
     }
@@ -1498,6 +1584,7 @@ function assertResolvedParent(path) {
   }
 }
 export function writeAtomically(entries) {
+  MUTABLE_READS.clear();
   const destinations = []; const prepared = []; const replaced = new Set();
   try {
     if (!Array.isArray(entries) || entries.some((entry) => !Array.isArray(entry) || entry.length !== 2 || typeof entry[0] !== 'string')) {
