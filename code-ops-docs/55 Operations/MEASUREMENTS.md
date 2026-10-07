@@ -145,7 +145,7 @@ The decision rules are fixed before the rows exist:
 
 A row is published here with the arm, the window, the session count, the four per-session
 means the rule reads, and the receipt of the `--by-arm` run. Evidence:
-`plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:93-132`,
+`plugins/code-ops-suite/hooks/session-receipt.mjs:68-71`, `scripts/context-audit.mjs:299-337`,
 and `scripts/transcript-lib.mjs:212`.
 
 ## Cross-project spend audit, 2026-09-18
@@ -212,7 +212,7 @@ never its peak, so a session that compacted back under the threshold still repor
 nudged. `context-audit.mjs receipts --by-arm` reports per arm how many sessions were nudged and
 how many of those handed off, which is the ratio the decision rule reads. Rows written before the
 hook recorded these fields count in neither figure. Evidence:
-`plugins/code-ops-suite/hooks/session-receipt.mjs:64-87` and `scripts/context-audit.mjs:159-201`.
+`plugins/code-ops-suite/hooks/session-receipt.mjs:64-87` and `scripts/context-audit.mjs:364-406`.
 
 **Amendment, 2026-09-18.** The threshold started at 200,000. The cross-project audit below found
 71% of lead input-side tokens spent above 200,000, a median lead peak of 259,000, and a 90th
@@ -818,6 +818,34 @@ Four rules bind every entry:
 - **Baseline.** Set at creation of `.github/ratchet-baseline.json`. That file does not exist yet.
 - **Decision rule.** The CI step "M5 gate ratchet" fails when a count falls below the stored
   baseline. A lower count enters only through a reviewed edit of the baseline file.
+
+**M3 compliance counts.** The `compliance` subcommand of `scripts/context-audit.mjs` (P2-DS4PR4)
+reads Claude and Codex transcripts and prints counts only: no prompt, command, brief, or result
+text reaches its output. Each row below fixes its decision rule before any count exists, and the
+first window of counts is the baseline. The implementer owns the subcommand. Subagent threads,
+unreadable files, and Grok and opencode transcripts are counted apart as skipped, so a count never
+mixes hosts silently.
+
+- **Workflow launches with a Run-contract line.**
+  - **Source and owner.** `workflow.withContract` over `workflow.launches` in the compliance
+    output, per session. The implementer owns it (P2-DS4PR4).
+  - **Baseline.** Not measured. The first compliance run is the baseline.
+  - **Decision rule.** An advisory ignored on 80 percent or more of at least 10 Workflow launches
+    is proposed for deny, and the operator decides (DS4 decision A). No other threshold is set.
+- **Prose-rule lapses by session.**
+  - **Source and owner.** Dispatches denied by the guard (`denied`), briefs without a
+    `Round budget` line (`briefsWithoutRoundBudget`), and Workflow launches without a contract
+    line, each per `sessionId`. The implementer owns it (P2-DS4PR4).
+  - **Baseline.** Not measured.
+  - **Decision rule.** A prose-only rule with 2 or more lapses across 2 or more sessions gets a
+    code backstop if the check is mechanical, else a criterion with a named actor. The lapse
+    counts come from this subcommand and the hand-written closeout self-audit (M7).
+- **Authority-bearing shell commands per operator prompt.**
+  - **Source and owner.** `authority` counts (`gitPush`, `ghPrCreate`, `ghPrMerge`, `ghRelease`)
+    over `operatorPrompts`, per session. The implementer owns it (P2-DS4PR4).
+  - **Baseline.** Not measured.
+  - **Decision rule.** These counts inform the operator-gated permission ask rules (DS4 decision C)
+    and set no threshold. The operator decides after the first window.
 
 ### Round budgets and report shape
 
