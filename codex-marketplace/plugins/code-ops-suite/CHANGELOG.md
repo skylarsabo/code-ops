@@ -4,9 +4,15 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.49.0
+## 2.50.0
 - `check-vault-standard.mjs` gains rule 16, the decision register. A vault that carries `20 Decisions/REGISTER.md` keeps it whole: ids come from the D, ADR, DEC, EVO, and RBS families and stay unique, every `DEC-<n>` cited in the vault has a row, every decision note and ADR has a row, and each row has a valid date and status. A committed link in a Source cell must resolve. A run folder or program ledger is a code-span path under `80 Runs/`, checked for form only, and a link into that gitignored folder fails. A vault with no register sees no change.
 - This repository adds `20 Decisions/REGISTER.md` with 108 rows for its decision notes, ADRs, and program ledgers.
+
+## 2.49.0
+- The dispatch guard appends one decision row to `guard-decisions.jsonl`, beside the session-receipt ledger, for each output that denies or advises. A row holds ids and counts only: the gate ids that fired, the contract-rule ids they back, the tool, the decision, and a Workflow call count. `CODE_OPS_RECEIPTS=off` stops the rows, and a write error fails open.
+- The dispatch-guard eval fires every gate id in the guard's table, including the peer note through a seeded presence board, and fails when a reworded message no longer matches its gate.
+- The legacy path library denies an edit under a derived tree. It uses the manifest's `derived` entries when it lists any, and the built-in list (`.agents/`, `codex-marketplace/`, `opencode-dist/`) otherwise, each entry only where its generator script exists, so the deny stays live while `docs-manifest.mjs` does not accept the `derived` disposition.
+- The "Dispatch guard hook" section of CONTRACTS.md documents the row file, its fields, the off switch, and the derived path deny.
 
 ## 2.48.0
 - `scan-overbuild.mjs` now reads removed lines and prints a touched-file delta advisory after its tells, for the touched-file duty. It runs the pass-through shape and the exported-helper pattern over each touched source file's removed lines, and marks the file `IMPROVED` (removes some, adds none), `WORSE`, or `MIXED`. A removal reports its base line, and `--json` carries the result as `delta`. The advisory adds no hit and never changes the exit code, and the tells and their exit codes are unchanged.

@@ -56,6 +56,7 @@ import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { repoIdentity } from '../../scripts/handoff-state.mjs';
 import { tally } from '../harness.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -72,6 +73,21 @@ function fakeHome() {
   return { home, cleanup: () => rmSync(home, { recursive: true, force: true }) };
 }
 
+// Every hook run below writes its decision rows beside this receipts path, so the last section can
+// compare the rows with the outputs the cases saw.
+const rowsDir = mkdtempSync(join(tmpdir(), 'guard-rows-'));
+const receiptsFile = join(rowsDir, 'session-receipts.jsonl');
+const rowsFile = join(rowsDir, 'guard-decisions.jsonl');
+let expectedRows = 0;
+
+// True for a PreToolUse output that denies or advises, the outputs that earn one row.
+function decides(stdout) {
+  try {
+    const out = JSON.parse(stdout)?.hookSpecificOutput;
+    return out?.hookEventName === 'PreToolUse' && (out.permissionDecision === 'deny' || (typeof out.additionalContext === 'string' && out.additionalContext !== ''));
+  } catch { return false; }
+}
+
 function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite, env: extra = {} } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_DISPATCH_GUARD;
@@ -79,6 +95,7 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   delete env.CODE_OPS_CONTEXT_CEILING;
   delete env.GROK_PLUGIN_ROOT;
   delete env.CODE_OPS_LEGACY_PATHS;
+  env.CODE_OPS_RECEIPTS = receiptsFile;
   Object.assign(env, extra);
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
   if (ceiling !== undefined) env.CODE_OPS_CONTEXT_CEILING = ceiling;
@@ -87,7 +104,9 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   if (home) { env.HOME = home; env.USERPROFILE = home; }
   env.CLAUDE_PLUGIN_ROOT = pluginRoot;
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  return spawnSync('node', [hook], { input, encoding: 'utf8', env });
+  const result = spawnSync('node', [hook], { input, encoding: 'utf8', env });
+  if (env.CODE_OPS_RECEIPTS === receiptsFile && decides(result.stdout)) expectedRows++;
+  return result;
 }
 
 function runControl(args, { home, budget, cwd = root } = {}) {
@@ -1072,13 +1091,17 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
 
 // A throwaway repository whose hub lists one removed legacy root (docs/old, forwarded to hub/new),
 // one relocated root, and a second removed root with no forwarding entry.
-function legacyRepo({ manifest, forwarding = true } = {}) {
+function legacyRepo({ manifest, forwarding = true, noManifest = false, generators = true } = {}) {
   const repo = mkdtempSync(join(tmpdir(), 'legacy-repo-'));
   mkdirSync(join(repo, '.git'));
+  if (generators) {
+    mkdirSync(join(repo, 'scripts'));
+    for (const name of ['build-codex-marketplace.mjs', 'build-opencode-dist.mjs']) writeFileSync(join(repo, 'scripts', name), '');
+  }
   const system = join(repo, 'hub', '98 System');
   mkdirSync(system, { recursive: true });
   const evidence = [{ kind: 'external', ref: 'fixture' }];
-  writeFileSync(join(system, 'DOCS_MANIFEST.json'), manifest ?? JSON.stringify({
+  if (!noManifest) writeFileSync(join(system, 'DOCS_MANIFEST.json'), manifest ?? JSON.stringify({
     version: 3, hub: 'hub', recordCollections: [],
     legacyPaths: [
       { path: 'docs/old', disposition: 'removed', requiredBy: evidence },
@@ -1188,6 +1211,142 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   expect(none.status === 0 && none.stdout === '', `a repository with no hub must fail open, got ${JSON.stringify(none.stdout)}`);
   rmSync(noHub, { recursive: true, force: true });
   console.log('ok   a corrupt, wrong-version, empty, or removal-free manifest and a missing hub fail open; a missing FORWARDING.json still denies');
+  cleanup();
+}
+
+// ---------------------------------------------------------------- derived path deny (behaviour 6)
+
+// The manifest names its own derived trees when it lists any; the built-in list is the fallback for
+// a hub whose manifest is missing, unreadable, or lists none, and a repository with no hub is never
+// denied. docs-manifest.mjs does not yet accept the derived disposition, so a real manifest lists none.
+{
+  const { home, cleanup } = fakeHome();
+  const GEN = 'node scripts/build-gen.mjs';
+  const derivedManifest = JSON.stringify({
+    version: 2, hub: 'hub', runs: { tracking: 'ignored' }, recordCollections: [],
+    legacyPaths: [{ path: 'gen-out/', disposition: 'derived', generator: GEN }, { path: 'bare-out', disposition: 'derived' }],
+  });
+  const edit = (repo, tool, input) => ({ hook_event_name: 'PreToolUse', session_id: 'sess-D', cwd: repo, tool_name: tool, tool_input: input });
+  const reasonFor = (repo, tool, input, options) => reasonOf(parseOut(runHook(edit(repo, tool, input), { home, ...options })));
+  const silent = (repo, input, label, options) => {
+    const r = runHook(edit(repo, 'Write', input), { home, ...options });
+    expect(r.status === 0 && r.stdout === '', `${label} must pass silently, got ${JSON.stringify(r.stdout)}`);
+  };
+
+  // A manifest entry triggers the deny, with its generator named.
+  const declared = legacyRepo({ manifest: derivedManifest });
+  const a = reasonFor(declared.repo, 'Write', { file_path: 'gen-out/x/a.md', content: 'x' });
+  expect(typeof a === 'string' && a.startsWith('Derived path guard:') && a.includes('gen-out/x/a.md') && a.includes(`\`${GEN}\``)
+    && a.includes('the documentation manifest marks derived'), `a manifest entry must deny an edit under it, naming the generator, got ${a}`);
+  const noGenerator = reasonFor(declared.repo, 'Edit', { file_path: join(declared.repo, 'bare-out', 'b.js'), old_string: 'a', new_string: 'b' });
+  expect(/its generator instead/.test(noGenerator ?? ''), `an entry with no generator must still deny, got ${noGenerator}`);
+  const patched = reasonFor(declared.repo, 'apply_patch', { input: '*** Begin Patch\n*** Update File: gen-out/c.md\n@@\n-a\n+b\n*** End Patch' });
+  expect(/Derived path guard:/.test(patched ?? ''), `an apply_patch target under a derived entry must deny, got ${patched}`);
+  console.log('ok   a manifest derived entry denies Write, Edit, and apply_patch targets under it, naming its generator');
+
+  // The manifest replaces the built-in list, so a hub that does not declare opencode-dist/ may edit it.
+  silent(declared.repo, { file_path: 'opencode-dist/a.js' }, 'a path the readable manifest does not list');
+  silent(declared.repo, { file_path: 'gen-outer/a.md' }, 'a prefix sibling of a derived entry');
+  silent(declared.repo, { file_path: 'src/a.mjs' }, 'an unrelated path');
+  for (const tool of ['Read', 'Grep', 'Bash']) {
+    const r = runHook(edit(declared.repo, tool, { file_path: 'gen-out/a.md', command: 'node scripts/build-gen.mjs > gen-out/a.md' }), { home });
+    expect(r.status === 0 && r.stdout === '', `${tool} under a derived tree must stay untouched, got ${JSON.stringify(r.stdout)}`);
+  }
+  silent(declared.repo, { file_path: 'gen-out/a.md' }, 'CODE_OPS_LEGACY_PATHS=off', { env: { CODE_OPS_LEGACY_PATHS: 'off' } });
+  const warned = parseOut(runHook(edit(declared.repo, 'Write', { file_path: 'gen-out/a.md' }), { home, guard: 'warn' }));
+  expect(warned?.hookSpecificOutput?.permissionDecision === undefined && /Derived path guard:/.test(contextOf(warned) ?? ''),
+    `warn mode must downgrade the derived deny to context, got ${JSON.stringify(warned)}`);
+  declared.cleanup();
+  console.log('ok   the readable manifest replaces the fallback list; prefix siblings, other tools, the off switch, and warn mode behave as for removed roots');
+
+  // A readable manifest that lists no derived path uses the built-in list: version 1 declares no
+  // legacy paths, a version 2 manifest may list none, and the default version 3 fixture lists only
+  // removed and relocated roots (the shape the real manifest has today).
+  for (const [name, options] of [
+    ['a version 2 manifest with no derived entry', { manifest: JSON.stringify({ version: 2, hub: 'hub', legacyPaths: [] }) }],
+    ['a version 1 manifest', { manifest: JSON.stringify({ version: 1, hub: 'hub', domains: [] }) }],
+    ['a version 3 manifest with removed roots only', {}],
+  ]) {
+    const repo = legacyRepo(options);
+    const reason = reasonFor(repo.repo, 'Write', { file_path: 'opencode-dist/a.js', content: 'x' });
+    expect(typeof reason === 'string' && reason.startsWith('Derived path guard:') && reason.includes('this repository treats as derived')
+      && reason.includes('`node scripts/build-opencode-dist.mjs`'), `${name} must fall back and deny an edit under opencode-dist/, got ${reason}`);
+    silent(repo.repo, { file_path: 'src/a.mjs' }, `${name} must not deny an unrelated path`);
+    repo.cleanup();
+  }
+  console.log('ok   a readable manifest with no derived entry falls back to the built-in derived list');
+
+  // The fallback list denies when the manifest is missing, corrupt, empty, or of an unknown shape.
+  const FALLBACK = [['opencode-dist/x/a.js', 'node scripts/build-opencode-dist.mjs'], ['codex-marketplace/plugins/a.json', 'node scripts/build-codex-marketplace.mjs'],
+    ['.agents/plugins/marketplace.json', 'node scripts/build-codex-marketplace.mjs']];
+  for (const [name, options] of [
+    ['a missing manifest', { noManifest: true }],
+    ['a corrupt manifest', { manifest: '{not json' }],
+    ['an empty manifest', { manifest: '' }],
+    ['a manifest of an unknown version', { manifest: JSON.stringify({ version: 9, hub: 'hub', legacyPaths: [] }) }],
+    ['a version 2 manifest whose legacyPaths is not an array', { manifest: JSON.stringify({ version: 2, hub: 'hub', legacyPaths: 'x' }) }],
+  ]) {
+    const repo = legacyRepo(options);
+    for (const [file, generator] of FALLBACK) {
+      const reason = reasonFor(repo.repo, 'Write', { file_path: file, content: 'x' });
+      expect(typeof reason === 'string' && reason.startsWith('Derived path guard:') && reason.includes(`\`${generator}\``)
+        && reason.includes('this repository treats as derived'), `${name} must fall back to the built-in list for ${file}, got ${reason}`);
+    }
+    silent(repo.repo, { file_path: 'src/a.mjs' }, `${name} must not deny an unrelated path`);
+    repo.cleanup();
+  }
+  console.log('ok   a missing, corrupt, empty, or unrecognised manifest falls back to the built-in derived list');
+
+  // A fallback entry applies only where its generator script exists, so an adopting repository with a
+  // hub keeps its own hand-authored .agents/ tree, and a repository with one generator gets only its trees.
+  for (const [name, options] of [['a hub with a readable manifest', {}], ['a hub with no manifest', { noManifest: true }]]) {
+    const bare = legacyRepo({ ...options, generators: false });
+    for (const [file] of FALLBACK) silent(bare.repo, { file_path: file }, `${name} and no generator script, for ${file}`);
+    bare.cleanup();
+  }
+  const partial = legacyRepo({ generators: false });
+  mkdirSync(join(partial.repo, 'scripts'));
+  writeFileSync(join(partial.repo, 'scripts', 'build-opencode-dist.mjs'), '');
+  expect(/Derived path guard:/.test(reasonFor(partial.repo, 'Write', { file_path: 'opencode-dist/a.js' }) ?? ''), 'a present generator must keep its tree denied');
+  silent(partial.repo, { file_path: '.agents/plugins/marketplace.json' }, 'a tree whose generator script is absent');
+  partial.cleanup();
+  console.log('ok   a fallback entry applies only where its generator script exists');
+
+  // Without a hub the fallback never applies, so another repository may edit its own .agents/ file.
+  const noHub = mkdtempSync(join(tmpdir(), 'derived-nohub-'));
+  mkdirSync(join(noHub, '.git'));
+  silent(noHub, { file_path: '.agents/plugins/marketplace.json' }, 'a repository with no hub');
+  rmSync(noHub, { recursive: true, force: true });
+  console.log('ok   a repository with no documentation hub is never denied');
+  cleanup();
+}
+
+// ---------------------------------------------------------------- peer note (behaviour 5)
+
+// One live peer claims a path on the repository's presence board; an edit of that path by another
+// session earns a Collision note, which the decision rows record under the peer-note gate.
+{
+  const { home, cleanup } = fakeHome();
+  const repo = mkdtempSync(join(tmpdir(), 'peer-repo-'));
+  const init = spawnSync('git', ['init', '-q', '-b', 'main', repo], { encoding: 'utf8' });
+  expect(init.status === 0, `git init must succeed, got ${init.stderr}`);
+  const boardDir = join(home, '.claude', 'code-ops', 'board', repoIdentity(repo).key);
+  mkdirSync(boardDir, { recursive: true });
+  writeFileSync(join(boardDir, 'Alpha.json'), JSON.stringify({
+    v: 1, sessionId: 'Alpha', hostSessionId: 'local_Alpha', name: 'Alpha', branch: 'main', worktree: '.',
+    claims: ['src/claimed.js'], edits: [], heartbeat: new Date(Date.now() - 120_000).toISOString(), ended: null,
+  }));
+  const claimed = (extra = {}) => runHook({ hook_event_name: 'PreToolUse', session_id: 'sess-P', cwd: repo, tool_name: 'Edit',
+    tool_input: { file_path: join(repo, 'src', 'claimed.js') } }, { home, env: { CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: '', ...extra } });
+  const note = contextOf(parseOut(claimed()));
+  expect((note ?? '').startsWith('Collision note (warn only') && note.includes('"Alpha"'), `an edit of a claimed path must warn naming the peer, got ${note}`);
+  const again = claimed();
+  expect(again.status === 0 && again.stdout === '', `the same path warns once per session, got ${JSON.stringify(again.stdout)}`);
+  const off = runHook({ hook_event_name: 'PreToolUse', session_id: 'sess-Q', cwd: repo, tool_name: 'Edit',
+    tool_input: { file_path: join(repo, 'src', 'claimed.js') } }, { home, env: { CODE_OPS_HOME: home, CODE_OPS_PEER_GUARD: 'off' } });
+  expect(off.status === 0 && off.stdout === '', `CODE_OPS_PEER_GUARD=off must silence the note, got ${JSON.stringify(off.stdout)}`);
+  console.log('ok   an edit of a path a live peer claimed earns one Collision note, and the board switch silences it');
+  rmSync(repo, { recursive: true, force: true });
   cleanup();
 }
 
@@ -1472,6 +1631,66 @@ function legacyRepo({ manifest, forwarding = true } = {}) {
   console.log('ok   an unwritable counter store fails open');
   cleanup();
 }
+
+// ---------------------------------------------------------------- decision rows
+
+// Every case above wrote rows to the shared file. One row per deny or advisory output, ids and
+// counts only, and every gate in the hook's table fired at least once across the cases.
+{
+  const rows = existsSync(rowsFile) ? readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean).map((line) => JSON.parse(line)) : [];
+  expect(rows.length === expectedRows && rows.length > 0, `one row per deny or advisory output: expected ${expectedRows}, wrote ${rows.length}`);
+
+  const KEYS = ['decision', 'gates', 'ledger', 'subagent', 'tool', 'ts', 'sessionId', 'v'].sort();
+  const known = [...readFileSync(hook, 'utf8').slice(readFileSync(hook, 'utf8').indexOf('const GATES = ['))
+    .split('\n];')[0].matchAll(/^ {2}\['([a-z-]+)', \//gm)].map((match) => match[1]);
+  expect(known.length >= 12, `the eval must read the gate table from the hook, found ${known.length} ids`);
+  const bad = rows.filter((row) => {
+    const keys = Object.keys(row).filter((key) => key !== 'workflow').sort();
+    return JSON.stringify(keys) !== JSON.stringify(KEYS) || row.v !== 1 || !['deny', 'advisory'].includes(row.decision)
+      || !Number.isFinite(Date.parse(row.ts)) || !Array.isArray(row.gates) || !row.gates.length || !Array.isArray(row.ledger)
+      || row.gates.some((id) => !known.includes(id)) || row.ledger.some((id) => !/^[A-Z0-9]+-\d+$/.test(id))
+      || typeof row.subagent !== 'boolean' || (row.sessionId !== null && typeof row.sessionId !== 'string');
+  });
+  expect(!bad.length, `every row must carry exactly the contract fields and known ids, got ${JSON.stringify(bad[0])}`);
+  const unclassified = rows.filter((row) => row.gates.includes('other'));
+  expect(!unclassified.length, `no output may fall outside the gate table, got ${JSON.stringify(unclassified[0])}`);
+  const fired = new Set(rows.flatMap((row) => row.gates));
+  const silentGates = known.filter((id) => !fired.has(id));
+  expect(!silentGates.length, `every gate must fire in at least one case, never fired: ${silentGates.join(', ')}`);
+  expect(rows.some((row) => row.decision === 'deny') && rows.some((row) => row.decision === 'advisory'), 'the rows must include both denials and advisories');
+  expect(rows.some((row) => row.subagent) && rows.some((row) => !row.subagent), 'the rows must mark subagent and main-thread decisions');
+  console.log(`ok   ${rows.length} decision rows match ${expectedRows} deny or advisory outputs; ${known.length} gates fired, none outside the table`);
+
+  // A Workflow row carries the call counts and nothing else of the script.
+  const { home, cleanup } = fakeHome();
+  const before = rows.length;
+  const secret = 'SENTINEL-ROW-TEXT-8841';
+  const script = `agent({ agentType: 'code-ops-suite:implementer', prompt: '${secret}' });\nagent(options);\nagent({ prompt: '${secret}' });`;
+  const r = runHook(dispatchCall({ script }, { tool_name: 'Workflow', session_id: 'sess-W', cwd: 'C:/secret-project-dir' }), { home });
+  const after = readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean);
+  const last = JSON.parse(after.at(-1) ?? 'null');
+  expect(after.length === before + 1 && r.stdout !== '', `a denied Workflow must write one row, wrote ${after.length - before}`);
+  expect(last?.tool === 'Workflow' && last.decision === 'deny' && last.sessionId === 'sess-W' && last.gates.includes('wide-type')
+    && last.workflow?.calls === 3 && last.workflow.unreadable === 1, `the Workflow row must carry the call and unreadable counts, got ${JSON.stringify(last)}`);
+  expect(!/SENTINEL|secret-project-dir|agentType|prompt/.test(readFileSync(rowsFile, 'utf8')), 'a row must carry no script, brief, or path text');
+  console.log('ok   a Workflow row carries the call and unreadable counts and no script or path text');
+
+  // The off switch, the default location, and a write failure.
+  const offRun = runHook(dispatchCall({ subagent_type: 'general-purpose', prompt: 'x' }), { home, env: { CODE_OPS_RECEIPTS: 'off' } });
+  expect(offRun.stdout !== '' && !existsSync(join(home, '.claude', 'code-ops', 'guard-decisions.jsonl')) && readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean).length === after.length,
+    'CODE_OPS_RECEIPTS=off must still decide but write no row');
+  const defaulted = runHook(dispatchCall({ subagent_type: 'general-purpose', prompt: 'x' }), { home, env: { CODE_OPS_RECEIPTS: '' } });
+  const homeRows = join(home, '.claude', 'code-ops', 'guard-decisions.jsonl');
+  expect(defaulted.stdout !== '' && existsSync(homeRows) && JSON.parse(readFileSync(homeRows, 'utf8').trim()).gates.includes('wide-type'),
+    'with no CODE_OPS_RECEIPTS the row goes to ~/.claude/code-ops/guard-decisions.jsonl');
+  writeFileSync(join(home, 'file-not-dir'), 'x');
+  const unwritable = runHook(dispatchCall({ subagent_type: 'general-purpose', prompt: 'x' }), { home, env: { CODE_OPS_RECEIPTS: join(home, 'file-not-dir', 'r.jsonl') } });
+  expect(unwritable.status === 0 && /"permissionDecision":"deny"/.test(unwritable.stdout), `an unwritable rows directory must fail open and still deny, got ${unwritable.status}/${unwritable.stdout}`);
+  console.log('ok   CODE_OPS_RECEIPTS=off writes no row, the default location holds the row, and a write failure still decides');
+  cleanup();
+}
+
+rmSync(rowsDir, { recursive: true, force: true });
 
 if (fails.length) {
   for (const f of fails) console.log(`  x ${f}`);
