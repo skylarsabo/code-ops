@@ -162,6 +162,9 @@ jobs:
       - name: CI budget file check (advisory)
         run: node scripts/ci-budget.mjs check
 
+      - name: CI budget regression eval
+        run: node evals/ci-budget/run.mjs
+
       - name: Codex marketplace render + drift check
         run: node scripts/build-codex-marketplace.mjs --check
 

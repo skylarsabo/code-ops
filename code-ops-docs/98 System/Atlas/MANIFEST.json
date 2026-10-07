@@ -816,8 +816,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8fb47b858b716dde20345c5c5b687fc7f589e87a",
-      "verifiedDigest": "862962277025c1c976825905af42b0b6bb0a291f7ac6b2da6b4c8ae8312edd55",
+      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
+      "verifiedDigest": "a7e333c04411a87caebf9e312f3dc47518d15b6b3f0e4949b7c5a92224e2acd4",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1260,8 +1260,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "8fb47b858b716dde20345c5c5b687fc7f589e87a",
-      "verifiedDigest": "187475330076f7394beeeb2e4ff83510a0b7c46ae5c58f74b679de3923757189",
+      "verifiedAt": "4f15faa6aa28c2001405ba32fde26b1f5d468d7b",
+      "verifiedDigest": "c3f4e3b94726d5f675596623f97777b9daca4917a99eaaa07f0a169583054b6c",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1290,6 +1290,10 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 163
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 166
         },
         {
           "file": "scripts/ci-budget.mjs",
