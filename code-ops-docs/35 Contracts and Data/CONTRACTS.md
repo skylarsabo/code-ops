@@ -1162,7 +1162,12 @@ these, and `warn` turns each into an advisory:
 
 The advisories are a `Tier` above the routed rung, a declared kind raised to the agent's minimum, a
 `model` override the gate cannot rank (it leaves `Tier` unchecked), a brief `Effort` below the
-frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A Workflow `agent()` call
+frontmatter effort, and a Workflow `model` or `effort` that is not a literal string. A readable Workflow
+script that makes two or more `agent()` calls, or any call the guard cannot read, earns one more advisory
+when it has no script-wide `Run contract: <path>` line (bare or in a comment) or when that path, resolved
+against the session directory, is missing or is not JSON with a non-empty `runId`. The note also gives the
+call count against a guideline of 10 and how many calls set no effort. It never denies, and a script the
+guard cannot parse skips it. A Workflow `agent()` call
 whose literal `model` ranks below the floor of its literal `agentType` is denied. A `spawn_subagent`
 or `spawn_agent` input with a literal `xhigh` or `max` effort is denied. The `spawn_agent` tool
 is covered by name. That `PreToolUse` fires for it on Codex is PROBABLE: the Codex hooks
@@ -1244,7 +1249,8 @@ brief text, script text, or paths: `v` (1), `ts`, `sessionId` (null when the hos
 safe token), `tool`, `subagent`, `decision` (`deny` or `advisory`), `gates`, and `ledger`.
 `gates` lists each gate id whose message phrase appears in the output, in table order, or
 `other` when none does. `ledger` lists the contract-rule ids those gates back. A `Workflow` row
-adds `workflow` with the `calls` count and the `unreadable` count. `CODE_OPS_RECEIPTS=off` stops the
+adds `workflow` with the `calls` count, the `unreadable` count, and `contract`, which is true when the script
+carries a `Run contract:` line. The `workflow-contract` gate id marks the contract advisory. `CODE_OPS_RECEIPTS=off` stops the
 rows, and a write error fails open: the decision still reaches the host unchanged. The dispatch-guard
 eval fires every gate id in the table and fails when a message no longer matches its phrase.
 Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`GATES`, `decisionRow`) and
