@@ -86,7 +86,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "340731bb95f9fdf9e6934911204faffa47207e434da70bde0a981eb9f7ab9bd6",
+      "sourceDigest": "4854587202fe77ae787fc7c120af6667382066b21989d5c01f7dd16a4ce9a5cf",
       "contentDigest": "d5bbc0f9010802904bee8e397723a5f6b75f551e2ad19fdc2cfffa334b7e0694"
     },
     {
@@ -119,7 +119,7 @@
         ".github/workflows/**",
         "scripts/**"
       ],
-      "sourceDigest": "719edb7f3e6964bc85347b4e122711a56611f7363f5f3d287f327c71b45a5a5d",
+      "sourceDigest": "da748bdfc0592b5e418e46221e23fab07b756962cdb4dca79ce917c095178cd9",
       "contentDigest": "fc4e7101e02a00a4d3888e1bd8b4eb1a4b9f2374260c65f29d8275457a1442c1"
     },
     {
@@ -131,7 +131,7 @@
         ".claude-plugin/**",
         "scripts/build-*.mjs"
       ],
-      "sourceDigest": "8e20314ca09ed55f9b0a11aed8f9971bab1766f09584f12a198dc6fb061ee674",
+      "sourceDigest": "0fabaff1312a26dab4d4bb6bc90bdc4973613cd5a060e66e9284065542954057",
       "contentDigest": "6ff13ee7e90bf119706aa95f6efdcb430de561458666b25e5c897217d78d0ff6"
     },
     {
@@ -142,7 +142,7 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "719edb7f3e6964bc85347b4e122711a56611f7363f5f3d287f327c71b45a5a5d",
+      "sourceDigest": "da748bdfc0592b5e418e46221e23fab07b756962cdb4dca79ce917c095178cd9",
       "contentDigest": "7fe683e52ea5d4b137982430a14c43152ee7b5fb1f2d17aa449f4d58cfd13e66"
     },
     {
@@ -157,7 +157,7 @@
         "evals/record-collections/**",
         ".github/workflows/validate.yml"
       ],
-      "sourceDigest": "1d716ad60a403b1c3c31251837444f8bf8d605ee0b69dc7ce8b57f6103216d4a",
+      "sourceDigest": "f25c3d2d58cbeab809a7a09f3cef099139a10add6965962c338b5bffe62d13af",
       "contentDigest": "a3b8495952fb0519e20a661107d026e87a8374ac8759cc4b135f4c442b064c1d"
     },
     {
@@ -203,8 +203,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "463a85dcb91fd4d4d9f0b279f6cadf08615121132883423e9540c7076e57e92c",
-      "contentDigest": "3a14040a520ee976ffebebe7b2c82cab078970e77935ffaf9cf2cb5822e2c530"
+      "sourceDigest": "f5993b482fabab8b9c861c41e905c3fe91094bdb98181114d119a8544f941728",
+      "contentDigest": "63991dd37cae2775f7ea4c5d300656febf625b7a743f2a33e5a848b64f904139"
     }
   ]
 }
