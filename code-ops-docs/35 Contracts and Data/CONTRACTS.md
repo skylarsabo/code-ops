@@ -1230,8 +1230,9 @@ generated tree such as `opencode-dist/`, is denied the same way, and the reason 
 `generator` command. The library uses the manifest's `derived` entries when it lists any. A
 manifest that is missing, oversize, corrupt, of an unknown shape, or lists no `derived` entry
 falls back to a built-in list (`.agents/`, `codex-marketplace/`, and
-`opencode-dist/`), so a broken manifest never opens the generated trees. A
-repository with no hub is never denied. `scripts/docs-manifest.mjs` does not yet validate or
+`opencode-dist/`), so a broken manifest never opens the generated trees. A fallback entry
+applies only where its generator script exists, so an adopting repository keeps its own
+hand-authored `.agents/` tree. A repository with no hub is never denied. `scripts/docs-manifest.mjs` does not yet validate or
 accept the `derived` disposition, so no real manifest can declare one and the fallback is the live
 path today. That validation is a tracked follow-up. Evidence: `scripts/legacy-paths-lib.mjs`
 (`legacyDenial`, `DERIVED_FALLBACK`) and `evals/dispatch-guard/run.mjs`.

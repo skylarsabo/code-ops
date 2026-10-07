@@ -118,7 +118,8 @@
 //      path, a generated tree such as `opencode-dist/`, is denied the same way, and the reason
 //      names the entry's `generator` command. A hub whose manifest is missing, oversize, or
 //      corrupt, or one that lists no `derived` entry, falls back to a built-in derived list, so a
-//      broken manifest never opens the generated trees; a repository with no hub is never denied. scripts/legacy-paths-lib.mjs,
+//      broken manifest never opens the generated trees. A fallback entry applies only where its
+//      generator script exists; a repository with no hub is never denied. scripts/legacy-paths-lib.mjs,
 //      imported lazily and only for an edit tool, finds the hub as the one top-level directory
 //      holding the manifest, reads at most 2 MiB per file, and spawns nothing; any other error,
 //      or a missing library, fails open. A denial on a subagent still counts the call, because

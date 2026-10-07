@@ -1091,9 +1091,13 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
 
 // A throwaway repository whose hub lists one removed legacy root (docs/old, forwarded to hub/new),
 // one relocated root, and a second removed root with no forwarding entry.
-function legacyRepo({ manifest, forwarding = true, noManifest = false } = {}) {
+function legacyRepo({ manifest, forwarding = true, noManifest = false, generators = true } = {}) {
   const repo = mkdtempSync(join(tmpdir(), 'legacy-repo-'));
   mkdirSync(join(repo, '.git'));
+  if (generators) {
+    mkdirSync(join(repo, 'scripts'));
+    for (const name of ['build-codex-marketplace.mjs', 'build-opencode-dist.mjs']) writeFileSync(join(repo, 'scripts', name), '');
+  }
   const system = join(repo, 'hub', '98 System');
   mkdirSync(system, { recursive: true });
   const evidence = [{ kind: 'external', ref: 'fixture' }];
@@ -1292,6 +1296,21 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false } = {}) {
     repo.cleanup();
   }
   console.log('ok   a missing, corrupt, empty, or unrecognised manifest falls back to the built-in derived list');
+
+  // A fallback entry applies only where its generator script exists, so an adopting repository with a
+  // hub keeps its own hand-authored .agents/ tree, and a repository with one generator gets only its trees.
+  for (const [name, options] of [['a hub with a readable manifest', {}], ['a hub with no manifest', { noManifest: true }]]) {
+    const bare = legacyRepo({ ...options, generators: false });
+    for (const [file] of FALLBACK) silent(bare.repo, { file_path: file }, `${name} and no generator script, for ${file}`);
+    bare.cleanup();
+  }
+  const partial = legacyRepo({ generators: false });
+  mkdirSync(join(partial.repo, 'scripts'));
+  writeFileSync(join(partial.repo, 'scripts', 'build-opencode-dist.mjs'), '');
+  expect(/Derived path guard:/.test(reasonFor(partial.repo, 'Write', { file_path: 'opencode-dist/a.js' }) ?? ''), 'a present generator must keep its tree denied');
+  silent(partial.repo, { file_path: '.agents/plugins/marketplace.json' }, 'a tree whose generator script is absent');
+  partial.cleanup();
+  console.log('ok   a fallback entry applies only where its generator script exists');
 
   // Without a hub the fallback never applies, so another repository may edit its own .agents/ file.
   const noHub = mkdtempSync(join(tmpdir(), 'derived-nohub-'));

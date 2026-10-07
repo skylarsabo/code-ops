@@ -29,11 +29,12 @@ const PATCH_KEYS = ['patch', 'input', 'patchText', 'command'];
 const PATCH_TARGET = /^\*\*\* (?:(?:Add|Update) File|Move to): (.+)$/gm;
 // The generated trees a hub repository denies hand edits under when its manifest is missing,
 // unreadable, or lists no `derived` entry, so the deny never fails open. A manifest that lists
-// `derived` entries replaces this list with them.
+// `derived` entries replaces this list with them. An entry applies only where its generator script
+// exists, so an adopting repository keeps hand-authored trees such as its own `.agents/`.
 const DERIVED_FALLBACK = [
-  { path: '.agents/', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
-  { path: 'codex-marketplace/', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
-  { path: 'opencode-dist/', generator: 'node scripts/build-opencode-dist.mjs' }, // runs in the code-ops repository
+  { path: '.agents/', script: 'scripts/build-codex-marketplace.mjs', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
+  { path: 'codex-marketplace/', script: 'scripts/build-codex-marketplace.mjs', generator: 'node scripts/build-codex-marketplace.mjs' }, // runs in the code-ops repository
+  { path: 'opencode-dist/', script: 'scripts/build-opencode-dist.mjs', generator: 'node scripts/build-opencode-dist.mjs' }, // runs in the code-ops repository
 ];
 // A record that states a rule. Evidence, reports, and summaries are `historical` by default and
 // carry no rule to warn about.
@@ -156,7 +157,7 @@ export function legacyDenial(cwd, input) {
     // The real manifest cannot declare derived paths yet (docs-manifest.mjs rejects that disposition),
     // so an empty list falls back to DERIVED_FALLBACK and keeps the deny live.
     const declared = manifest ? entriesOf(manifest, 'derived') : [];
-    const derived = declared.length ? declared : DERIVED_FALLBACK;
+    const derived = declared.length ? declared : DERIVED_FALLBACK.filter((entry) => existsSync(join(root, entry.script)));
     for (const file of files) {
       const rel = repoRel(root, cwd, file);
       if (!rel) continue;
