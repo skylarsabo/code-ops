@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.55.0
+- New `compliance` subcommand of `context-audit.mjs` counts, from the two supported transcript formats, operator prompts, dispatch calls by tool, guard denials, Workflow launches with and without a Run-contract line, briefs without a `Round budget` line, and authority-bearing shell commands (`git push`, `gh pr create`, `gh pr merge`, `gh release`). It prints counts and ids only, never prompt, command, brief, or result text. Subagent threads, unreadable files, and transcripts of the other hosts are counted apart as skipped. Flags: `--json`, `--out`, `--session`, `--host`, `--all`.
+- `context-audit.mjs` now runs its command line only when invoked as a script, and exports the pure counting helpers, so the eval imports them. The eval pins `RUN_CONTRACT_LINE` to the dispatch guard's literal and fails when the two differ.
+- The `context-audit` eval gains fixtures for both formats with a seeded sentinel string that must never appear in any output. MEASUREMENTS.md pre-registers three compliance rows with decision rules fixed before data.
+
 ## 2.54.0
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry short examples of the touch-improve outcomes. The ship text shows improved, none-in-scope, and net-negative report lines, and says the reviewer reports a net-negative file as Should-fix. Each agent carries one example sized to its role.
 

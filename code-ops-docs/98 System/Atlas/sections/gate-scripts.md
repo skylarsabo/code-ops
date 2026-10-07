@@ -49,7 +49,7 @@ subagents. Codex follows peer rollout `parent_thread_id` links. Installed Grok 1
 normalizes cumulative usage from `updates.jsonl` and records its unavailable ladder arm false.
 OpenCode has no transcript callback. `context-audit.mjs` is the sanitized CLI, and the
 `SessionEnd` hook is the supported-host ledger writer. None touches the model, network, or
-repository tree. Each row counts skill invocations by id, and `context-audit.mjs receipts` sums them. Grouped receipts are descriptive until a pre-registered matched control
+repository tree. Each row counts skill invocations by id, and `context-audit.mjs receipts` sums them. `context-audit.mjs compliance` counts, per session, dispatches, guard denials, Workflow launches with and without a Run-contract line, briefs without a round budget, and authority-bearing shell commands, and it prints counts only. Grouped receipts are descriptive until a pre-registered matched control
 supports a causal claim.
 
 The resident-context reader shared by the handoff card and the dispatch guard reads only the
