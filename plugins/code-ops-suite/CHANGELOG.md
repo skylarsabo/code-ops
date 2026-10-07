@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.55.0
+- The dispatch guard adds one advisory for a `Workflow` script that makes two or more `agent()` calls, or any call it cannot read, and has no readable `Run contract: <path>` line. The line may be bare or in a comment. The path resolves against the session directory and must name a JSON file with a non-empty `runId`. The note gives the call count against a guideline of 10 and how many calls set no effort. It never denies, and a script the guard cannot parse skips it.
+- A `Workflow` decision row gains a `contract` flag, true when the script carries a `Run contract:` line, and the gate table gains the `workflow-contract` id. The dispatch-guard eval covers the advisory, the silent forms, each bad-path case, and the row flag. CONTRACTS.md describes the advisory.
+
 ## 2.54.0
 - The ship Phase 2 text and the implementer, reviewer, explorer, and mech agents carry short examples of the touch-improve outcomes. The ship text shows improved, none-in-scope, and net-negative report lines, and says the reviewer reports a net-negative file as Should-fix. Each agent carries one example sized to its role.
 

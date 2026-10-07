@@ -131,6 +131,14 @@ const dispatchCall = (toolInput, extra = {}) => ({
   tool_name: 'Agent', tool_input: toolInput, tool_use_id: 'tu-2', ...extra,
 });
 
+// A `Run contract:` comment line over a contract file in `home` that parses as JSON with a runId,
+// so a Workflow case with two or more agent() calls reaches the contract check with the line present.
+function contractLine(home, body = { runId: 'run-1' }, name = 'RUN_CONTRACT.json') {
+  const file = join(home, name);
+  writeFileSync(file, typeof body === 'string' ? body : JSON.stringify(body));
+  return `// Run contract: ${file}`;
+}
+
 // A brief that carries every field the suite agents' `Brief requires:` lines name.
 const FULL_BRIEF = 'Scope: one file.\nObjective: fix it.\nRound budget: 25 tool rounds\n'
   + 'Report cap: 200 words.\nReport path: r.md\nExpected return: a verdict line.\n'
@@ -369,11 +377,12 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   };
   denies(`${typed};\n${untyped};`, /1 of 2 Workflow agent\(\) calls.*first is call 2/, 'one typed and one untyped call');
   denies(`${untyped};\n${typed};\n${untyped};`, /2 of 3 Workflow agent\(\) calls.*first is call 1/, 'two untyped calls name the count and the first');
-  silent(`${typed};\nawait agent({ agentType: "rigor:tracer", prompt: 'x' });`, 'two typed calls');
+  const contract = contractLine(home);
+  silent(`${contract}\n${typed};\nawait agent({ agentType: "rigor:tracer", prompt: 'x' });`, 'two typed calls');
   denies("agent({ agentType: 'general-purpose', prompt: 'x' });", /1 of 1 .*first is call 1/, 'a wide literal agentType');
   denies("agent({ agentType: \"code-ops-suite:Fork\", prompt: 'x' });", /first is call 1/, 'a wide literal agentType after a plugin prefix, any case');
-  silent(`// Wide-surface reason: needs browser tools\n${untyped};\nagent({ agentType: 'claude' });`, 'a Wide-surface reason');
-  silent("agent({ agentType: kind, prompt: 'x' }); agent({ agentType, prompt: 'x' });", 'a variable agentType');
+  silent(`${contract}\n// Wide-surface reason: needs browser tools\n${untyped};\nagent({ agentType: 'claude' });`, 'a Wide-surface reason');
+  silent(`${contract}\nagent({ agentType: kind, prompt: 'x' }); agent({ agentType, prompt: 'x' });`, 'a variable agentType');
   silent("agent({ prompt: 'agent({ in a string', agentType: 'code-ops-suite:probe', nested: { agentType: 'fork' } });", 'agentType read at the top level of the options only');
   for (const effort of ["'max'", '"xhigh"', '`max`']) {
     const script = `agent({ agentType: 'code-ops-suite:reviewer', effort: ${effort} });`;
@@ -406,6 +415,44 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // A parse surprise falls back to the script-wide test: an unclosed options literal.
   denies("agent({ prompt: 'never closed", /no agentType/, 'an unparsable script with no agentType falls back to the script-wide deny');
   silent("agent({ agentType: 'code-ops-suite:probe', prompt: 'never closed", 'an unparsable script with an agentType falls back to pass');
+  // Run contract advisory: two or more agent() calls, or any call the guard cannot read, without a
+  // readable `Run contract:` line earn one advisory that states the call count against the guideline of
+  // 10 and the calls with no effort. It never denies; a one-call script, a parse failure, and a
+  // script with a readable contract stay silent.
+  const advises = (script, pattern, label, extra = {}) => {
+    const res = parseOut(runHook(dispatchCall({ script }, { tool_name: 'Workflow', ...extra }), { home }));
+    expect(!Object.hasOwn(res?.hookSpecificOutput ?? {}, 'permissionDecision') && pattern.test(contextOf(res) ?? ''),
+      `${label}: must advise matching ${pattern} and not deny, got ${JSON.stringify(res)}`);
+  };
+  const effortCall = (n) => `agent({ agentType: 'code-ops-suite:explorer', effort: 'medium', prompt: '${n}' })`;
+  const NO_LINE = /has no script-wide "Run contract: <path>" line; add that line naming the run's RUN_CONTRACT\.json\. It is never denied\./;
+  const BAD_LINE = /"Run contract: <path>" line names a file that is missing or is not JSON with a runId/;
+  advises(`${typed};\n${typed};`, /makes 2 agent\(\) call\(s\) against the guideline of 10, 2 of them set no effort, and it /, 'two calls with no line state the count and the missing effort');
+  advises(`${typed};\n${typed};`, NO_LINE, 'two calls with no line name the missing line');
+  advises(`${effortCall(1)};\n${typed};`, /makes 2 .*, 1 of them set no effort/, 'one of two calls sets an effort');
+  const eleven = Array.from({ length: 11 }, (_, i) => effortCall(i)).join(';\n');
+  advises(eleven, /makes 11 agent\(\) call\(s\) against the guideline of 10, 0 of them set no effort/, 'eleven calls, none without effort');
+  advises("const opts = { prompt: 'x' };\nawait agent(opts);", /makes 1 agent\(\) call\(s\).*"Run contract: <path>" line/, 'one unreadable call with no line');
+  silent(typed, 'one readable call needs no line');
+  silent(`${contract}\n${eleven}`, 'eleven calls with a readable contract');
+  silent(`${typed};\nagent({ agentType: 'code-ops-suite:probe', prompt: 'never closed`, 'a parse failure with two calls is unchanged');
+  // The line is script-wide: a comment or a bare line counts, a string that merely contains it does not.
+  const file = contract.slice('// Run contract: '.length);
+  for (const line of [`Run contract: ${file}`, `/* Run contract: ${file} */`, ` * Run contract: ${file}`, `\t// Run contract: ${file}  `]) {
+    silent(`${line}\n${typed};\n${typed};`, `the line form ${JSON.stringify(line.replace(file, '<file>'))}`);
+  }
+  advises(`const s = "Run contract: ${file.replace(/\\/g, '/')}";\n${typed};\n${typed};`, NO_LINE, 'a string holding the line does not count');
+  // With the line present only the path is checked: it must exist and parse as JSON with a runId.
+  advises(`// Run contract: ${join(home, 'missing.json')}\n${typed};\n${typed};`, BAD_LINE, 'a path that does not exist');
+  advises(`${contractLine(home, { head: 'abc' }, 'norun.json')}\n${typed};\n${typed};`, BAD_LINE, 'a contract with no runId');
+  advises(`${contractLine(home, { runId: '' }, 'emptyrun.json')}\n${typed};\n${typed};`, BAD_LINE, 'a contract with an empty runId');
+  advises(`${contractLine(home, 'not json {', 'notjson.json')}\n${typed};\n${typed};`, BAD_LINE, 'a contract that is not JSON');
+  advises(`// Run contract: ${home}\n${typed};\n${typed};`, BAD_LINE, 'a directory');
+  // A relative path resolves against the session directory.
+  advises(`// Run contract: RUN_CONTRACT.json\n${typed};\n${typed};`, BAD_LINE, 'a relative path with the wrong session directory');
+  const relative = runHook(dispatchCall({ script: `// Run contract: RUN_CONTRACT.json\n${typed};\n${typed};` }, { tool_name: 'Workflow', cwd: home }), { home });
+  expect(relative.status === 0 && relative.stdout === '', `a relative path must resolve against the session cwd, got ${JSON.stringify(relative.stdout)}`);
+  console.log('ok   the Workflow run contract advisory states the count and no-effort calls, checks only the path, and never denies');
   // Mutation: a hook that reverts to the script-wide test must pass the mixed script, and so fail the case above.
   const mutantDir = join(home, 'mutant');
   mkdirSync(mutantDir);
@@ -1518,18 +1565,19 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   }
 
   // Workflow: a literal model below the floor of its literal agentType denies; the floor and above pass.
+  const runContract = contractLine(home);
   const wf = (script, guard) => parseOut(runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, pluginRoot: suiteRoot, guard }));
   denied(wf(`agent({ agentType: '${REV}', model: 'sonnet', prompt: 'x' });`), /call 1 sets model "sonnet" \(mid\), below the strong floor of code-ops-suite:reviewer/, 'a Workflow model below the floor');
   denied(wf(`agent({ agentType: '${REV}', prompt: 'x' });\nagent({ agentType: 'code-ops-suite:plain', model: 'haiku', prompt: 'x' });`), /call 2 sets model "haiku" \(light\), below the mid floor/, 'the failing call is named');
-  quiet(wf(`agent({ agentType: '${REV}', model: 'claude-sonnet-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
-  quiet(wf(`agent({ agentType: 'no-such:agent', model: 'haiku' }); agent({ agentType: '${REV}', model: 'unknown-model' });`), 'a model or agent the guard cannot rank');
+  quiet(wf(`${runContract}\nagent({ agentType: '${REV}', model: 'claude-sonnet-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
+  quiet(wf(`${runContract}\nagent({ agentType: 'no-such:agent', model: 'haiku' }); agent({ agentType: '${REV}', model: 'unknown-model' });`), 'a model or agent the guard cannot rank');
   advised(wf(`agent({ agentType: '${REV}', model: choice });`), /not a literal string/, 'a Workflow model that is a variable');
   // One frontier dispatch per run covers a Workflow: literal frontier models in the script plus frontier ledger rows.
   seed([]);
   const fableCall = `agent({ agentType: '${REV}', model: 'fable' });`;
   quiet(wf(fableCall), 'one literal frontier Workflow call');
   denied(wf(`${fableCall}\n${fableCall}`), /frontier model on 2 agent\(\) call\(s\) and 0 frontier dispatch/, 'two literal frontier Workflow calls');
-  quiet(wf(`${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one premium Workflow call');
+  quiet(wf(`${runContract}\n${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one premium Workflow call');
   seed([{ status: 'dispatched', agent_id: 'f4', agent_type: IMP, session_id: 'sess-1', unit: 'u11', appliedModel: 'fable' }]);
   denied(wf(fableCall), /frontier model on 1 agent\(\) call\(s\) and 1 frontier dispatch\(es\) already ran/, 'a frontier Workflow call after a frontier ledger row');
   quiet(wf(`agent({ agentType: '${REV}', model: 'opus' });`), 'a premium Workflow call after a frontier ledger row');
@@ -1671,13 +1719,19 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const last = JSON.parse(after.at(-1) ?? 'null');
   expect(after.length === before + 1 && r.stdout !== '', `a denied Workflow must write one row, wrote ${after.length - before}`);
   expect(last?.tool === 'Workflow' && last.decision === 'deny' && last.sessionId === 'sess-W' && last.gates.includes('wide-type')
-    && last.workflow?.calls === 3 && last.workflow.unreadable === 1, `the Workflow row must carry the call and unreadable counts, got ${JSON.stringify(last)}`);
+    && last.workflow?.calls === 3 && last.workflow.unreadable === 1 && last.workflow.contract === false,
+    `the Workflow row must carry the call and unreadable counts and no contract line, got ${JSON.stringify(last)}`);
+  runHook(dispatchCall({ script: `// Run contract: x.json\n${script}` }, { tool_name: 'Workflow', session_id: 'sess-W', cwd: 'C:/secret-project-dir' }), { home });
+  const afterLine = readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean);
+  const withLine = JSON.parse(afterLine.at(-1) ?? 'null');
+  expect(withLine?.workflow?.contract === true && withLine.gates.includes('workflow-contract'),
+    `a Workflow with a bad contract line must record the flag and the advisory gate, got ${JSON.stringify(withLine)}`);
   expect(!/SENTINEL|secret-project-dir|agentType|prompt/.test(readFileSync(rowsFile, 'utf8')), 'a row must carry no script, brief, or path text');
   console.log('ok   a Workflow row carries the call and unreadable counts and no script or path text');
 
   // The off switch, the default location, and a write failure.
   const offRun = runHook(dispatchCall({ subagent_type: 'general-purpose', prompt: 'x' }), { home, env: { CODE_OPS_RECEIPTS: 'off' } });
-  expect(offRun.stdout !== '' && !existsSync(join(home, '.claude', 'code-ops', 'guard-decisions.jsonl')) && readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean).length === after.length,
+  expect(offRun.stdout !== '' && !existsSync(join(home, '.claude', 'code-ops', 'guard-decisions.jsonl')) && readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean).length === afterLine.length,
     'CODE_OPS_RECEIPTS=off must still decide but write no row');
   const defaulted = runHook(dispatchCall({ subagent_type: 'general-purpose', prompt: 'x' }), { home, env: { CODE_OPS_RECEIPTS: '' } });
   const homeRows = join(home, '.claude', 'code-ops', 'guard-decisions.jsonl');

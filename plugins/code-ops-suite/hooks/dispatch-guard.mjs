@@ -50,6 +50,8 @@
 //      variable passes. A call whose options are a variable or a spread cannot be read and earns
 //      an advisory. A parse surprise (an unclosed literal, or a call past the bounded scan) falls
 //      back to the script-wide test: an `agent(` call, no `agentType:`, and no reason text.
+//      A readable script with two or more calls, or any unreadable call, and no readable script-wide
+//      `Run contract: <path>` line earns an advisory only (`workflow-contract`); it never denies.
 //      The same review enforces the target agent's brief contract. A `subagent_type` of the form
 //      `<plugin>:<agent>`, where the plugin is code-ops-suite, rigor, privacy-opsec-suite, or
 //      researcher, resolves to `agents/<agent>.md` in that sibling plugin: `../<plugin>/` beside
@@ -219,7 +221,7 @@
 
 import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { agentFile } from './agent-file.mjs';
@@ -525,6 +527,7 @@ const GATES = [
   ['route-basis', /Route basis/, []],
   ['frontier', /only one frontier peer/, []],
   ['workflow-opaque', /Workflow agent\(\) calls pass (?:options the guard cannot read|a model or effort that is not a literal)/, []],
+  ['workflow-contract', /"Run contract: <path>" line/, []],
   ['legacy-path', /Legacy path guard:/, []],
   ['derived-path', /Derived path guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
@@ -825,6 +828,11 @@ function ceilingReason(gate) {
 const AGENT_CALL = /\bagent\s*\(/g;
 const OPTION_KEY = /(agentType|effort|model)\s*(?=[:,}])/y;
 const OVER_HIGH_EFFORT = new Set(['xhigh', 'max']);
+// A script-wide `Run contract: <path>` line, bare or inside a comment, with the path on that line.
+// The compliance counts planned for scripts/context-audit.mjs must match this same pattern.
+const RUN_CONTRACT_LINE = /^[ \t]*(?:\/\/+|\/?\*+)?[ \t]*Run contract:[ \t]*(\S.*?)(?:[ \t]*\*\/)?[ \t\r]*$/m;
+// The agent() call count past which a Workflow script is large; the advisory only states it.
+const WORKFLOW_CALL_GUIDELINE = 10;
 // The bounded scan reads at most this many characters of one call's options.
 const MAX_CALL_SCAN = 20_000;
 
@@ -923,9 +931,36 @@ function workflowCalls(script) {
   return calls;
 }
 
+// Whether the file a `Run contract:` line names, resolved against the session directory, parses as
+// JSON with a runId. Any read or parse failure is a miss.
+function contractReadable(path, cwd) {
+  try {
+    const contract = JSON.parse(readFileSync(resolve(cwd, path), 'utf8'));
+    return typeof contract?.runId === 'string' && contract.runId !== '';
+  } catch { return false; }
+}
+
+// The contract advisory of a readable Workflow script: one note when it makes two or more agent()
+// calls, or any call the guard cannot read, without a readable run contract. It never denies, and
+// an internal error adds nothing.
+function reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, advisories) {
+  try {
+    if (calls.length < 2 && !unreadable) return;
+    const path = RUN_CONTRACT_LINE.exec(script)?.[1];
+    if (path === undefined) {
+      advisories.push(`This Workflow script makes ${calls.length} agent() call(s) against the guideline of ${WORKFLOW_CALL_GUIDELINE}, `
+        + `${noEffort} of them set no effort, and it has no script-wide "Run contract: <path>" line; add that line `
+        + 'naming the run\'s RUN_CONTRACT.json. It is never denied.');
+    } else if (!contractReadable(path, cwd)) {
+      advisories.push('The Workflow script\'s "Run contract: <path>" line names a file that is missing or is not JSON with a runId; '
+        + 'point it at the run\'s RUN_CONTRACT.json. It is never denied.');
+    }
+  } catch { /* fail open */ }
+}
+
 // A Workflow script's per-call review. `agentType` must name a narrow type on every readable
 // call (a wide-surface reason excuses it); a literal effort above high never passes.
-async function reviewWorkflow(script, denials, advisories, sessionId) {
+async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
   const calls = workflowCalls(script);
   if (!calls) {
     // deferred(parse surprise, a fuller JavaScript tokenizer): fall back to the script-wide test.
@@ -940,6 +975,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId) {
   const belowFloor = [];
   let unreadable = 0;
   let nonLiteral = 0;
+  let noEffort = 0;
   // A literal model is judged against its literal agentType's floor, which needs the rung table.
   const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string') ? await getRoutingLibs() : null;
   calls.forEach((call, index) => {
@@ -947,6 +983,8 @@ async function reviewWorkflow(script, denials, advisories, sessionId) {
     const { keys, spread } = call;
     const effort = keys.get('effort')?.trim().toLowerCase();
     if (OVER_HIGH_EFFORT.has(effort)) high.push(index + 1);
+    // A spread may carry an effort, so only a call without one counts.
+    if (!spread && !keys.has('effort')) noEffort++;
     // A variable or shorthand model or effort cannot be checked here.
     if ((keys.has('effort') && keys.get('effort') === null) || (keys.has('model') && keys.get('model') === null)) nonLiteral++;
     const model = keys.get('model');
@@ -963,7 +1001,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId) {
     const type = keys.get('agentType');
     if (type !== null && (!type.trim() || WIDE_TYPES.has(type.trim().split(':').pop().toLowerCase()))) failed.push(index + 1);
   });
-  workflow = { calls: calls.length, unreadable };
+  workflow = { calls: calls.length, unreadable, contract: RUN_CONTRACT_LINE.test(script) };
   if (failed.length && !script.includes('Wide-surface reason:')) {
     denials.push(`${failed.length} of ${calls.length} Workflow agent() calls name no agentType or a wide-surface one `
       + `(the first is call ${failed[0]}), which starts from the default surface; set agentType on each to a `
@@ -995,6 +1033,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId) {
     advisories.push(`${nonLiteral} of ${calls.length} Workflow agent() calls pass a model or effort that is not a literal string, `
       + 'so the guard cannot check it against the agent floor or the effort ceiling; confirm the value.');
   }
+  reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, advisories);
 }
 
 // The routing libraries, loaded once and only for a routed dispatch or a Workflow model. Null when
@@ -1197,9 +1236,9 @@ async function reviewRouting(input, type, prompt, sessionId, denials, advisories
 
 // Behaviour 4: the lead's own dispatch. A wide surface without a stated reason is a denial, and so
 // is a routing breach for an agent that requires `Tier`; a missing Round budget stays advisory.
-async function reviewDispatch(tool, input, budget, denials, advisories, sessionId) {
+async function reviewDispatch(tool, input, budget, denials, advisories, sessionId, cwd) {
   if (tool === 'Workflow') {
-    await reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories, sessionId);
+    await reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories, sessionId, cwd);
     return [];
   }
   const type = typeof input.subagent_type === 'string' ? input.subagent_type.trim() : '';
@@ -1255,7 +1294,8 @@ async function guardMainThread(payload, budget, hardStop) {
   if (gate && gate.band >= 1 && assessedBand(assessedPath(gate.cwd, gate.sessionId)) < gate.band) {
     denials.push(ceilingReason(gate));
   }
-  const skeleton = await reviewDispatch(tool, input, budget, denials, advisories, payload.session_id);
+  const skeleton = await reviewDispatch(tool, input, budget, denials, advisories, payload.session_id,
+    typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd());
   if (!denials.length && !advisories.length) return;
   // The skeleton opens the text, one label per line. Grok keeps the start of a denial and
   // drops the tail, so a skeleton that closed the text never reached the retry.
