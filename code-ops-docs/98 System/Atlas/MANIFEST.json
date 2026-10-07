@@ -340,7 +340,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "c6ca1a96fa1ddbb34cf336fe2001313b58c9e3a5",
+      "verifiedAt": "640c4a166c0335aa5e38f2c9b9053d71957617af",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -349,17 +349,27 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 946,
+          "line": 951,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1522,
+          "line": 1527,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 449,
+          "line": 1537,
+          "anchor": "function checkDocsStandardsAlignment() {"
+        },
+        {
+          "file": "scripts/check-docs-standards-alignment.mjs",
+          "line": 48,
+          "anchor": "export function checkDocsStandards(root) {"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 454,
           "anchor": "function checkScriptDomains() {"
         },
         {
@@ -369,17 +379,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 121,
+          "line": 126,
           "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 122,
+          "line": 127,
           "anchor": "import { LAYOUT, layoutPath } from './layout-manifest.mjs';"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 816,
+          "line": 821,
           "anchor": "function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {"
         },
         {
@@ -893,7 +903,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "9f74f224195120573f4c79baedb4deab3e2aa4a0040135458ecc0cce64bebd13"
+      "verifiedDigest": "577d7b0eec81a9b8d2abab4d37ff7ed585d31d69bbf5598ed9dce148285d0eb3"
     },
     {
       "slug": "evals-and-calibration",
@@ -901,8 +911,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c6ca1a96fa1ddbb34cf336fe2001313b58c9e3a5",
-      "verifiedDigest": "89095f99f4e84bc02dbeb80aab63d2bc5abf6615593a89350ceec2df7685adc8",
+      "verifiedAt": "640c4a166c0335aa5e38f2c9b9053d71957617af",
+      "verifiedDigest": "b9cec1bbed37898e7e4a0c859fa8d343fbf5fbb1e9e005ed493b0f997a23d950",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1345,8 +1355,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "15dcb587cb0800fc85c26884f06b0bccbce3126b",
-      "verifiedDigest": "16841b386ac9bc1e240aaa3a36d007c104a243481dd6b225bd50433ecabd4332",
+      "verifiedAt": "7029528632e8f7a303170133ffec1705cd1f6572",
+      "verifiedDigest": "c3bbdf3435d76fa77ebbd428d5878058bc91f0d0fc4f5020a5de4a9d227529c0",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
