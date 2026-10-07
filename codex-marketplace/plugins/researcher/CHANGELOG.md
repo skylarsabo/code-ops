@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.16.16
+- The vendored `co.mjs` lists the new `co churn` command. This plugin does not bundle `churn.mjs`, so `co churn` reports that it is not bundled here.
+
 ## 0.16.15
 - The vendored `route-unit.mjs` exports the contract kind table and the unit sizes that `run-contract.mjs` reads.
 
