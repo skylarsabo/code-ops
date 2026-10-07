@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "8effd775ed1989c9df97250a02bfadcdf0efeb23fda904603f15b4bd594b6370"
+      "verifiedDigest": "0fc35a5db31da742a80e3e2d422ea9c0a6088a0b3c472f239dd2b30a9ba721e6"
     },
     {
       "slug": "gate-scripts",
@@ -330,12 +330,17 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
           "line": 112,
           "anchor": "function indexSnapshot(root) {"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 360,
+          "anchor": "export function runRetentionTier(path, mtimeMs, nowMs = Date.now()) {"
         },
         {
           "file": "scripts/lint-plugins.mjs",
@@ -883,7 +888,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "28bd6ee285523731341a65ca42aba429449fd79395ddb187e1b8a94284403670"
+      "verifiedDigest": "1e9f20e88b55c3a88603ccb63a4cbebb36ee4264c92ec1d48437ded4e4389f49"
     },
     {
       "slug": "evals-and-calibration",
@@ -891,8 +896,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
-      "verifiedDigest": "f83c5f9f2a1510b83c6706bca1830ea988fe305c155828f40d56d4ad2df4abbc",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedDigest": "91bca4af966afbb55fbcaef470fd2b1d3809d657a4e0a43d501868400b1de97b",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -901,12 +906,12 @@
         },
         {
           "file": "evals/docs-manifest/run.mjs",
-          "line": 161,
+          "line": 162,
           "anchor": "writeFileSync(standardPath, '---\\nstandard-version: 5\\n---\\n\\n# Standard\\n');"
         },
         {
           "file": "evals/docs-manifest/run.mjs",
-          "line": 206,
+          "line": 207,
           "anchor": "const probe = checkManifest(candidate);"
         },
         {
@@ -1214,7 +1219,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1327,7 +1332,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "7a3ddaf1956410d59212d53acca469d371676f150dce7aa648c587979ad321dc"
+      "verifiedDigest": "8e7eac250dcc9d7f9b8b031ab8f566559a4186024fda56bef77eea61300c54b5"
     },
     {
       "slug": "ci-workflows",
@@ -1418,7 +1423,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "251c343bfeb4d2a7785ba34d080d112bbdbaccc1",
+      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1495,7 +1500,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "0e1cd0c4e5afeb9c468542d883a205cd9a10a9bbe8b9a9fa8e42956d695eb0c0"
+      "verifiedDigest": "6f7778e7b786b7439097c80f40c122850a96446b771d5aba6634374efa49350e"
     },
     {
       "slug": "root-contracts",

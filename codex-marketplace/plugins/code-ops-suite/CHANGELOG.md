@@ -4,6 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.48.0
+- `docs-manifest.mjs runs` lists each run folder under `<hub>/80 Runs/` by retention tier: `active` (0 to 30 days), `distill-ready` (31 to 180), and `archive` (181 or more). It ages a folder from its `YYYY-MM-DD` name prefix and falls back to the folder mtime when the name has no valid date. The command is read-only and takes `--now <YYYY-MM-DD>` for a repeatable report. `runRetentionTier` and `listRunTiers` are exported for other scripts.
+- The new operations page `RUN_RETENTION.md` states the tiers, the age limits, and the fallback. The docs-manifest eval tests each limit on both sides and the mtime fallback.
+
 ## 2.47.0
 - `route-unit.mjs` is the one source of unit kinds. `CONTRACT_KIND_OF` maps each route kind to the kind a run contract records, and `run-contract.mjs` derives its accepted kinds from it. A bad kind now fails with the allowed list and names the contract kind to record for a route kind.
 - Version 4 contract units accept an optional `size` (`S`, `M`, or `L`) and `roundBudget`, and briefs may carry a `Size:` line. Every size defaults to the 40-round budget, because no unit has recorded a size yet. An advisory fires when a budget sits below the measured median for its size, and it stays silent until a median is measured.
