@@ -1,5 +1,8 @@
 # Changelog — privacy-opsec-suite
 
+## 2.5.2
+- The vendored `route-unit.mjs` exports the contract kind table and the unit sizes that `run-contract.mjs` reads, and the bundled `artifact-grammars.md` reference lists the optional unit `size` and `roundBudget` fields.
+
 ## 2.5.1
 - `route-unit.mjs` classifies `scripts/doctrine-passages.mjs`, `scripts/layout-manifest.mjs`, and `scripts/check-duplication.mjs` as the gate-script surface, because lint check 14 and check 7 now read the pinned doctrine passages and the layout paths from those files.
 

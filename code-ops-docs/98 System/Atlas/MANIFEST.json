@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -147,7 +147,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
-          "line": 64,
+          "line": 101,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
@@ -321,7 +321,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "0c67ec0a9cc913d0e6921b586dc1fbb0459db9d62161d7d9dc460fae204ef173"
+      "verifiedDigest": "8effd775ed1989c9df97250a02bfadcdf0efeb23fda904603f15b4bd594b6370"
     },
     {
       "slug": "gate-scripts",
@@ -330,7 +330,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -734,28 +734,38 @@
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 84,
+          "line": 121,
           "anchor": "export function surfaceOfScope(paths) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 154,
+          "line": 191,
           "anchor": "export function routeUnit(basis) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 184,
+          "line": 221,
           "anchor": "if (rung === 'premium') return provider.premiumCollapse ?? null;"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 64,
+          "line": 101,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
           "file": "scripts/opencode-lifecycle.js",
           "line": 874,
           "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
+        },
+        {
+          "file": "scripts/route-unit.mjs",
+          "line": 34,
+          "anchor": "export const CONTRACT_KIND_OF = {"
+        },
+        {
+          "file": "scripts/route-unit.mjs",
+          "line": 59,
+          "anchor": "export function budgetAdvisory(size, budget, medians = SIZE_MEDIAN_ROUNDS) {"
         },
         {
           "file": "scripts/atlas-check.mjs",
@@ -784,7 +794,7 @@
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 115,
+          "line": 117,
           "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
         },
         {
@@ -794,12 +804,12 @@
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 137,
+          "line": 139,
           "anchor": "if (taskBased && c.lead?.effort === 'xhigh') errors.push('lead effort xhigh is a"
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 202,
+          "line": 212,
           "anchor": "${unit.id || expected} effort xhigh is above the high ceiling for task-based con"
         },
         {
@@ -873,7 +883,7 @@
           "anchor": "distill: 'distill-check.mjs',"
         }
       ],
-      "verifiedDigest": "7911b5dca4e793809dbfb09aca16c0b038ef2e083821b9a84f973d0097a288e2"
+      "verifiedDigest": "d95040ee16445eaa966b7833aa5a327aadfd0a9ca423e8f0e6d0ac51ae2445a0"
     },
     {
       "slug": "evals-and-calibration",
@@ -881,8 +891,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
-      "verifiedDigest": "8f2d140a823faf3643816c85bff09057d171c1b493bb108b3d8f69c13da869f2",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
+      "verifiedDigest": "4bca45d3de2208e4c05b90f624df827c8d33dab6c3a2b67a2920bd06dd23706c",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1091,17 +1101,17 @@
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 65,
+          "line": 66,
           "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 80,
+          "line": 81,
           "anchor": "const taskBased = () => { const value = calibration(); delete value.calibration;"
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 88,
+          "line": 89,
           "anchor": "const validPeer = taskBased(); validPeer.units[0] = { ...validPeer.units[0], mod"
         },
         {
@@ -1204,7 +1214,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6ef5b0bf060f08dd56c9b80d51d2eac2cb25fba7",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1317,7 +1327,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "febd697de79d1a454fcaecd6a3aa2fbf87ed24b383c4c6f99ac4df60d3cdb8f7"
+      "verifiedDigest": "7a3ddaf1956410d59212d53acca469d371676f150dce7aa648c587979ad321dc"
     },
     {
       "slug": "ci-workflows",
@@ -1408,7 +1418,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5c7c92dfe010bb4e0aa8f64547d7095cb5d198d3",
+      "verifiedAt": "be9d0c4f2c399fb5804de2ffe78b5f59097b4b68",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1437,7 +1447,7 @@
         },
         {
           "file": "scripts/run-contract.mjs",
-          "line": 115,
+          "line": 117,
           "anchor": "if ('requiredViewSections' in (c.context || {}) && (!Array.isArray(c.context.req"
         },
         {
@@ -1485,7 +1495,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "01b46413258d01a6486fb6c2e6c2d36e92a985d97279abf289027de219434b6d"
+      "verifiedDigest": "c0a00484ab6726c1d506ecea0f154691fa459ed6cafabf7ed3bf7a0d63375131"
     },
     {
       "slug": "root-contracts",

@@ -4,6 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
+## 2.47.0
+- `route-unit.mjs` is the one source of unit kinds. `CONTRACT_KIND_OF` maps each route kind to the kind a run contract records, and `run-contract.mjs` derives its accepted kinds from it. A bad kind now fails with the allowed list and names the contract kind to record for a route kind.
+- Version 4 contract units accept an optional `size` (`S`, `M`, or `L`) and `roundBudget`, and briefs may carry a `Size:` line. Every size defaults to the 40-round budget, because no unit has recorded a size yet. An advisory fires when a budget sits below the measured median for its size, and it stays silent until a median is measured.
+- The bundled `artifact-grammars.md` reference lists the optional unit `size` and `roundBudget` fields.
+
 ## 2.46.2
 - The bundled `subagent-trade-offs.md` reference now states thirteen shipped agents and lists every one in its Kind table, including `mech`, `mech-review`, `probe`, and `web-researcher`. It also says a unit that runs an eval or writes temporary files goes to `implementer` or `mech`, never `probe`, because `probe` is read-only.
 
