@@ -41,8 +41,8 @@ The receipt log starts with `init` and appends `checkpoint`, `resume`, `replan`,
 replays the latest checkpoint references. A changed binding requires a replan with the
 same run ID and exactly the next contract revision.
 
-Evidence: `scripts/runtime-lib.mjs:128-174`, `scripts/runtime-lib.mjs:175-227`, and
-`scripts/runtime-lib.mjs:310-358`.
+Evidence: `scripts/runtime-lib.mjs:129-175`, `scripts/runtime-lib.mjs:176-225`, and
+`scripts/runtime-lib.mjs:307-355`.
 
 ## Consequences
 

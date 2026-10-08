@@ -73,8 +73,8 @@ the gate scripts themselves.
 `local-review-gate.mjs` prepares a review only from a clean feature branch. It binds the
 base SHA, the HEAD SHA, a binary-diff digest, and the changed paths into an ignored plan.
 A changed base, HEAD, diff, worktree, or ambiguous Git index flag invalidates the plan.
-Evidence: `scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:97-185`,
-and `scripts/local-review-gate.mjs:357-383`.
+Evidence: `scripts/context-index-lib.mjs:72-84`, `scripts/local-review-gate.mjs:98-182`,
+and `scripts/local-review-gate.mjs:353-379`.
 
 Record one receipt for `local-deep-review` and one for `local-opsec-gate`. Each receipt
 names a strong-or-frontier reviewer, high-or-higher effort, a verdict, a report digest,
@@ -82,7 +82,7 @@ finding counts, and the prior receipt digest. A PASS requires zero blocking find
 `check` replays the exact chain and rejects a missing, duplicate, drifted, or failing
 receipt. The gate also requires distinct reviewer identities, and it refuses a symbolic
 link or a physical-file alias among the authority files. Evidence:
-`scripts/local-review-gate.mjs:194-269` and `scripts/local-review-gate.mjs:384-450`.
+`scripts/local-review-gate.mjs:190-265` and `scripts/local-review-gate.mjs:380-446`.
 
 Run the reviews at the applicable `rigor:deep-review` and
 `privacy-opsec-suite:opsec-pr-gate` bars. The local reviewer performs the model judgment.
