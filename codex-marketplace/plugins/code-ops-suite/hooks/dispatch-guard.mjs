@@ -829,6 +829,8 @@ function ceilingReason(gate) {
 const AGENT_CALL = /\bagent\s*\(/g;
 const OPTION_KEY = /(agentType|effort|model)\s*(?=[:,}])/y;
 const OVER_HIGH_EFFORT = new Set(['xhigh', 'max']);
+// The efforts an Agent call may pass, the same list route-unit.mjs ranks for a routed agent.
+const AGENT_EFFORTS = ['low', 'medium', 'high'];
 // A script-wide `Run contract: <path>` line, bare or inside a comment, with the path on that line.
 // The compliance counts planned for scripts/context-audit.mjs must match this same pattern.
 const RUN_CONTRACT_LINE = /^[ \t]*(?:\/\/+|\/?\*+)?[ \t]*Run contract:[ \t]*(\S.*?)(?:[ \t]*\*\/)?[ \t\r]*$/m;
@@ -1266,8 +1268,12 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
   }
   const required = requiredFields(type);
   const missing = required.filter((field) => !briefHas(prompt, field));
-  if ((tool === 'Agent' || tool === 'Task' || spawn) && required.some((field) => /^tier$/i.test(field))) {
+  const routed = required.some((field) => /^tier$/i.test(field));
+  if ((tool === 'Agent' || tool === 'Task' || spawn) && routed) {
     await reviewRouting(input, type, prompt, sessionId, denials, advisories);
+  } else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'string' && !AGENT_EFFORTS.includes(input.effort.trim())) {
+    // An unrouted agent never reaches the routing check, so its Agent `effort` is held to the same cap here.
+    denials.push(`The Agent call passes effort "${input.effort.trim()}"; pass low, medium, or high, because effort is at most high.`);
   }
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `

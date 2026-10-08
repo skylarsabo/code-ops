@@ -331,6 +331,15 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // passes silently, whatever the agent's declared tier, and so does one on an unreadable definition.
   let quiet = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:explorer', model: 'opus' }), { home });
   expect(quiet.status === 0 && quiet.stdout === '', `an override on a narrow agent with a budget must be silent, got ${JSON.stringify(quiet.stdout)}`);
+  // An unrouted agent's Agent effort is capped at high too (OI-26): max, xhigh, and a miscased
+  // value deny; a valid effort stays silent.
+  for (const [type, effort] of [['code-ops-suite:explorer', 'max'], ['code-ops-suite:probe', 'xhigh'], ['code-ops-suite:mech', 'High']]) {
+    out = parseOut(runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: type, effort }), { home }));
+    expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && new RegExp(`passes effort "${effort}"; pass low, medium, or high`).test(reasonOf(out) ?? ''),
+      `${type} with Agent effort ${effort} must deny, got ${JSON.stringify(out)}`);
+  }
+  quiet = runHook(dispatchCall({ prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:explorer', effort: 'medium' }), { home });
+  expect(quiet.status === 0 && quiet.stdout === '', `an unrouted agent with Agent effort medium must be silent, got ${JSON.stringify(quiet.stdout)}`);
   quiet = runHook(dispatchCall({ prompt: 'Round budget: 20 rounds', subagent_type: 'no-such-agent', model: 'opus' }), { home, pluginRoot: join(home, 'missing') });
   expect(quiet.status === 0 && quiet.stdout === '', `an override on a missing definition must be silent, got ${JSON.stringify(quiet.stdout)}`);
 
