@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -52,7 +52,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
-          "line": 747,
+          "line": 784,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
@@ -232,7 +232,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 90,
+          "line": 111,
           "anchor": "async function endBoard() {"
         },
         {
@@ -267,13 +267,23 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/compact-snapshot.mjs",
-          "line": 15,
+          "line": 16,
           "anchor": "(case-insensitive), the switch shape the"
         },
         {
           "file": "plugins/code-ops-suite/hooks/hooks.json",
           "line": 79,
           "anchor": "\"command\": \"node \\\"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/compact-snapshot.mjs",
+          "line": 61,
+          "anchor": "function spawnRecallBuild(sessionId, transcriptPath, cwd) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
+          "line": 147,
+          "anchor": "function prebuildRecall() {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -341,7 +351,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "9cf171bbfe9ee6f905f6edd5dccf29b1aa15c0e4e2fa7041837cf96c26803400"
+      "verifiedDigest": "a48353e686d5bb2687ce641bc1b2372665278f9e76039d269d4cabf8b270f737"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +360,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -584,7 +594,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 911,
+          "line": 948,
           "anchor": "if (o.type === 'compacted') return null;"
         },
         {
@@ -754,12 +764,12 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 747,
+          "line": 784,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 772,
+          "line": 809,
           "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
         },
         {
@@ -958,7 +968,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "7951ccc7070b65fb2d188957c6c7a501f63c46077f6c0cb4f6766657feac3687"
+      "verifiedDigest": "a055b3aff0dcf5413be463a93becef2965db4cbdcecd1f464b6a6b6eb2e9c5ff"
     },
     {
       "slug": "evals-and-calibration",
@@ -966,8 +976,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
-      "verifiedDigest": "806e333900158398c333e6b4944ad03e9fe3bbbde2e270d99bce74285ea184ca",
+      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
+      "verifiedDigest": "000c904b7581168c12098ddab5c894c13555d0862c5ecb519a193eeb46c9508b",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1142,7 +1152,7 @@
         {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
-          "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot'];"
+          "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall'];"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -1319,7 +1329,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1432,7 +1442,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "0a5e857f315c54a050093e457ca0088a42635baa4d0eb551612a6c7c18e435eb"
+      "verifiedDigest": "47d799b4508b341f0c81b7b48ab33cb7f655d3753ee5c187349fa02cad262591"
     },
     {
       "slug": "ci-workflows",
@@ -1440,8 +1450,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "dbb4277cba50d4077ae523bbd97b41185097987a",
-      "verifiedDigest": "e8a3b0ba039a6c96ad6ac1dbdaff9c679e57f88710c0a81bffb76315403f1a76",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedDigest": "35fead9031cd01e0a01ac8033e3d1a2000e352bee9160d8e184fc2652aa7af30",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1535,7 +1545,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "c3b03b88cec339ab4fdd338902674ec15aefb9e6",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1603,11 +1613,11 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 152,
+          "line": 185,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "286220d0df9468d6d076dd67a68f4d93e4db3d20a3d5155e2ddb2655a8ec7a8f"
+      "verifiedDigest": "c068b6faf40e41428a8e0765fcdf2c4541f6f2a4f7eaf63427fa855922522ec8"
     },
     {
       "slug": "root-contracts",

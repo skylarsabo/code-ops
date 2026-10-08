@@ -1,8 +1,9 @@
 # Changelog — rigor
 
-## 3.6.3
+## 3.6.4
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+The vendored `co.mjs` gains the `recall` command.
 
 ## 3.6.2
 - The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.

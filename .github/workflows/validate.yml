@@ -357,6 +357,12 @@ jobs:
       - name: Cost split eval (own price table, unpriced ids flagged)
         run: node evals/cost-split/run.mjs
 
+      - name: Transcript recall eval (anchors, incremental equals full, masking, mutants)
+        run: node evals/transcript-recall/run.mjs
+
+      - name: Recall prebuild hook eval (detached build, no wait, killed-build catch-up, off switch)
+        run: node evals/recall-prebuild/run.mjs
+
       - name: Run-artifact narration scanner eval
         run: node evals/scan-narration/run.mjs
 
@@ -593,7 +599,7 @@ jobs:
           node evals/record-collections/run.mjs
           node -e "const m=require('./code-ops-docs/98 System/DOCS_MANIFEST.json'); for (const c of m.recordCollections || []) require('node:child_process').execFileSync(process.execPath,['scripts/records.mjs','check','--collection',c.id],{stdio:'inherit'});"
 
-  # Shard 5: the agent-ledger, compact-snapshot, lint-gate, atlas-check, and long-horizon evals (median 171.5 s).
+  # Shard 5: the agent-ledger, compact-snapshot, lint-gate, atlas-check, and long-horizon evals (median 171.5 s). The two transcript recall evals were added after that measurement.
   structural-lint-windows-shard-5:
     runs-on: windows-latest
     timeout-minutes: 20
@@ -636,6 +642,12 @@ jobs:
 
       - name: Long-horizon runtime regression eval
         run: node evals/run-runtime/run.mjs
+
+      - name: Transcript recall eval (anchors, incremental equals full, masking, mutants)
+        run: node evals/transcript-recall/run.mjs
+
+      - name: Recall prebuild hook eval (detached build, no wait, killed-build catch-up, off switch)
+        run: node evals/recall-prebuild/run.mjs
 
   # Shard 4: the structural gates and the remaining evals (median 177 s).
   structural-lint-windows-shard-4:

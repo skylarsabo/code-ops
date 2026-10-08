@@ -107,6 +107,7 @@
     "sync-global.mjs": "release",
     "sync-vendored.mjs": "release",
     "transcript-lib.mjs": "context",
+    "transcript-recall.mjs": "context",
     "vendored-manifest.mjs": "release",
     "worker-brief.mjs": "dispatch"
   }

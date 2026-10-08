@@ -11,8 +11,10 @@
 // file on purpose, so it can never be committed by accident. `CODE_OPS_RECEIPTS=off` (or `0`,
 // `false`) disables the hook. Read the ledger with `node scripts/context-audit.mjs receipts`.
 //
-// The hook also marks the session's presence board record ended (see endBoard below) and appends
-// an `ended` marker to the session's agent ledger file (see endLedger below).
+// The hook also marks the session's presence board record ended (see endBoard below), appends
+// an `ended` marker to the session's agent ledger file (see endLedger below), and starts a
+// detached recall index build (see spawnRecallBuild). Each of the three has its own switch, so
+// `CODE_OPS_RECEIPTS=off` skips only the receipt row.
 //
 // Fail-open on every path: bad stdin, missing transcript, unwritable ledger → exit 0 silently.
 // stdin may never close on some Windows shells, so a short timer finishes with what arrived.
@@ -23,6 +25,7 @@
 //   tokens: { main: {...}, subagents: {...} } }. Fields are added without a version bump:
 //   every reader tolerates an unknown key and treats a missing one as absent.
 
+import { spawn } from 'node:child_process';
 import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
@@ -79,6 +82,24 @@ async function pendingWorkers(sessionId) {
   } catch { return none; }
 }
 
+// Prebuilds the transcript recall index (`transcript-recall.mjs build`) in a detached child, so
+// a later `co recall` call finds it current. The hook never waits for the child and a spawn failure
+// changes nothing it does: a build that never ran is caught up by the first recall call. The child
+// runs in the payload's `cwd`, because the index directory keys on it. `CODE_OPS_RECALL` of `off`,
+// `0`, or `false` skips the spawn, and so does a payload without a session id and a transcript.
+function spawnRecallBuild(sessionId, transcriptPath, cwd) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECALL ?? '') || !sessionId || !transcriptPath) return;
+    const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-recall.mjs');
+    if (!existsSync(script)) return;
+    const child = spawn(process.execPath, [script, 'build', '--session', sessionId, '--transcript', transcriptPath], {
+      cwd: existsSync(cwd) ? cwd : undefined, detached: true, stdio: 'ignore', windowsHide: true,
+    });
+    child.on('error', () => {});
+    child.unref();
+  } catch { /* the lazy build on the first recall call covers it */ }
+}
+
 function finish() {
   if (!pending) pending = doFinish();
   return pending;
@@ -121,7 +142,19 @@ async function endLedger() {
   }
 }
 
+// Starts the recall prebuild for the ended session. It reads the payload itself and needs neither
+// the receipt switch nor a readable transcript, so `CODE_OPS_RECEIPTS=off` leaves it on.
+function prebuildRecall() {
+  try {
+    const payload = JSON.parse(input.replace(/^﻿/, ''));
+    const sid = payload?.session_id ?? payload?.sessionId;
+    const value = payload?.transcript_path ?? payload?.transcriptPath ?? payload?.transcript?.path;
+    spawnRecallBuild(typeof sid === 'string' ? sid : '', typeof value === 'string' ? value : '', typeof payload.cwd === 'string' ? payload.cwd : process.cwd());
+  } catch { /* fail open */ }
+}
+
 async function doFinish() {
+  prebuildRecall();
   await endBoard();
   await endLedger();
   try {

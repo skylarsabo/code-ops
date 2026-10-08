@@ -76,6 +76,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
 | `CODE_OPS_COMPACT_SNAPSHOT` | `off`, `0`, or `false` | the `PreCompact` snapshot write, `compact-snapshot.mjs`, and the snapshot warning and seeding in `co handoff draft`; it does not gate the compact card in `routing-card.mjs` |
+| `CODE_OPS_RECALL` | `off`, `0`, or `false` | every `transcript-recall.mjs` command and the `transcript_recall` MCP tool: each prints a one-line disabled notice and exits 0 |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |
 | `CODE_OPS_LEGACY_PATHS` | `off`, `0`, or `false` | the deny of an edit under a manifest `removed` legacy path, behaviour 6 of `dispatch-guard.mjs`; `CODE_OPS_DISPATCH_GUARD=off` also silences it, and `warn` makes it advisory |
 | `CODE_OPS_READ_NOTICE` | `off`, `0`, or `false` | the `PostToolUse` history read notice for a Read, Grep, or shell call that opens a record not in force, inside `handoff-card.mjs`; the card and feed switches leave it on |
