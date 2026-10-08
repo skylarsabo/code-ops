@@ -454,7 +454,8 @@ function runSibling(script, args, root) {
 // SESSION.json, and init wrote none, so a hand-made run folder read as "Missing: run folder" after a
 // compaction. Init now records the session in the folder's SESSION.json: a new file, or the missing
 // ids of one `run open` wrote with no session. A SESSION.json that names another session is left
-// alone and reported, and an unknown session id is reported, never guessed.
+// alone and reported, and an unknown session id is reported, never guessed. The host session id is
+// `--host-session`, else env CLAUDE_CODE_HOST_SESSION_ID, else the id the file already holds.
 function recordSession(runDir, runId, f) {
   const sessionId = f['--session'] || process.env.CLAUDE_CODE_SESSION_ID || process.env.CODEX_SESSION_ID || '';
   const file = resolve(runDir, 'SESSION.json');
@@ -465,7 +466,7 @@ function recordSession(runDir, runId, f) {
   }
   if (!sessionId) { console.log('! no session id (pass --session): the compact snapshot cannot find this run folder by session'); return; }
   if (current?.sessionId && current.sessionId !== sessionId) { console.log(`! SESSION.json names session ${current.sessionId}, not ${sessionId}; left unchanged`); return; }
-  const host = f['--host-session'] || current?.hostSessionId || null;
+  const host = f['--host-session'] || process.env.CLAUDE_CODE_HOST_SESSION_ID || current?.hostSessionId || null;
   atomicWrite(file, `${JSON.stringify({ v: 1, name: runId, hop: 0, predecessor: null, createdAt: new Date().toISOString(), ...current, sessionId, hostSessionId: host }, null, 2)}\n`);
   console.log(`ok recorded session ${sessionId} in ${basename(runDir)}/SESSION.json`);
 }

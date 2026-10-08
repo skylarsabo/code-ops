@@ -77,7 +77,13 @@
 // written back to the ledger's Open items by id. Each pending decision whose Hop is older than the
 // writing session's hop (the handoff's Hop minus one) is listed as `- [FILL: disposition] <title>`.
 // `--program <PROGRAM.md>` names the ledger when the lineage names none, as on a first hop. Resume
-// seeds TASKS.md with the ledger line of each carried item. `program-archive` (`co program archive`)
+// seeds TASKS.md with the ledger line of each carried item.
+//
+// PLAN ROWS (OI-10). Draft also lists each unchecked `- [ ]` row of a PLAN.md, read from the run
+// folder, the PROGRAM.md folder, and any Scope document named PLAN.md, as an Open items bullet with
+// `Owner:` and `Done when:` placeholders, skipping an id the list already names. Rows past the 8 KB
+// cap become one `[FILL: N more PLAN.md open row(s) ...]` line. A program with no readable PLAN.md
+// gets one `[FILL: no PLAN.md was read ...]` line that names the candidate paths. `program-archive` (`co program archive`)
 // is documented at archive() below, and `program-split` and `program-merge` (`co program split|merge`) at split()
 // and merge().
 //
@@ -257,6 +263,26 @@ const scopeDocs = (programFile) => bullets(sectionBody(readFileSync(programFile,
   .map((doc) => /`([^`]+)`/.exec(doc)?.[1]).filter(Boolean);
 const DIGESTS = 'SCOPE_DIGESTS.md';
 const FILL_DIGEST = '[FILL: digest]';
+
+// OI-10: unchecked PLAN.md rows reach the draft's Open items. A PLAN.md can sit in the run folder, in
+// the PROGRAM.md folder, or be a Scope document of the program, so all three are candidates.
+const PLAN = 'PLAN.md';
+function planCandidates(runDir, programFile, root) {
+  const files = [join(runDir, PLAN)];
+  if (programFile && isFile(programFile)) {
+    files.push(join(dirname(programFile), PLAN), ...scopeDocs(programFile).filter((p) => basename(p) === PLAN).map((p) => resolve(root, p)));
+  }
+  return [...new Set(files)];
+}
+// A row reads `- [ ] **id** | title | owner · files ...`. The bullet keeps id and title and leaves
+// Owner and Done when to the writer, because check-handoff check 4 needs both on every Open items bullet.
+function planRows(text) {
+  return text.split('\n').map((l) => l.replace(/\r$/, '')).filter((l) => /^[-*]\s+\[ \]\s/.test(l)).map((l) => {
+    const cells = l.replace(/^[-*]\s+\[ \]\s+/, '').replace(/\*\*/g, '').split(' | ');
+    const head = (cells.length > 1 ? `${cells[0].trim()} ${cells[1].trim()}` : cells[0].split(' · ')[0].trim()).slice(0, 120);
+    return { id: cells[0].trim().split(/\s/)[0], line: `- ${head} · Owner: [FILL: agent|operator] · Done when: [FILL: observable check from the PLAN.md row]` };
+  });
+}
 
 // The content hash of a scope document's working-tree bytes. The size prefix keeps a file boundary
 // from shifting inside a directory hash.
@@ -750,6 +776,15 @@ function draft(flags) {
     if (leadId(line) && !line.includes('[FILL:')) active.push(line);
     return line;
   });
+  // PLAN.md rows whose id no Open items line already names. A program with no readable PLAN.md gets
+  // a warning that lists the candidates, so an unread plan never reads as an empty one.
+  const candidates = planCandidates(runDir, lin.programFile, root);
+  const planFiles = candidates.filter(isFile);
+  const seenPlan = new Set();
+  const planOpen = planFiles.flatMap((file) => planRows(readFileSync(file, 'utf8')))
+    .filter(({ id }) => !seenPlan.has(id) && seenPlan.add(id) && !openItems.some((item) => item.includes(id)));
+  const planWarn = lin.programFile && !planFiles.length
+    ? [`[FILL: no PLAN.md was read, so open plan rows may be missing from this list; read or confirm absent: ${candidates.map(repoPath).join(', ')}]`] : [];
 
   // The successor's name and hop. A predecessor without a Hop line is legacy: its successor took
   // the name `HO 1`, recorded as this run's SESSION.json hop when resume wrote it.
@@ -831,7 +866,7 @@ function draft(flags) {
     '',
     '## Open items',
     '',
-    ...(openItems.length ? openItems : [existsSync(tasksPath) ? 'None: TASKS.md has no unchecked line.' : 'No TASKS.md in the run folder.']),
+    ...(openItems.length || carry.plan.length ? [...openItems, ...carry.plan] : [existsSync(tasksPath) ? 'None: TASKS.md has no unchecked line.' : 'No TASKS.md in the run folder.']),
     '',
     '## Registers and artifacts',
     '',
@@ -863,8 +898,17 @@ function draft(flags) {
 
   // The predecessor's judgment bullets, in section order, as many as fit under the cap; each
   // section then counts what it left out, so nothing drops silently.
-  const carry = { decisions: [], traps: [], context: [] };
-  let room = HANDOFF_CAP - Buffer.byteLength(render(carry)) - 160 * JUDGMENT.length;
+  const carry = { decisions: [], traps: [], context: [], plan: [...planWarn] };
+  let room = HANDOFF_CAP - Buffer.byteLength(render(carry)) - 160 * (JUDGMENT.length + (planOpen.length ? 1 : 0));
+  let listed = 0;
+  for (const { line } of planOpen) {
+    const cost = Buffer.byteLength(line) + 1;
+    if (cost > room) break;
+    carry.plan.push(line);
+    room -= cost;
+    listed++;
+  }
+  if (listed < planOpen.length) carry.plan.push(`[FILL: ${planOpen.length - listed} more PLAN.md open row(s) not listed under the 8 KB cap; read ${planFiles.map(repoPath).join(', ')}]`);
   for (const [key] of JUDGMENT) {
     const list = lin.judgment?.[key] ?? [];
     let kept = 0;

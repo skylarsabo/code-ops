@@ -594,6 +594,37 @@ try {
   check('grammar 2 draft writes the active item back to the ledger', dG2.stdout.includes('open item line(s)')
     && ledgerAfter.includes(`${oi2Now} · Anchor: \`beta line\``) && ledgerAfter.includes(oi1) && !ledgerAfter.includes('OI-3'));
 
+  // OI-10: PLAN.md rows reach Open items. With no PLAN.md anywhere the draft warns and names each unread path.
+  const openBody = (text) => text.slice(text.indexOf('## Open items'), text.indexOf('## Registers and artifacts'));
+  check('a program draft with no PLAN.md warns and names the unread candidates',
+    openBody(g2Draft).includes('[FILL: no PLAN.md was read') && openBody(g2Draft).includes('80 Runs/g2-r1/PLAN.md') && openBody(g2Draft).includes('80 Runs/programs/g2/PLAN.md'));
+  const planFile = join(dirname(ledgerFile), 'PLAN.md');
+  const planRow = (id, title) => `- [ ] **${id}** | ${title} | implementer · scripts/x.mjs · case passes · none`;
+  writeFileSync(planFile, ['# PLAN', '', planRow('P1-Alpha', 'Alpha audit'), planRow('P2-Beta', 'Beta rewrite'), '- [x] **P3-Done** | Finished row | implementer · none',
+    planRow('OI-3', 'gamma not started'), planRow('P4-Gamma', 'Gamma pass'), ''].join('\n'));
+  const planDraft = inG2([co, 'handoff', 'draft', '--run', '80 Runs/g2-r1']).stdout;
+  const planOpen = openBody(planDraft);
+  const planLine = (id, title) => `- ${id} ${title} · Owner: [FILL: agent|operator] · Done when: [FILL: observable check from the PLAN.md row]`;
+  check('a PLAN.md in the PROGRAM.md folder lists each unchecked row with Owner and Done when placeholders',
+    [['P1-Alpha', 'Alpha audit'], ['P2-Beta', 'Beta rewrite'], ['P4-Gamma', 'Gamma pass']].every(([id, title]) => planOpen.includes(`\n${planLine(id, title)}\n`)));
+  check('PLAN.md rows skip a checked row and an id Open items already lists', !planOpen.includes('P3-Done') && !planOpen.includes('gamma not started · Owner: [FILL')
+    && planOpen.includes('OI-3 gamma not started · Owner: agent'));
+  check('a read PLAN.md drops the unread-sources warning', !planOpen.includes('no PLAN.md was read'));
+  // A Scope document named PLAN.md outside both folders is read too, and rows past the cap are counted.
+  rmSync(planFile);
+  const elsewhere = join(hub, 'elsewhere');
+  mkdirSync(elsewhere);
+  writeFileSync(join(elsewhere, 'PLAN.md'), ['# PLAN', '', ...Array.from({ length: 120 }, (_, i) => planRow(`P9-Row${i}`, `Wide row ${i} ${'w'.repeat(60)}`)), ''].join('\n'));
+  writeFileSync(ledgerFile, ledgerText([oi1, oi2]).replace('## Open items', '- `80 Runs/elsewhere/PLAN.md` · Status: current · Role: plan\n\n## Open items'));
+  const wideDraft = inG2([co, 'handoff', 'draft', '--run', '80 Runs/g2-r1']).stdout;
+  const wideOpen = openBody(wideDraft);
+  const wideListed = (wideOpen.match(/^- P9-Row\d+ /gm) ?? []).length;
+  check('a Scope document named PLAN.md is read, and rows past the 8 KB cap are counted in one line',
+    wideListed > 0 && wideListed < 120 && wideOpen.includes(`[FILL: ${120 - wideListed} more PLAN.md open row(s) not listed under the 8 KB cap; read 80 Runs/elsewhere/PLAN.md]`)
+    && Buffer.byteLength(wideDraft) <= 8 * 1024);
+  writeFileSync(ledgerFile, ledgerText([oi1, oi2]));
+  rmSync(elsewhere, { recursive: true, force: true });
+
   // OI-29: a first hop names its ledger with --program, so it gets scope digests.
   const first = join(hub, 'g2-first');
   mkdirSync(first);
