@@ -560,6 +560,69 @@ try {
     ['--now rejects an impossible date', ['runs', '--now', '2026-02-30']]]) {
     r = both(args); check(name, r.status === 2, r.all);
   }
+
+  // Atlas stamp bytes: the atlas domain digest ignores exactly the per-section fields that
+  // `atlas-check.mjs stamp` writes (verifiedAt, verifiedDigest, claims) and nothing else. A mutant
+  // copy of the script, with the strip reverted or widened, must fail this block.
+  const realScript = readFileSync(join(ROOT, 'scripts', 'docs-manifest.mjs'), 'utf8');
+  const STRIP = "new Set(['verifiedAt', 'verifiedDigest', 'claims'])";
+  const atlasOutcomes = (name, scriptText) => {
+    const fx = join(work, `atlas-${name}`);
+    const atlasDir = join(fx, 'project-docs', '98 System', 'Atlas');
+    mkdirSync(join(fx, 'scripts'), { recursive: true });
+    mkdirSync(join(atlasDir, 'sections'), { recursive: true });
+    mkdirSync(join(fx, 'project-docs', '40 Engineering'), { recursive: true });
+    for (const file of ['context-index-lib.mjs', 'record-lib.mjs']) cpSync(join(ROOT, 'scripts', file), join(fx, 'scripts', file));
+    writeFileSync(join(fx, 'scripts', 'docs-manifest.mjs'), scriptText);
+    for (const id of required.filter((entry) => entry !== 'atlas')) writeFileSync(join(fx, 'project-docs', '40 Engineering', `${id}.md`), `# ${id}\n`);
+    const atlasManifest = join(atlasDir, 'MANIFEST.json');
+    const section = (extra) => ({ slug: 's', file: 'sections/s.md', scope: ['scripts'], verifiedAt: 'a'.repeat(40), ...extra });
+    const writeAtlas = (s) => writeFileSync(atlasManifest, `${JSON.stringify({ version: 1, sections: [s] }, null, 2)}\n`);
+    writeAtlas(section({ verifiedDigest: 'b'.repeat(64), claims: [{ file: 'scripts/context-index-lib.mjs', line: 1, anchor: 'one' }] }));
+    writeFileSync(join(atlasDir, 'sections', 's.md'), '# S\n\nThe script cites scripts/context-index-lib.mjs:1.\n');
+    writeFileSync(join(fx, 'project-docs', '98 System', 'DOCS_MANIFEST.json'), `${JSON.stringify({
+      version: 1, hub: 'project-docs',
+      domains: required.map((id) => ({ id, path: id === 'atlas' ? '98 System/Atlas' : `40 Engineering/${id}.md`, status: 'current', sources: ['scripts/**'], sourceDigest: '', contentDigest: '' })),
+    }, null, 2)}\n`);
+    git(['init', '--quiet', '-b', 'main'], fx);
+    git(['add', '-A'], fx);
+    git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', 'seed'], fx);
+    const probe = (args) => run(join(fx, 'scripts', 'docs-manifest.mjs'), [...args, '--root', fx], fx);
+    const out = { synced: probe(['sync']).status === 0 && probe(['check']).status === 0 };
+    const stampedAtlas = JSON.parse(readFileSync(atlasManifest, 'utf8'));
+    stampedAtlas.sections[0] = section({ verifiedAt: 'c'.repeat(40), verifiedDigest: 'd'.repeat(64), claims: [{ file: 'scripts/context-index-lib.mjs', line: 2, anchor: 'two' }] });
+    writeFileSync(atlasManifest, `${JSON.stringify(stampedAtlas, null, 2)}\n`);
+    out.stampOnly = probe(['check']).status === 0;
+    stampedAtlas.sections[0] = section({});
+    writeFileSync(atlasManifest, `${JSON.stringify(stampedAtlas, null, 2)}\n`);
+    out.stampRemoved = probe(['check']).status === 0;
+    writeAtlas(section({ verifiedDigest: 'b'.repeat(64), claims: [{ file: 'scripts/context-index-lib.mjs', line: 1, anchor: 'one' }] }));
+    const proseFile = join(atlasDir, 'sections', 's.md');
+    const prose = readFileSync(proseFile, 'utf8');
+    writeFileSync(proseFile, prose.replace('cites', 'no longer cites'));
+    const proseCheck = probe(['check']);
+    out.proseCaught = proseCheck.status === 1 && proseCheck.out.includes('atlas content digest is stale');
+    writeFileSync(proseFile, prose);
+    writeAtlas(section({ scope: ['plugins'], verifiedDigest: 'b'.repeat(64), claims: [{ file: 'scripts/context-index-lib.mjs', line: 1, anchor: 'one' }] }));
+    out.scopeCaught = probe(['check']).status === 1;
+    writeAtlas(section({ slug: 'renamed', verifiedDigest: 'b'.repeat(64), claims: [{ file: 'scripts/context-index-lib.mjs', line: 1, anchor: 'one' }] }));
+    out.slugCaught = probe(['check']).status === 1;
+    return out;
+  };
+  const atlasReal = atlasOutcomes('real', realScript);
+  check('atlas fixture syncs and checks', atlasReal.synced, JSON.stringify(atlasReal));
+  check('atlas: a stamp-only change (verifiedAt, verifiedDigest, claims) passes check', atlasReal.stampOnly, JSON.stringify(atlasReal));
+  check('atlas: removing the stamp fields passes check', atlasReal.stampRemoved, JSON.stringify(atlasReal));
+  check('atlas: a section prose edit without a sync fails check', atlasReal.proseCaught, JSON.stringify(atlasReal));
+  check('atlas: a scope edit without a sync fails check', atlasReal.scopeCaught, JSON.stringify(atlasReal));
+  check('atlas: a slug edit without a sync fails check', atlasReal.slugCaught, JSON.stringify(atlasReal));
+  check('the strip definition is present for the mutants', realScript.includes(STRIP), STRIP);
+  const revert = atlasOutcomes('revert', realScript.replace(STRIP, 'new Set([])'));
+  check('mutant: a reverted strip fails the stamp-only case', revert.synced && !revert.stampOnly, JSON.stringify(revert));
+  const widened = atlasOutcomes('widen', realScript.replace(STRIP, "new Set(['verifiedAt', 'verifiedDigest', 'claims', 'scope', 'slug'])"));
+  check('mutant: a widened strip fails the scope and slug cases', widened.synced && !widened.scopeCaught && !widened.slugCaught, JSON.stringify(widened));
+  const everything = atlasOutcomes('all', realScript.replace('return Buffer.from(JSON.stringify({ ...atlas, sections }));', 'return Buffer.from("");'));
+  check('mutant: ignoring the whole manifest fails the scope case', everything.synced && !everything.scopeCaught, JSON.stringify(everything));
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }
 console.log('\ndocs-manifest eval passed');
