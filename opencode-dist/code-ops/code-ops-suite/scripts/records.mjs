@@ -622,7 +622,15 @@ function assertAuthorityBatchHistory(context, versions) {
       if (sourceReachable && !commitIsAncestor(context.root, batch.sourceHead, introducedAt)) {
         throw new Error(`authority batch source does not precede its introduction: sequence ${batch.sequence}`);
       }
-      if (!sourceReachable && batch.type !== 'genesis-adoption') {
+      // A squash merge can leave an adoption source off HEAD's history. Accept it only while the
+      // commit object survives; the base-bindings comparison below then recomputes the bound
+      // content from that object, so a changed source still fails. A native-append batch also
+      // derives its no-prior-history rule from ancestry, so it keeps the reachable requirement.
+      if (!sourceReachable && !['genesis-adoption', 'native-append'].includes(batch.type)) {
+        if (!commitObjectExists(context.root, batch.sourceHead)) {
+          throw new Error(`authority batch source commit is not reachable from HEAD and its object is missing: sequence ${batch.sequence}`);
+        }
+      } else if (!sourceReachable && batch.type !== 'genesis-adoption') {
         throw new Error(`authority batch source commit is not reachable from HEAD: sequence ${batch.sequence}`);
       }
       if (sourceReachable && ['genesis-adoption', 'incremental-adoption'].includes(batch.type)
@@ -1281,6 +1289,10 @@ function reviewBase(root, commit) {
 }
 
 function commitIsReachable(root, commit) { return isAncestorCommit(root, commit, 'HEAD'); }
+
+function commitObjectExists(root, commit) {
+  try { git(root, ['cat-file', '-e', `${commit}^{commit}`]); return true; } catch { return false; }
+}
 
 function validateAuthorityBatches(inventory, { root = null, historyComplete = false } = {}) {
   if (!Array.isArray(inventory.authorityBatches) || !inventory.authorityBatches.length) {
