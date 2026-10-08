@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "93c57807dd63cf233613287650d9b075fe85f14d",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "76dde141c2006dee753fe48c471fe450de75b5cfa960f7dc95c55eadbd7ecee3"
+      "verifiedDigest": "faf66c417007e71c9e432fa8fab6dbdd80515051dd69a8c1a10a444d849c8abf"
     },
     {
       "slug": "gate-scripts",
@@ -1349,7 +1349,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "93c57807dd63cf233613287650d9b075fe85f14d",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1462,7 +1462,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "fd1ac913fd9e9ae78af08ed08a6567b1a1632f9b51d6866dd849002dcc58196d"
+      "verifiedDigest": "e8cb1efdb36d66848b7d8d1bea0fc930efcb194c3d0034445d66a58896888514"
     },
     {
       "slug": "ci-workflows",

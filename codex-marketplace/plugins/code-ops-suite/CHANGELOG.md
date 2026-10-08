@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.68.1
+## 2.69.0
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
 - The dispatch guard holds every Agent or Task call to an `effort` of low, medium, or high. The check ran only inside the routing review, so an agent whose brief lists no Tier, such as mech, probe, or explorer, accepted `max` or `xhigh`. The dispatch-guard eval adds max on explorer, xhigh on probe, a miscased High on mech, and a silent medium.
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, and lint check 30 now requires an `effort:` on every agent, the light rung included. Haiku 5.5 takes an effort setting, so an omitted value inherited the session dial. The lint eval adds a Haiku agent with no effort.
@@ -18,6 +18,9 @@ The handoff draft now lists the open rows of PLAN.md, or warns when it cannot re
 Transcript recall: `co recall` and the `transcript_recall` MCP tool find and open exact earlier detail in the host transcript after compaction, with no model call. Every answer ends at the original bytes, checked by sha256, and fails closed on a rewritten file. The index holds masked labels and byte offsets only. The PreCompact and SessionEnd hooks start a detached incremental build; `CODE_OPS_RECALL=off` disables it.
 - `context-index-lib.mjs` exports `receiptSha256`, the receipt digest that `judgment-evals.mjs`, `local-review-gate.mjs` and `runtime-lib.mjs` each defined. `runtime-lib.mjs` re-exports it for its callers. The digest bytes are unchanged.
 - The rendered agent files for the second host no longer open with a doubled blank line, because the renderer trims the leading blank line of each agent body.
+- `subagentFilesFor` in `transcript-lib.mjs` also reads the agents a Workflow run writes under `subagents/workflows/<run>/`, one level deep. So `cost-split`, the context audit and the session receipt now count Workflow agents. A Workflow agent groups by the `agentType` in its sibling meta file, or `unknown` when that file is missing. On the local corpus this added about 1,049 transcripts that were skipped before.
+- `cost-split` counts each message id once across every file it reads. Before, a forked or resumed session counted about 1.3 percent of messages twice. This rule covers usage, Haiku tier pricing and advisor tokens. A line with no message id still counts per line.
+- The cost-split eval adds a nested Workflow tree and a forked pair that shares ids, each with a mutant. The context-audit eval asserts the nested file list.
 
 ## 2.61.0
 - The explorer, reviewer, and mech agents name the file:line link standard in their Return section. A report cites code as `[name](repo-relative/path:line)`. The Handbook page `standards/file-line-links.md` states the form and points to where its grammar lives.
