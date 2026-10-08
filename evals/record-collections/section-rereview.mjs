@@ -2,7 +2,7 @@
 import { cpSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { digestJson, jsonl } from '../../scripts/record-lib.mjs';
-import { COLLECTION, work, check, run, git, commit, squashCurrentTree, write, fixtureManifest, generated, rehashAuthorityChain, adoptedFixture } from './harness.mjs';
+import { COLLECTION, work, check, run, runWithScript, git, commit, squashCurrentTree, write, fixtureManifest, generated, rehashAuthorityBatch, rehashAuthorityChain, adoptedFixture, instrumentedRecordsScript } from './harness.mjs';
 
 export function runSection() {
   let result;
@@ -40,6 +40,48 @@ export function runSection() {
     result = run(['adopt', '--root', scheduledRepo, ...COLLECTION, '--review', 'scheduled-review.json'], scheduledRepo);
   }
   if (result.status === 0) commit(scheduledRepo, 'admit scheduled evidence');
+  // Off-HEAD incremental source: the admission lands on a side commit, then a squash puts the same
+  // tree on the base commit, so the batch's sourceHead survives only as an object.
+  const squashedAdmission = (name, mutate) => {
+    const target = join(work, name); cpSync(scheduledRepo, target, { recursive: true });
+    const inventoryPath = generated(target, 'inventory.json');
+    const inventory = JSON.parse(readFileSync(inventoryPath, 'utf8'));
+    const batch = inventory.authorityBatches.at(-1);
+    const sourceHead = git(['rev-parse', 'HEAD~1'], target).trim();
+    if (batch.sourceHead !== sourceHead || batch.type !== 'incremental-adoption') return null;
+    mutate(batch);
+    // The batch repeats these fields in its review receipt, so re-seal the receipt before the batch.
+    batch.review.sourceHead = batch.sourceHead; batch.review.baseBindings = batch.baseBindings;
+    delete batch.review.receiptDigest; batch.review.receiptDigest = digestJson(batch.review);
+    batch.reviewReceiptDigest = batch.review.receiptDigest;
+    rehashAuthorityBatch(batch);
+    writeFileSync(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+    if (git(['status', '--porcelain'], target).trim()) commit(target, 'tamper admission');
+    const tree = git(['rev-parse', 'HEAD^{tree}'], target).trim();
+    const squashed = git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit-tree', tree,
+      '-p', git(['rev-parse', `${sourceHead}~1`], target).trim(), '-m', 'squash admission'], target).trim();
+    git(['reset', '--hard', squashed], target);
+    return target;
+  };
+  const offHeadKept = result.status === 0 ? squashedAdmission('off-head-source-kept', () => {}) : null;
+  const offHeadKeptCheck = offHeadKept ? run(['check', '--root', offHeadKept, ...COLLECTION], offHeadKept) : result;
+  check('an off-HEAD adoption source with an existing object and preserved content passes', offHeadKept !== null
+    && offHeadKeptCheck.status === 0, offHeadKeptCheck.output);
+  const offHeadMissing = result.status === 0 ? squashedAdmission('off-head-source-missing', (batch) => { batch.sourceHead = 'f'.repeat(40); }) : null;
+  const offHeadMissingCheck = offHeadMissing ? run(['check', '--root', offHeadMissing, ...COLLECTION], offHeadMissing) : result;
+  check('an off-HEAD adoption source whose object is missing fails', offHeadMissing !== null
+    && offHeadMissingCheck.status === 1 && offHeadMissingCheck.output.includes('its object is missing'), offHeadMissingCheck.output);
+  const offHeadChanged = result.status === 0 ? squashedAdmission('off-head-source-changed', (batch) => { batch.baseBindings.inventorySha256 = '0'.repeat(64); }) : null;
+  const offHeadChangedCheck = offHeadChanged ? run(['check', '--root', offHeadChanged, ...COLLECTION], offHeadChanged) : result;
+  check('an off-HEAD adoption source whose bound content changed fails', offHeadChanged !== null
+    && offHeadChangedCheck.status === 1 && offHeadChangedCheck.output.includes('base bindings do not match'), offHeadChangedCheck.output);
+  // Mutant: drop the content comparison for unreachable sources. The changed-content case must then pass, which proves it guards.
+  const noContentCheck = instrumentedRecordsScript('off-head-no-content-check', (source) => source.replace(
+    'if (canonical(batch.baseBindings) !== canonical(expectedBindings)) {',
+    'if (sourceReachable && canonical(batch.baseBindings) !== canonical(expectedBindings)) {'));
+  const mutantRun = offHeadChanged ? runWithScript(noContentCheck, ['check', '--root', offHeadChanged, ...COLLECTION], offHeadChanged) : result;
+  check('mutant without the content condition accepts the changed off-HEAD source', offHeadChanged !== null
+    && mutantRun.status === 0, mutantRun.output);
   write(scheduledRepo, 'records/live/day_profile.jsonl', '{"day":1}\n{"day":2}\n{"day":3}\n');
   const scheduledCheck = result.status === 0 ? run(['check', '--root', scheduledRepo, ...COLLECTION], scheduledRepo) : result;
   check('scheduled mutable appends remain warnings after incremental immutable admission', result.status === 0

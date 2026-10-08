@@ -1,0 +1,1 @@
+- A records adoption batch whose source commit left `HEAD` history after a squash merge now validates while the commit object survives and its bound content matches.

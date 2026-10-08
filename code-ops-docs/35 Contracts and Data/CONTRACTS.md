@@ -1718,7 +1718,7 @@ With complete history, post-adoption checks require:
 - exact reviewed-candidate coverage within each applicable batch
 - exact-once authority coverage across all immutable objects
 
-Incomplete history warns during ordinary checks. Strict verification treats it as infrastructure failure. Commit rewrites may change locator fields without invalidating authority. `sourceHead` never selects a verification mode. Protected repository review is the trust root for the unkeyed digest.
+Incomplete history warns during ordinary checks. Strict verification treats it as infrastructure failure. Commit rewrites may change locator fields without invalidating authority. `sourceHead` never selects a verification mode. A batch whose `sourceHead` is no longer reachable from `HEAD`, as after a squash merge, is accepted only while that commit object exists and its bound content matches; `native-append` still requires a reachable source. Protected repository review is the trust root for the unkeyed digest.
 
 Failure ordering protects existing evidence first. Commands validate mode, clean state, complete history, and the existing baseline before candidate intake. They acquire the shared lock, then revalidate generated cleanliness, optimistic bindings, review, and history.
 

@@ -169,7 +169,7 @@ The ID namespace hashes the collection UUID and normalized Git-index path. Colle
 
 Inventory v3 keeps one `authorityBatches` array. The singular `adoptionReview` remains genesis evidence and supports v2 migration. It is not a second growing chain.
 
-Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. A non-genesis batch's `baseBindings.authorityBatchHead` equals that predecessor digest. Complete-history verification re-derives the source state and the manifest digest at the batch-introduction commit. A reachable adoption source also binds the exact reviewed candidates and their complete history profiles. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
+Each authority batch links `previousBatchDigest` and binds the authority state before and after the operation. A non-genesis batch's `baseBindings.authorityBatchHead` equals that predecessor digest. Complete-history verification re-derives the source state and the manifest digest at the batch-introduction commit. An adoption source off `HEAD` history is accepted only while its commit object exists and its bound content matches; `native-append` still requires reachability. A reachable adoption source also binds the exact reviewed candidates and their complete history profiles. Its batch type is `genesis-adoption`, `incremental-adoption`, `native-append`, or `v2-migration`.
 
 Incremental batches embed their complete receipt in `review`. Genesis and v2 migration bind the singular genesis receipt by `reviewReceiptDigest`. Native append carries no review payload.
 
