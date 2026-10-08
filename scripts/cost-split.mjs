@@ -238,7 +238,9 @@ export function splitCost(dirs, { since = null } = {}) {
   const byKind = merge(list, (row) => `${row.kind}\t${row.model}`);
   const context = [...threads].map(([group, t]) => ({
     group, threads: t.turns.length, turnsMedian: percentile(t.turns, 0.5),
-    peakMedian: percentile(t.peaks, 0.5), peakP90: percentile(t.peaks, 0.9),
+    peakMedian: percentile(t.peaks, 0.5), peakP90: percentile(t.peaks, 0.9), peakMax: Math.max(...t.peaks),
+    // Threads whose peak crossed the Haiku 5.5 prompt step, the size a light-rung move must fit under.
+    overStep: t.peaks.filter((p) => p > TIERED['claude-haiku-5-5'].threshold).length,
   })).sort((a, b) => a.group.localeCompare(b.group));
   const unpriced = merge(list.filter((row) => !row.priced && row.tokens > 0), (row) => row.model)
     .map((m) => ({ model: m.model, reason: 'no price pinned', messages: m.messages, input: m.input, cacheWrite: m.cacheWrite, cacheRead: m.cacheRead, output: m.output }));
@@ -270,8 +272,8 @@ function render(rep) {
   L.push('## By agent type and model', '');
   table(['Group', 'Model', ...cols], 2, rep.rows, (r) => [r.group, r.model, ...tail(r)]);
   L.push('## Context per thread', '', 'Peak context is the largest input side a thread carried in one turn.', '');
-  table(['Group', 'Threads', 'Median turns', 'Median peak', 'P90 peak'], 1, rep.context,
-    (c) => [c.group, fmt(c.threads), fmt(c.turnsMedian), fmt(c.peakMedian), fmt(c.peakP90)]);
+  table(['Group', 'Threads', 'Median turns', 'Median peak', 'P90 peak', 'Max peak', 'Over 100K'], 1, rep.context,
+    (c) => [c.group, fmt(c.threads), fmt(c.turnsMedian), fmt(c.peakMedian), fmt(c.peakP90), fmt(c.peakMax), fmt(c.overStep)]);
   L.push('## Advisor calls', '');
   const adv = rep.advisor;
   if (!adv.calls) L.push('None.', '');
