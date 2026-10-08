@@ -787,7 +787,7 @@ band already nudged (`band = floor(context / 150000)`) and `peak`, the highest b
 ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
 the peak) once context falls back under 150,000, which a compaction typically causes. The session
 receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:62-110` and
-`scripts/transcript-lib.mjs:565-581`.
+`scripts/transcript-lib.mjs:572-588`.
 
 Codex documents an equivalent `UserPromptSubmit` event (OpenAI's `developers.openai.com/codex/hooks`,
 confirmed live at `learn.chatgpt.com/docs/hooks`) carrying `session_id` and `prompt` on stdin,

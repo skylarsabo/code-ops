@@ -1565,7 +1565,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
+      "verifiedAt": "a4139869be85d8e653a262cf81d74d2665a25c0d",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1637,7 +1637,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "fc94c142e62d65253f465f73ee9f622930b1e0df09b31340a8acfe43d62faa4b"
+      "verifiedDigest": "2e3a3380eceb5ea82ae0f76750d5e8d75ed65fb5c3486c9c22ebf15bcf0855ac"
     },
     {
       "slug": "root-contracts",
