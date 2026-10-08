@@ -23,6 +23,8 @@
 //        lead row. Streamed lines repeat a message id and a tool id, so calls and tokens count once.
 //        The caller split, a call with no usage, a missing iteration model, and an unpriced advisor
 //        id each have a case, and the line-level `advisorModel` alias is never used as a price key.
+//   j.   Forked sessions (OI-29). A fork repeats its parent's message ids in a second file. An id counts
+//        once across every file read, a line with no id counts per line, and a Haiku 5.5 repeat prices once.
 //   g.   DEC-6. The script keeps its own table: it does not import model-tiers.mjs, and
 //        `PROVIDER_PRICES` gains no Anthropic key, which would change the opencode distribution.
 //
@@ -114,6 +116,27 @@ writeLines(join(advX, 'b1.jsonl'), [
 ]);
 const advNone = join(tmp, 'advNone');
 writeLines(join(advNone, 'c1.jsonl'), [advLine('n1', OPUS, usage(1, 0, 0, 1), { call: 'srv7' })]);
+
+// Workflow fixture (OI-27). Workflow agents sit at `subagents/workflows/<run>/agent-*.jsonl`
+// beside a flat agent. Each has a distinct token count, and one has no meta file.
+const wf = join(tmp, 'wf');
+writeLines(join(wf, 'w1.jsonl'), [line('w0', OPUS, usage(1000, 0, 0, 1000))]);
+const wfSub = (rel, type, lines) => {
+  const file = join(wf, 'w1', 'subagents', ...rel);
+  writeLines(file, lines);
+  if (type) writeFileSync(file.replace(/\.jsonl$/, '.meta.json'), JSON.stringify({ agentType: type }));
+};
+wfSub(['agent-flat.jsonl'], 'code-ops-suite:implementer', [line('w1', SONNET, usage(100, 0, 0, 100))]);
+wfSub(['workflows', 'wf_one', 'agent-v.jsonl'], 'code-ops-suite:verifier', [line('w2', SONNET, usage(200, 0, 0, 200))]);
+wfSub(['workflows', 'wf_two', 'agent-n.jsonl'], null, [line('w3', SONNET, usage(300, 0, 0, 300))]);
+wfSub(['workflows', 'wf_two', 'deeper', 'agent-z.jsonl'], null, [line('w4', SONNET, usage(900, 0, 0, 900))]);
+
+// Fork fixture (OI-29). f2 is a fork of f1: it repeats k1, k2, and the Haiku 5.5 message kh, then adds
+// k3. Both files carry one line with no message id, and those count per line.
+const fork = join(tmp, 'fork');
+const shared = [line('k1', OPUS, usage(100, 0, 0, 100)), line('k2', OPUS, usage(200, 0, 0, 200)), line('kh', HAIKU5, usage(1000, 0, 0, 100)), line(undefined, OPUS, usage(10, 0, 0, 0))];
+writeLines(join(fork, 'f1.jsonl'), shared);
+writeLines(join(fork, 'f2.jsonl'), [...shared, line('k3', OPUS, usage(300, 0, 0, 300))]);
 
 const run = (script, args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
 const json = (script, dir) => {
@@ -253,6 +276,14 @@ check('mutation: --check no longer fails', run(join(mutantDir, 'cost-split.mjs')
 const mutantAdv = json(join(mutantDir, 'cost-split.mjs'), advX);
 check('mutation: aliasing empties the unpriced advisor list', mutantAdv.rep?.unpriced.length === 0 && run(join(mutantDir, 'cost-split.mjs'), ['--transcripts', advX, '--check']).status === 0, JSON.stringify(mutantAdv.rep?.unpriced));
 
+// j. Hand-computed. Opus lead: input 100+200+300 + 2 id-less lines of 10 = 620, output 600,
+//    (620*4 + 600*20) / 1e6 = 0.01448, over 5 messages. Haiku 5.5 low tier, once: (1000*0.1 + 100*0.5) / 1e6 = 0.00015.
+//    Per-file dedupe would give Opus input 920 / 7 messages and a second Haiku message.
+const forkRep = json(script, fork).rep ?? { rows: [] };
+const forkOpus = row(forkRep, 'lead', OPUS), forkHaiku = row(forkRep, 'lead', HAIKU5);
+check('j. a message id repeated in a forked file counts once', forkOpus?.input === 620 && forkOpus.output === 600 && forkOpus.messages === 5 && near(forkOpus.usd, 0.01448), JSON.stringify(forkOpus));
+check('j. a Haiku 5.5 message repeated in a fork prices once', forkHaiku?.messages === 1 && near(forkHaiku.usd, 0.00015), JSON.stringify(forkHaiku));
+
 // Mutation control: price every Haiku 5.5 message at the low tier. The tier assertions must fail.
 const tierPick = "const tierOf = (spec, u) => (u.input + u.cacheRead + u.cacheWrite > spec.threshold ? spec.high : spec.low);";
 check('mutation target exists for the tier pick', source.includes(tierPick));
@@ -261,6 +292,31 @@ const lowMutant = json(join(mutantDir, 'cost-split.mjs'), tier);
 const lowRow = row(lowMutant.rep ?? { rows: [] }, 'lead', HAIKU5);
 check('mutation: all-low-tier pricing fails the hand total', near(lowRow?.usd, 0.010825) && !near(lowRow?.usd, 0.034325), JSON.stringify(lowRow));
 check('mutation: all-low-tier pricing counts no message over the threshold', lowMutant.rep?.tiered[0]?.overThreshold === 0, JSON.stringify(lowMutant.rep?.tiered));
+
+// Mutation control: dedupe per file only (the claimed set never remembers). The fork assertions must fail.
+const claimedInit = 'const claimed = new Set();';
+check('mutation target exists for the cross-file claim', source.includes(claimedInit));
+writeFileSync(join(mutantDir, 'cost-split.mjs'), source.replace(claimedInit, 'const claimed = { has: () => false, add() {} };'));
+const forkMutant = json(join(mutantDir, 'cost-split.mjs'), fork).rep ?? { rows: [] };
+check('mutation: per-file dedupe counts the forked ids twice', row(forkMutant, 'lead', OPUS)?.input === 920 && row(forkMutant, 'lead', HAIKU5)?.messages === 2, JSON.stringify(row(forkMutant, 'lead', OPUS)));
+
+// OI-27: Workflow agent threads count, grouped by their own meta agent type; deeper nesting does not.
+const wfRun = json(script, wf);
+const wfOut = (group) => row(wfRun.rep ?? { rows: [] }, group, SONNET)?.output;
+check('wf. nested Workflow agents are counted (files, threads)', wfRun.rep?.files === 4 && wfRun.rep.subagentThreads === 3, JSON.stringify([wfRun.rep?.files, wfRun.rep?.subagentThreads]));
+check('wf. a Workflow agent groups by its meta agent type', wfOut('agent:code-ops-suite:verifier') === 200, String(wfOut('agent:code-ops-suite:verifier')));
+check('wf. a Workflow agent with no meta file groups as unknown', wfOut('agent:unknown') === 300, String(wfOut('agent:unknown')));
+check('wf. the flat agent is counted once', wfOut('agent:code-ops-suite:implementer') === 100, String(wfOut('agent:code-ops-suite:implementer')));
+check('wf. a directory below the run folder is not read', !wfRun.stdout.includes('"output": 900') && !wfRun.stdout.includes('"output":900'));
+
+// Mutation control: the flat read that skips Workflow agents. The wf assertions must fail.
+const libSource = readFileSync(join(SCRIPTS, 'transcript-lib.mjs'), 'utf8');
+const nested = '...runs.flatMap((e) => jsonl(join(flows, e.name)))';
+check('mutation target exists for the Workflow read', libSource.includes(nested));
+writeFileSync(join(mutantDir, 'transcript-lib.mjs'), libSource.replace(nested, ''));
+writeFileSync(join(mutantDir, 'cost-split.mjs'), source);
+const flatMutant = json(join(mutantDir, 'cost-split.mjs'), wf);
+check('mutation: the flat read drops the Workflow agents', flatMutant.rep?.subagentThreads === 1 && flatMutant.rep.files === 2, JSON.stringify([flatMutant.rep?.files, flatMutant.rep?.subagentThreads]));
 
 rmSync(tmp,{ recursive: true, force: true });
 if (fails.length) {

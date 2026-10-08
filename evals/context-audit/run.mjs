@@ -131,6 +131,18 @@ appendFileSync(join(codexLinkDir, 'unrelated.jsonl'), linkedUsage('unrelated', n
 expect(subagentFilesFor(codexParent).map((f) => f.split(/[\\/]/).at(-1)).join(',') === 'child.jsonl,grandchild.jsonl',
   `Codex child graph includes descendants only: ${JSON.stringify(subagentFilesFor(codexParent))}`);
 
+// Claude Workflow agents sit one level below subagents/workflows/<run>/; a deeper folder is ignored.
+const wfDir = mkdtempSync(join(tmpdir(), 'ca-wf-'));
+const wfMain = join(wfDir, 's.jsonl');
+appendFileSync(wfMain, '');
+for (const rel of ['agent-a.jsonl', 'workflows/wf_1/agent-b.jsonl', 'workflows/wf_2/agent-c.jsonl', 'workflows/wf_2/deeper/agent-d.jsonl']) {
+  mkdirSync(dirname(join(wfDir, 's', 'subagents', rel)), { recursive: true });
+  appendFileSync(join(wfDir, 's', 'subagents', rel), '');
+}
+expect(subagentFilesFor(wfMain).map((f) => f.split(/[\\/]/).at(-1)).join(',') === 'agent-a.jsonl,agent-b.jsonl,agent-c.jsonl',
+  `Workflow agents join the flat ones, nothing deeper: ${JSON.stringify(subagentFilesFor(wfMain))}`);
+rmSync(wfDir, { recursive: true, force: true });
+
 // Library-level assertions through the CLI's --json view.
 const j = run([cli, '--transcripts', fixture, '--json']);
 expect(j.status === 0, `--json should exit 0, got ${j.status}: ${j.stderr}`);
