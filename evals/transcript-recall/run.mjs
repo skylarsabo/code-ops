@@ -22,14 +22,17 @@
 //   G4 the secret and every line of a planted multi-line private key appear in no index file and no
 //      command output (search, zoom, and outline), and a zoom of the key result row shows the marker;
 //   G5 `line:<n>` resolves to the right block, and CODE_OPS_RECALL=off|0|false disables;
-//   G6 sidechain and compact-summary rows are never nodes and never search hits.
+//   G6 sidechain and compact-summary rows are never nodes and never search hits;
+//   G7 --agent recalls a needle from a subagent transcript (all rows sidechain) with a sha match, keeps
+//      the secret out of every index file and output, indexes apart from the main session, and rejects
+//      an agent id that holds a path separator.
 // Mutants patch a temporary copy of scripts/ and must each fail their gate: an offset off by one,
-// a scrambled id map, masking disabled, and private key block masking disabled (the scanner then
+// a scrambled id map, masking disabled, subagent rows skipped as sidechain (G7), and private key block masking disabled (the scanner then
 // redacts only the BEGIN line, so G4 must fail). An unpatched copy is the control and must pass.
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { cpSync, existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, readFileSync, rmSync, truncateSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -296,6 +299,59 @@ function runGates(script, fx, only) {
   return found;
 }
 
+// ---------------------------------------------------------------- G7: subagent transcripts
+
+const AGENT_ID = 'a1b2c3d4e5f60718';
+const SUB_NEEDLE = 'b7e41d9c02f85a36';
+
+// A projects dir laid out as the host does: <session>.jsonl beside <session>/subagents/agent-<id>.jsonl.
+// Every subagent row is a sidechain row. Recall runs with no --transcript, so the script resolves the paths.
+function runSubagentGates(script) {
+  const found = [];
+  const gate = (name, ok) => { if (!ok) found.push({ id: 'G7', name }); };
+  const box = sandbox('agent');
+  try {
+    const work = realpathSync(box.work);
+    const projects = join(box.home, '.claude', 'projects', work.replace(/[^A-Za-z0-9]/g, '-'));
+    mkdirSync(join(projects, SESSION, 'subagents'), { recursive: true });
+    const row = (n, obj) => JSON.stringify({ sessionId: SESSION, agentId: AGENT_ID, isSidechain: true, timestamp: new Date(Date.parse('2026-10-01T11:00:00Z') + 1000 * n).toISOString(), uuid: `sub-${n}`, ...obj });
+    const sub = [
+      row(1, { type: 'user', message: { role: 'user', content: 'Check the ledger export for drift.' } }),
+      row(2, { type: 'assistant', message: { id: 'msg_s1', role: 'assistant', content: [{ type: 'tool_use', id: 'toolu_s1', name: 'Bash', input: { command: 'ledger-export --check' } }] } }),
+      row(3, { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 'toolu_s1', content: `drift found, needle ${SUB_NEEDLE}\ntoken ${SECRET}` }] } }),
+    ].join('\n') + '\n';
+    const subFile = join(projects, SESSION, 'subagents', `agent-${AGENT_ID}.jsonl`);
+    writeFileSync(subFile, sub);
+    writeFileSync(join(projects, `${SESSION}.jsonl`), `${JSON.stringify({ sessionId: SESSION, type: 'user', uuid: 'main-1', timestamp: '2026-10-01T10:00:00Z', message: { role: 'user', content: 'Main thread prompt.' } })}\n`);
+
+    const call = (args) => {
+      const r = spawnSync(process.execPath, [script, ...args, '--session', SESSION, '--json'], { cwd: box.work, env: box.env, encoding: 'utf8', timeout: 120_000 });
+      transcriptOfOutput.push(r.stdout ?? '', r.stderr ?? '');
+      let json = null;
+      try { json = JSON.parse(r.stdout); } catch { /* not JSON */ }
+      return { status: r.status, out: r.stdout ?? '', err: r.stderr ?? '', json };
+    };
+    const found1 = call(['search', '--terms', SUB_NEEDLE, '--agent', AGENT_ID]);
+    const top = found1.json?.results?.[0];
+    gate('--agent search finds the needle in a subagent transcript', found1.status === 0 && Boolean(top?.id));
+    const zoomed = top ? call(['zoom', '--id', top.id, '--agent', AGENT_ID]) : null;
+    const anchors = zoomed?.json?.anchors ?? [];
+    gate('--agent zoom returns the needle text with a verified sha256', zoomed?.status === 0 && String(zoomed.json?.text).includes(SUB_NEEDLE) && zoomed.json.verified === true);
+    const subBytes = Buffer.from(sub);
+    gate('the subagent anchor hashes to its own fixture bytes', anchors.length > 0 && anchors.every((a) => sha(subBytes.subarray(a.off, a.off + a.len)) === a.sha256));
+    gate('--agent outline lists the subagent turn', (call(['outline', '--agent', AGENT_ID, '--depth', '3']).json?.items ?? []).some((it) => it.kind === 'turn' || it.kind === 'block'));
+    call(['build']);
+    const dirs = readdirSync(join(box.home, '.claude', 'code-ops', 'recall'), { recursive: true }).filter((f) => f.endsWith('meta.json'));
+    gate('the main-session and subagent indexes live in different directories', dirs.length === 2 && new Set(dirs).size === 2);
+    gate('the main-session index never sees the subagent needle', call(['search', '--terms', SUB_NEEDLE]).json?.total === 0);
+    gate('the secret appears in no index file or output', ![...recallFiles(box.home).map((f) => readFileSync(f, 'utf8')), zoomed?.out ?? '', found1.out].some((t) => t.includes(SECRET)));
+    const badId = call(['status', '--agent', '../x']);
+    gate('an agent id with a path separator is rejected', badId.status === 2 && !existsSync(join(projects, 'x')));
+    gate('an agent id of dots is rejected', call(['status', '--agent', '..']).status === 2);
+  } finally { box.cleanup(); }
+  return found;
+}
+
 // ---------------------------------------------------------------- mutants
 
 function mutantCopy(label, from, to, target = 'transcript-recall.mjs') {
@@ -314,6 +370,7 @@ const MUTANTS = [
   { name: 'offset off by one', from: 'off: base + rec.off, len: rec.len, line', to: 'off: base + rec.off + 1, len: rec.len, line', gate: 'G1' },
   { name: 'scrambled id map', from: 'byId.set(n.id, n);', to: 'byId.set(n.id, nodes[(i + 1) % nodes.length]);', gate: 'G1' },
   { name: 'masking disabled', from: 'out = maskTexts(texts);', to: 'out = texts;', gate: 'G4' },
+  { name: 'subagent rows skipped as sidechain', from: '(o.isSidechain === true && !sidechain)', to: '(o.isSidechain === true)', gate: 'G7' },
   { name: 'PEM block masking disabled', target: 'compact-snapshot.mjs', from: "export const redactBlocks = (text) => text.replace(PEM_BLOCK, '<REDACTED:secret-shape>');", to: 'export const redactBlocks = (text) => text;', gate: 'G4' },
 ];
 
@@ -324,17 +381,20 @@ const started = Date.now();
 const real = runGates(join(scriptsDir, 'transcript-recall.mjs'), fx);
 check('real script passes G1-G6', real.length === 0, real.map((f) => `${f.id} ${f.name}`).join('; '));
 for (const f of real) console.log(`  x ${f.id}: ${f.name}`);
+const realAgent = runSubagentGates(join(scriptsDir, 'transcript-recall.mjs'));
+check('real script passes G7 (subagent transcripts)', realAgent.length === 0, realAgent.map((f) => f.name).join('; '));
+for (const f of realAgent) console.log(`  x ${f.id}: ${f.name}`);
 
 const control = mutantCopy('control', null, null);
 try {
-  const result = runGates(control.file, fx, ['G1', 'G4']);
+  const result = [...runGates(control.file, fx, ['G1', 'G4']), ...runSubagentGates(control.file)];
   check('unpatched copy passes the mutant gates (control)', result.length === 0, result.map((f) => `${f.id} ${f.name}`).join('; '));
 } finally { rmSync(control.dir, { recursive: true, force: true }); }
 
 for (const mutant of MUTANTS) {
   const copy = mutantCopy(mutant.name.replace(/\W+/g, '-'), mutant.from, mutant.to, mutant.target);
   try {
-    const result = runGates(copy.file, fx, [mutant.gate]);
+    const result = mutant.gate === 'G7' ? runSubagentGates(copy.file) : runGates(copy.file, fx, [mutant.gate]);
     check(`mutant fails ${mutant.gate}: ${mutant.name}`, result.length > 0, 'the eval passed with the mutant applied');
   } finally { rmSync(copy.dir, { recursive: true, force: true }); }
 }

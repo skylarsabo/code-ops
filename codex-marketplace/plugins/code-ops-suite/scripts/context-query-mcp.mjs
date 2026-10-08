@@ -62,6 +62,7 @@ const TOOLS = [
       properties: {
         command: { type: 'string', enum: RECALL_COMMANDS, description: 'the recall command to run' },
         session: { type: 'string', description: 'the host session id (the transcript file name without .jsonl)' },
+        agent: { type: 'string', description: 'recall into a subagent transcript of the session: the agent id (the agent-<id>.jsonl file name between "agent-" and ".jsonl"); omit for the main thread' },
         id: { type: 'string', description: 'outline and zoom: a node id such as @1648+294, a block uuid, or line:<n> (default for outline: the session)' },
         line: { type: 'integer', minimum: 1, description: 'zoom: the transcript line number of a block or of one of its results (a snapshot stub prints these)' },
         terms: { type: 'string', description: 'search: words to find; an exact identifier (a SHA, a path, an id, a test name) weighs more' },
@@ -116,7 +117,7 @@ function callTool(name, args) {
     if (!RECALL_COMMANDS.includes(args.command)) throw new BadArgs(`command must be one of ${RECALL_COMMANDS.join(', ')}`);
     if (typeof args.session !== 'string' || !args.session.trim()) throw new BadArgs('session must be a non-empty string');
     const flags = ['--session', args.session];
-    for (const key of ['id', 'terms', 'kind']) {
+    for (const key of ['agent', 'id', 'terms', 'kind']) {
       if (args[key] === undefined) continue;
       if (typeof args[key] !== 'string' || !args[key].trim()) throw new BadArgs(`${key} must be a non-empty string`);
       flags.push(`--${key}`, args[key]);

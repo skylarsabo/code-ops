@@ -1608,6 +1608,14 @@ transcript line, which is how snapshot stubs point into the transcript. A label 
 written by a model, and is capped at about 200 characters. A turn label holds `prompt line:<n>`
 as a reference and never the prompt text.
 
+`--agent <agentId>` (`agent` in the `transcript_recall` MCP tool) recalls into a subagent
+transcript, `<projects dir>/<session id>/subagents/agent-<agentId>.jsonl`, unless `--transcript`
+is given. Every row of that file is a sidechain row, so the builder treats sidechain rows as the
+main thread there; a main-session index still skips them. The index directory gains the agent, so
+the two indexes never collide. The agent id must be letters, digits, `_` or `-` (up to 64
+characters), so it cannot hold a path separator or `..`. Anchors, sha256 drift checks, and
+masking are unchanged. To recall a predecessor session (chain scope), pass its id as `--session`.
+
 Every command stops at `--budget` bytes of output.
 
 - `status` prints the index age, `indexedBytes`, the file size, the boundaries, the node count,
