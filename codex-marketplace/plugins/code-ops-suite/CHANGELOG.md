@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.70.0
+## 2.71.0
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
 - The dispatch guard holds every Agent or Task call to an `effort` of low, medium, or high. The check ran only inside the routing review, so an agent whose brief lists no Tier, such as mech, probe, or explorer, accepted `max` or `xhigh`. The dispatch-guard eval adds max on explorer, xhigh on probe, a miscased High on mech, and a silent medium.
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, and lint check 30 now requires an `effort:` on every agent, the light rung included. Haiku 5.5 takes an effort setting, so an omitted value inherited the session dial. The lint eval adds a Haiku agent with no effort.
