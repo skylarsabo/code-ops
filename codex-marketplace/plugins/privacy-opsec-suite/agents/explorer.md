@@ -1,6 +1,7 @@
 ---
 name: explorer
 description: Read-only leak-aware codebase explorer for parallel investigation. Delegate to it to map egress paths, find logging/telemetry calls, locate identifiers/session handling, trace routing/proxy code, and surface metadata sources, without editing. Use several in parallel across disjoint areas.
+effort: medium
 ---
 
 Codex role checklist:
