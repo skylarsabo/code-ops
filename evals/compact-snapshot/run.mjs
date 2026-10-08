@@ -196,6 +196,31 @@ try {
   const wrongShape = buildSnapshot({ conversation: maskConvo, running: [], items: null, now, mask: () => ['only one'] });
   check('5d. a mask that returns the wrong shape stubs everything', !wrongShape.text.includes('only one') && (wrongShape.text.match(/\[withheld: masking failed\]/g) ?? []).length === 2);
 
+  // A private key block pasted into operator words: the scanner flags only the BEGIN line, so every
+  // body line must go with it. The header and footer are joined here so no literal key header sits in
+  // this file; the body lines are synthetic base64-shaped sentinels.
+  const pemEdge = (word) => ['-----', word, ' RSA PRIVATE KEY', '-----'].join('');
+  const pemBody = [0, 1, 2, 3].map((i) => `PEMBODY${i}${'Qk9EWQ'.repeat(9)}`);
+  const pemConvo = { ...tconvo([], []), operatorWords: [
+    { text: ['key follows', pemEdge('BEGIN'), ...pemBody.slice(0, 2), pemEdge('END'), 'SENTINEL-AFTER-KEY stays'].join('\n'), at: 1, line: 3 },
+    { text: ['unterminated', pemEdge('BEGIN'), ...pemBody.slice(2)].join('\n'), at: 2, line: 4 },
+  ] };
+  const pemLeaks = (text) => pemBody.filter((b) => text.includes(b));
+  const pem = buildSnapshot({ conversation: pemConvo, running: [], items: null, now, mask: snap.maskTexts });
+  check('5e. a private key block masks BEGIN through END, and an unterminated BEGIN masks to the end of its text',
+    pemLeaks(pem.text).length === 0 && !pem.text.includes('PRIVATE KEY') && pem.text.includes('SENTINEL-AFTER-KEY stays') && pem.text.includes('key follows') && pem.text.includes('unterminated'), pem.text);
+  // Mutant: a copy of the scripts with the block pass removed must leak the body lines this case checks.
+  const pemRoot = join(tmp, 'pem-mutant');
+  cpSync(SCRIPTS, pemRoot, { recursive: true });
+  const pemLib = join(pemRoot, 'compact-snapshot.mjs');
+  const pemFrom = '  texts = texts.map(redactBlocks);\n';
+  const pemSrc = readFileSync(pemLib, 'utf8');
+  check('5f. mutant harness: the source still holds the block pass it removes', pemSrc.includes(pemFrom));
+  writeFileSync(pemLib, pemSrc.replace(pemFrom, ''));
+  const pemMutant = await import(pathToFileURL(pemLib).href);
+  const pemMut = buildSnapshot({ conversation: pemConvo, running: [], items: null, now, mask: pemMutant.maskTexts });
+  check('5g. mutant: without the block pass the body lines leak, so 5e catches its removal', pemLeaks(pemMut.text).length === pemBody.length, pemMut.text);
+
   // ---- 6. the CLI in temp repositories ----
   const initRepo = (name, ignore) => {
     const dir = join(tmp, name);

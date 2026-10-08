@@ -99,6 +99,13 @@ export function fieldsTable() {
 const collapse = (value) => String(value ?? '').replace(/[\u0000-\u001f\u007f\s]+/g, ' ').trim();
 const cutTo = (text, max) => (text.length <= max ? text : `${text.slice(0, Math.max(0, max - 1))}…`);
 
+// The scanner flags only the BEGIN line of a private key block, so a line mask alone leaves the body
+// lines. redactBlocks() replaces the whole block, BEGIN to END inclusive, with one marker; a BEGIN with
+// no END takes the rest of the text. maskTexts() runs it first, and a caller that slices or cuts text
+// before masking runs it at the source too, so a cut never separates a body line from its BEGIN line.
+const PEM_BLOCK = /-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----|$)/g;
+export const redactBlocks = (text) => text.replace(PEM_BLOCK, '<REDACTED:secret-shape>');
+
 // Masks each text through the redaction scanner, the suite's one secret-shape floor. The scanner is a
 // CLI that runs on import and exports nothing, so each text goes to a temporary .md file in one
 // directory scan, and a line the scanner flags as fail-closed (an AWS key, a token, a private key, a
@@ -108,6 +115,7 @@ const cutTo = (text, max) => (text.length <= max ? text : `${text.slice(0, Math.
 // throws, so the caller stubs instead of writing raw text.
 export function maskTexts(texts, { scanner = join(HERE, 'scan-redaction.mjs') } = {}) {
   if (!texts.length) return [];
+  texts = texts.map(redactBlocks);
   const dir = mkdtempSync(join(tmpdir(), 'compact-snapshot-'));
   try {
     texts.forEach((text, i) => writeFileSync(join(dir, `m${i}.md`), text));

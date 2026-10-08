@@ -55,7 +55,7 @@ import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseOrDie, usage } from './cli-lib.mjs';
-import { maskTexts } from './compact-snapshot.mjs';
+import { maskTexts, redactBlocks } from './compact-snapshot.mjs';
 import { atomicWrite } from './context-index-lib.mjs';
 import { bashFamily, defaultTranscriptDir, isBoundary, isOperatorPrompt, projectSlug, stateRoot, walkLines } from './transcript-lib.mjs';
 
@@ -100,21 +100,15 @@ const byteLen = (value) => Buffer.byteLength(typeof value === 'string' ? value :
 
 // ---------------------------------------------------------------- masking: the one choke point
 
-// The scanner flags the BEGIN line of a private key and nothing after it, so a key body would
-// survive a line mask. This pass replaces the whole block, BEGIN to END inclusive, with one marker
-// line; a BEGIN with no END takes everything after it. It runs where text first leaves a row
-// (sectionsOf and the label sources) and again inside maskAll, so a slice or a cut never separates a
-// body line from its BEGIN line.
-const PEM_BLOCK = /-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----[\s\S]*?(?:-----END (?:[A-Z0-9 ]+ )?PRIVATE KEY(?: BLOCK)?-----|$)/g;
-const PEM_MARK = '<REDACTED:secret-shape>';
-const redactBlocks = (text) => text.replace(PEM_BLOCK, PEM_MARK);
+// redactBlocks() (compact-snapshot.mjs) replaces a whole private key block with one marker. maskTexts
+// runs it too, but it also runs here where text first leaves a row (sectionsOf and the label
+// sources), because a slice or a cut made before masking could separate a body line from its BEGIN.
 
 // Every string that leaves this script or lands in the index passes through here.
 function maskAll(texts) {
   if (!texts.length) return [];
   let out;
   try {
-    texts = texts.map(redactBlocks);
     out = maskTexts(texts);
   } catch { throw new MaskError(); }
   if (!Array.isArray(out) || out.length !== texts.length || out.some((t) => typeof t !== 'string')) throw new MaskError();

@@ -298,14 +298,15 @@ function runGates(script, fx, only) {
 
 // ---------------------------------------------------------------- mutants
 
-function mutantCopy(label, from, to) {
+function mutantCopy(label, from, to, target = 'transcript-recall.mjs') {
   const dir = mkdtempSync(join(tmpdir(), `recall-${label}-scripts-`));
   cpSync(scriptsDir, dir, { recursive: true });
   const file = join(dir, 'transcript-recall.mjs');
-  const text = readFileSync(file, 'utf8');
+  const patched = join(dir, target);
+  const text = readFileSync(patched, 'utf8');
   const parts = from === null ? [text] : text.split(from);
   if (parts.length !== 2 && from !== null) throw new Error(`mutant ${label}: expected exactly one match, found ${parts.length - 1}`);
-  if (from !== null) writeFileSync(file, parts.join(to));
+  if (from !== null) writeFileSync(patched, parts.join(to));
   return { dir, file };
 }
 
@@ -313,7 +314,7 @@ const MUTANTS = [
   { name: 'offset off by one', from: 'off: base + rec.off, len: rec.len, line', to: 'off: base + rec.off + 1, len: rec.len, line', gate: 'G1' },
   { name: 'scrambled id map', from: 'byId.set(n.id, n);', to: 'byId.set(n.id, nodes[(i + 1) % nodes.length]);', gate: 'G1' },
   { name: 'masking disabled', from: 'out = maskTexts(texts);', to: 'out = texts;', gate: 'G4' },
-  { name: 'PEM block masking disabled', from: 'const redactBlocks = (text) => text.replace(PEM_BLOCK, PEM_MARK);', to: 'const redactBlocks = (text) => text;', gate: 'G4' },
+  { name: 'PEM block masking disabled', target: 'compact-snapshot.mjs', from: "export const redactBlocks = (text) => text.replace(PEM_BLOCK, '<REDACTED:secret-shape>');", to: 'export const redactBlocks = (text) => text;', gate: 'G4' },
 ];
 
 // ---------------------------------------------------------------- main
@@ -331,7 +332,7 @@ try {
 } finally { rmSync(control.dir, { recursive: true, force: true }); }
 
 for (const mutant of MUTANTS) {
-  const copy = mutantCopy(mutant.name.replace(/\W+/g, '-'), mutant.from, mutant.to);
+  const copy = mutantCopy(mutant.name.replace(/\W+/g, '-'), mutant.from, mutant.to, mutant.target);
   try {
     const result = runGates(copy.file, fx, [mutant.gate]);
     check(`mutant fails ${mutant.gate}: ${mutant.name}`, result.length > 0, 'the eval passed with the mutant applied');
