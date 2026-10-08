@@ -1,0 +1,1 @@
+- Transcript recall reads subagent transcripts: `--agent <id>` (and `agent` on the `transcript_recall` tool) resolves `<session>/subagents/agent-<id>.jsonl`, indexes its sidechain rows as the main thread, and keeps that index in its own directory. A main-session index still skips sidechain rows. An agent id that is not 1 to 64 letters, digits, `_` or `-` is a usage error.

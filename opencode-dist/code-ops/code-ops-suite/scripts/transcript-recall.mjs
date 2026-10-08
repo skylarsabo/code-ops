@@ -4,7 +4,7 @@
 // bytes and is checked by sha256. It makes no model call and runs nothing on a hot path.
 //
 //   node scripts/transcript-recall.mjs <status|outline|search|zoom|build> --session <id>
-//        [--transcript <file>] [--id <@off+len>|--line <n>] [--terms <text>] [--kind text|tool|error]
+//        [--agent <agentId>] [--transcript <file>] [--id <@off+len>|--line <n>] [--terms <text>] [--kind text|tool|error]
 //        [--depth 1] [--page 0] [--budget 4000] [--json]
 //   co recall <command> ...        (the same script)
 //
@@ -59,7 +59,7 @@ import { maskTexts, redactBlocks } from './compact-snapshot.mjs';
 import { atomicWrite } from './context-index-lib.mjs';
 import { bashFamily, defaultTranscriptDir, isBoundary, isOperatorPrompt, projectSlug, stateRoot, walkLines } from './transcript-lib.mjs';
 
-const USAGE = 'usage: transcript-recall.mjs <status|outline|search|zoom|build> --session <id> [--transcript <file>] [--id <@off+len>|--line <n>] [--terms <text>] [--kind text|tool|error] [--depth 1] [--page 0] [--budget 4000] [--json]';
+const USAGE = 'usage: transcript-recall.mjs <status|outline|search|zoom|build> --session <id> [--agent <agentId>] [--transcript <file>] [--id <@off+len>|--line <n>] [--terms <text>] [--kind text|tool|error] [--depth 1] [--page 0] [--budget 4000] [--json]';
 const COMMANDS = ['status', 'outline', 'search', 'zoom', 'build'];
 const KINDS = ['text', 'tool', 'error'];
 const VERSION = 1;
@@ -89,9 +89,14 @@ class MaskError extends Fail {
 
 export const recallEnabled = (env = process.env) => !/^(?:off|0|false)$/i.test(String(env.CODE_OPS_RECALL ?? '').trim());
 
-export function indexDir(cwd, session, home = process.env.CODE_OPS_HOME || homedir()) {
-  return join(home, '.claude', 'code-ops', 'recall', projectSlug(stateRoot(cwd)), projectSlug(session));
+// A subagent index sits beside the main one, keyed on session plus agent, so the two never collide.
+export function indexDir(cwd, session, home = process.env.CODE_OPS_HOME || homedir(), agent = null) {
+  const key = agent ? `${projectSlug(session)}--agent-${projectSlug(agent)}` : projectSlug(session);
+  return join(home, '.claude', 'code-ops', 'recall', projectSlug(stateRoot(cwd)), key);
 }
+
+// The host names a subagent id with letters, digits, and hyphens; anything else could leave the directory.
+const AGENT_RE = /^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/;
 
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 const collapse = (value) => String(value ?? '').replace(/[\u0000-\u001f\u007f\s]+/g, ' ').trim();
@@ -194,7 +199,8 @@ const histogram = (pairs) => pairs.map(([name, n]) => (n > 1 ? `${name} x${n}` :
 
 // Scans buf (the file from byte `base`, whose first line has number `firstLine`) and returns the
 // nodes it creates after `kept`, the nodes before the resume point. Labels are masked in one batch.
-function scan(buf, base, firstLine, kept, root) {
+// In a subagent transcript every row is a sidechain row, so `sidechain` makes them the main thread.
+function scan(buf, base, firstLine, kept, root, sidechain = false) {
   const list = [...kept];
   const created = [];
   const pending = new Map();
@@ -239,7 +245,7 @@ function scan(buf, base, firstLine, kept, root) {
       epoch = make('epoch', row, root, { bnd: true });
       continue;
     }
-    if (o.isSidechain === true || o.isCompactSummary === true) continue;
+    if ((o.isSidechain === true && !sidechain) || o.isCompactSummary === true) continue;
     const content = o.message?.content;
     if (o.type === 'user' && Array.isArray(content)) {
       let orphan = null;
@@ -432,7 +438,7 @@ function needOf(ctx, idx, rebuildOnDrift) {
 function writeIndex(ctx, idx) {
   const at = idx?.meta.resume;
   const buf = readFrom(ctx.transcript, at?.off ?? 0);
-  const scanned = scan(buf, at?.off ?? 0, at?.line ?? 1, idx ? idx.nodes.slice(1, 1 + at.idx) : [], idx?.nodes[0] ?? null);
+  const scanned = scan(buf, at?.off ?? 0, at?.line ?? 1, idx ? idx.nodes.slice(1, 1 + at.idx) : [], idx?.nodes[0] ?? null, ctx.sidechain);
   const indexedBytes = scanned.tail ? scanned.tail.off + scanned.tail.len + 1 : 0;
   if (idx && indexedBytes === idx.meta.indexedBytes && scanned.partial === idx.meta.partial) return false;
   const built = scanned.root ? finish(scanned.list, scanned.root) : { boundaries: 0, resumeAt: -1, nodes: [] };
@@ -698,7 +704,7 @@ function cli(argv) {
     return 0;
   }
   const { flags, positional } = parseOrDie(argv, {
-    session: { value: true }, transcript: { value: true }, id: { value: true }, line: { value: true },
+    session: { value: true }, agent: { value: true }, transcript: { value: true }, id: { value: true }, line: { value: true },
     terms: { value: true }, kind: { value: true }, depth: { value: true }, page: { value: true }, budget: { value: true }, json: { value: false },
   }, USAGE);
   const bad = (message) => usage([`x ${message}`, USAGE]);
@@ -719,9 +725,15 @@ function cli(argv) {
   };
   if (command === 'search' && !String(opts.terms ?? '').trim()) bad('search needs --terms');
   if (command === 'zoom' && opts.id === undefined && opts.line === undefined) bad('zoom needs --id or --line');
+  const agent = flags.agent ?? null;
+  if (agent !== null && !AGENT_RE.test(agent)) bad('--agent must be letters, digits, "_" or "-" (up to 64)');
+  if (agent !== null && flags.transcript === undefined && !AGENT_RE.test(flags.session)) bad('--session must be a plain id with --agent');
   const cwd = process.cwd();
-  const transcript = resolve(flags.transcript ?? join(defaultTranscriptDir(cwd), `${flags.session}.jsonl`));
-  const ctx = { session: flags.session, transcript, dir: indexDir(cwd, flags.session), json };
+  const mainDir = defaultTranscriptDir(cwd);
+  const transcript = resolve(flags.transcript ?? (agent
+    ? join(mainDir, flags.session, 'subagents', `agent-${agent}.jsonl`)
+    : join(mainDir, `${flags.session}.jsonl`)));
+  const ctx = { session: flags.session, transcript, dir: indexDir(cwd, flags.session, undefined, agent), sidechain: agent !== null, json };
   const fail = (message) => {
     if (json) console.log(JSON.stringify({ error: message }));
     else console.error(`x ${message}`);
