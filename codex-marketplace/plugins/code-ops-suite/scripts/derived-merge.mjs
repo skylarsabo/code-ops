@@ -35,7 +35,8 @@
 // CODE_OPS_DIGEST_AUTOFIX=off (or 0, or false) turns reconcile and rewrite off. It does not change
 // regenerate, whose attested rule is stricter than the plain sync it replaced.
 //
-// The driver applies only to `git merge` and `git pull`. A rebase, cherry-pick, or stash pop does
+// The derived groups apply only to `git merge` and `git pull`. The versions group needs no hook, so it
+// also serves a rebase or cherry-pick. For the rest, a rebase, cherry-pick, or stash pop does
 // not run the commit hooks at the right point, so those fall back to the plain text merge.
 //
 // The registered driver command names the script by absolute path. Git runs a merge driver from the
@@ -46,6 +47,22 @@
 // failed and the conflict is back in the index. Exit (rewrite): 0 = fresh or restamped, 1 = a domain
 // stays stale and the manifest is as it was. Exit (check): 0 = registered and the script exists, 1 = not.
 // Exit (driver): 0 = merged, 1 = conflict. 2 = usage error.
+//
+// VERSIONS: two branches that each bump a plugin collide on the `version` field of its plugin.json and
+// of its marketplace.json entry. The `versions` group resolves a file whose three sides differ in
+// `version` fields only, with no generator and no hook. The rule, per version field:
+//   - one side changed it: take that side. Neither changed it: keep it.
+//   - both changed it to the same version: keep it. Git never calls the driver when the plugin.json
+//     sides match, so any other result would break the parity with the marketplace entry.
+//   - both changed it differently: let lo be the bump level (major, minor, patch) of the lower side
+//     against the base. The result is max(ours, theirs) bumped at lo, so it differs from the base and
+//     both sides. Base 2.69.0 with 2.70.0 and 2.69.1 gives 2.70.1.
+// Every plugin.json and its marketplace entry see the same three versions, so they get the same
+// result and the version parity check holds. Anything else falls back to the plain text merge, which
+// merges or conflicts as git would without the driver: a changed field other than a version, an
+// entry set that differs, a version that is not x.y.z or went below the base, or a side not written
+// as 2-space JSON with a trailing newline. The driver never guesses.
+// It runs only in a local checkout. CI and web-UI merges never load it and stay as they are.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -74,6 +91,13 @@ export const GROUPS = [
     attributes: ['.agents/plugins/marketplace.json', 'codex-marketplace/**', 'opencode-dist/**'],
     tools: [['build-codex-marketplace.mjs'], ['build-opencode-dist.mjs']],
     stage: ['.agents/plugins/marketplace.json', 'codex-marketplace/', 'opencode-dist/'],
+  },
+  {
+    id: 'versions',
+    match: (p) => p === '.claude-plugin/marketplace.json' || /^plugins\/[^/]+\/\.claude-plugin\/plugin\.json$/.test(p),
+    attributes: ['.claude-plugin/marketplace.json', 'plugins/*/.claude-plugin/plugin.json'],
+    tools: [],
+    resolve: mergeVersions,
   },
   {
     id: 'docs-manifest',
@@ -174,6 +198,56 @@ function mergeHeads(root) {
   return Object.keys(process.env).flatMap((key) => /^GITHEAD_([0-9a-f]{40}|[0-9a-f]{64})$/.exec(key)?.[1] ?? []).sort();
 }
 
+const SEMVER = /^(\d+)\.(\d+)\.(\d+)$/;
+const parseVersion = (text) => { const match = typeof text === 'string' && SEMVER.exec(text); return match ? match.slice(1).map(Number) : null; };
+const compareVersions = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+// 0 = major, 1 = minor, 2 = patch: the first part where `to` departs from `from`.
+const bumpLevel = (from, to) => (from[0] !== to[0] ? 0 : from[1] !== to[1] ? 1 : 2);
+const bumpAt = (version, level) => version.map((part, index) => (index < level ? part : index === level ? part + 1 : 0));
+
+// The merged version text, or null when the rule does not apply.
+function mergeVersion(base, ours, theirs) {
+  if (ours === base) return theirs;
+  if (theirs === base || ours === theirs) return ours;
+  const [b, o, t] = [base, ours, theirs].map(parseVersion);
+  if (!b || !o || !t || compareVersions(o, b) <= 0 || compareVersions(t, b) <= 0) return null;
+  const lower = compareVersions(o, t) <= 0 ? o : t;
+  const higher = lower === o ? t : o;
+  return bumpAt(higher, bumpLevel(b, lower)).join('.');
+}
+
+// Split a plugin.json or marketplace.json into its version fields and everything else.
+function versionSlots(text, path) {
+  let doc;
+  try { doc = JSON.parse(text); } catch { return null; }
+  if (`${JSON.stringify(doc, null, 2)}\n` !== text) return null;
+  let slots;
+  if (path !== '.claude-plugin/marketplace.json') {
+    const { version, ...rest } = doc;
+    slots = { doc, rest, versions: { '': version } };
+  } else {
+    if (!Array.isArray(doc.plugins) || new Set(doc.plugins.map((entry) => entry?.name)).size !== doc.plugins.length) return null;
+    slots = { doc, rest: { ...doc, plugins: doc.plugins.map(({ version, ...entry }) => entry) }, versions: Object.fromEntries(doc.plugins.map((entry) => [entry.name, entry.version])) };
+  }
+  return Object.values(slots.versions).every((version) => typeof version === 'string') ? slots : null;
+}
+
+// Write the merged file over `ours` and return true, or return false and leave every file alone.
+function mergeVersions(base, ours, theirs, path) {
+  const [b, o, t] = [base, ours, theirs].map((file) => versionSlots(readFileSync(file, 'utf8'), path));
+  if (!b || !o || !t) return false;
+  if (JSON.stringify(b.rest) !== JSON.stringify(o.rest) || JSON.stringify(b.rest) !== JSON.stringify(t.rest)) return false;
+  const merged = {};
+  for (const key of Object.keys(o.versions)) {
+    merged[key] = mergeVersion(b.versions[key], o.versions[key], t.versions[key]);
+    if (merged[key] === null) return false;
+  }
+  if (path === '.claude-plugin/marketplace.json') for (const entry of o.doc.plugins) entry.version = merged[entry.name];
+  else o.doc.version = merged[''];
+  writeFileSync(ours, `${JSON.stringify(o.doc, null, 2)}\n`);
+  return true;
+}
+
 function textMerge(ours, base, theirs, path) {
   const result = git(['merge-file', '-L', `${path} (ours)`, '-L', `${path} (base)`, '-L', `${path} (theirs)`, ours, base, theirs]);
   return result.status === 0 ? 0 : 1;
@@ -195,6 +269,7 @@ function recordPending(root, path, base, ours, theirs) {
 
 function driver([base, ours, theirs, path]) {
   const group = GROUPS.find((candidate) => candidate.match(path));
+  if (group?.resolve) return group.resolve(base, ours, theirs, path) ? 0 : textMerge(ours, base, theirs, path);
   if (!group || !groupRunnable(group) || !inMergeCommand()) return textMerge(ours, base, theirs, path);
   try { recordPending(topLevel(), path, base, ours, theirs); } catch { return textMerge(ours, base, theirs, path); }
   if (!group.normalize) return 0;

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
+      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "5195beff08c8867b2a3a3915dc707cf5c7034f4fce978f6577336f93bda7eb9f"
+      "verifiedDigest": "ce9a8b385d0b4ba5895f22acf0a89699b3347a7aae6c824f573be8a0737750c7"
     },
     {
       "slug": "gate-scripts",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
+      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -939,8 +939,13 @@
         },
         {
           "file": "scripts/derived-merge.mjs",
-          "line": 125,
+          "line": 149,
           "anchor": "export function registerDriver(root, scriptsDir = SCRIPTS) {"
+        },
+        {
+          "file": "scripts/derived-merge.mjs",
+          "line": 94,
+          "anchor": "},"
         },
         {
           "file": "scripts/distill-check.mjs",
@@ -974,13 +979,18 @@
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 19,
+          "line": 27,
           "anchor": "export const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 37,
+          "line": 45,
           "anchor": "export function assembleChangelog(text, bodies, version) {"
+        },
+        {
+          "file": "scripts/changelog-fragments.mjs",
+          "line": 74,
+          "anchor": "export function assemblePlugin(pluginDir) {"
         },
         {
           "file": "scripts/check-plugin-bump.mjs",
@@ -988,7 +998,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "56e49f33a73ba78f819140d61a1431486039fcecf0a9d9f1e945fd70c7d6abe6"
+      "verifiedDigest": "08bd62e78fd856a78278c64686ec8e4f00f68ef13728cf3eb39d95014e21a3b2"
     },
     {
       "slug": "evals-and-calibration",
@@ -996,8 +1006,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
-      "verifiedDigest": "5f74908bc92b6fd8d44573cff3da2f02acd9c199a6367704d88dd68181e8f103",
+      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
+      "verifiedDigest": "65868d8d83f7d536cb6256316e76402f6add0259cc0440a84581e02e3665a26e",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1066,7 +1076,7 @@
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 620,
+          "line": 668,
           "anchor": "// 14. Mutants for the hooks. Each broken hook must fail the scenario that guard"
         },
         {
@@ -1349,7 +1359,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
+      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1462,7 +1472,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "af8a626d339a188ac7fb2700aef913bb212a5e4f0df431a95a9b88be2750f770"
+      "verifiedDigest": "ae16371afc3c6e62fbc998d09b760a7ccb4f9c0ea0b76af7dfb935aa002d55c9"
     },
     {
       "slug": "ci-workflows",
@@ -1569,7 +1579,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
+      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1656,7 +1666,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1699,7 +1709,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "69b2a1b2dc3dd923b19abd5a94f468ab320a878f5912736c27dd02a15eda47be"
+      "verifiedDigest": "e0c58c01cb6f6e36c8d942003cf3fb6ff4f0e5d2e6e183841785e17ca1e22023"
     },
     {
       "slug": "runtime-toolchain",

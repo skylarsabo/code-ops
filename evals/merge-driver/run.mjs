@@ -209,6 +209,54 @@ function stageRevendor(repo) {
   return git(repo, 'commit', '-qm', 'script change with a stamp');
 }
 
+// Version-field resolution. The plugin.json and marketplace.json formats follow the repository files.
+const fileText = (doc) => `${JSON.stringify(doc, null, 2)}\n`;
+const pluginDoc = (version, description = 'pa') => ({ name: 'pa', version, description });
+const marketDoc = (versions, description = 'market') => ({ name: 'm', description, plugins: Object.entries(versions).map(([name, version]) => ({ name, version, source: `./plugins/${name}` })) });
+const VERSION_PATH = 'plugins/pa/.claude-plugin/plugin.json';
+const MARKET_PATH = '.claude-plugin/marketplace.json';
+// Run the driver directly on three files, the way git does, and return its exit status and the merged text.
+function runVersionDriver(script, path, base, ours, theirs) {
+  const dir = mkdtempSync(join(work, 'ver-'));
+  const [b, o, t] = ['base', 'ours', 'theirs'].map((name, index) => { const file = join(dir, name); writeFileSync(file, [base, ours, theirs][index]); return file; });
+  const result = spawnSync(process.execPath, [script, 'driver', b, o, t, path], { encoding: 'utf8' });
+  return { status: result.status ?? 1, text: readFileSync(o, 'utf8') };
+}
+// The rule table. Each row: base, ours, theirs, expected merged version. Returns the rows that fail.
+function versionRuleProblems(script) {
+  const rows = [
+    ['2.69.0', '2.70.0', '2.69.0', '2.70.0', 'only ours bumped'],
+    ['2.69.0', '2.69.0', '2.69.1', '2.69.1', 'only theirs bumped'],
+    ['2.69.0', '2.70.0', '2.70.0', '2.70.0', 'identical bumps'],
+    ['2.69.0', '2.70.0', '2.69.1', '2.70.1', 'minor vs patch'],
+    ['2.69.0', '2.69.1', '2.70.0', '2.70.1', 'patch vs minor'],
+    ['2.69.5', '3.0.0', '2.69.6', '3.0.1', 'major vs patch'],
+  ];
+  const problems = [];
+  for (const [base, ours, theirs, want, label] of rows) {
+    // The marketplace entry carries the same three versions, so both files must give one answer.
+    const plugin = runVersionDriver(script, VERSION_PATH, fileText(pluginDoc(base)), fileText(pluginDoc(ours)), fileText(pluginDoc(theirs)));
+    const market = runVersionDriver(script, MARKET_PATH, fileText(marketDoc({ pa: base, pb: '1.0.0' })), fileText(marketDoc({ pa: ours, pb: '1.0.0' })), fileText(marketDoc({ pa: theirs, pb: '1.0.0' })));
+    if (plugin.status !== 0 || plugin.text !== fileText(pluginDoc(want))) problems.push(`${label}: plugin.json exit ${plugin.status}`);
+    if (market.status !== 0 || market.text !== fileText(marketDoc({ pa: want, pb: '1.0.0' }))) problems.push(`${label}: marketplace.json exit ${market.status}`);
+  }
+  return problems;
+}
+// Anything but a version field changing on both sides must stay a conflict: exit non-zero, markers in the file.
+function versionRefusalProblems(script) {
+  const problems = [];
+  const refuse = (label, path, base, ours, theirs) => {
+    const run = runVersionDriver(script, path, base, ours, theirs);
+    if (run.status === 0 || !run.text.includes('<<<<<<<')) problems.push(`${label}: exit ${run.status}`);
+  };
+  refuse('description conflict beside a version', VERSION_PATH, fileText(pluginDoc('1.0.0', 'base')), fileText(pluginDoc('1.1.0', 'ours')), fileText(pluginDoc('1.0.1', 'theirs')));
+  refuse('marketplace field conflict beside versions', MARKET_PATH, fileText(marketDoc({ pa: '1.0.0' }, 'base')), fileText(marketDoc({ pa: '1.1.0' }, 'ours')), fileText(marketDoc({ pa: '1.0.1' }, 'theirs')));
+  refuse('version below the base', VERSION_PATH, fileText(pluginDoc('1.1.0')), fileText(pluginDoc('1.0.0')), fileText(pluginDoc('1.1.1')));
+  refuse('version that is not x.y.z', VERSION_PATH, fileText(pluginDoc('1.0.0')), fileText(pluginDoc('1.1.0-rc1')), fileText(pluginDoc('1.0.1')));
+  refuse('file not in the repository JSON format', VERSION_PATH, fileText(pluginDoc('1.0.0')), JSON.stringify(pluginDoc('1.1.0')), fileText(pluginDoc('1.0.1')));
+  return problems;
+}
+
 try {
   // 1. The control proves the scenario conflicts without the driver, so the passes below mean something.
   const control = fixture('control', { install: false });
@@ -630,6 +678,42 @@ try {
   writeFileSync(join(forceMutant, '.git', 'atlas-stale'), '');
   check('mutant: a merge regeneration that never triggers the final check is caught', gitWith(forceMutant, { CODE_OPS_DIGEST_AUTOFIX: 'off' }, 'merge', '--no-edit', 'right').status === 0, 'the merge was still refused');
 
+  // 9. Two PRs that each bump a plugin merge without a hand edit, and the files keep version parity.
+  const ruleProblems = versionRuleProblems(join(ROOT, 'scripts', 'derived-merge.mjs'));
+  check('versions: the rule table resolves in plugin.json and marketplace.json alike', ruleProblems.length === 0, ruleProblems.join('; '));
+  const refusalProblems = versionRefusalProblems(join(ROOT, 'scripts', 'derived-merge.mjs'));
+  check('versions: a change beyond version fields, or a doubtful version, stays a conflict', refusalProblems.length === 0, refusalProblems.join('; '));
+  const putVersions = (repo, pa, pb, extra = {}) => {
+    put(repo, VERSION_PATH, fileText({ ...pluginDoc(pa), ...extra }));
+    put(repo, 'plugins/pb/.claude-plugin/plugin.json', fileText({ ...pluginDoc(pb), name: 'pb' }));
+    put(repo, MARKET_PATH, fileText(marketDoc({ pa, pb })));
+  };
+  // Branch right and left from one base, each with its own plugin versions, and merge right into left.
+  const versionMerge = (name, options, base, right, left) => {
+    const repo = fixture(name, options);
+    // A staged plugin file makes the commit hook run both renderers. Stubs stand in, as in atlasFixture.
+    for (const build of ['build-codex-marketplace.mjs', 'build-opencode-dist.mjs']) put(repo, `scripts/${build}`, 'process.exit(0);\n');
+    for (const path of ['.agents/plugins/marketplace.json', 'codex-marketplace/stub.txt', 'opencode-dist/stub.txt']) put(repo, path, 'stub\n');
+    putVersions(repo, ...base);
+    commit(repo, 'plugins');
+    git(repo, 'checkout', '-qb', 'right');
+    putVersions(repo, ...right);
+    commit(repo, 'right');
+    git(repo, 'checkout', '-q', 'main');
+    git(repo, 'checkout', '-qb', 'left');
+    putVersions(repo, ...left);
+    commit(repo, 'left');
+    return { repo, merge: git(repo, 'merge', '--no-edit', 'right') };
+  };
+  const verRun = versionMerge('versions', {}, ['2.69.0', '1.0.0'], ['2.69.1', '1.1.0'], ['2.70.0', '1.0.0']);
+  const mergedPa = JSON.parse(read(verRun.repo, VERSION_PATH)).version;
+  const mergedPb = JSON.parse(read(verRun.repo, 'plugins/pb/.claude-plugin/plugin.json')).version;
+  const mergedMarket = Object.fromEntries(JSON.parse(read(verRun.repo, MARKET_PATH)).plugins.map((entry) => [entry.name, entry.version]));
+  check('versions: a git merge of two bumps ends clean, with the minor-vs-patch result', verRun.merge.status === 0 && !unmerged(verRun.repo).length && mergedPa === '2.70.1' && mergedPb === '1.1.0', `${verRun.merge.status} ${mergedPa} ${mergedPb} ${verRun.merge.out.slice(-200)}`);
+  check('versions: each marketplace entry matches its plugin.json after the merge', mergedMarket.pa === mergedPa && mergedMarket.pb === mergedPb, JSON.stringify(mergedMarket));
+  const verControl = versionMerge('versions-control', { install: false }, ['2.69.0', '1.0.0'], ['2.69.1', '1.1.0'], ['2.70.0', '1.0.0']);
+  check('versions: control, without the driver the same merge conflicts', verControl.merge.status !== 0 && unmerged(verControl.repo).includes(VERSION_PATH), unmerged(verControl.repo).join());
+
   // 8. Mutants. Each broken driver must fail the scenario that guards it, or the eval proves nothing.
   const mutate = (name, from, to) => {
     const dir = join(work, `mutant-${name}`);
@@ -656,6 +740,15 @@ try {
   const blindCheck = adopterMerge(mutate('blind-check', 'if (!existsSync(script)) return', 'if (false) return'));
   git(blindCheck.repo, 'config', '--local', 'merge.code-ops-derived.driver', `node "${join(work, 'gone', 'derived-merge.mjs').split('\\').join('/')}" driver %O %A %B %P`);
   check('mutant: a check that skips the existence test is caught', node(blindCheck.tree, join(blindCheck.cache, 'derived-merge.mjs'), 'check').status === 0, 'check still failed on a missing script');
+  // Mutant E: the lower side no longer sets the bump level.
+  const wrongLevel = mutate('wrong-level', 'const lower = compareVersions(o, t) <= 0 ? o : t;', 'const lower = compareVersions(o, t) >= 0 ? o : t;');
+  check('mutant: a bump level taken from the higher side is caught', versionRuleProblems(join(wrongLevel, 'derived-merge.mjs')).length > 0, 'the rule table passed');
+  // Mutant F: a changed field other than a version no longer forces the text merge.
+  const looseRest = mutate('loose-rest', 'if (JSON.stringify(b.rest) !== JSON.stringify(o.rest) || JSON.stringify(b.rest) !== JSON.stringify(t.rest)) return false;', '');
+  check('mutant: a driver that ignores non-version fields is caught', versionRefusalProblems(join(looseRest, 'derived-merge.mjs')).length > 0, 'the refusal cases passed');
+  // Mutant G: a version below the base is accepted.
+  const lowVersion = mutate('low-version', 'compareVersions(o, b) <= 0 || compareVersions(t, b) <= 0', 'false');
+  check('mutant: a driver that accepts a version below the base is caught', versionRefusalProblems(join(lowVersion, 'derived-merge.mjs')).length > 0, 'the refusal cases passed');
 } finally {
   rmSync(work, { recursive: true, force: true });
 }
