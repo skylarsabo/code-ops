@@ -9,9 +9,11 @@
 //        file (type `unknown`) each price to the hand-computed USD and the priced subtotal sums them.
 //   b.   Per-field max. One lead message id appears twice and the later record raises output, so the
 //        lead's output is the later figure once, not the first figure and not the sum.
-//   c.   Unpriced ids. `claude-fable-5-1` (no entry) and `claude-haiku-5-5` (a per-request tier the
-//        session totals cannot apply) are listed with their tokens and cost nothing in the subtotal.
-//        An id with no entry is never $0 and never aliased to a family rate.
+//   c.   Unpriced ids. `claude-fable-5-1` (no entry) is listed with its tokens and costs nothing in
+//        the subtotal. An id with no entry is never $0 and never aliased to a family rate.
+//   i.   Haiku 5.5 (OI-17) prices per message: a prompt (input + cache read + cache write) over
+//        100,000 puts the whole request in the higher tier. One message at exactly 100,000 and one
+//        at 100,200 price at the low and high rates; the report names the working assumption.
 //   d.   A message with no usage lands under UNKNOWN and is reported as incomplete.
 //   e.   `--check` exits 1 for the fixture with unpriced ids, 0 for a fixture whose ids are all
 //        priced, and 1 for a directory with no transcripts.
@@ -136,7 +138,8 @@ const impl = row(rep, 'agent:code-ops-suite:implementer', SONNET);
 check('a. implementer Sonnet USD', impl?.input === 300 && impl.cacheRead === 12000 && impl.cacheWrite === 5000 && impl.output === 1100 && near(impl.usd, 0.0265), JSON.stringify(impl));
 const haiku = row(rep, 'agent:unknown', HAIKU4);
 check('a. Haiku 4.5 thread with no meta file prices under agent:unknown', near(haiku?.usd, 0.00725), JSON.stringify(haiku));
-check('a. priced subtotal sums the priced rows only', near(rep.totals.pricedUsd, 0.22975), String(rep.totals.pricedUsd));
+//    Implementer Haiku 5.5, one low-tier message: (1000*0.1 + 100*0.5) / 1e6 = 0.00015
+check('a. priced subtotal sums the priced rows only', near(rep.totals.pricedUsd, 0.2299), String(rep.totals.pricedUsd));
 check('a. kind split keeps lead and subagent apart', rep.byKind.some((k) => k.kind === 'lead' && k.model === OPUS && near(k.usd, 0.196))
   && rep.byKind.some((k) => k.kind === 'subagent' && k.model === SONNET && near(k.usd, 0.0265)), JSON.stringify(rep.byKind));
 
@@ -145,14 +148,14 @@ check('b. repeated message id takes the per-field max', lead?.output === 3000 &&
 
 // c. Unpriced ids are listed, with tokens, and add nothing to the subtotal.
 const ids = rep.unpriced.map((u) => u.model).sort();
-check('c. exactly the two unpriced ids are listed', JSON.stringify(ids) === JSON.stringify([FABLE, HAIKU5].sort()), JSON.stringify(ids));
+check('c. exactly the unpinned id is listed; Haiku 5.5 is priced', JSON.stringify(ids) === JSON.stringify([FABLE]), JSON.stringify(ids));
 const fable = rep.unpriced.find((u) => u.model === FABLE);
 check('c. an unpriced id carries its tokens and a reason', fable?.input === 100 && fable.output === 50 && fable.messages === 1 && fable.reason === 'no price pinned', JSON.stringify(fable));
-check('c. Haiku 5.5 names its per-request tier', /100k/.test(rep.unpriced.find((u) => u.model === HAIKU5)?.reason ?? ''));
 check('c. unpriced rows have no USD', rep.rows.filter((r) => !r.priced).every((r) => r.usd === null));
 const text = run(script, ['--transcripts', mixed]);
 check('c. text report lists the unpriced id and labels the subtotal', /## Unpriced model ids[\s\S]*claude-fable-5-1/.test(text.stdout)
   && text.stdout.includes('Priced subtotal, excludes unpriced ids: $0.23.'), text.stdout.slice(-400));
+check('c. a Haiku 5.5 message in the fixture prints the tier assumption', text.stdout.includes('prompt = input + cache read + cache write tokens of one request'), text.stdout.slice(-600));
 
 // d. A message with no usage is incomplete, never priced.
 check('d. missing usage is reported as incomplete', rep.incomplete.some((i) => i.model === 'UNKNOWN'), JSON.stringify(rep.incomplete));
@@ -210,6 +213,26 @@ check('h. a transcript with no advisor usage reports the count only', none?.advi
 check('h. the text report says the usage is absent', noneText.includes('The transcripts carry no advisor usage'), noneText.slice(-400));
 check('h. a transcript without advisor calls prints None', /## Advisor calls\s+None\./.test(run(script, ['--transcripts', clean]).stdout));
 
+// i. Haiku 5.5 per-message tiers, hand-computed from the rates in the script's table.
+//    Under: prompt 20000+70000+10000 = 100000, not over, low tier:
+//      (20000*0.1 + 70000*0.01 + 10000*0.125 + 2000*0.5) / 1e6 = 4950 / 1e6 = 0.00495
+//    Over: prompt 30000+60000+10200 = 100200, whole request at the high tier. The id repeats with a
+//    lower first output, so the per-field max (2000) applies:
+//      (30000*0.5 + 60000*0.05 + 10200*0.625 + 2000*2.5) / 1e6 = 29375 / 1e6 = 0.029375
+//    Row: 2 messages, input 50000, cache read 130000, cache write 20200, output 4000, USD 0.034325.
+//    Low-tier-everywhere would give 0.00495 + 0.005875 = 0.010825.
+const tier = join(tmp, 'tier');
+writeLines(join(tier, 't1.jsonl'), [
+  line('h1', HAIKU5, usage(20000, 70000, 10000, 2000)),
+  line('h2', HAIKU5, usage(30000, 60000, 10200, 1000)),
+  line('h2', HAIKU5, usage(30000, 60000, 10200, 2000)),
+]);
+const tierRun = json(script, tier);
+const hr = row(tierRun.rep ?? { rows: [] }, 'lead', HAIKU5);
+check('i. Haiku 5.5 prices per message across the 100,000 prompt threshold', hr?.messages === 2 && hr.input === 50000 && hr.cacheRead === 130000 && hr.cacheWrite === 20200 && hr.output === 4000 && hr.priced && near(hr.usd, 0.034325), JSON.stringify(hr));
+check('i. the report counts the messages over the threshold', tierRun.rep?.tiered.length === 1 && tierRun.rep.tiered[0].messages === 2 && tierRun.rep.tiered[0].overThreshold === 1 && tierRun.rep.unpriced.length === 0, JSON.stringify(tierRun.rep?.tiered));
+check('i. --check exits 0 for a Haiku 5.5 fixture', run(script, ['--transcripts', tier, '--check']).status === 0);
+
 // Mutation control: price an unknown id at the Opus rate.
 const mutantDir = join(tmp, 'mutant');
 mkdirSync(mutantDir);
@@ -219,12 +242,21 @@ check('mutation target exists in the script', source.includes(alias));
 writeFileSync(join(mutantDir, 'cost-split.mjs'), source.replace(alias, "const price = PRICES[row.model] ?? PRICES['claude-opus-5-5'];"));
 const mutant = json(join(mutantDir, 'cost-split.mjs'), mixed);
 check('mutation: aliasing an unknown id empties the unpriced list', mutant.rep?.unpriced.length === 0, JSON.stringify(mutant.rep?.unpriced));
-check('mutation: aliasing changes the subtotal', !near(mutant.rep?.totals.pricedUsd, 0.22975));
+check('mutation: aliasing changes the subtotal', !near(mutant.rep?.totals.pricedUsd, 0.2299));
 check('mutation: --check no longer fails', run(join(mutantDir, 'cost-split.mjs'), ['--transcripts', mixed, '--check']).status === 0);
 const mutantAdv = json(join(mutantDir, 'cost-split.mjs'), advX);
 check('mutation: aliasing empties the unpriced advisor list', mutantAdv.rep?.unpriced.length === 0 && run(join(mutantDir, 'cost-split.mjs'), ['--transcripts', advX, '--check']).status === 0, JSON.stringify(mutantAdv.rep?.unpriced));
 
-rmSync(tmp, { recursive: true, force: true });
+// Mutation control: price every Haiku 5.5 message at the low tier. The tier assertions must fail.
+const tierPick = "const tierOf = (spec, u) => (u.input + u.cacheRead + u.cacheWrite > spec.threshold ? spec.high : spec.low);";
+check('mutation target exists for the tier pick', source.includes(tierPick));
+writeFileSync(join(mutantDir, 'cost-split.mjs'), source.replace(tierPick, 'const tierOf = (spec) => spec.low;'));
+const lowMutant = json(join(mutantDir, 'cost-split.mjs'), tier);
+const lowRow = row(lowMutant.rep ?? { rows: [] }, 'lead', HAIKU5);
+check('mutation: all-low-tier pricing fails the hand total', near(lowRow?.usd, 0.010825) && !near(lowRow?.usd, 0.034325), JSON.stringify(lowRow));
+check('mutation: all-low-tier pricing counts no message over the threshold', lowMutant.rep?.tiered[0]?.overThreshold === 0, JSON.stringify(lowMutant.rep?.tiered));
+
+rmSync(tmp,{ recursive: true, force: true });
 if (fails.length) {
   console.error(`\n${fails.length} check(s) failed:\n- ${fails.join('\n- ')}`);
   process.exit(1);

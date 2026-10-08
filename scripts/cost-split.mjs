@@ -22,6 +22,7 @@
 //     transcript-lib normalizes it away. The main thread writes at the 1h rate on a subscription,
 //     so lead cost is understated.
 //   - Thinking tokens are part of output, so only output bills.
+//   - TIERED models (Haiku 5.5) price each message by its own prompt size; see TIERED below.
 //   - A message with no usage lands under model UNKNOWN and is counted as incomplete, not priced.
 //   - ADVISOR (OI-11). A call is a `server_tool_use` block named `advisor`. Its tokens sit only in
 //     `message.usage.iterations[]` entries of type `advisor_message`, each with its own `model`;
@@ -53,10 +54,19 @@ export const PRICES = {
   'claude-haiku-4-5-20251001': { input: 1, cacheRead: 0.1, cacheWrite5m: 1.25, output: 5 },
   'claude-haiku-4-5': { input: 1, cacheRead: 0.1, cacheWrite5m: 1.25, output: 5 },
 };
-// A model that has a list price this table cannot apply, with the reason.
-const UNPRICEABLE = {
-  'claude-haiku-5-5': 'input price rises above 100k prompt tokens, a per-request tier that session totals cannot apply',
+// Per-request tiers. The rate depends on one request's prompt size, so a row prices message by
+// message, never from its session totals. Working assumption, UNVERIFIED in the docs: prompt =
+// input + cache read + cache write tokens of one request, and a prompt over the threshold puts the
+// whole request in the higher tier (worst case). The report prints this assumption.
+export const TIERED = {
+  'claude-haiku-5-5': {
+    threshold: 100000,
+    low: { input: 0.1, cacheRead: 0.01, cacheWrite5m: 0.125, output: 0.5 },
+    high: { input: 0.5, cacheRead: 0.05, cacheWrite5m: 0.625, output: 2.5 },
+  },
 };
+const tierOf = (spec, u) => (u.input + u.cacheRead + u.cacheWrite > spec.threshold ? spec.high : spec.low);
+const TIER_NOTE = 'Tiered models (claude-haiku-5-5) price per message. Assumption, unverified in the docs: prompt = input + cache read + cache write tokens of one request, and a prompt over 100,000 puts the whole request in the higher tier.';
 
 const FIELDS = ['input', 'cacheWrite', 'cacheRead', 'output'];
 const SOURCE_FIELD = { input: 'input', cacheWrite: 'cacheCreate', cacheRead: 'cacheRead', output: 'output' };
@@ -110,6 +120,25 @@ const costOf = (price, row) => (
   row.input * price.input + row.cacheRead * price.cacheRead
   + row.cacheWrite * price.cacheWrite5m + row.output * price.output) / 1e6;
 
+// Per-message usage of the tiered models in one transcript's text, deduped by message id at the
+// per-field max, as transcript-lib does. The first line's model names the message.
+function scanTiered(text) {
+  const ids = Object.keys(TIERED);
+  const byId = new Map();
+  for (const raw of text.split('\n')) {
+    if (!ids.some((id) => raw.includes(id))) continue;
+    let o;
+    try { o = JSON.parse(raw); } catch { continue; }
+    const msg = o?.message;
+    if (o?.type !== 'assistant' || !msg?.usage || !Object.hasOwn(TIERED, msg.model)) continue;
+    const key = typeof msg.id === 'string' ? msg.id : `line-${byId.size}`;
+    const m = byId.get(key) ?? { model: msg.model, input: 0, cacheWrite: 0, cacheRead: 0, output: 0 };
+    for (const f of FIELDS) m[f] = Math.max(m[f], msg.usage[{ input: 'input_tokens', cacheWrite: 'cache_creation_input_tokens', cacheRead: 'cache_read_input_tokens', output: 'output_tokens' }[f]] ?? 0);
+    byId.set(key, m);
+  }
+  return [...byId.values()];
+}
+
 // Group every thread under `lead` or `agent:<type>`, then total tokens per group and model.
 export function splitCost(dirs, { since = null } = {}) {
   const rows = new Map();
@@ -118,10 +147,15 @@ export function splitCost(dirs, { since = null } = {}) {
   const out = { files: 0, sessions: 0, subagentThreads: 0 };
   const rowOf = (group, model) => {
     const key = `${group}\t${model}`;
-    if (!rows.has(key)) rows.set(key, { group, kind: group === 'lead' || group === 'advisor' ? group : 'subagent', model, messages: 0, input: 0, cacheWrite: 0, cacheRead: 0, output: 0, incomplete: false });
+    if (!rows.has(key)) rows.set(key, { group, kind: group === 'lead' || group === 'advisor' ? group : 'subagent', model, messages: 0, input: 0, cacheWrite: 0, cacheRead: 0, output: 0, incomplete: false, tierUsd: 0, tierOver: 0 });
     return rows.get(key);
   };
-  const take = (group, s) => {
+  const addTier = (row, u) => {
+    const spec = TIERED[row.model];
+    row.tierUsd += costOf(tierOf(spec, u), u);
+    if (tierOf(spec, u) === spec.high) row.tierOver++;
+  };
+  const take = (group, s, text) => {
     for (const [model, u] of Object.entries(s.usageByModel)) {
       const row = rowOf(group, model);
       for (const f of FIELDS) {
@@ -130,6 +164,7 @@ export function splitCost(dirs, { since = null } = {}) {
       }
     }
     for (const [model, n] of Object.entries(s.models)) rowOf(group, model).messages += n;
+    for (const m of scanTiered(text)) addTier(rowOf(group, m.model), m);
     if (!s.turns) return;
     const t = threads.get(group) ?? { turns: [], peaks: [] };
     t.turns.push(s.turns);
@@ -148,6 +183,7 @@ export function splitCost(dirs, { since = null } = {}) {
       const row = rowOf('advisor', slot.model ?? 'UNKNOWN');
       row.messages++;
       if (!slot.model) row.incomplete = true;
+      if (Object.hasOwn(TIERED, row.model)) addTier(row, { input: slot.input ?? 0, cacheWrite: slot.cacheWrite ?? 0, cacheRead: slot.cacheRead ?? 0, output: slot.output ?? 0 });
       for (const f of FIELDS) if (typeof slot[f] === 'number') row[f] += slot[f]; else row.incomplete = true;
     }
   };
@@ -161,24 +197,32 @@ export function splitCost(dirs, { since = null } = {}) {
       try { mainText = readFileSync(file, 'utf8'); main = summarizeTranscript(mainText); } catch { continue; }
       if (since && main.lastTs && Date.parse(main.lastTs) < Date.parse(since)) continue;
       out.files++;
-      if (main.sidechain) { take('agent:unknown', main); takeAdvisor(session, 'subagent', mainText); out.subagentThreads++; continue; }
+      if (main.sidechain) { take('agent:unknown', main, mainText); takeAdvisor(session, 'subagent', mainText); out.subagentThreads++; continue; }
       out.sessions++;
-      take('lead', main);
+      take('lead', main, mainText);
       takeAdvisor(session, 'lead', mainText);
       for (const sub of subagentFilesFor(file)) {
         let s, text;
         try { text = readFileSync(sub, 'utf8'); s = summarizeTranscript(text); } catch { continue; }
         out.files++;
         out.subagentThreads++;
-        take(`agent:${agentTypeOf(sub)}`, s);
+        take(`agent:${agentTypeOf(sub)}`, s, text);
         takeAdvisor(session, 'subagent', text);
       }
     }
   }
-  const list = [...rows.values()].map((row) => {
+  const tierStats = new Map();
+  const list = [...rows.values()].map(({ tierUsd, tierOver, ...row }) => {
     const tokens = FIELDS.reduce((n, f) => n + row[f], 0);
+    const tiered = Object.hasOwn(TIERED, row.model);
     const price = Object.hasOwn(PRICES, row.model) ? PRICES[row.model] : null;
-    return { ...row, tokens, priced: Boolean(price), usd: price ? round(costOf(price, row)) : null };
+    if (tiered && tokens > 0) {
+      const s = tierStats.get(row.model) ?? { model: row.model, messages: 0, overThreshold: 0 };
+      s.messages += row.messages;
+      s.overThreshold += tierOver;
+      tierStats.set(row.model, s);
+    }
+    return { ...row, tokens, priced: tiered || Boolean(price), usd: tiered ? round(tierUsd) : price ? round(costOf(price, row)) : null };
   }).filter((row) => row.tokens > 0 || row.incomplete).sort((a, b) => (b.usd ?? 0) - (a.usd ?? 0) || b.tokens - a.tokens);
   const merge = (items, keyOf) => {
     const by = new Map();
@@ -197,13 +241,13 @@ export function splitCost(dirs, { since = null } = {}) {
     peakMedian: percentile(t.peaks, 0.5), peakP90: percentile(t.peaks, 0.9),
   })).sort((a, b) => a.group.localeCompare(b.group));
   const unpriced = merge(list.filter((row) => !row.priced && row.tokens > 0), (row) => row.model)
-    .map((m) => ({ model: m.model, reason: UNPRICEABLE[m.model] ?? 'no price pinned', messages: m.messages, input: m.input, cacheWrite: m.cacheWrite, cacheRead: m.cacheRead, output: m.output }));
+    .map((m) => ({ model: m.model, reason: 'no price pinned', messages: m.messages, input: m.input, cacheWrite: m.cacheWrite, cacheRead: m.cacheRead, output: m.output }));
   const sessions = [...advisor.values()].sort((a, b) => a.session.localeCompare(b.session));
   const sum = (key) => sessions.reduce((n, x) => n + x[key], 0);
   const calls = sum('leadCalls') + sum('subagentCalls');
   return {
     v: 1, pricesVerifiedAt: PRICES_VERIFIED_AT, pricingSource: PRICING_SOURCE, cacheWriteRate: '5m', since,
-    ...out, rows: list, byKind, context, unpriced,
+    ...out, rows: list, byKind, context, unpriced, tiered: [...tierStats.values()],
     advisor: { calls, leadCalls: sum('leadCalls'), subagentCalls: sum('subagentCalls'), usageAbsent: sum('usageAbsent'), sessions },
     incomplete: list.filter((row) => row.incomplete).map((row) => ({ group: row.group, model: row.model })),
     totals: { pricedUsd: round(list.reduce((n, row) => n + (row.usd ?? 0), 0)) },
@@ -238,6 +282,7 @@ function render(rep) {
       ? 'The transcripts carry no advisor usage, so these calls are counted only and cost nothing in the subtotal.'
       : `Advisor tokens bill under the advisor model id (group advisor, kind advisor) in the tables above. Usage is absent for ${fmt(adv.usageAbsent)} of ${fmt(adv.calls)} call(s): counted, not priced.`, '');
   }
+  if (rep.tiered.length) L.push(TIER_NOTE, `Priced per message: ${rep.tiered.map((t) => `${t.model} ${fmt(t.messages)} message(s), ${fmt(t.overThreshold)} over the threshold`).join('; ')}.`, '');
   L.push('## Unpriced model ids', '');
   if (!rep.unpriced.length) L.push('None.', '');
   else table(['Model', 'Reason', ...cols.slice(0, 5)], 2, rep.unpriced, (u) => [u.model, u.reason, ...tail({ ...u, priced: true, usd: 0 }).slice(0, 5)]);
