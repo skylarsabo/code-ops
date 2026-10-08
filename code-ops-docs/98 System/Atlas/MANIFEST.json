@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -459,7 +459,7 @@
         },
         {
           "file": "scripts/check-doc-citations.mjs",
-          "line": 39,
+          "line": 41,
           "anchor": "if (!manifest || ![1, 2, 3].includes(manifest.version) || manifest.hub !== hub |"
         },
         {
@@ -529,7 +529,7 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 317,
+          "line": 319,
           "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
@@ -804,12 +804,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 566,
+          "line": 576,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 593,
+          "line": 610,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -979,13 +979,18 @@
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 19,
+          "line": 27,
           "anchor": "export const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 37,
+          "line": 45,
           "anchor": "export function assembleChangelog(text, bodies, version) {"
+        },
+        {
+          "file": "scripts/changelog-fragments.mjs",
+          "line": 74,
+          "anchor": "export function assemblePlugin(pluginDir) {"
         },
         {
           "file": "scripts/check-plugin-bump.mjs",
@@ -993,7 +998,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "896b22f5212ed7b0891107070108f57328c439415d93b6fe40d1e56d586cc148"
+      "verifiedDigest": "fdc235d60dee7ac9d881a08b27fad4cbf4ad769e48cf85254e2cf0314d5fdb5e"
     },
     {
       "slug": "evals-and-calibration",
@@ -1001,8 +1006,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
-      "verifiedDigest": "bd38fc0711c96605e060864adeaec5fe363071f1f755413498d25beb2f91601e",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
+      "verifiedDigest": "f83be3338e7b700c4766d56b08aec216b817708585055e42c89c57639f64ed53",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1026,7 +1031,7 @@
         },
         {
           "file": "evals/doc-citations/run.mjs",
-          "line": 58,
+          "line": 70,
           "anchor": "const f = buildCase('manifest-v3', 'See"
         },
         {
@@ -1354,7 +1359,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1574,7 +1579,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1646,7 +1651,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "bcbe686702ca6010c770b10230b2442570236a7e3d5bcc48a46d572a6ebc924f"
+      "verifiedDigest": "6e86e12200898e01bbb9f4167a5d538c862687feba09fe477b3d2c3c05a06ef7"
     },
     {
       "slug": "root-contracts",
@@ -1661,7 +1666,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
