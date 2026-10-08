@@ -695,7 +695,7 @@ try {
   sh('add', '.');
   sh('commit', '-qm', 'init');
   const initRun = join(initRoot, '80 Runs', '2026-10-07-init-eval');
-  const initEnv = { ...process.env, CODE_OPS_HOME: home, CLAUDE_CODE_SESSION_ID: '', CODEX_SESSION_ID: '' };
+  const initEnv = { ...process.env, CODE_OPS_HOME: home, CLAUDE_CODE_SESSION_ID: '', CLAUDE_CODE_HOST_SESSION_ID: '', CODEX_SESSION_ID: '' };
   const runInit = (extra, env = initEnv) => spawnSync(process.execPath, [join(SCRIPTS, 'run-contract.mjs'), 'init', '--root', initRoot, '--run', initRun, '--lead-model', 'claude-opus-5-5', '--force', ...extra], { encoding: 'utf8', timeout: 120_000, env });
   let ri = runInit([]);
   check('9w. init with no session id says so and writes no SESSION.json', ri.status === 0 && /no session id/.test(ri.stdout) && !existsSync(join(initRun, 'SESSION.json')), `${ri.status} ${ri.stdout}${ri.stderr}`);
