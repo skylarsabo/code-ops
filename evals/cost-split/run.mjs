@@ -232,6 +232,12 @@ const hr = row(tierRun.rep ?? { rows: [] }, 'lead', HAIKU5);
 check('i. Haiku 5.5 prices per message across the 100,000 prompt threshold', hr?.messages === 2 && hr.input === 50000 && hr.cacheRead === 130000 && hr.cacheWrite === 20200 && hr.output === 4000 && hr.priced && near(hr.usd, 0.034325), JSON.stringify(hr));
 check('i. the report counts the messages over the threshold', tierRun.rep?.tiered.length === 1 && tierRun.rep.tiered[0].messages === 2 && tierRun.rep.tiered[0].overThreshold === 1 && tierRun.rep.unpriced.length === 0, JSON.stringify(tierRun.rep?.tiered));
 check('i. --check exits 0 for a Haiku 5.5 fixture', run(script, ['--transcripts', tier, '--check']).status === 0);
+// The lead thread's peak is the 100,200 turn, so it counts as one thread over the step; the
+// implementer thread in the mixed fixture (peak 15,200) counts none.
+const tierCtx = tierRun.rep?.context.find((c) => c.group === 'lead');
+check('i. the context table counts a thread whose peak crosses the 100,000 step', tierCtx?.peakMax === 100200 && tierCtx.overStep === 1, JSON.stringify(tierCtx));
+check('f. a thread under the step has max 15200 and counts none over it', peak?.peakMax === 15200 && peak.overStep === 0, JSON.stringify(peak));
+check('i. the text report prints the max and over-step columns', /\| Max peak \| Over 100K \|/.test(run(script, ['--transcripts', tier]).stdout));
 
 // Mutation control: price an unknown id at the Opus rate.
 const mutantDir = join(tmp, 'mutant');

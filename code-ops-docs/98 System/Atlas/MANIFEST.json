@@ -370,7 +370,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
+      "verifiedAt": "b86faf0c56a7da9dd15fd32877d1b8da5353e33f",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -983,7 +983,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "a81e515fd65b3ca57fbcdb789229c1c57cf7c207c0ef967082596e4dc129f94f"
+      "verifiedDigest": "73ea8fabd074ff968c8fc7d18532d39fe333539540661675f20e750a26a85491"
     },
     {
       "slug": "evals-and-calibration",
@@ -991,8 +991,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
-      "verifiedDigest": "20681def8cb7ad571c0f37116212bd90e8537c56be4eae18d553ec40de80bf19",
+      "verifiedAt": "b86faf0c56a7da9dd15fd32877d1b8da5353e33f",
+      "verifiedDigest": "5bab97a3a3b50f6525308dd07ff9af354f4fc34da3807a2b63426e99e1cb8189",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
