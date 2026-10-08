@@ -15,9 +15,21 @@ const SCRIPT = join(SOURCE, 'scripts', 'judgment-evals.mjs');
 const { fails, check } = tally(trimmed(240));
 
 function git(root, args) { return execFileSync('git', ['-c', 'core.autocrlf=false', ...args], { cwd: root, encoding: 'utf8', timeout: 15000 }).trim(); }
+// The child bounds each of its own git and scorer calls, so this cap only guards against a hang.
+// It sits far above the slowest loaded run, because a kill is not a verdict: a killed child
+// fails the eval by name, and its null status can never satisfy a check that expects exit 0.
+const CHILD_TIMEOUT_MS = 600000;
 function run(args, root) {
-  try { return { status: 0, stdout: execFileSync(process.execPath, [SCRIPT, ...args], { cwd: root, encoding: 'utf8', timeout: 30000, maxBuffer: 16 * 1024 * 1024 }), stderr: '' }; }
-  catch (error) { return { status: error.status ?? 1, stdout: String(error.stdout || ''), stderr: String(error.stderr || '') }; }
+  const started = Date.now();
+  try { return { status: 0, stdout: execFileSync(process.execPath, [SCRIPT, ...args], { cwd: root, encoding: 'utf8', timeout: CHILD_TIMEOUT_MS, maxBuffer: 16 * 1024 * 1024 }), stderr: '' }; }
+  catch (error) {
+    if (error.status === null || error.status === undefined) {
+      const reason = `judgment-evals.mjs ${args[0]} was killed (${error.code || error.signal || 'no exit status'}) after ${Date.now() - started} ms`;
+      check(`${args[0]} subprocess exits on its own`, false, reason);
+      return { status: null, stdout: String(error.stdout || ''), stderr: `${String(error.stderr || '')}${reason}\n` };
+    }
+    return { status: error.status, stdout: String(error.stdout || ''), stderr: String(error.stderr || '') };
+  }
 }
 
 const root = mkdtempSync(join(tmpdir(), 'judgment-orchestration-'));
