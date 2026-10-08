@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "c3b03b88cec339ab4fdd338902674ec15aefb9e6",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -341,7 +341,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "c8afdd29cd7a95c6298d6cfe28354772dc00175ea6eb776df90078b04e1ec722"
+      "verifiedDigest": "9cf171bbfe9ee6f905f6edd5dccf29b1aa15c0e4e2fa7041837cf96c26803400"
     },
     {
       "slug": "gate-scripts",
@@ -350,7 +350,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "c4b570b8276806ec2fcafe084485971c02456bb6",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -704,12 +704,17 @@
         },
         {
           "file": "scripts/compact-snapshot.mjs",
+          "line": 107,
+          "anchor": "export const redactBlocks = (text) => text.replace(PEM_BLOCK, '<REDACTED:secret-"
+        },
+        {
+          "file": "scripts/compact-snapshot.mjs",
           "line": 34,
           "anchor": "says that path is ignored; otherwise it goes to the home state"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 310,
+          "line": 318,
           "anchor": "const run = spawnSync('git', ['check-ignore', '-q', '--', path], { cwd: dirname("
         },
         {
@@ -719,12 +724,12 @@
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 265,
+          "line": 273,
           "anchor": "if (render().text.length > BUDGET.total) while (state.grantShown > 1 && render()"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
-          "line": 409,
+          "line": 417,
           "anchor": "export function snapshotState(header, boundaries, lastAt) {"
         },
         {
@@ -953,7 +958,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "f28348df13bff48e157e4b90bfa475031b2f308679f70c040f9d94f0019b0c25"
+      "verifiedDigest": "7951ccc7070b65fb2d188957c6c7a501f63c46077f6c0cb4f6766657feac3687"
     },
     {
       "slug": "evals-and-calibration",
@@ -961,8 +966,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "c4b570b8276806ec2fcafe084485971c02456bb6",
-      "verifiedDigest": "9a302a83cf0e89d5d25fded53fc666bdbcc05ccb13b71b94cf6c4dcbb2f00f05",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedDigest": "806e333900158398c333e6b4944ad03e9fe3bbbde2e270d99bce74285ea184ca",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1146,12 +1151,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 584,
+          "line": 609,
           "anchor": "check('9a. PARITY: every CARRIED_FIELDS section, and the Run: path, is in a simu"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 593,
+          "line": 618,
           "anchor": "check('9d. PARITY: every handoff Write field has a CARRIED_FIELDS entry, and the"
         },
         {
@@ -1161,12 +1166,22 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 359,
+          "line": 210,
+          "anchor": "check('5e. a private key block masks BEGIN through END, and an unterminated BEGI"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 222,
+          "anchor": "check('5g. mutant: without the block pass the body lines leak, so 5e catches its"
+        },
+        {
+          "file": "evals/compact-snapshot/run.mjs",
+          "line": 384,
           "anchor": "check('7f3. with capture on the PreCompact hook records the key names, never the"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 474,
+          "line": 499,
           "anchor": "writeFileSync(cardSnap, 'garbage that is not a snapshot\\n- REPLY OWED Nobody x:"
         },
         {
@@ -1261,12 +1276,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 452,
+          "line": 477,
           "anchor": "writeFileSync(tasksFile, unchecked(13));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 462,
+          "line": 487,
           "anchor": "cl = linesOf(c);"
         },
         {
@@ -1304,7 +1319,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "c3b03b88cec339ab4fdd338902674ec15aefb9e6",
+      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1417,7 +1432,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "330b84baf454ba74d70d82c099b78dbb5ab645a049571b66bfe0fcb097f214d8"
+      "verifiedDigest": "0a5e857f315c54a050093e457ca0088a42635baa4d0eb551612a6c7c18e435eb"
     },
     {
       "slug": "ci-workflows",
