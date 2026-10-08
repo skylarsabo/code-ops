@@ -30,6 +30,11 @@ export function canonical(value) {
 }
 
 export const digestJson = (value) => sha256(canonical(value));
+// Digest of a receipt with its own receiptSha256 field left out.
+export function receiptSha256(receipt) {
+  const { receiptSha256: omitted, ...body } = receipt;
+  return digestJson(body);
+}
 
 export function git(root, args) {
   return execFileSync('git', args, {

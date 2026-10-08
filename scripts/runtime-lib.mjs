@@ -10,6 +10,7 @@ import {
   git,
   portableKey,
   readJson,
+  receiptSha256,
   repoRelative,
   safeRelative,
   samePhysicalFile,
@@ -221,11 +222,7 @@ export function runtimeBinding(root, contractPath, contract) {
   };
 }
 
-export function receiptSha256(receipt) {
-  const body = structuredClone(receipt);
-  delete body.receiptSha256;
-  return digestJson(body);
-}
+export { receiptSha256 };
 
 function validateFileReference(value, label, errors) {
   if (!exact(value, FILE_REFERENCE_KEYS, label, errors)) return;
