@@ -1666,7 +1666,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "44472f115c187017b20b4684458768fe441f6a7a",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1685,22 +1685,22 @@
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
-          "line": 159,
+          "line": 167,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 140,
+          "line": 148,
           "anchor": "## Compact Instructions"
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 152,
+          "line": 160,
           "anchor": "- The next command."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 154,
+          "line": 162,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
@@ -1709,7 +1709,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "e0c58c01cb6f6e36c8d942003cf3fb6ff4f0e5d2e6e183841785e17ca1e22023"
+      "verifiedDigest": "4bc3620af517da593b06dbd077f16c3546672f8db56a2fb0977b84adc2ca7bda"
     },
     {
       "slug": "runtime-toolchain",
