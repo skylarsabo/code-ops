@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "da258924d542dfbe6ccfc47fe975bd0b480e8a6a",
+      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -361,7 +361,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "99a7040240adf1ee29187f198024ccb66eb3e95c4744254c71570aa6d30d7017"
+      "verifiedDigest": "2ac65e0cd582d79d6c860b595cc851df7227e3255ae972c0b994ef2b4a3f1c6e"
     },
     {
       "slug": "gate-scripts",
@@ -370,7 +370,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
+      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -379,8 +379,13 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 360,
+          "line": 377,
           "anchor": "export function runRetentionTier(path, mtimeMs, nowMs = Date.now()) {"
+        },
+        {
+          "file": "scripts/docs-manifest.mjs",
+          "line": 146,
+          "anchor": "const ATLAS_STAMP_FIELDS = new Set(['verifiedAt', 'verifiedDigest', 'claims']);"
         },
         {
           "file": "scripts/lint-plugins.mjs",
@@ -434,7 +439,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 159,
+          "line": 176,
           "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
@@ -459,7 +464,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 295,
+          "line": 312,
           "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
         },
         {
@@ -978,7 +983,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "cba9dd2b7f8c5d007d572020749f0ad6c71e140da9808f52fa57a7365f7ccb1c"
+      "verifiedDigest": "a81e515fd65b3ca57fbcdb789229c1c57cf7c207c0ef967082596e4dc129f94f"
     },
     {
       "slug": "evals-and-calibration",
@@ -986,8 +991,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
-      "verifiedDigest": "f45484ff161d27430c8ca7d65fb57645ada3de833595475cf21be42dc4246827",
+      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
+      "verifiedDigest": "20681def8cb7ad571c0f37116212bd90e8537c56be4eae18d553ec40de80bf19",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1339,7 +1344,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "da258924d542dfbe6ccfc47fe975bd0b480e8a6a",
+      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1452,7 +1457,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "f6f501e621ca87bb773ebc21e01b63836b3e34a81a32dceaa0b9e7d7d7c23e65"
+      "verifiedDigest": "c676ce503f10bee8a2452a330c90c9976b41de97a36861611d8bbc8cafff8e71"
     },
     {
       "slug": "ci-workflows",
@@ -1555,7 +1560,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
+      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1627,7 +1632,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "fe8ed9b323b9f61dc3d6cbcb4425df0aa63b269c8410457e520f49d84251d46a"
+      "verifiedDigest": "fc94c142e62d65253f465f73ee9f622930b1e0df09b31340a8acfe43d62faa4b"
     },
     {
       "slug": "root-contracts",

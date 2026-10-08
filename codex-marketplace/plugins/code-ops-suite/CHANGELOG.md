@@ -4,7 +4,8 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.66.0
+## 2.67.0
+- The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
 The handoff draft now lists the open rows of PLAN.md, or warns when it cannot read a source. The init step records the host session id from CLAUDE_CODE_HOST_SESSION_ID.
 - The handoff ledger records first-hop session names and not-dispatched markers. `dispatch-ledger.mjs skip` declares a contract unit that the run chose not to dispatch, and the marker carries a reason. `check-handoff` lists each marker, and refuses a marker for a unit that already has a row, a repeated marker, a marker for a unit outside the contract, and a malformed marker. `run-runtime` no longer reports a declared unit as pending and prints `not dispatched <id>: <reason>`. The handoff skill tells the lead to supply the host agent id when it records a dispatch. `artifact-grammars.md` and `CONTRACTS.md` state the marker grammar.
 - The compact card names the recall tool after a compaction: `transcript_recall`, or `co recall search --session <id> --terms <words>`. The line prints when recall is on, the payload carries a session id, and its transcript path is a file. It does not wait for the index, because the first recall call builds it.
