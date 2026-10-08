@@ -13,6 +13,8 @@ plugins/*/scripts/** merge=code-ops-derived
 codex-marketplace/** merge=code-ops-derived
 opencode-dist/** merge=code-ops-derived
 DOCS_MANIFEST.json merge=code-ops-derived
+.claude-plugin/marketplace.json merge=code-ops-derived
+plugins/*/.claude-plugin/plugin.json merge=code-ops-derived
 "**/98 System/Records/intake.jsonl" merge=union
 
 # The global contract renders from AGENTS.source.md and never hand-merges: re-run scripts/render-global-contracts.mjs.

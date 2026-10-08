@@ -1,0 +1,1 @@
+- Plugin version conflicts in `plugin.json` and the marketplace file now resolve through the derived merge driver.

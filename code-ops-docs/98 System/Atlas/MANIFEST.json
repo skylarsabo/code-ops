@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "93c57807dd63cf233613287650d9b075fe85f14d",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "faf66c417007e71c9e432fa8fab6dbdd80515051dd69a8c1a10a444d849c8abf"
+      "verifiedDigest": "2b5c0acdaa858f643810dc08843bb45e2ccc219c95f03d148563251288a005ec"
     },
     {
       "slug": "gate-scripts",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -939,8 +939,13 @@
         },
         {
           "file": "scripts/derived-merge.mjs",
-          "line": 125,
+          "line": 149,
           "anchor": "export function registerDriver(root, scriptsDir = SCRIPTS) {"
+        },
+        {
+          "file": "scripts/derived-merge.mjs",
+          "line": 94,
+          "anchor": "},"
         },
         {
           "file": "scripts/distill-check.mjs",
@@ -988,7 +993,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "1c757654348831a85d8288bf9e5d8244a2ee72607fb2de406c960c4ebb20dbf8"
+      "verifiedDigest": "896b22f5212ed7b0891107070108f57328c439415d93b6fe40d1e56d586cc148"
     },
     {
       "slug": "evals-and-calibration",
@@ -996,8 +1001,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
-      "verifiedDigest": "966a973b3d64321ac667dd6aad4e98433570c7c8434cc31fba8d97acf8c9119d",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedDigest": "bd38fc0711c96605e060864adeaec5fe363071f1f755413498d25beb2f91601e",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1066,7 +1071,7 @@
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 620,
+          "line": 668,
           "anchor": "// 14. Mutants for the hooks. Each broken hook must fail the scenario that guard"
         },
         {
@@ -1349,7 +1354,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "93c57807dd63cf233613287650d9b075fe85f14d",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1462,7 +1467,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "e8cb1efdb36d66848b7d8d1bea0fc930efcb194c3d0034445d66a58896888514"
+      "verifiedDigest": "1840151e65312bf7eb7d56fc6c0c0b7423dcb13991fc1ae7ade7c95bb1f47fb3"
     },
     {
       "slug": "ci-workflows",
@@ -1656,7 +1661,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "b9b61f99387ee0bb056cfa01ec0b54145e484e30",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1699,7 +1704,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "69b2a1b2dc3dd923b19abd5a94f468ab320a878f5912736c27dd02a15eda47be"
+      "verifiedDigest": "e0c58c01cb6f6e36c8d942003cf3fb6ff4f0e5d2e6e183841785e17ca1e22023"
     },
     {
       "slug": "runtime-toolchain",
