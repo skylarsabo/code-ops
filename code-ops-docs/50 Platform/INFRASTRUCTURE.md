@@ -19,7 +19,7 @@ host, provider, model, observation source, and five capability states. Runtime r
 default metrics retain only its digest, states, and policy outcomes. The tools do not infer
 capabilities from a model name. Initialization rejects Git-visible paths and linked components
 before writing raw provenance. Evidence: `scripts/host-capabilities.mjs:1-79` and
-`scripts/runtime-lib.mjs:17-29`, `193-218`.
+`scripts/runtime-lib.mjs:18-30`, `193-218`.
 
 The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
 
@@ -278,7 +278,7 @@ OpSec review execute locally, not on this repository's GitHub runner, and the ga
 provider: a receipt records whichever reviewer identity ran it. The local
 review gate needs only Git, Node, ignored receipt storage, and an available local reviewer.
 GitHub review examples remain opt-in consumer integrations. Evidence: `scripts/check-no-deps.mjs:24-28`
-and `scripts/local-review-gate.mjs:1-39`.
+and `scripts/local-review-gate.mjs:1-40`.
 
 `ctags` and `codegraph` are optional external tools, not dependencies. `preflight.mjs` prints
 each one as present or absent beside its other capability lines, and their absence never fails a
@@ -292,8 +292,8 @@ The context compiler sets a 30-second timeout for repository-map, import-graph, 
 
 The runtime receipt chain has a 32 MiB limit. Each configured stable prefix has its own byte
 limit. Stable-prefix files must be regular stage-0 tracked UTF-8 text without linked
-components. Evidence: `scripts/context-index-lib.mjs:82-110` and
-`scripts/runtime-lib.mjs:148-172`, `303-351`.
+components. Evidence: `scripts/context-index-lib.mjs:87-115` and
+`scripts/runtime-lib.mjs:149-173`, `303-351`.
 
 ## Record tooling distribution
 

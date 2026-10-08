@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "9adedcdc50f948fd8d4336da656088cd5d9effd4",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "9aff5a56bd0fb94b06501b6b0c5c75264552476c7af9453f0b4703327cef34ff"
+      "verifiedDigest": "76dde141c2006dee753fe48c471fe450de75b5cfa960f7dc95c55eadbd7ecee3"
     },
     {
       "slug": "gate-scripts",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9adedcdc50f948fd8d4336da656088cd5d9effd4",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -988,7 +988,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "65c9696441f3fca9280727f510f8b9c7edeaef16c2ff820fe8485acac7873950"
+      "verifiedDigest": "1c757654348831a85d8288bf9e5d8244a2ee72607fb2de406c960c4ebb20dbf8"
     },
     {
       "slug": "evals-and-calibration",
@@ -996,7 +996,7 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9adedcdc50f948fd8d4336da656088cd5d9effd4",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "verifiedDigest": "966a973b3d64321ac667dd6aad4e98433570c7c8434cc31fba8d97acf8c9119d",
       "claims": [
         {
@@ -1076,7 +1076,7 @@
         },
         {
           "file": "scripts/judgment-evals.mjs",
-          "line": 155,
+          "line": 156,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
         },
         {
@@ -1349,7 +1349,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "9adedcdc50f948fd8d4336da656088cd5d9effd4",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1462,7 +1462,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "b5a73ae2f80c9f78c51a28104c70d05528399e794981926e271beec541ebcf0b"
+      "verifiedDigest": "fd1ac913fd9e9ae78af08ed08a6567b1a1632f9b51d6866dd849002dcc58196d"
     },
     {
       "slug": "ci-workflows",
@@ -1470,7 +1470,7 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "verifiedDigest": "35fead9031cd01e0a01ac8033e3d1a2000e352bee9160d8e184fc2652aa7af30",
       "claims": [
         {
@@ -1512,6 +1512,10 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 583
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 453
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1565,7 +1569,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "a4139869be85d8e653a262cf81d74d2665a25c0d",
+      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1637,7 +1641,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "2e3a3380eceb5ea82ae0f76750d5e8d75ed65fb5c3486c9c22ebf15bcf0855ac"
+      "verifiedDigest": "bcbe686702ca6010c770b10230b2442570236a7e3d5bcc48a46d572a6ebc924f"
     },
     {
       "slug": "root-contracts",

@@ -27,6 +27,7 @@ import {
   gitText,
   portableKey,
   readJson,
+  receiptSha256,
   repoRelative,
   safeRelative,
   samePhysicalFile,
@@ -176,11 +177,6 @@ function loadCurrentPlan(root, argument) {
   }
   const receipts = ignoredPath(root, plan.receiptsPath, 'receipt chain path');
   return { plan, path, receipts };
-}
-
-function receiptSha256(receipt) {
-  const { receiptSha256: omitted, ...body } = receipt;
-  return digestJson(body);
 }
 
 function validateReceiptShape(receipt) {

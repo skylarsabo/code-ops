@@ -120,7 +120,7 @@ The dispatch ledger records planned work and state transitions. A failed dispatc
 
 ## Context compiler
 
-The context compiler separates an exact repository snapshot from a per-unit bundle. A snapshot hashes visible Git state and generator identities, then reuses a content-addressed structural cache. Evidence: `scripts/context-index-lib.mjs:135-195` and `scripts/context-snapshot.mjs:72-124`.
+The context compiler separates an exact repository snapshot from a per-unit bundle. A snapshot hashes visible Git state and generator identities, then reuses a content-addressed structural cache. Evidence: `scripts/context-index-lib.mjs:140-200` and `scripts/context-snapshot.mjs:72-124`.
 
 A bundle selects files in the unit scope, direct import neighbors, visible changes, and freshness-gated Atlas excerpts. It fails with a marker when scope is broad or the byte budget is exceeded. Evidence: `scripts/context-bundle.mjs:52-83` and `scripts/context-bundle.mjs:85-164`.
 
@@ -135,7 +135,7 @@ host memory, and task budget. The contract validator verifies the context snapsh
 the runtime configuration before runtime work starts. Capability and receipt paths must
 differ portably and physically. Runtime heads use exact SHA-1 or SHA-256 object IDs. Evidence:
 `scripts/run-contract.mjs:11-27`, `scripts/run-contract.mjs:60-72`, and
-`scripts/runtime-lib.mjs:76-114` and `scripts/runtime-lib.mjs:175-192`.
+`scripts/runtime-lib.mjs:77-115` and `scripts/runtime-lib.mjs:176-193`.
 
 `host-capabilities.mjs` writes one explicit descriptor. It records host, provider, model,
 evidence source, observation time, and one state per capability. The descriptor does not
@@ -146,7 +146,7 @@ linked components before writing. Evidence: `scripts/host-capabilities.mjs:12-22
 The stable-prefix compiler accepts only exact tracked UTF-8 text paths. It emits a framed,
 ordered byte payload and records its digest, total bytes, and per-file digests. It rejects
 invalid paths, NUL bytes, and payloads over the contract limit. Evidence:
-`scripts/runtime-lib.mjs:148-174`.
+`scripts/runtime-lib.mjs:149-175`.
 
 The runtime creates an `init` receipt, then appends checkpoints, resumes, replans, and
 optional observations under a runtime mutation lock. A checkpoint binds the verified
@@ -158,7 +158,7 @@ and advances exactly one revision. Evidence: `scripts/run-runtime.mjs:107-136` a
 Receipt replay verifies contiguous sequence numbers, predecessor digests, receipt digests,
 binding stability, checkpoint requirements, and resume replay. The receipt chain is the runtime
 continuity record. Source code remains authoritative for behavior. Evidence:
-`scripts/runtime-lib.mjs:310-358`.
+`scripts/runtime-lib.mjs:307-355`.
 
 The runtime exposes a bounded, read-only status projection for continuation after compaction or operator transfer. Partial acceptance may be checkpointed, but final acceptance remains fail-closed on every blocking criterion. Unit-attributed observations connect actual token use to optional contract envelopes and surface overruns without replaying the full receipt chain.
 
@@ -169,15 +169,15 @@ in. `local-review-gate.mjs` prepares a
 review plan only from a clean, unambiguous-index, non-default feature branch whose base is an ancestor of
 `HEAD`. The plan binds base and head SHAs, a binary diff digest, and sorted changed paths.
 Plan, report, and receipt paths must be ignored by Git. Evidence:
-`scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:83-185`, and
-`scripts/local-review-gate.mjs:357-383`.
+`scripts/context-index-lib.mjs:72-84`, `scripts/local-review-gate.mjs:84-182`, and
+`scripts/local-review-gate.mjs:353-379`.
 
 The local gate has exactly two review domains: `local-deep-review` and
 `local-opsec-gate`. Each report receipt is chained and binds the review plan, reviewer and
 model label, tier, effort, verdict, confirmed and blocking finding counts, and report
 digest. A check requires one passing receipt for each domain. Evidence:
-`scripts/local-review-gate.mjs:35-43`, `scripts/local-review-gate.mjs:194-269`, and
-`scripts/local-review-gate.mjs:374-468`.
+`scripts/local-review-gate.mjs:36-44`, `scripts/local-review-gate.mjs:190-265`, and
+`scripts/local-review-gate.mjs:370-464`.
 
 Ignored authority paths cannot alias tracked Git paths, and the two gates must name different
 reviewer identities. The same boundary covers the local judgment-eval planner's plans, findings,
@@ -191,7 +191,7 @@ model-review service. The optional status publisher first verifies the local rec
 both remote branch tips, then posts one success status per gate. The
 [CI and delivery reference](../50%20Platform/CI_DELIVERY.md) owns the job layout and the
 branch-protection rule. Evidence: `.github/workflows/validate.yml:3-27` and
-`scripts/local-review-gate.mjs:274-344`.
+`scripts/local-review-gate.mjs:270-340`.
 
 ## Authority
 

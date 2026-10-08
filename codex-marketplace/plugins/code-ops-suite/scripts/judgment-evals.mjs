@@ -19,6 +19,7 @@ import {
   gitText,
   portableKey,
   readJson,
+  receiptSha256,
   safeRelative,
   samePhysicalFile,
   sha256,
@@ -231,11 +232,6 @@ function scoreUnits(root, scorerPath, plan) {
     if (!answerKey) throw new Error(`answer key binding is missing for ${unit.id}`);
     return scoreUnit(root, scorerPath, unit, answerKey, plan.execution);
   });
-}
-
-function receiptSha256(receipt) {
-  const { receiptSha256: omitted, ...body } = receipt;
-  return digestJson(body);
 }
 
 function validateScoreReceipt(root, current, argument) {

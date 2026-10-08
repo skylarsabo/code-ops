@@ -57,14 +57,14 @@ local gate binds the base SHA, HEAD SHA, binary-diff digest, changed paths, revi
 strong-or-frontier tier, report digest, and hash-chained receipts. It rejects a dirty or
 index-ambiguous worktree,
 base movement, changed HEAD, changed diff, report drift, missing reviews, and non-PASS verdicts.
-Evidence: `scripts/context-index-lib.mjs:67-79`, `scripts/local-review-gate.mjs:97-269`,
-and `scripts/local-review-gate.mjs:357-450`.
+Evidence: `scripts/context-index-lib.mjs:72-84`, `scripts/local-review-gate.mjs:98-265`,
+and `scripts/local-review-gate.mjs:353-446`.
 
 `local-review-gate.mjs publish` can publish verified local receipts as commit statuses. Status
 publication is optional. Branch protection on `main` must require only the deterministic
 checks, because a required model-review status would block every change the operator chose not
 to review. Publication does not make GitHub the review executor. Evidence:
-`scripts/local-review-gate.mjs:274-344` and `scripts/local-review-gate.mjs:441-468`.
+`scripts/local-review-gate.mjs:270-340` and `scripts/local-review-gate.mjs:437-464`.
 
 GitHub `validate` is the required hosted merge gate. It runs deterministic lint, rendering,
 checks, and regression tests only. Branch protection should require its structural jobs. Any
