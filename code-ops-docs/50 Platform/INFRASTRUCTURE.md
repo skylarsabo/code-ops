@@ -184,7 +184,7 @@ The handoff-card marker store is `<host home>/code-ops/handoff/<project slug>/<s
 one small file per session holding the 150,000-token band already nudged and the highest band the
 session reached. It has no override variable and nothing purges it automatically; delete the
 directory to purge it. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:68-72` and
-`scripts/transcript-lib.mjs:565-581`.
+`scripts/transcript-lib.mjs:572-588`.
 
 The session records live at `<home>/.claude/code-ops/sessions/<repo key>/<session id>.json`,
 one small file per session. A record holds the session id, host session id, name, worktree, run

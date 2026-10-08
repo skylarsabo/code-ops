@@ -89,14 +89,14 @@ function agentTypeOf(file) {
 // id. Streamed lines repeat a message id, so each iteration keeps its per-field max by message id and
 // position, as transcript-lib does for plain usage. Most lines never name the advisor, so the
 // substring test keeps the second scan cheap.
-export function scanAdvisor(text) {
+export function scanAdvisor(text, prior = null) {
   const callIds = new Set();
   const byMessage = new Map();
   for (const raw of text.split('\n')) {
     if (!raw.includes('advisor')) continue;
     let msg;
     try { msg = JSON.parse(raw)?.message; } catch { continue; }
-    if (!msg || typeof msg !== 'object') continue;
+    if (!msg || typeof msg !== 'object' || prior?.has(msg.id)) continue;
     if (Array.isArray(msg.content)) {
       for (const b of msg.content) if (b?.type === 'server_tool_use' && b.name === 'advisor' && typeof b.id === 'string') callIds.add(b.id);
     }
@@ -122,7 +122,7 @@ const costOf = (price, row) => (
 
 // Per-message usage of the tiered models in one transcript's text, deduped by message id at the
 // per-field max, as transcript-lib does. The first line's model names the message.
-function scanTiered(text) {
+function scanTiered(text, prior) {
   const ids = Object.keys(TIERED);
   const byId = new Map();
   for (const raw of text.split('\n')) {
@@ -130,7 +130,7 @@ function scanTiered(text) {
     let o;
     try { o = JSON.parse(raw); } catch { continue; }
     const msg = o?.message;
-    if (o?.type !== 'assistant' || !msg?.usage || !Object.hasOwn(TIERED, msg.model)) continue;
+    if (o?.type !== 'assistant' || !msg?.usage || !Object.hasOwn(TIERED, msg.model) || prior.has(msg.id)) continue;
     const key = typeof msg.id === 'string' ? msg.id : `line-${byId.size}`;
     const m = byId.get(key) ?? { model: msg.model, input: 0, cacheWrite: 0, cacheRead: 0, output: 0 };
     for (const f of FIELDS) m[f] = Math.max(m[f], msg.usage[{ input: 'input_tokens', cacheWrite: 'cache_creation_input_tokens', cacheRead: 'cache_read_input_tokens', output: 'output_tokens' }[f]] ?? 0);
@@ -155,6 +155,9 @@ export function splitCost(dirs, { since = null } = {}) {
     row.tierUsd += costOf(tierOf(spec, u), u);
     if (tierOf(spec, u) === spec.high) row.tierOver++;
   };
+  // Message ids earlier files claimed. A forked or resumed session repeats ids across files, so a
+  // message counts once across everything read; a message with no id still counts per line.
+  const claimed = new Set();
   const take = (group, s, text) => {
     for (const [model, u] of Object.entries(s.usageByModel)) {
       const row = rowOf(group, model);
@@ -164,7 +167,7 @@ export function splitCost(dirs, { since = null } = {}) {
       }
     }
     for (const [model, n] of Object.entries(s.models)) rowOf(group, model).messages += n;
-    for (const m of scanTiered(text)) addTier(rowOf(group, m.model), m);
+    for (const m of scanTiered(text, claimed)) addTier(rowOf(group, m.model), m);
     if (!s.turns) return;
     const t = threads.get(group) ?? { turns: [], peaks: [] };
     t.turns.push(s.turns);
@@ -173,7 +176,7 @@ export function splitCost(dirs, { since = null } = {}) {
   };
   // Advisor usage joins the same rows under group `advisor`, so the price rule and `--check` cover it.
   const takeAdvisor = (session, caller, text) => {
-    const a = scanAdvisor(text);
+    const a = scanAdvisor(text, claimed);
     if (!a.calls) return;
     const s = advisor.get(session) ?? { session, leadCalls: 0, subagentCalls: 0, usageAbsent: 0 };
     s[caller === 'lead' ? 'leadCalls' : 'subagentCalls'] += a.calls;
@@ -194,20 +197,24 @@ export function splitCost(dirs, { since = null } = {}) {
       const file = join(dir, entry.name);
       const session = entry.name.slice(0, -'.jsonl'.length);
       let main, mainText;
-      try { mainText = readFileSync(file, 'utf8'); main = summarizeTranscript(mainText); } catch { continue; }
+      const own = new Set();
+      try { mainText = readFileSync(file, 'utf8'); main = summarizeTranscript(mainText, { priorIds: claimed, ownIds: own }); } catch { continue; }
       if (since && main.lastTs && Date.parse(main.lastTs) < Date.parse(since)) continue;
       out.files++;
-      if (main.sidechain) { take('agent:unknown', main, mainText); takeAdvisor(session, 'subagent', mainText); out.subagentThreads++; continue; }
+      if (main.sidechain) { take('agent:unknown', main, mainText); takeAdvisor(session, 'subagent', mainText); out.subagentThreads++; own.forEach((id) => claimed.add(id)); continue; }
       out.sessions++;
       take('lead', main, mainText);
       takeAdvisor(session, 'lead', mainText);
+      own.forEach((id) => claimed.add(id));
       for (const sub of subagentFilesFor(file)) {
         let s, text;
-        try { text = readFileSync(sub, 'utf8'); s = summarizeTranscript(text); } catch { continue; }
+        const subOwn = new Set();
+        try { text = readFileSync(sub, 'utf8'); s = summarizeTranscript(text, { priorIds: claimed, ownIds: subOwn }); } catch { continue; }
         out.files++;
         out.subagentThreads++;
         take(`agent:${agentTypeOf(sub)}`, s, text);
         takeAdvisor(session, 'subagent', text);
+        subOwn.forEach((id) => claimed.add(id));
       }
     }
   }

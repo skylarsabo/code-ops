@@ -343,6 +343,13 @@ export function summarizeTranscript(text, opts = {}) {
       }
     } else if (o.type === 'assistant') {
       bump(s.hosts, 'claude', 0);
+      // A forked or resumed session repeats message ids across files. `opts.priorIds` holds the ids
+      // earlier files claimed, so a repeat there is skipped; `opts.ownIds` collects this file's ids,
+      // so streamed repeats inside the file still merge at the per-field max.
+      if (typeof msg.id === 'string') {
+        if (opts.priorIds?.has(msg.id)) continue;
+        opts.ownIds?.add(msg.id);
+      }
       const id = typeof msg.id === 'string' ? msg.id : `line-${s.lines}`;
       const u = usageOf(msg.usage);
       const normalized = normalizeUsage(msg.usage);
@@ -1091,9 +1098,15 @@ function codexSessionLink(file) {
 
 // The subagent transcripts that belong to one session. Claude uses a nested directory;
 // Codex writes peer rollouts and links the complete descendant graph by thread id.
+// Workflow agents sit one level down, at `subagents/workflows/<run>/agent-*.jsonl`; no deeper.
 export function subagentFilesFor(sessionFile) {
   const dir = join(sessionFile.replace(/\.jsonl$/i, ''), 'subagents');
-  if (existsSync(dir)) return readdirSync(dir).filter((f) => f.endsWith('.jsonl')).map((f) => join(dir, f)).sort();
+  if (existsSync(dir)) {
+    const jsonl = (d) => readdirSync(d, { withFileTypes: true }).filter((e) => e.isFile() && e.name.endsWith('.jsonl')).map((e) => join(d, e.name));
+    const flows = join(dir, 'workflows');
+    const runs = existsSync(flows) ? readdirSync(flows, { withFileTypes: true }).filter((e) => e.isDirectory()) : [];
+    return [...jsonl(dir), ...runs.flatMap((e) => jsonl(join(flows, e.name)))].sort();
+  }
   const root = codexSessionLink(sessionFile);
   if (!root?.id) return [];
   const links = [];
