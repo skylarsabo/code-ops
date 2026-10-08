@@ -47,6 +47,13 @@
 // from the ledger. Up to PEER_LINES lines list the snapshot's reply-owed peers, because an unanswered
 // peer is the costliest miss. Every step fails open to its own omission.
 //
+// RECALL POINTER. After the snapshot lines, the `compact` card adds one `exact earlier detail:` line
+// naming the MCP tool `transcript_recall` and `co recall search --session <full session id> --terms
+// <words>`, so the session can recover what the summary lost. It prints only when `CODE_OPS_RECALL` is
+// not `off`, `0`, or `false`, the payload carries a session id, and its `transcript_path` names an
+// existing file. It never checks for the index, because the detached PreCompact prebuild may not have
+// landed and the first recall call builds it. Any error omits the line.
+//
 // ROUTING LINE. When this session's ledger rows hold at least one judgment dispatch, the card ends with
 // the one `Routing:` line `routingSummary` (`../scripts/agent-ledger.mjs`) prints, for example
 // `Routing: 7 judgment, 2 triggered, 0 premium -> STARVED`, so under-routing and premium overuse show
@@ -378,6 +385,18 @@ function shellLines() {
   return lines;
 }
 
+// One line telling a compacted session it can recover exact earlier detail from its own transcript.
+// It needs recall on, a session id, and a payload transcript that exists. It never reads the index:
+// the PreCompact prebuild is detached and may not have landed, and the first recall call builds it.
+const SESSION_ID_RE = /^[A-Za-z0-9._-]{1,128}$/;
+function recallLine(sessionId, transcriptPath) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECALL ?? '') || !SESSION_ID_RE.test(sessionId)) return [];
+    if (typeof transcriptPath !== 'string' || !transcriptPath || !statSync(transcriptPath).isFile()) return [];
+    return [`exact earlier detail: the summary is lossy, so call the MCP tool transcript_recall or run co recall search --session ${sessionId} --terms <words> before relying on memory`];
+  } catch { return []; }
+}
+
 async function main() {
   if (process.env.GROK_PLUGIN_ROOT) return 0;
   let raw = '';
@@ -431,6 +450,7 @@ async function main() {
     const snap = await readSnapshot(cwd, runDir, sessionId, typeof payload?.transcript_path === 'string' ? payload.transcript_path : '');
     if (snap.state !== 'fresh' && runDir) lines.push(...openItemLines(runDir, open));
     lines.push(...snapshotLines(snap, cwd, open, sessionId));
+    lines.push(...recallLine(sessionId, payload?.transcript_path));
     // The run folder's DISPATCH_LEDGER.md rows merge with the hook rows, so a host without the hook still lists them.
     lines.push(...await pendingAgentLines(sessionId ? { sessionId, runDir: runDir ? resolve(cwd, runDir) : undefined } : null, 'Pending agents:'));
     lines.push(...await peerLines(cwd, sessionId, snap.state === 'fresh' ? snap.text.split(/^## Peers/m)[1] ?? '' : null));

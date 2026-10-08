@@ -355,6 +355,11 @@ its own omission:
   12, where N counts the live unchecked `TASKS.md` lines;
 - up to 4 `reply owed:` lines of at most 160 characters, which become the first 3 plus `N more
   reply-owed peers in the snapshot` when more than 4 are owed;
+- `exact earlier detail: ...`, one line naming the MCP tool `transcript_recall` and `co recall
+  search --session <full session id> --terms <words>`, printed only when `CODE_OPS_RECALL` is not
+  `off`, `0`, or `false`, the payload has a session id, and its `transcript_path` names an existing
+  file. It does not check for the recall index, because the detached PreCompact prebuild may not
+  have landed and the first recall call builds it;
 - the live pending-agents block from the agent ledger;
 - up to 4 `peer: <program> · live session <name>` lines of at most 160 characters, one per live
   board session on this repository whose program differs from this session's, ending in
