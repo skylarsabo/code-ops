@@ -627,7 +627,7 @@ try {
 
     // Case: a changed file under evals/<dir>/ selects that dir's step.
     {
-      const { selected, skipped } = mod.selectSteps({
+      const { selected, skipped } = mod.selectSteps({ alwaysSelect: [],
         steps, changedPaths: ['evals/example-dir/fixture.json'], full: false, evalDirRefersToScript: () => false,
       });
       check('integrate-branch: a changed file under evals/<dir>/ selects that dir\'s step', selected.some((s) => s.step.name === 'Eval-dir step'));
@@ -637,7 +637,7 @@ try {
     // Case: a changed scripts/<name>.mjs selects the evals/<dir>/ step(s) that reference its
     // basename, via the injected (git-free) evalDirRefersToScript lookup.
     {
-      const { selected } = mod.selectSteps({
+      const { selected } = mod.selectSteps({ alwaysSelect: [],
         steps, changedPaths: ['scripts/lint-plugins.mjs'], full: false,
         evalDirRefersToScript: (dir, basename) => dir === 'other-dir' && basename === 'lint-plugins.mjs',
       });
@@ -649,9 +649,9 @@ try {
     // never matches by basename, because every eval has one.
     {
       const lookup = (dir, basename) => dir === 'other-dir' && ['ladder-card.mjs', 'run.mjs'].includes(basename);
-      const hook = mod.selectSteps({ steps, changedPaths: ['plugins/code-ops-suite/hooks/ladder-card.mjs'], full: false, evalDirRefersToScript: lookup });
+      const hook = mod.selectSteps({ alwaysSelect: [], steps, changedPaths: ['plugins/code-ops-suite/hooks/ladder-card.mjs'], full: false, evalDirRefersToScript: lookup });
       check('integrate-branch: a changed hook module selects the evals/<dir>/ step that references it', hook.selected.some((s) => s.step.name === 'Block eval-dir step'));
-      const runner = mod.selectSteps({ steps, changedPaths: ['evals/unrelated/run.mjs'], full: false, evalDirRefersToScript: lookup });
+      const runner = mod.selectSteps({ alwaysSelect: [], steps, changedPaths: ['evals/unrelated/run.mjs'], full: false, evalDirRefersToScript: lookup });
       check('integrate-branch: a changed run.mjs does not select another eval by basename', !runner.selected.some((s) => s.step.name === 'Block eval-dir step'));
     }
 
@@ -659,16 +659,34 @@ try {
     // which integrate-branch.mjs always runs regardless of selection, lives outside this pure
     // function and is exercised by the --dry-run smoke run instead).
     {
-      const { selected } = mod.selectSteps({
+      const { selected } = mod.selectSteps({ alwaysSelect: [],
         steps, changedPaths: ['README.md'], full: false, evalDirRefersToScript: () => false,
       });
       check('integrate-branch: an unrelated change selects no workflow step', selected.length === 0);
     }
 
+    // Case: the always-selected citation gate runs on every change, fails closed when no step
+    // names it, and is present in the real workflow.
+    {
+      const citation = { name: 'Doc line-citation gate', run: 'node scripts/check-doc-citations.mjs', hasIf: false, hasEnv: false };
+      const { selected } = mod.selectSteps({
+        steps: [...steps, citation], changedPaths: ['README.md'], full: false, evalDirRefersToScript: () => false,
+        alwaysSelect: ['scripts/check-doc-citations.mjs'],
+      });
+      check('integrate-branch: an always-selected step runs for an unrelated change', selected.length === 1 && selected[0].step === citation && /^always: scripts\/check-doc-citations\.mjs/.test(selected[0].reason));
+      let missing = false;
+      try { mod.selectSteps({ steps, changedPaths: [], full: false, evalDirRefersToScript: () => false, alwaysSelect: ['scripts/check-doc-citations.mjs'] }); } catch (e) { missing = /check-doc-citations\.mjs/.test(e.message); }
+      check('integrate-branch: an always-selected path that matches no step fails closed', missing);
+      check('integrate-branch: ALWAYS_SELECT names the citation gate', mod.ALWAYS_SELECT.includes('scripts/check-doc-citations.mjs'));
+      const real = mod.parseWorkflowGateSteps(readFileSync(join(SCRIPTS_DIR, '..', '.github', 'workflows', 'validate.yml'), 'utf8'), 'structural-lint');
+      const realPick = mod.selectSteps({ steps: real, changedPaths: ['README.md'], full: false, evalDirRefersToScript: () => false });
+      check('integrate-branch: the real workflow selects the Doc line-citation gate for an unrelated change', realPick.selected.some((s) => s.step.name === 'Doc line-citation gate'));
+    }
+
     // Case: --full selects every runnable step regardless of the changed set, but still skips
     // an if:-guarded, env:-needing, or shell-construct step.
     {
-      const { selected, skipped } = mod.selectSteps({
+      const { selected, skipped } = mod.selectSteps({ alwaysSelect: [],
         steps, changedPaths: [], full: true, evalDirRefersToScript: () => false,
       });
       check('integrate-branch: --full selects every runnable step', selected.length === 3 && selected.every((s) => s.reason === '--full'));

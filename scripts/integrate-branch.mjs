@@ -38,7 +38,9 @@
 //      .github/workflows/validate.yml and the shard jobs its `needs:` lists - applicable meaning its `run:` text names a changed path,
 //      or it runs an eval under evals/<dir>/ where either a changed file lives under that dir or
 //      a file in that dir references a changed scripts/<name>.mjs basename. --full runs every
-//      runnable step regardless of the changed set. A step guarded by `if:`, one that needs
+//      runnable step regardless of the changed set. A step naming an ALWAYS_SELECT path (the doc
+//      line-citation gate) is selected on every change and receives --base; a gate's `! ` advisory
+//      lines print even when it passes. A step guarded by `if:`, one that needs
 //      env/secrets, or one whose `run:` is not a plain sequence of `node ...` invocations is
 //      skipped and named, because this runner never shells out - every command is spawned via
 //      execFile or execFileSync on process.execPath, so quoting is argv-exact and identical on Windows and
@@ -491,10 +493,16 @@ export function classifyStep(step) {
   return { runnable: true, reason: null };
 }
 
+// Gates selected on every change: a code or doc change anywhere can break a citation, and the check is cheap.
+export const ALWAYS_SELECT = ['scripts/check-doc-citations.mjs'];
+
 // Pure selection over already-parsed steps and an already-computed changed set. `evalDirRefersToScript(dir, basename)`
 // is injected so the eval can test the reference rule with fabricated content, and the real CLI
 // backs it with a file-content scan under evals/<dir>/.
-export function selectSteps({ steps, changedPaths, full, evalDirRefersToScript }) {
+export function selectSteps({ steps, changedPaths, full, evalDirRefersToScript, alwaysSelect = ALWAYS_SELECT }) {
+  for (const path of alwaysSelect) {
+    if (!steps.some((s) => s.run && s.run.includes(path))) throw new Error(`always-selected gate ${path} matches no workflow step`);
+  }
   // Any changed module, not only scripts/: a hook's eval names hooks/<x>.mjs. run.mjs is excluded
   // because every eval has one; the evals/<dir>/ rule below covers a changed eval runner.
   const changedScriptBasenames = [...new Set(
@@ -506,6 +514,8 @@ export function selectSteps({ steps, changedPaths, full, evalDirRefersToScript }
     const cls = classifyStep(step);
     if (!cls.runnable) { skipped.push({ step, reason: cls.reason }); continue; }
     if (full) { selected.push({ step, reason: '--full' }); continue; }
+    const always = alwaysSelect.find((p) => step.run.includes(p));
+    if (always) { selected.push({ step, reason: `always: ${always} runs on every change` }); continue; }
 
     const directHit = changedPaths.find((p) => step.run.includes(p));
     if (directHit) { selected.push({ step, reason: `run: references changed path ${directHit}` }); continue; }
@@ -571,22 +581,29 @@ const execFileAsync = promisify(execFile);
 // line and its failure excerpt print as one block, so concurrent gates never interleave output.
 async function runGate(name, commands, timeout) {
   let output = '';
+  const advisories = [];
   for (const args of commands) {
     try {
-      output += (await execFileAsync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', timeout, maxBuffer: 64 * 1024 * 1024 })).stdout;
+      const done = await execFileAsync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', timeout, maxBuffer: 64 * 1024 * 1024 });
+      output += done.stdout;
+      advisories.push(...(done.stdout + done.stderr).split('\n').filter((l) => l.startsWith('! ')));
     } catch (e) {
       output += (e.stdout || '') + (e.stderr || '') + (e.killed ? `\ntimed out after ${timeout} ms\n` : '');
       console.log([`  FAIL ${name}`, ...output.trim().split('\n').slice(-20).map((l) => `    ${l}`)].join('\n'));
       return { name, ok: false };
     }
   }
-  console.log(`  ok ${name}`);
+  console.log([`  ok ${name}`, ...advisories.map((l) => `    ${l}`)].join('\n'));
   return { name, ok: true };
 }
 
-function selectedStepCommands(step) {
+// The doc line-citation gate takes --base so it can limit its advisories to this change; no other step does.
+function selectedStepCommands(step, base) {
   const codeLines = step.run.split('\n').map((l) => l.trim()).filter((l) => l !== '' && !l.startsWith('#'));
-  return codeLines.map((line) => tokenizeRunLine(line).slice(1)); // tokens[0] is the literal "node" from the workflow text
+  return codeLines.map((line) => {
+    const args = tokenizeRunLine(line).slice(1); // tokens[0] is the literal "node" from the workflow text
+    return args[0] && args[0].endsWith('scripts/check-doc-citations.mjs') ? [...args, '--base', base] : args;
+  });
 }
 
 // A bounded worker pool. Results keep the input order whatever order the tasks finish in.
@@ -697,7 +714,7 @@ async function main() {
   console.log(`\n== step 5: gates (${jobs} concurrent) ==`);
   const gateResults = await runPool([
     ...STRUCTURAL_CHAIN.map((gate) => () => runGate(gate.label, [gate.args], 300000)),
-    ...selected.map(({ step }) => () => runGate(step.name, selectedStepCommands(step), STEP_TIMEOUT_MS)),
+    ...selected.map(({ step }) => () => runGate(step.name, selectedStepCommands(step, base), STEP_TIMEOUT_MS)),
   ], jobs);
   const failedGates = gateResults.filter((g) => !g.ok);
   if (failedGates.length) anyFailed = true;
