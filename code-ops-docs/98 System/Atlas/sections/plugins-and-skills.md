@@ -73,7 +73,7 @@ that every worktree shares (plugins/code-ops-suite/scripts/handoff-state.mjs:23)
 lists it, and `claim`, `release`, and `task` edit the caller's record
 (plugins/code-ops-suite/scripts/co.mjs:116). Session records use the same repository key, and
 readers fall back to the older working-directory store
-(plugins/code-ops-suite/scripts/handoff-state.mjs:386). Since 2.21.0, `run open --program` and `resume` print a `program overlap:` block, one warning per scope document that another live program also lists (plugins/code-ops-suite/scripts/handoff-state.mjs:1290). Since 2.23.0, handoff check 19 ties a program ledger with a `## Finish line` to that line: the open set is capped at 12, each item names an F id through `Blocks:`, and the overflow lives in `BACKLOG.md`. Since 2.15.0, `co program archive` moves settled state
+(plugins/code-ops-suite/scripts/handoff-state.mjs:412). Since 2.21.0, `run open --program` and `resume` print a `program overlap:` block, one warning per scope document that another live program also lists (plugins/code-ops-suite/scripts/handoff-state.mjs:1334). Since 2.23.0, handoff check 19 ties a program ledger with a `## Finish line` to that line: the open set is capped at 12, each item names an F id through `Blocks:`, and the overflow lives in `BACKLOG.md`. Since 2.15.0, `co program archive` moves settled state
 from a grammar-2 program ledger to `PROGRAM.archive.md` beside it
 (plugins/code-ops-suite/scripts/co.mjs:107). Since 2.18.0, `co program split` and `merge` move open items
 and pending decisions between ledgers with `Forwarded-to:` and `Was:` trails. Since 2.19.0, `co decide promote` stages a

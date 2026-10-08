@@ -64,7 +64,8 @@ task-based routing. The stable prefix defaults to the tracked `AGENTS.md`, or el
 and `units` empty, so `check` fails until the lead fills them. Init refuses to overwrite an
 existing contract, snapshot, or capability receipt without `--force`. After init, it records the
 session in `SESSION.json` in the run directory: `sessionId` from `--session`, else
-`CLAUDE_CODE_SESSION_ID` or `CODEX_SESSION_ID`, and `hostSessionId` from `--host-session`. It merges
+`CLAUDE_CODE_SESSION_ID` or `CODEX_SESSION_ID`, and `hostSessionId` from `--host-session`, else
+`CLAUDE_CODE_HOST_SESSION_ID`, else the id the file already holds. It merges
 into an existing file, so a re-run keeps the other fields. It leaves a `SESSION.json` that names
 another session, or that is not a JSON object, unchanged and says so. With no session id it says so
 and writes nothing. The lookups by session id (the compact card and the snapshot) then find the
@@ -923,6 +924,12 @@ Closed items, and decision ids whenever it exists. These checks fail closed:
 
 Check 14, promotion resolution, is not implemented yet. Evidence: `scripts/check-handoff.mjs` and
 `evals/handoff-check/run.mjs`.
+
+`co handoff draft` also lists each unchecked row of a `PLAN.md` as an Open items bullet whose `Owner:`
+and `Done when:` are `[FILL:` placeholders. It reads `PLAN.md` from the run folder, the `PROGRAM.md`
+folder, and each Scope document named `PLAN.md`, and skips an id the list already names. Rows past
+the 8 KB cap become one `[FILL: N more PLAN.md open row(s) ...]` line. A program with no readable
+`PLAN.md` gets one `[FILL: no PLAN.md was read ...]` line naming the paths it tried.
 
 On a grammar-2 ledger, `co handoff draft` fills each open item's `Anchor:` from its cited line, or
 writes `[FILL: verbatim text from the cited line]` when the pointer has no line. It shows a carried
