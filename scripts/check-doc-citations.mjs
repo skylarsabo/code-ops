@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 // Fail-closed line- and commit-citation gate for current Markdown manifest targets.
+// `--base <ref>` adds warn-only `! ` advisories on stdout for in-range citations whose cited lines
+// were edited or shifted since the merge-base with HEAD; they never change the exit code.
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { resolve, dirname, sep } from 'node:path';
@@ -61,6 +63,36 @@ function checkCitation(citPath, startLn, endLn) {
   if (total < 0) return 'target file is unreadable';
   const over = Math.max(startLn, endLn);
   return over > total ? `line ${over} exceeds target's ${total} line(s)` : null;
+}
+function gitQuiet(args) {
+  return execFileSync('git', args, { cwd: ROOT, timeout: 10000, maxBuffer: 64 * 1024 * 1024, stdio: ['ignore', 'pipe', 'ignore'] })
+    .toString().replace(/\r/g, '');
+}
+const HUNK_RE = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/;
+// Hunks of the working tree against the merge-base. Callers pass only paths that exist at the
+// merge-base and changed since (modifiedSinceBase), so each changed file costs one git spawn.
+function baseHunks(mb, path) {
+  const hunks = [];
+  for (const line of gitQuiet(['diff', '-U0', '--no-color', '--no-ext-diff', mb, '--', path]).split('\n')) {
+    const m = HUNK_RE.exec(line);
+    if (m) hunks.push({ a: Number(m[1]), b: m[2] === undefined ? 1 : Number(m[2]), d: m[4] === undefined ? 1 : Number(m[4]) });
+  }
+  return hunks.length ? hunks : null;
+}
+// Lines of the doc at the merge-base; a doc absent there has no lines, so every line counts as new.
+function baseDocLines(mb, docPath) {
+  try { return new Set(gitQuiet(['show', `${mb}:${docPath}`]).replace(/^\uFEFF/, '').split('\n')); }
+  catch { return new Set(); }
+}
+function citationAdvisory(hunks, start, end, mbShort) {
+  let delta = 0;
+  for (const { a, b, d } of hunks) {
+    if (b === 0 ? (start <= a && a < end) : (a <= end && a + b - 1 >= start)) return `cited lines edited since ${mbShort}; re-verify`;
+    if (b === 0 ? a < start : a + b - 1 < start) delta += d - b;
+  }
+  if (!delta) return null;
+  const moved = start === end ? `${start + delta}` : `${start + delta}-${end + delta}`;
+  return `base content now at ${moved} (${delta > 0 ? '+' : ''}${delta}) since ${mbShort}`;
 }
 function objectIdLength() {
   let format;
@@ -124,7 +156,13 @@ function commitFields(line) {
 }
 
 const argv = process.argv.slice(2);
-if (argv.length) die(argv[0].trim() === '' ? 'blank flag' : `unknown flag: ${argv[0]}`, 2);
+let baseRef = null;
+for (let i = 0; i < argv.length; i++) {
+  if (argv[i] === '--base') {
+    baseRef = argv[++i];
+    if (!baseRef || baseRef.startsWith('--')) die('--base requires a ref', 2);
+  } else die(argv[i].trim() === '' ? 'blank flag' : `unknown flag: ${argv[i]}`, 2);
+}
 let tracked;
 try { tracked = gitPaths(['ls-files', '-co', '--exclude-standard', '-z']); }
 catch { die('not a git work tree (check-doc-citations requires git ls-files)', 2); }
@@ -135,6 +173,16 @@ if (!targets.length) die('documentation manifest has no owned domains to scan', 
 const docs = tracked.filter((file) => file.toLowerCase().endsWith('.md') && targets.some((target) => isTarget(file, target))).sort();
 const oidLength = objectIdLength();
 const shallow = git(['rev-parse', '--is-shallow-repository']) === 'true';
+let mb = null;
+if (baseRef !== null) {
+  try { mb = git(['merge-base', git(['rev-parse', '--verify', '--quiet', `${baseRef}^{commit}`]), 'HEAD']); }
+  catch { die(`--base ${baseRef} does not resolve to a commit with a merge-base against HEAD`, 2); }
+}
+const mbShort = mb && mb.slice(0, 7);
+// One spawn up front: a file absent at the merge-base, or unchanged since, has no advisory to give.
+const modifiedSinceBase = mb ? new Set(gitPaths(['diff', '--name-only', '-z', '--no-renames', '--diff-filter=M', mb])) : null;
+const hunkCache = new Map();
+const advisories = [];
 const violations = [];
 let infrastructureFailure = false;
 for (const rel of docs) {
@@ -142,6 +190,7 @@ for (const rel of docs) {
   try { text = readFileSync(resolve(ROOT, rel), 'utf8'); } catch { continue; }
   if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
   let fence = null;
+  let docBase = null;
   for (const [index, line] of text.split('\n').entries()) {
     const opening = /^ {0,3}(`{3,}|~{3,})/.exec(line);
     if (!fence && opening) {
@@ -157,7 +206,14 @@ for (const rel of docs) {
     for (const match of line.matchAll(CITE_RE)) {
       const start = Number(match[2]); const end = match[3] === undefined ? start : Number(match[3]);
       const reason = checkCitation(match[1], start, end);
-      if (reason) violations.push(`${rel}:${index + 1} cites ${match[1]}:${match[2]}${match[3] === undefined ? '' : `-${match[3]}`} — ${reason}`);
+      const cited = `${match[1]}:${match[2]}${match[3] === undefined ? '' : `-${match[3]}`}`;
+      if (reason) violations.push(`${rel}:${index + 1} cites ${cited} — ${reason}`);
+      else if (mb && modifiedSinceBase.has(match[1]) && (docBase ??= baseDocLines(mb, rel)).has(line.replace(/\r$/, ''))) {
+        if (!hunkCache.has(match[1])) hunkCache.set(match[1], baseHunks(mb, match[1]));
+        const hunks = hunkCache.get(match[1]);
+        const note = hunks && citationAdvisory(hunks, start, end, mbShort);
+        if (note) advisories.push(`! ${rel}:${index + 1} cites ${cited} — ${note}`);
+      }
     }
     for (const field of commitFields(line)) {
       const reason = field.malformed || checkCommitCitation(field.value, oidLength, shallow);
@@ -168,9 +224,10 @@ for (const rel of docs) {
     }
   }
 }
+for (const advisory of advisories) console.log(advisory);
 if (violations.length) {
   for (const violation of violations) console.error(`x ${violation}`);
   console.error(`\n${violations.length} violation(s) across ${docs.length} manifest-owned doc(s) scanned.`);
   process.exit(infrastructureFailure ? 2 : 1);
 }
-console.log(`OK — ${docs.length} manifest-owned doc(s) scanned; every path:line and commit citation resolves.`);
+console.log(`OK — ${docs.length} manifest-owned doc(s) scanned; every path:line and commit citation resolves${advisories.length ? `; ${advisories.length} citation advisory line(s) since ${mbShort}` : ''}.`);

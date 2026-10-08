@@ -39,6 +39,18 @@ function buildCase(name, currentBody, ignoredBody = '') {
   git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', 'seed'], root);
   return { root, script: join(root, 'scripts', 'check-doc-citations.mjs'), head: git(['rev-parse', 'HEAD'], root) };
 }
+const TARGET = (f) => join(f.root, 'scripts', 'target.mjs');
+const DOC = (f) => join(f.root, 'project-docs', 'Reference', 'test.md');
+function commitTopic(f, message) {
+  git(['add', '-A'], f.root);
+  git(['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'commit', '-qm', message], f.root);
+}
+function insertAbove(f, lines) {
+  const rows = readFileSync(TARGET(f), 'utf8').split('\n');
+  rows.splice(0, 0, ...lines);
+  writeFileSync(TARGET(f), rows.join('\n'));
+}
+function editTarget(f, from, to) { writeFileSync(TARGET(f), readFileSync(TARGET(f), 'utf8').replace(from, to)); }
 function setCurrentBody(fixture, body) { writeFileSync(join(fixture.root, 'project-docs', 'Reference', 'test.md'), body); }
 try {
   {
@@ -161,6 +173,63 @@ try {
     writeFileSync(join(f.root, '.git', 'shallow'), `${f.head}\n`);
     const r = run(f.script, f.root);
     check('shallow missing history is a distinct infrastructure failure', r.status === 2 && r.out.includes('infrastructure failure: shallow repository'), r.out);
+  }
+  {
+    const f = buildCase('base-shift', 'See `scripts/target.mjs:5-6`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    insertAbove(f, ['// new a', '// new b']);
+    commitTopic(f, 'insert above');
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('base shift prints the remap advisory and exits zero', r.status === 0 && /^! project-docs\/Reference\/test\.md:1 cites scripts\/target\.mjs:5-6 \u2014 base content now at 7-8 \(\+2\) since [0-9a-f]{7}$/m.test(r.out) && /1 citation advisory line\(s\) since/.test(r.out), r.out);
+    const plain = run(f.script, f.root);
+    check('no flag prints no advisory even when lines shifted', plain.status === 0 && !/^! /m.test(plain.out) && plain.out.startsWith('OK \u2014 2 manifest-owned doc(s) scanned; every path:line and commit citation resolves.'), plain.out);
+    editTarget(f, '// 5\n', '// five\n');
+    const dirty = run(f.script, f.root, ['--base', 'main']);
+    check('uncommitted edit in the cited range is an edited advisory', dirty.status === 0 && /^! .* cites scripts\/target\.mjs:5-6 \u2014 cited lines edited since [0-9a-f]{7}; re-verify$/m.test(dirty.out), dirty.out);
+  }
+  {
+    const f = buildCase('base-edit', 'See `scripts/target.mjs:3`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    editTarget(f, '// 3\n', '// three\n');
+    commitTopic(f, 'edit cited line');
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('edit inside the cited range is an edited advisory', r.status === 0 && /^! .* cites scripts\/target\.mjs:3 \u2014 cited lines edited since [0-9a-f]{7}; re-verify$/m.test(r.out), r.out);
+  }
+  {
+    const f = buildCase('base-insert-inside', 'See `scripts/target.mjs:4-6`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    editTarget(f, '// 5\n', '// 5\n// extra\n');
+    commitTopic(f, 'insert inside');
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('insertion inside the cited range is an edited advisory', r.status === 0 && r.out.includes('cited lines edited'), r.out);
+  }
+  {
+    const f = buildCase('base-untouched', 'See `scripts/target.mjs:5`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    writeFileSync(join(f.root, 'unrelated.txt'), 'x\n');
+    commitTopic(f, 'unrelated');
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('unchanged cited file prints no advisory', r.status === 0 && !/^! /m.test(r.out) && !r.out.includes('advisory'), r.out);
+  }
+  {
+    const f = buildCase('base-oob', 'See `scripts/target.mjs:11`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('out-of-range citation still fails with --base', r.status === 1 && r.out.includes("exceeds target's 10 line(s)"), r.out);
+  }
+  {
+    const f = buildCase('base-bad-ref', 'See `scripts/target.mjs:3`.\n');
+    check('--base without a value exits two', run(f.script, f.root, ['--base']).status === 2);
+    check('--base with an unresolvable ref exits two', run(f.script, f.root, ['--base', 'nosuchref']).status === 2);
+  }
+  {
+    const f = buildCase('base-doc-rewritten', 'See `scripts/target.mjs:5-6`.\n');
+    git(['checkout', '-q', '-b', 'topic'], f.root);
+    insertAbove(f, ['// new a', '// new b']);
+    writeFileSync(DOC(f), 'See `scripts/target.mjs:7-8`.\n');
+    commitTopic(f, 'insert and remap doc');
+    const r = run(f.script, f.root, ['--base', 'main']);
+    check('a doc line rewritten on the branch gets no advisory', r.status === 0 && !/^! /m.test(r.out), r.out);
   }
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }

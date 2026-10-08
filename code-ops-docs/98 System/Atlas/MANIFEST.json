@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -459,7 +459,7 @@
         },
         {
           "file": "scripts/check-doc-citations.mjs",
-          "line": 39,
+          "line": 41,
           "anchor": "if (!manifest || ![1, 2, 3].includes(manifest.version) || manifest.hub !== hub |"
         },
         {
@@ -529,7 +529,7 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 317,
+          "line": 319,
           "anchor": "// repository that has run no wave sees no change: no output and no process beyo"
         },
         {
@@ -804,12 +804,12 @@
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 566,
+          "line": 576,
           "anchor": "const STEP_TIMEOUT_MS = 30 * 60 * 1000;"
         },
         {
           "file": "scripts/integrate-branch.mjs",
-          "line": 593,
+          "line": 610,
           "anchor": "async function runPool(tasks, jobs) {"
         },
         {
@@ -988,7 +988,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "1c757654348831a85d8288bf9e5d8244a2ee72607fb2de406c960c4ebb20dbf8"
+      "verifiedDigest": "b27f920dbd20fc576f404787da7affd7e529a5481ab037cb626fd5b5e48b8895"
     },
     {
       "slug": "evals-and-calibration",
@@ -996,8 +996,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
-      "verifiedDigest": "966a973b3d64321ac667dd6aad4e98433570c7c8434cc31fba8d97acf8c9119d",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedDigest": "05968a73c11eaf2cfb0552cd081a37a3dcb3694a9e8d40484f92ac5f1f9da1b3",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1021,7 +1021,7 @@
         },
         {
           "file": "evals/doc-citations/run.mjs",
-          "line": 58,
+          "line": 70,
           "anchor": "const f = buildCase('manifest-v3', 'See"
         },
         {
@@ -1569,7 +1569,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
+      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1641,7 +1641,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "bcbe686702ca6010c770b10230b2442570236a7e3d5bcc48a46d572a6ebc924f"
+      "verifiedDigest": "6e86e12200898e01bbb9f4167a5d538c862687feba09fe477b3d2c3c05a06ef7"
     },
     {
       "slug": "root-contracts",
