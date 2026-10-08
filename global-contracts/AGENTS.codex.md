@@ -60,7 +60,7 @@ On Claude and Codex, host auto-compaction is the context relief, not a handoff.
 
 Codex auto-compacts near 215,000 tokens of its 258,000-token window.
 
-Hand off only to start new work, or to move to a clean session that loads updated code-ops plugins or contracts. A host change or a failed compaction also needs one. A long session keeps its agents and peers reachable, so the operator never repeats context.
+Hand off only to start new work, or to move to a clean session that loads updated code-ops plugins or contracts. A host change or a failed compaction also needs one. A long session keeps its agents and any granted peers reachable, so the operator never repeats context.
 
 A unit too small to repay an operative's startup context stays inline, with the reason recorded.
 
@@ -132,8 +132,16 @@ handoff names the ledger and its predecessor and carries every open item forward
 it. A handoff restates one session, and the ledger holds the whole program.
 
 A new session is new work unless the operator resumes a handoff, and each session keeps its
-own run folder. Address a peer session by its program session name, and resolve the live
-successor with `co handoff live` before messaging, because a handed-off session is finished.
+own run folder.
+
+Communication between sessions is the operator's decision. Start, message, or coordinate a
+peer session only under an operator grant for the current session. A grant never carries to
+the next session. Without one, delegate inside the session with subagents.
+
+Under a grant, keep churn low. Send one message per decision or handoff point, state the ask
+and the reply you need, and never poll a peer for status. Address a peer session by its
+program session name, and resolve the live successor with `co handoff live` before
+messaging, because a handed-off session is finished.
 
 ## Change and publishing standards
 
