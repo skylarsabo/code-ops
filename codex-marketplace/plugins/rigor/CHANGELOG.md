@@ -1,8 +1,9 @@
 # Changelog — rigor
 
-## 3.6.4
+## 3.6.5
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
 
 ## 3.6.2

@@ -1,7 +1,8 @@
 # Changelog — researcher
 
-## 0.17.2
+## 0.17.3
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
+The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
 
 ## 0.17.0
