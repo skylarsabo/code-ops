@@ -33,9 +33,9 @@ Keep deterministic validation in the hosted `validate` workflow. Provider-specif
 examples remain compatibility paths for hosts that use them; they do not replace the local
 judgment boundary.
 
-Evidence: `scripts/local-review-gate.mjs:83-185`,
-`scripts/local-review-gate.mjs:194-269`, `scripts/local-review-gate.mjs:357-436`,
-`scripts/local-review-gate.mjs:441-468`, and
+Evidence: `scripts/local-review-gate.mjs:84-182`,
+`scripts/local-review-gate.mjs:190-265`, `scripts/local-review-gate.mjs:353-432`,
+`scripts/local-review-gate.mjs:437-464`, and
 `.github/workflows/validate.yml:23-159`.
 
 ## Consequences

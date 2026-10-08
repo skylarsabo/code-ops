@@ -69,8 +69,8 @@ node scripts/local-review-gate.mjs check --root . --plan <ignored-plan>
 
 The check requires exact review coverage and replays report digests and the receipt hash chain.
 It rejects stale base or HEAD state, a changed binary diff, a dirty worktree, missing reports,
-weak reviewer tiers, or a failing verdict. Evidence: `scripts/local-review-gate.mjs:97-269`
-and `scripts/local-review-gate.mjs:357-450`.
+weak reviewer tiers, or a failing verdict. Evidence: `scripts/local-review-gate.mjs:98-265`
+and `scripts/local-review-gate.mjs:353-446`.
 
 Push the reviewed branch without opening a pull request. Verify both live branch tips, then
 optionally publish verified receipts as commit statuses:

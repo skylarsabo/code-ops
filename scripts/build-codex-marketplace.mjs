@@ -312,7 +312,7 @@ function transformAgent(contents, path) {
       ? 'This role may write files only for its report and repro artifacts.'
       : 'This role is read-only: return the report inline.';
   const header = match[1].split('\n').filter((line) => !/^(tools|model):/.test(line)).map(portableText);
-  const body = portableText(match[2]);
+  const body = portableText(match[2]).trimStart();
   return [
     '---',
     ...header,

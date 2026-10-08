@@ -50,8 +50,8 @@ Model review is opt-in and rare. Run deep review and OpSec review on a local hos
 pull request when a change touches a high-risk surface, or when the operator asks. The
 local gate binds base SHA, HEAD SHA, binary diff, report digests, strong-or-frontier reviewer
 receipts, and a hash chain. Its ignored plan and receipts travel as local operational evidence,
-not as hosted CI state. Evidence: `scripts/local-review-gate.mjs:97-269` and
-`scripts/local-review-gate.mjs:357-450`.
+not as hosted CI state. Evidence: `scripts/local-review-gate.mjs:98-265` and
+`scripts/local-review-gate.mjs:353-446`.
 
 Use `local-review-gate.mjs publish` only when commit statuses help an adopting team's workflow.
 The publisher verifies both live branch tips and binds the destination to that Git remote. The

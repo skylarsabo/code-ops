@@ -1,0 +1,2 @@
+- `context-index-lib.mjs` exports `receiptSha256`, the receipt digest that `judgment-evals.mjs`, `local-review-gate.mjs` and `runtime-lib.mjs` each defined. `runtime-lib.mjs` re-exports it for its callers. The digest bytes are unchanged.
+- The rendered agent files for the second host no longer open with a doubled blank line, because the renderer trims the leading blank line of each agent body.

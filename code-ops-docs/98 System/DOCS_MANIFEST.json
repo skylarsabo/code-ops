@@ -17,8 +17,8 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "c4a6524d61c2f1b28c397f21fec0a8d2ce62238ce8bf5f851ff3a2fbd676939f",
-      "contentDigest": "d788e92c39c196ca12bd2f3bb62e1fe7eafccdb5091c7326230f0c36c384ce08"
+      "sourceDigest": "d850f66f1fdd22833f43d62fa93b1570476f086c3d476264fee89d26f7288d34",
+      "contentDigest": "dac95ba9d7aee22a4d85ebca1d32311aac240b32937136bd2422dfecec6d0d31"
     },
     {
       "id": "architecture",
@@ -29,8 +29,8 @@
         "scripts/**",
         ".claude-plugin/**"
       ],
-      "sourceDigest": "77362cbb0a019a611383c45e789838f61462c375014015f594ced5f268354a27",
-      "contentDigest": "99a7c9a9e3dfa2a4f882b43191881f549062b180fe77398561fabce82e94a522"
+      "sourceDigest": "733c99463878ff23739930b1b002598d27dc373d1b63ae3e577e036369d45d76",
+      "contentDigest": "55efadf7e83642480b07527c24e716597635a4da7257ee23c401c15a3854daee"
     },
     {
       "id": "contracts",
@@ -41,8 +41,8 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "4201f098cd24c03d0f09d5cf6a066450b93e31c45d5ff56258d02a7fde2964ea",
-      "contentDigest": "05298bc69884edabc3c4a85cfcb1d85b20583c5f50bb529fc43b87b81989670a"
+      "sourceDigest": "8f88df58ceec34987c74487c680e5b42a53517533ff2530628a240b938a4ca5d",
+      "contentDigest": "5c6e1c1af712d737223e477ce7317deea8405a669657ed30ca9f3afcea707b07"
     },
     {
       "id": "data-model",
@@ -53,8 +53,8 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "4201f098cd24c03d0f09d5cf6a066450b93e31c45d5ff56258d02a7fde2964ea",
-      "contentDigest": "97472812233f076ae5f2fe401aa52abc8d2f0a7077f03d9ba9fce227947f24f0"
+      "sourceDigest": "8f88df58ceec34987c74487c680e5b42a53517533ff2530628a240b938a4ca5d",
+      "contentDigest": "834dca7284ad9f100e6a92af14ae6c6d397e6c0877c1eaeb4267caf044afe531"
     },
     {
       "id": "engineering-standards",
@@ -86,8 +86,8 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "31247e93e0be59ce6c7841d8ff4df3a3748991c02ff703c5d314aadc6140833a",
-      "contentDigest": "4227d6b5fbdf341853d4d60b050c4983c2d4b2e91346fc7dacbbe88f15eb0083"
+      "sourceDigest": "91eeb8e790870c6143d74cb333443aadb2cbcf6d24bdc4cb32d7d414904f018d",
+      "contentDigest": "2880da6eaf7aaf636a0d56ec924916d37bad539dcf6d1ab77002cb3c11cb7915"
     },
     {
       "id": "techniques",
@@ -98,7 +98,7 @@
         "scripts/**",
         "evals/**"
       ],
-      "sourceDigest": "4201f098cd24c03d0f09d5cf6a066450b93e31c45d5ff56258d02a7fde2964ea",
+      "sourceDigest": "8f88df58ceec34987c74487c680e5b42a53517533ff2530628a240b938a4ca5d",
       "contentDigest": "9bbba8373030f04b919621e3e2bbb32a36b7b7d87488ae5609f762a0af5cc934"
     },
     {
@@ -119,8 +119,8 @@
         ".github/workflows/**",
         "scripts/**"
       ],
-      "sourceDigest": "f07fc60d06db22dde0d4e2ed674d620dad5cdb97a49519ce04e7da3465c5555c",
-      "contentDigest": "fc4e7101e02a00a4d3888e1bd8b4eb1a4b9f2374260c65f29d8275457a1442c1"
+      "sourceDigest": "feedf23708b99a82049981ae39a4eaf3a019d503259411171f832a05c4b031dc",
+      "contentDigest": "2b07075eb85bade1fd3b9ee8d8ba2c617d0e476bdb5354c7f410eefb0c47380d"
     },
     {
       "id": "infrastructure",
@@ -131,8 +131,8 @@
         ".claude-plugin/**",
         "scripts/build-*.mjs"
       ],
-      "sourceDigest": "33caccf2d04de1fc2b674365ef1b86e4abfcaee89edb4285f6759fcf3113d137",
-      "contentDigest": "706abec72e95c0afb0e613d7bea0422f825863a985b3144b8bcc39e8b57e336b"
+      "sourceDigest": "526992b3162abe59943cd8828bf148c88acbf9c9a95c51a1d2eed3eed8d54ee5",
+      "contentDigest": "c5d53d17c543313d3c7c69012eb762234fa4f4717530c841667c41c3009953a2"
     },
     {
       "id": "observability",
@@ -142,8 +142,8 @@
         "scripts/**",
         ".github/workflows/**"
       ],
-      "sourceDigest": "f07fc60d06db22dde0d4e2ed674d620dad5cdb97a49519ce04e7da3465c5555c",
-      "contentDigest": "7fe683e52ea5d4b137982430a14c43152ee7b5fb1f2d17aa449f4d58cfd13e66"
+      "sourceDigest": "feedf23708b99a82049981ae39a4eaf3a019d503259411171f832a05c4b031dc",
+      "contentDigest": "8097d205c6035f5fb270cd1c2bd6cdf5e549599f5da3cfebd149536a18df69e8"
     },
     {
       "id": "performance",
@@ -158,7 +158,7 @@
         ".github/workflows/validate.yml"
       ],
       "sourceDigest": "f1c6c56b495082f442b7f063466e1eadb56ac31e5e87dc76f30be36e0d745243",
-      "contentDigest": "a3b8495952fb0519e20a661107d026e87a8374ac8759cc4b135f4c442b064c1d"
+      "contentDigest": "853aaaee03be492e082f8f1383ab5a066a24df95158258283d14a9ab43a49f74"
     },
     {
       "id": "measurements",
@@ -182,7 +182,7 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "c846ead1fb9d3aeaaec0075f36ed7c8014c622e7c097a9dbd725dedd0fba195f",
+      "sourceDigest": "7fa8694e66403ab7e187b7a84a561af01354a95aeb0b98216aeafe5e9e1d0ec9",
       "contentDigest": "54e4207ea22a12859e30b92dd1b5e42f62f53cec642ba24dea3e503607f9288b"
     },
     {
@@ -193,8 +193,8 @@
         "plugins/**",
         "scripts/**"
       ],
-      "sourceDigest": "c846ead1fb9d3aeaaec0075f36ed7c8014c622e7c097a9dbd725dedd0fba195f",
-      "contentDigest": "fb47b0412c0f9764f6e5893b80333ee8e234642d1d8ff0180ebef8d67eefb398"
+      "sourceDigest": "7fa8694e66403ab7e187b7a84a561af01354a95aeb0b98216aeafe5e9e1d0ec9",
+      "contentDigest": "28060eab6bab3137fcc1864753ce0eba280dfa8630a0dc1de3191f8183d02bc0"
     },
     {
       "id": "atlas",
@@ -203,8 +203,8 @@
       "sources": [
         "**"
       ],
-      "sourceDigest": "878e4a99117354857da778a18c2d3a9b9e7af34396b397f5f645ba8b1a028447",
-      "contentDigest": "78857d36e3d331220b0d80684f64cb514019d0ce1dc9900f79e390e6d04aca09"
+      "sourceDigest": "3fc48344f40c173370825eb645d3904e5f6e1fc5e40f10ca333b16801b45188c",
+      "contentDigest": "f3021a27e1ff3c80fcbc2e78245b1fd1c00c2a39b2917b8d7c2a107ca32e7aef"
     }
   ]
 }
