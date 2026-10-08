@@ -145,7 +145,7 @@ ${FENCE}text
 ANSWERED: fixture answer with evidence anchors
 ${FENCE}
 `;
-const agentBody = (name, model, texts, cap = AGENT_REPORT_CAP, { tools = 'Read, Grep, Glob', contract = agentContract(), effort = model === 'haiku' ? null : 'high' } = {}) => `---
+const agentBody = (name, model, texts, cap = AGENT_REPORT_CAP, { tools = 'Read, Grep, Glob', contract = agentContract(), effort = model === 'haiku' ? 'medium' : 'high' } = {}) => `---
 name: ${name}
 description: "Fixture agent for the lint-plugins regression eval."
 tools: ${tools}
@@ -977,7 +977,7 @@ No completion heading here on purpose (case 3 mutation).
     put(dir, 'plugins/code-ops-suite/agents/mech.md', agentBody('mech', 'sonnet', [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT], AGENT_REPORT_CAP, { tools, contract }));
     return runLint(dir);
   };
-  // 15e. AGENT EFFORT CAP (check 30): a non-haiku agent declares effort, at most high.
+  // 15e. AGENT EFFORT CAP (check 30): every agent declares effort, at most high.
   const verifierWith = (label, model, effort) => {
     const dir = clone(label);
     put(dir, 'plugins/rigor/agents/verifier.md', agentBody('verifier', model, [AGENT_BATCH, AGENT_ESCALATE, AGENT_REDACT_SHORT, AGENT_DENSE_EVIDENCE, AGENT_TIER_BOUNDARY], AGENT_REPORT_CAP, { effort }));
@@ -987,6 +987,8 @@ No completion heading here on purpose (case 3 mutation).
   check('15e. an agent declaring effort xhigh exits 1', r15eX.status === 1 && r15eX.all.includes('effort "xhigh" exceeds the operator cap'));
   const r15eN = verifierWith('case15e-effort-missing', 'opus', null);
   check('15e. a non-haiku agent with no effort exits 1', r15eN.status === 1 && r15eN.all.includes('declares no effort'));
+  const r15eH = verifierWith('case15e-haiku-effort-missing', 'haiku', null);
+  check('15e. a haiku agent with no effort exits 1', r15eH.status === 1 && r15eH.all.includes('declares no effort'));
   check('15e. claude-sonnet-5-5 meets a strong floor at effort high', verifierWith('case15e-sonnet-strong', 'claude-sonnet-5-5', 'high').status === 0);
 
   const r15a = mechWith('case15a-no-contract', '');
