@@ -4,9 +4,11 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.64.0
+## 2.65.0
 The handoff draft now lists the open rows of PLAN.md, or warns when it cannot read a source. The init step records the host session id from CLAUDE_CODE_HOST_SESSION_ID.
 - The handoff ledger records first-hop session names and not-dispatched markers. `dispatch-ledger.mjs skip` declares a contract unit that the run chose not to dispatch, and the marker carries a reason. `check-handoff` lists each marker, and refuses a marker for a unit that already has a row, a repeated marker, a marker for a unit outside the contract, and a malformed marker. `run-runtime` no longer reports a declared unit as pending and prints `not dispatched <id>: <reason>`. The handoff skill tells the lead to supply the host agent id when it records a dispatch. `artifact-grammars.md` and `CONTRACTS.md` state the marker grammar.
+- The compact card names the recall tool after a compaction: `transcript_recall`, or `co recall search --session <id> --terms <words>`. The line prints when recall is on, the payload carries a session id, and its transcript path is a file. It does not wait for the index, because the first recall call builds it.
+- The PreCompact and SessionEnd hooks share one recall prebuild helper, `hooks/recall-spawn.mjs`, instead of two copies.
 - `compact-snapshot.mjs` masks a whole private key block, not only its BEGIN line. The redaction scanner flags only the BEGIN line, so the base64 body lines of a key pasted into operator words or a tagged RUN_LOG line reached COMPACT_SNAPSHOT.md unmasked. The new exported `redactBlocks()` replaces every line from BEGIN through END with one `<REDACTED:secret-shape>` marker, and a BEGIN with no END masks to the end of its text. `maskTexts()` runs it before the scanner, so every caller gets it.
 - The compact-snapshot eval adds a planted multi-line key, terminated and unterminated, that fails if any body line reaches the snapshot. A mutant copy without the block pass must leak every body line.
 Transcript recall: `co recall` and the `transcript_recall` MCP tool find and open exact earlier detail in the host transcript after compaction, with no model call. Every answer ends at the original bytes, checked by sha256, and fails closed on a rewritten file. The index holds masked labels and byte offsets only. The PreCompact and SessionEnd hooks start a detached incremental build; `CODE_OPS_RECALL=off` disables it.

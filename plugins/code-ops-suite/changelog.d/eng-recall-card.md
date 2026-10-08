@@ -1,0 +1,2 @@
+- The compact card names the recall tool after a compaction: `transcript_recall`, or `co recall search --session <id> --terms <words>`. The line prints when recall is on, the payload carries a session id, and its transcript path is a file. It does not wait for the index, because the first recall call builds it.
+- The PreCompact and SessionEnd hooks share one recall prebuild helper, `hooks/recall-spawn.mjs`, instead of two copies.

@@ -434,6 +434,7 @@ try {
   cpSync(join(HOOKS, '..', 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
   mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
   copyFileSync(join(HOOKS, 'compact-snapshot.mjs'), join(mutantRoot, 'hooks', 'compact-snapshot.mjs'));
+  copyFileSync(join(HOOKS, 'recall-spawn.mjs'), join(mutantRoot, 'hooks', 'recall-spawn.mjs'));
   const mutantLib = join(mutantRoot, 'scripts', 'transcript-lib.mjs');
   const pristine = readFileSync(join(HOOKS, '..', 'scripts', 'transcript-lib.mjs'), 'utf8');
   g = grokHook(grokChatT, join(mutantRoot, 'hooks', 'compact-snapshot.mjs'));
@@ -467,6 +468,14 @@ try {
   check('7k. the active line has N/12 and the snapshot count, and no flag when N does not exceed M', cl.includes('active 2/12 (last snapshot 2)'), c.stdout);
   check('7l. reply-owed peers come from the snapshot, with the full session id', cl.some((l) => /^reply owed: Peer One local_aaaa-1111 \S+: need an answer please$/.test(l)), c.stdout);
   check('7m. pending agents stay live from the ledger on a fresh card', cl.some((l) => l.startsWith('Pending agents: (1 of 1 shown)')) && cl.some((l) => l.startsWith('cardagent1 suite:implementer')), c.stdout);
+
+  // the recall pointer: on with a transcript, absent when recall is off or the transcript is missing
+  const recallOf = (r) => linesOf(r).filter((l) => l.startsWith('exact earlier detail:'));
+  const onLines = recallOf(c);
+  check('7m2. the recall pointer names the tool, the CLI, and the full session id, once', onLines.length === 1 && onLines[0].includes('transcript_recall') && onLines[0].includes(`co recall search --session ${CARD} --terms`), c.stdout);
+  for (const value of ['off', '0', 'FALSE']) check(`7m3. CODE_OPS_RECALL=${value} omits the recall pointer`, recallOf(cardOf({}, { CODE_OPS_RECALL: value })).length === 0);
+  check('7m4. a payload without transcript_path omits the recall pointer', recallOf(cardOf({ transcript_path: undefined })).length === 0);
+  check('7m5. a transcript_path that is not a file omits the recall pointer', recallOf(cardOf({ transcript_path: join(tmp, 'never-written.jsonl') })).length === 0);
 
   // GROWING and OVER CAP
   const tasksFile = join(cardRun, 'TASKS.md');

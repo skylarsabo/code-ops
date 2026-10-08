@@ -9,7 +9,7 @@
 // The host ignores PreCompact and PostCompact stdout, so the hook prints nothing. It never blocks
 // compaction: every path, including a bad payload, a missing transcript, and a failed write, exits 0.
 // It also starts a detached `transcript-recall.mjs build` for the session and never waits for it
-// (see spawnRecallBuild). The payload's `session_id`, `transcript_path`, and `cwd` are all it
+// (spawnRecallBuild in hooks/recall-spawn.mjs). The payload's `session_id`, `transcript_path`, and `cwd` are all it
 // reads. Grok sends camelCase `sessionId` and `transcriptPath` as well.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER: the snapshot write does nothing when
@@ -20,11 +20,11 @@
 //
 //   node hooks/compact-snapshot.mjs < payload.json
 
-import { spawn } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnRecallBuild } from './recall-spawn.mjs';
 
 const text = (value) => (typeof value === 'string' && value ? value : undefined);
 const scripts = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts');
@@ -51,24 +51,6 @@ async function recordCompactUnlock(payload, sessionId, transcriptPath, cwd) {
     if (typeof context === 'number') recordCeilingAssessment(cwd, sessionId, context, ceiling, home);
     armCompactAdmission(cwd, sessionId, home);
   } catch { /* a missed unlock leaves the typed /compact path */ }
-}
-
-// Prebuilds the transcript recall index (`transcript-recall.mjs build`) in a detached child, so
-// a later `co recall` call finds it current. The hook never waits for the child and a spawn failure
-// changes nothing it does: a build that never ran is caught up by the first recall call. The child
-// runs in the payload's `cwd`, because the index directory keys on it. `CODE_OPS_RECALL` of `off`,
-// `0`, or `false` skips the spawn, and so does a payload without a session id and a transcript.
-function spawnRecallBuild(sessionId, transcriptPath, cwd) {
-  try {
-    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECALL ?? '') || !sessionId || !transcriptPath) return;
-    const script = join(scripts, 'transcript-recall.mjs');
-    if (!existsSync(script)) return;
-    const child = spawn(process.execPath, [script, 'build', '--session', sessionId, '--transcript', transcriptPath], {
-      cwd: existsSync(cwd) ? cwd : undefined, detached: true, stdio: 'ignore', windowsHide: true,
-    });
-    child.on('error', () => {});
-    child.unref();
-  } catch { /* the lazy build on the first recall call covers it */ }
 }
 
 async function main() {

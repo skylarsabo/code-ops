@@ -73,6 +73,8 @@ function plugin(label, { stub = false, withScript = true } = {}) {
   const dir = mkdtempSync(join(tmpdir(), `prebuild-${label}-plugin-`));
   mkdirSync(join(dir, 'hooks'));
   for (const h of HOOKS) cpSync(join(root, 'plugins', 'code-ops-suite', 'hooks', `${h}.mjs`), join(dir, 'hooks', `${h}.mjs`));
+  // Both hooks import the shared spawn helper beside them.
+  cpSync(join(root, 'plugins', 'code-ops-suite', 'hooks', 'recall-spawn.mjs'), join(dir, 'hooks', 'recall-spawn.mjs'));
   cpSync(join(root, 'scripts'), join(dir, 'scripts'), { recursive: true });
   const script = join(dir, 'scripts', 'transcript-recall.mjs');
   if (!withScript) rmSync(script, { force: true });
