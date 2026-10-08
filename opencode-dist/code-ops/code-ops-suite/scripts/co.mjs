@@ -56,6 +56,8 @@ const TABLE = {
     cost: 'estimate-run-cost.mjs',
     bench: 'benchmark-command.mjs',
     open: { script: 'handoff-state.mjs', cmd: 'open' },
+    retention: { script: 'handoff-state.mjs', cmd: 'retention' },
+    'retention-check': { script: 'handoff-state.mjs', cmd: 'retention-check' },
   },
   security: {
     chains: 'attack-chain-graph.mjs',

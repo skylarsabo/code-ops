@@ -321,6 +321,9 @@ jobs:
       - name: Doc line-citation gate
         run: node scripts/check-doc-citations.mjs
 
+      - name: Run retention citation gate
+        run: node scripts/handoff-state.mjs retention-check
+
       - name: Documentation link gate
         run: node scripts/check-doc-links.mjs
 

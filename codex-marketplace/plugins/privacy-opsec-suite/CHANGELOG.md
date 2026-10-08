@@ -1,9 +1,10 @@
 # Changelog — privacy-opsec-suite
 
-## 2.6.3
+## 2.6.4
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
 
 ## 2.6.0

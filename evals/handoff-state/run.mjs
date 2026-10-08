@@ -36,7 +36,7 @@
 
 import { spawnSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, writeFileSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, writeFileSync, existsSync, readFileSync, realpathSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -974,6 +974,7 @@ try {
 
 // ---- program overlap at run open (design C6): live programs on the presence board, warn only ----
 const ov = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-overlap-')));
+let rtDir = null;
 try {
   execFileSync('git', ['init', '-q'], { cwd: ov, stdio: 'ignore' });
   const ledger = (slug, scope, status = '') => {
@@ -1040,8 +1041,80 @@ try {
   const noBoard = openOn('sess-lambda', 'kappa', 'Lambda HO 1');
   check('overlap: an unreadable board fails open with exit 0 and no overlap block', noBoard.status === 0 && !noBoard.stdout.includes('program overlap:') && noBoard.stdout.includes('links:'));
 
+  // ---- retention classes (design "Retention by run class") ----
+  const rt = mkdtempSync(join(tmpdir(), 'handoff-state-rt-'));
+  rtDir = rt;
+  const inRt = (args, script = co) => spawnSync(process.execPath, [script, ...args], { cwd: rt, encoding: 'utf8', env });
+  const gitRt = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: rt, stdio: 'ignore' });
+  gitRt('init', '-q');
+  const retOf = (runDir) => JSON.parse(readFileSync(join(rt, runDir, 'SESSION.json'), 'utf8')).retention;
+  const openRt = (slug, ...flags) => { const r = inRt(['run', 'open', slug, ...flags]); return { r, dir: r.stdout.split('\n')[0] }; };
+  const gate = (script = co) => inRt(script === co ? ['run', 'retention-check'] : ['retention-check'], script);
+  const cite = (text) => { writeFileSync(join(rt, 'notes.md'), text); gitRt('add', 'notes.md'); };
+
+  const noRuns = gate();
+  check('retention: the gate passes as a no-op when no run folder exists', noRuns.status === 0 && noRuns.stdout.includes('no working runs'));
+  const explicitWorking = openRt('rt-explicit', '--retention', 'working');
+  check('retention: an explicit class is recorded in SESSION.json and the run log', explicitWorking.r.status === 0
+    && retOf(explicitWorking.dir) === 'working' && readFileSync(join(rt, explicitWorking.dir, 'RUN_LOG.md'), 'utf8').includes('retention: working'));
+  check('retention: an explicit class wins over the skill default', retOf(openRt('rt-wins', '--skill', 'ship', '--retention', 'evidence').dir) === 'evidence');
+  check('retention: a build skill opens working', retOf(openRt('rt-ship', '--skill', 'ship').dir) === 'working'
+    && retOf(openRt('rt-feat', '--skill', 'code-ops-suite:feature-implementation').dir) === 'working'
+    && retOf(openRt('rt-rem', '--skill', 'remediation').dir) === 'working');
+  check('retention: research, audit, calibration, and review skills open evidence', ['research-sweep', 'codebase-audit', 'calibration-run', 'deep-review']
+    .every((skill) => retOf(openRt(`rt-${skill}`, '--skill', skill).dir) === 'evidence'));
+  check('retention: an unmapped skill opens evidence', retOf(openRt('rt-unmapped', '--skill', 'no-such-skill').dir) === 'evidence');
+  check('retention: no skill opens evidence', retOf(openRt('rt-bare').dir) === 'evidence');
+  check('retention: an unknown class is refused', inRt(['run', 'open', 'rt-bad', '--retention', 'keep']).status !== 0);
+  check('retention: --retention is refused outside open', inRt(['handoff', 'live', 'x', '--retention', 'working']).status !== 0);
+
+  const w = openRt('rt-cited', '--retention', 'working');
+  const wName = w.dir.split('/').pop();
+  cite(`See ${w.dir}/TASKS.md for the plan.\n`);
+  const cited = gate();
+  check('retention: the gate fails a cited working run and names the run, the citing file:line, and the fix', cited.status === 1
+    && cited.stderr.includes(wName) && cited.stderr.includes('notes.md:1') && cited.stderr.includes('evidence') && cited.stderr.includes('CLOSEOUT.md'));
+  check('retention: the gate ignores a citation inside 80 Runs/', (() => {
+    mkdirSync(join(rt, '80 Runs', 'x'), { recursive: true });
+    writeFileSync(join(rt, '80 Runs', 'x', 'note.md'), `${wName}\n`); gitRt('add', '-f', '80 Runs/x/note.md');
+    cite('no citation here\n');
+    return gate().status === 0;
+  })());
+  cite(`The closing record is ${w.dir}/CLOSEOUT.md.\n`);
+  check('retention: the gate passes when the citation targets CLOSEOUT.md', gate().status === 0);
+  cite(`${w.dir}/CLOSEOUT.md and also ${w.dir}/RESULTS.md\n`);
+  check('retention: the gate fails when one citation targets CLOSEOUT.md and another does not', gate().status === 1);
+  cite(`The slug ${wName}-2 is a different run.\n`);
+  check('retention: a longer run name does not match a shorter one', gate().status === 0);
+  const ev = openRt('rt-evidence');
+  cite(`See ${ev.dir}/RESULTS.md for the data.\n`);
+  check('retention: the gate passes a cited evidence run', gate().status === 0);
+
+  cite(`See ${w.dir}/TASKS.md again.\n`);
+  const raised = inRt(['run', 'retention', w.dir, 'evidence']);
+  check('retention: an agent raises a run to evidence and the gate then passes', raised.status === 0 && retOf(w.dir) === 'evidence' && gate().status === 0);
+  const lowered = inRt(['run', 'retention', w.dir, 'working']);
+  check('retention: lowering without --operator is refused and changes nothing', lowered.status === 1 && lowered.stderr.includes('--operator') && retOf(w.dir) === 'evidence');
+  const operator = inRt(['run', 'retention', w.dir, 'working', '--operator']);
+  check('retention: lowering with --operator works', operator.status === 0 && retOf(w.dir) === 'working' && gate().status === 1);
+  check('retention: --operator is refused outside the retention command', inRt(['run', 'open', 'rt-op', '--operator']).status !== 0);
+
+  // Mutant: a gate that ignores every citation must differ from the real gate, so the cases above catch it.
+  const mutantDir = join(rt, '..', `${rt.split(/[\\/]/).pop()}-mutant`);
+  mkdirSync(mutantDir);
+  for (const file of readdirSync(join(REPO, 'scripts')).filter((f) => f.endsWith('.mjs'))) copyFileSync(join(REPO, 'scripts', file), join(mutantDir, file));
+  const mutantPath = join(mutantDir, 'handoff-state.mjs');
+  const source = readFileSync(mutantPath, 'utf8');
+  const mutated = source.replace('if (!m.groups.closeout)', 'if (false)');
+  writeFileSync(mutantPath, mutated);
+  const mutantRun = gate(mutantPath);
+  check('retention mutant: the gate mutation applied', mutated !== source);
+  check('retention mutant: a gate that ignores citations passes the cited working run the real gate fails', mutantRun.status === 0 && gate().status === 1);
+  rmSync(mutantDir, { recursive: true, force: true });
+
 } finally {
   rmSync(ov, { recursive: true, force: true });
+  if (rtDir) rmSync(rtDir, { recursive: true, force: true });
 }
 
 if (fails.length) { console.error(`\n${fails.length} assertion(s) failed`); process.exit(1); }

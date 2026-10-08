@@ -409,13 +409,20 @@ function readRunStatus(dir) {
   const boxes = [...texts[RUN_STATUS_SOURCES.indexOf('TASKS.md')].matchAll(RUN_TASK_LINE)];
   return boxes.length ? `${boxes.filter((box) => box[1] !== ' ').length}/${boxes.length} tasks done` : null;
 }
+// The retention class `co run open` records in SESSION.json, or null for a run that records none.
+function readRunRetention(dir) {
+  try {
+    const cls = JSON.parse(readFileSync(resolve(dir, 'SESSION.json'), 'utf8')).retention;
+    return cls === 'evidence' || cls === 'working' ? cls : null;
+  } catch { return null; }
+}
 // Read-only: one row per run folder, with its tier, status, and the key artifacts that exist. A folder
 // whose name starts with a dot is tool state, not a run, so it is left out.
 export function readRunIndex(runsDir, nowMs = Date.now()) {
   return listRunTiers(runsDir, nowMs).filter((row) => !row.name.startsWith('.')).map((row) => {
     const dir = resolve(runsDir, row.name);
     const artifacts = RUN_LINKS.filter(([, entry, test]) => statOrNull(resolve(dir, entry))?.[test]()).map(([, entry]) => entry);
-    return { ...row, status: readRunStatus(dir), artifacts };
+    return { ...row, status: readRunStatus(dir), artifacts, retention: readRunRetention(dir) };
   });
 }
 const mdText = (text) => text.replace(/[\\|[\]]/g, '\\$&');
@@ -425,13 +432,13 @@ export function renderRunIndex(rows, nowMs, generatedNote) {
   const byName = (a, b) => (a.name < b.name ? -1 : a.name > b.name ? 1 : 0);
   const table = [...rows].sort((a, b) => a.ageDays - b.ageDays || byName(a, b)).map((row) => {
     const links = RUN_LINKS.filter(([, entry]) => row.artifacts.includes(entry)).map(([label, entry]) => `[${label}](${mdHref(row.name, entry)})`);
-    return `| ${mdText(row.name)} | ${row.tier} | ${row.ageDays} | ${row.status === null ? '-' : mdText(row.status)} | ${links.join(' ') || '-'} |`;
+    return `| ${mdText(row.name)} | ${row.tier} | ${row.ageDays} | ${row.retention ?? '-'} | ${row.status === null ? '-' : mdText(row.status)} | ${links.join(' ') || '-'} |`;
   });
   const asOf = new Date(dayOf(nowMs) * MS_PER_DAY).toISOString().slice(0, 10);
   return `---\ntype: index\ngenerated: true\n---\n\n${generatedNote}\n\n# Run index\n\n`
     + `Run folders, newest first, with ages counted to ${asOf} (UTC). Tier and age follow \`55 Operations/RUN_RETENTION.md\`. `
     + `Status is the last \`Verdict:\` or \`Status:\` line of \`${RUN_STATUS_SOURCES.join('`, `')}\` (first file that has one), else the TASKS.md checkbox count, else \`-\`.\n\n`
-    + (table.length ? `| Run | Tier | Age (days) | Status | Artifacts |\n| --- | --- | --- | --- | --- |\n${table.join('\n')}\n` : 'No run folders.\n');
+    + (table.length ? `| Run | Tier | Age (days) | Retention | Status | Artifacts |\n| --- | --- | --- | --- | --- | --- |\n${table.join('\n')}\n` : 'No run folders.\n');
 }
 function reportRuns(root, hub, now) {
   const rows = listRunTiers(resolve(root, hub, '80 Runs'), now);

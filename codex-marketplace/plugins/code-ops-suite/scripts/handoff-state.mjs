@@ -39,7 +39,12 @@
 // OPEN creates `<hub>/80 Runs/<YYYY-MM-DD>-<slug>/` (suffix -2, -3 when taken) with SESSION.json
 // (hop 0, no predecessor), a header-only TASKS.md, and RUN_LOG.md, then prints the folder. The hub
 // is `--hub`, else the first `80 Runs/` in the root or a `*-docs` folder beside it, as the
-// SessionStart card scans them.
+// SessionStart card scans them. `--retention evidence|working` records the run's retention class in
+// SESSION.json; without it the class comes from `--skill` through RETENTION_BY_SKILL (build skills
+// open `working`, every other or absent skill `evidence`). `retention <run dir> <class>` raises a
+// class, and lowering needs the operator-only `--operator`. `retention-check` (`co run
+// retention-check`) fails a `working` run that a tracked file outside `80 Runs/` cites, unless the
+// citation targets the run's CLOSEOUT.md.
 //
 // LIVE walks HANDOFF.consumed successor links from a handoff's run folder, or from the run folder
 // of a session named by id, id prefix, host session id, or name, to the head of the chain. It
@@ -182,7 +187,9 @@ import { hubOf, promotedIds, recordState } from './promotion-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = [
-  'usage: handoff-state.mjs open <slug> [--name <name>] [--program <PROGRAM.md>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
+  'usage: handoff-state.mjs open <slug> [--name <name>] [--program <PROGRAM.md>] [--retention evidence|working] [--skill <skill>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
+  '       handoff-state.mjs retention <run dir> evidence|working [--operator] [--root <repo>]   (--operator lowers a class and is operator-only)',
+  '       handoff-state.mjs retention-check [--root <repo>]',
   '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--pending-agents-ok] [--root <repo>]',
   '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
   '       handoff-state.mjs program-split <PROGRAM.md | program slug> --into <a>,<b>[,...] --assign <id>=<child>[,...] [--root <repo>]',
@@ -1509,8 +1516,42 @@ function resume(arg, flags) {
   return failures === 0 ? 0 : 1;
 }
 
+// RETENTION CLASSES (design "Retention by run class"). A run is `evidence` (keep) or `working`
+// (busywork). The opening skill sets the default; this table is its single source. Build skills
+// open `working`; research, audit, calibration, and review skills open `evidence`; a skill with no
+// entry, or no skill at all, opens `evidence`, because losing research is worse than keeping busywork.
+export const RETENTION_CLASSES = Object.freeze(['working', 'evidence']); // ascending: a later class outranks an earlier one
+export const RETENTION_BY_SKILL = Object.freeze({
+  ship: 'working',
+  'feature-implementation': 'working',
+  remediation: 'working',
+  calibration: 'evidence',
+  'calibration-run': 'evidence',
+  'codebase-audit': 'evidence',
+  'security-privacy-audit': 'evidence',
+  'run-cost-audit': 'evidence',
+  'provider-parity-audit': 'evidence',
+  'deep-review': 'evidence',
+  'local-review-gate': 'evidence',
+  'opsec-pr-gate': 'evidence',
+  'research-spike': 'evidence',
+  'research-sweep': 'evidence',
+  'research-verify': 'evidence',
+  'research-ideate': 'evidence',
+  'research-improve': 'evidence',
+});
+// A skill id may carry its plugin prefix (`code-ops-suite:ship`) or the OpenCode hyphenated form.
+export function defaultRetention(skill) {
+  const bare = String(skill ?? '').trim().replace(/^.*:/, '');
+  return RETENTION_BY_SKILL[bare] ?? 'evidence';
+}
+const retentionRank = (cls) => RETENTION_CLASSES.indexOf(cls);
+const retentionOf = (session) => (RETENTION_CLASSES.includes(session?.retention) ? session.retention : 'evidence');
+
 function open(slug, flags) {
   if (!/^[a-z0-9][a-z0-9-]*$/i.test(slug)) usage([`x run open needs a slug of letters, digits, and hyphens: ${slug}`, ...USAGE]);
+  if (flags.retention && !RETENTION_CLASSES.includes(flags.retention)) usage([`--retention takes evidence or working: ${flags.retention}`, ...USAGE]);
+  const retention = flags.retention || defaultRetention(flags.skill);
   const root = resolve(flags.root);
   const repoPath = (p) => relative(root, p).replace(/\\/g, '/');
   const programFile = flags.program ? resolve(root, flags.program) : null;
@@ -1524,12 +1565,68 @@ function open(slug, flags) {
   const hostSessionId = flags['host-session'] || null;
   const name = flags.name || slug;
   const created = new Date().toISOString();
-  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop: 0, predecessor: null, ...(programFile && { program: repoPath(programFile) }), createdAt: created });
+  writeJson(join(dir, 'SESSION.json'), { v: 1, sessionId: sid, hostSessionId, name, hop: 0, predecessor: null, retention, ...(programFile && { program: repoPath(programFile) }), createdAt: created });
   writeFileSync(join(dir, 'TASKS.md'), '# Tasks\n');
-  writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work.\n`);
+  writeFileSync(join(dir, 'RUN_LOG.md'), `# Run log\n\n- ${created}: ${name} opened this run as new work (retention: ${retention}).\n`);
   writeSessionRecord(sid, { hostSessionId, name, runDir: repoPath(dir), resumed: null, hop: 0 });
   boardNote(sid, { hostSessionId, name, runDir: repoPath(dir), task: name });
   console.log([repoPath(dir), ...overlapLines(programFile, root, sid), ...linksBlock([['run', repoPath(dir)]])].join('\n'));
+  return 0;
+}
+
+// `retention <run dir> <evidence|working> [--operator]` sets a run's class in its SESSION.json. Any
+// agent may raise a run to `evidence`. Lowering to `working` is the operator's call: it needs
+// --operator, which an agent never passes.
+function retention(runArg, cls, flags) {
+  if (!RETENTION_CLASSES.includes(cls)) usage([`retention takes evidence or working: ${cls}`, ...USAGE]);
+  const file = join(resolve(flags.root, runArg), 'SESSION.json');
+  const session = readJson(file);
+  if (!session) die(`${runArg} holds no readable SESSION.json: open the run with co run open`);
+  const current = retentionOf(session);
+  if (retentionRank(cls) < retentionRank(current) && !flags.operator) {
+    die(`refusing to lower ${runArg} from ${current} to ${cls}: only the operator lowers a retention class, with --operator`);
+  }
+  if (cls !== current || session.retention !== cls) writeJson(file, { ...session, retention: cls });
+  console.log(`${runArg}: retention ${cls}${cls === current ? ' (unchanged)' : ` (was ${current})`}`);
+  return 0;
+}
+
+const CITATION_SCAN_MAX_BYTES = 2 * 1024 * 1024;
+
+// `retention-check`: fails a `working` run that a tracked file outside `80 Runs/` cites by folder
+// name, unless the citation targets that run's CLOSEOUT.md. A hub with no run folders, or none
+// classed `working`, passes without reading git. A git failure with a working run present fails
+// closed: an unreadable file list would hide a violation.
+function retentionCheck(flags) {
+  const root = resolve(flags.root);
+  const working = [];
+  for (const runs of runsRoots(root)) {
+    for (const e of readdirSync(runs, { withFileTypes: true })) {
+      if (e.isDirectory() && readJson(join(runs, e.name, 'SESSION.json'))?.retention === 'working') working.push(e.name);
+    }
+  }
+  if (!working.length) { console.log('run retention: no working runs'); return 0; }
+  let tracked;
+  try { tracked = git(['ls-files', '-z'], { cwd: root }).split('\0').filter(Boolean); } catch { die('run retention: git ls-files failed, so citations to working runs cannot be checked'); }
+  const patterns = working.map((name) => [name, new RegExp(`(?<![\\w-])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\w-])(?<closeout>[/\\\\]CLOSEOUT\\.md)?`, 'g')]);
+  const failures = [];
+  for (const rel of tracked) {
+    if (rel.split('/').includes('80 Runs')) continue;
+    const abs = resolve(root, rel);
+    let text;
+    try { if (!statSync(abs).isFile() || statSync(abs).size > CITATION_SCAN_MAX_BYTES) continue; text = readFileSync(abs, 'utf8'); } catch { continue; }
+    if (text.includes('\0')) continue;
+    text.split(/\r?\n/).forEach((line, i) => {
+      for (const [name, re] of patterns) {
+        re.lastIndex = 0;
+        for (const m of line.matchAll(re)) {
+          if (!m.groups.closeout) failures.push(`run retention: ${name} is working, but ${rel}:${i + 1} cites it. Fix: raise it with co run retention <run dir> evidence, or point the citation at ${name}/CLOSEOUT.md.`);
+        }
+      }
+    });
+  }
+  if (failures.length) { console.error(failures.join('\n')); return 1; }
+  console.log(`run retention: ${working.length} working run(s), none cited outside 80 Runs/ except at CLOSEOUT.md`);
   return 0;
 }
 
@@ -1615,8 +1712,15 @@ if (isEntry()) {
     assign: { value: true },
     'head-ended': { value: false },
     'pending-agents-ok': { value: false },
+    retention: { value: true },
+    skill: { value: true },
+    operator: { value: false },
   }, USAGE.join('\n'));
   if (flags.program && command !== 'draft' && command !== 'open') usage(USAGE);
+  if ((flags.retention || flags.skill) && command !== 'open') usage(USAGE);
+  if (flags.operator && command !== 'retention') usage(USAGE);
+  if (command === 'retention' && positional.length === 2 && Object.keys(flags).every((k) => k === 'root' || k === 'operator')) process.exit(retention(positional[0], positional[1], flags));
+  if (command === 'retention-check' && positional.length === 0 && Object.keys(flags).every((k) => k === 'root')) process.exit(retentionCheck(flags));
   const onlyFlags = (...names) => Object.keys(flags).every((k) => k === 'root' || names.includes(k));
   if (command === 'program-split' && positional.length === 1 && flags.into && flags.assign && onlyFlags('into', 'assign')) process.exit(split(positional[0], flags));
   if (command === 'program-merge' && positional.length === 1 && flags.into && onlyFlags('into', 'head-ended')) process.exit(merge(positional[0], flags));
