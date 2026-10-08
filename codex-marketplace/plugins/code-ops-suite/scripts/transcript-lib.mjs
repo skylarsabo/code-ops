@@ -543,7 +543,47 @@ function operatorText(raw) {
   return t;
 }
 
-const isBoundary = (o) => o?.type === 'system' && o.subtype === 'compact_boundary';
+export const isBoundary = (o) => o?.type === 'system' && o.subtype === 'compact_boundary';
+
+// The text bodies of a typed user row: a human or task-notification origin that is not meta, not a
+// compact summary, and not transcript-only. Any other row has none. A tool_result-only row has no
+// text block. conversationOf() reads each body for notes, peer messages, and operator words;
+// isOperatorPrompt() asks whether one of them is an operator prompt. Both start here, so the row
+// test lives once.
+function typedUserBodies(o) {
+  if (o?.type !== 'user' || o.isMeta || o.isCompactSummary || o.isVisibleInTranscriptOnly) return [];
+  if (o.origin && o.origin.kind !== 'human' && o.origin.kind !== 'task-notification') return [];
+  const content = o.message?.content;
+  if (typeof content === 'string') return [content];
+  return Array.isArray(content) ? content.filter((b) => b?.type === 'text' && typeof b.text === 'string').map((b) => b.text) : [];
+}
+
+// The operator-prompt predicate, for a caller that walks rows itself: a typed user row with text
+// left after the task notes are stripped and with no cross-session peer message, whose
+// operatorText() is not empty.
+export function isOperatorPrompt(o) {
+  return typedUserBodies(o).some((body) => {
+    const rest = body.replace(TASK_NOTE_RE, '');
+    return rest.matchAll(PEER_RE).next().done && operatorText(rest) !== '';
+  });
+}
+
+// Walks a transcript Buffer one raw line at a time by scanning for 0x0A, so a caller keeps the byte
+// anchor of every row. `off` and `len` are bytes: `len` stops before the 0x0A and keeps a CR. `line`
+// is 1-based and equals the index of a split on the newline plus one, the number conversationOf() reports.
+// `text` is the decoded line without a leading BOM or a trailing CR. An empty remainder after the
+// last 0x0A is not a line. An unterminated last line is yielded, and its off + len reaches the end of buf.
+export function* walkLines(buf) {
+  let off = 0;
+  let line = 1;
+  while (off < buf.length) {
+    const lf = buf.indexOf(10, off);
+    const end = lf === -1 ? buf.length : lf;
+    yield { off, len: end - off, line, text: buf.toString('utf8', off, end).replace(/^\uFEFF/, '').replace(/\r$/, '') };
+    off = end + 1;
+    line++;
+  }
+}
 
 // The `compact_boundary` records in a transcript: the count the snapshot header stores and the
 // SessionStart card reads again, so a caller that only needs the count skips the full parse.
@@ -631,10 +671,7 @@ export function conversationOf(text) {
         continue;
       }
       const content = o.message?.content;
-      if (o.type === 'user' && !o.isMeta && !o.isCompactSummary && !o.isVisibleInTranscriptOnly && (!o.origin || o.origin.kind === 'human' || o.origin.kind === 'task-notification')) {
-        if (typeof content === 'string') prompt(content);
-        else if (Array.isArray(content)) for (const b of content) if (b?.type === 'text' && typeof b.text === 'string') prompt(b.text);
-      }
+      for (const body of typedUserBodies(o)) prompt(body);
       if (!Array.isArray(content)) continue;
       for (const b of content) {
         if (b?.type === 'tool_use' && typeof b.id === 'string') {

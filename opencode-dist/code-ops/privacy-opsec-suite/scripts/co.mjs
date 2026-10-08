@@ -157,6 +157,11 @@ const TABLE = {
   // COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peers that host
   // compaction loses. It needs `--session` or `--run`.
   snapshot: 'compact-snapshot.mjs',
+  // A command: `co recall <status|outline|search|zoom|build> --session <id> [--transcript <file>]
+  // [--id <@off+len>|--line <n>] [--terms <text>] [--kind text|tool|error] [--depth <n>] [--page <n>]
+  // [--budget <bytes>] [--json]` recovers exact earlier detail from the session's host transcript
+  // through a byte-anchored index, checked by sha256 and masked. `CODE_OPS_RECALL=off` disables it.
+  recall: 'transcript-recall.mjs',
 };
 
 // A domain named here runs this verb when the caller gives none, so `co board` lists the board.

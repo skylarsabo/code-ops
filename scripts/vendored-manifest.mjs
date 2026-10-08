@@ -132,6 +132,10 @@ export const RUNTIME_SCRIPTS = [
   // `co snapshot` and the PreCompact writer. It imports agent-ledger.mjs, cli-lib.mjs, and
   // transcript-lib.mjs as SIBLINGS and spawns scan-redaction.mjs, all vendored above.
   { name: 'compact-snapshot.mjs', plugins: ['code-ops-suite'] },
+  // `co recall`, the transcript_recall MCP tool, and the PreCompact and SessionEnd prebuilds.
+  // It imports cli-lib.mjs, compact-snapshot.mjs, context-index-lib.mjs, and transcript-lib.mjs
+  // as SIBLINGS, all vendored above.
+  { name: 'transcript-recall.mjs', plugins: ['code-ops-suite'] },
   // The derived-file merge driver. conform installs it in an adopter repository, and the git
   // hooks run its `regenerate` and `amend` steps. It spawns the generators as SIBLINGS and skips
   // any group whose generator is absent, so it needs no other script here.

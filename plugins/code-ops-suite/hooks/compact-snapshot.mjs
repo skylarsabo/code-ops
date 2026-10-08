@@ -8,8 +8,9 @@
 //
 // The host ignores PreCompact and PostCompact stdout, so the hook prints nothing. It never blocks
 // compaction: every path, including a bad payload, a missing transcript, and a failed write, exits 0.
-// The payload's `session_id`, `transcript_path`, and `cwd` are all it reads. Grok sends camelCase
-// `sessionId` and `transcriptPath` as well.
+// It also starts a detached `transcript-recall.mjs build` for the session and never waits for it
+// (see spawnRecallBuild). The payload's `session_id`, `transcript_path`, and `cwd` are all it
+// reads. Grok sends camelCase `sessionId` and `transcriptPath` as well.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER: the snapshot write does nothing when
 // `CODE_OPS_COMPACT_SNAPSHOT` is `off`, `0`, or `false` (case-insensitive), the switch shape the
@@ -19,7 +20,8 @@
 //
 //   node hooks/compact-snapshot.mjs < payload.json
 
-import { readFileSync } from 'node:fs';
+import { spawn } from 'node:child_process';
+import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -51,6 +53,24 @@ async function recordCompactUnlock(payload, sessionId, transcriptPath, cwd) {
   } catch { /* a missed unlock leaves the typed /compact path */ }
 }
 
+// Prebuilds the transcript recall index (`transcript-recall.mjs build`) in a detached child, so
+// a later `co recall` call finds it current. The hook never waits for the child and a spawn failure
+// changes nothing it does: a build that never ran is caught up by the first recall call. The child
+// runs in the payload's `cwd`, because the index directory keys on it. `CODE_OPS_RECALL` of `off`,
+// `0`, or `false` skips the spawn, and so does a payload without a session id and a transcript.
+function spawnRecallBuild(sessionId, transcriptPath, cwd) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECALL ?? '') || !sessionId || !transcriptPath) return;
+    const script = join(scripts, 'transcript-recall.mjs');
+    if (!existsSync(script)) return;
+    const child = spawn(process.execPath, [script, 'build', '--session', sessionId, '--transcript', transcriptPath], {
+      cwd: existsSync(cwd) ? cwd : undefined, detached: true, stdio: 'ignore', windowsHide: true,
+    });
+    child.on('error', () => {});
+    child.unref();
+  } catch { /* the lazy build on the first recall call covers it */ }
+}
+
 async function main() {
   const snapshotOff = /^(off|0|false)$/i.test(process.env.CODE_OPS_COMPACT_SNAPSHOT ?? '');
   let raw = '';
@@ -68,6 +88,7 @@ async function main() {
   const sessionId = text(payload?.session_id) ?? text(payload?.sessionId);
   const transcriptPath = text(payload?.transcript_path) ?? text(payload?.transcriptPath);
   const cwd = text(payload?.cwd) ?? process.cwd();
+  spawnRecallBuild(sessionId, transcriptPath, cwd);
   if (sessionId) await recordCompactUnlock(payload, sessionId, transcriptPath, cwd);
   if (snapshotOff || (!sessionId && !transcriptPath)) return;
   const { createSnapshot, markSnapshotRestore } = await import(pathToFileURL(join(scripts, 'compact-snapshot.mjs')).href);

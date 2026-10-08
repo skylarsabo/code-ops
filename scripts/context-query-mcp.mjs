@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Zero-dependency MCP (stdio) server wrapping context-query.mjs, so a host with no Bash tool
 // reaches the same symbol index. Newline-delimited JSON-RPC 2.0 over stdio. Tools:
-// context_query, context_refresh.
+// context_query, context_refresh, transcript_recall.
 //
 // WHY: the query tool's whole point is that an operative asks a structural question instead of
 // reading a map. On a host that cannot run a shell command, that path does not exist at all, and
@@ -9,18 +9,21 @@
 //
 //   node scripts/context-query-mcp.mjs   (invoked by an MCP client over stdio; not run standalone)
 //
-// Each call spawns the sibling context-query.mjs with --json and returns its JSON as the tool's
-// text content. A query that finds nothing still answers: the script prints its JSON and exits 1,
+// Each call spawns the sibling context-query.mjs (transcript-recall.mjs for transcript_recall) with
+// --json and returns its JSON as the tool's text content. A query that finds nothing still answers: the script prints its JSON and exits 1,
 // and that JSON is the result. A bad argument or a usage error comes back as a JSON-RPC error
 // object, never a process exit — one bad request must not kill a long-lived server.
 //
 // Exit: 0 on a clean stdin close, after in-flight calls drain (bounded to 10s).
 
 import { spawnSync } from 'node:child_process';
+import { basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const QUERY = fileURLToPath(new URL('./context-query.mjs', import.meta.url));
+const RECALL = fileURLToPath(new URL('./transcript-recall.mjs', import.meta.url));
 const COMMANDS = ['find', 'callers', 'callees', 'blast', 'explore', 'status'];
+const RECALL_COMMANDS = ['status', 'outline', 'search', 'zoom'];
 const SERVER = { name: 'code-ops-query', version: '1.0.0' };
 const TIMEOUT_MS = 120000;
 
@@ -51,6 +54,26 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'transcript_recall',
+    description: 'Recover exact detail from this session\'s own host transcript after compaction, without reading the file. Every answer ends at the original bytes and carries their sha256; a changed transcript fails with "anchor drift". status: index state. outline: the labelled tree (session, epoch, turn, step, block) below an id. search: blocks ranked by terms, each with an id, a label, and a masked snippet. zoom: an interior id lists its children; a block id returns its masked text, paged. Output is masked and bounded by budget.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        command: { type: 'string', enum: RECALL_COMMANDS, description: 'the recall command to run' },
+        session: { type: 'string', description: 'the host session id (the transcript file name without .jsonl)' },
+        id: { type: 'string', description: 'outline and zoom: a node id such as @1648+294, a block uuid, or line:<n> (default for outline: the session)' },
+        line: { type: 'integer', minimum: 1, description: 'zoom: the transcript line number of a block or of one of its results (a snapshot stub prints these)' },
+        terms: { type: 'string', description: 'search: words to find; an exact identifier (a SHA, a path, an id, a test name) weighs more' },
+        kind: { type: 'string', enum: ['text', 'tool', 'error'], description: 'search: count only text, tool input and output, or error results' },
+        depth: { type: 'integer', minimum: 1, description: 'outline: levels below the id (default 1)' },
+        page: { type: 'integer', minimum: 0, description: 'page of the answer (default 0)' },
+        budget: { type: 'integer', minimum: 200, description: 'byte budget per page (default 4000)' },
+        root: { type: 'string', description: 'repository root (default: cwd)' },
+      },
+      required: ['command', 'session'],
+    },
+  },
 ];
 
 const send = (msg) => process.stdout.write(`${JSON.stringify(msg)}\n`);
@@ -61,11 +84,12 @@ class BadArgs extends Error {}
 
 // Exit 2 is the query script's usage error, so it is the caller's fault and becomes an
 // Invalid-params error. Every other exit carries JSON on stdout and is a real answer.
-function run(args, root) {
-  const r = spawnSync(process.execPath, [QUERY, ...args, '--json'], { cwd: root, encoding: 'utf8', timeout: TIMEOUT_MS, maxBuffer: 1 << 26 });
-  if (r.error) throw new Error(`context-query.mjs did not run: ${r.error.message}`);
+function run(args, root, script = QUERY) {
+  const name = basename(script);
+  const r = spawnSync(process.execPath, [script, ...args, '--json'], { cwd: root, encoding: 'utf8', timeout: TIMEOUT_MS, maxBuffer: 1 << 26 });
+  if (r.error) throw new Error(`${name} did not run: ${r.error.message}`);
   if (r.status === 2) throw new BadArgs((r.stderr || r.stdout || 'usage error').trim().split('\n')[0]);
-  if (!r.stdout.trim()) throw new Error(`context-query.mjs exited ${r.status} with no output: ${(r.stderr || '').trim().split('\n')[0]}`);
+  if (!r.stdout.trim()) throw new Error(`${name} exited ${r.status} with no output: ${(r.stderr || '').trim().split('\n')[0]}`);
   return r.stdout;
 }
 
@@ -87,6 +111,22 @@ function callTool(name, args) {
     const paths = args.paths ?? [];
     if (!Array.isArray(paths) || paths.some((p) => typeof p !== 'string' || !p.trim())) throw new BadArgs('paths must be an array of non-empty strings');
     return run(['refresh', ...paths], root);
+  }
+  if (name === 'transcript_recall') {
+    if (!RECALL_COMMANDS.includes(args.command)) throw new BadArgs(`command must be one of ${RECALL_COMMANDS.join(', ')}`);
+    if (typeof args.session !== 'string' || !args.session.trim()) throw new BadArgs('session must be a non-empty string');
+    const flags = ['--session', args.session];
+    for (const key of ['id', 'terms', 'kind']) {
+      if (args[key] === undefined) continue;
+      if (typeof args[key] !== 'string' || !args[key].trim()) throw new BadArgs(`${key} must be a non-empty string`);
+      flags.push(`--${key}`, args[key]);
+    }
+    for (const [key, min] of [['line', 1], ['depth', 1], ['page', 0], ['budget', 200]]) {
+      if (args[key] === undefined) continue;
+      if (!Number.isInteger(args[key]) || args[key] < min) throw new BadArgs(`${key} must be an integer of at least ${min}`);
+      flags.push(`--${key}`, String(args[key]));
+    }
+    return run([args.command, ...flags], root, RECALL);
   }
   throw new BadArgs(`unknown tool: ${name}`);
 }

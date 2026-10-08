@@ -1551,9 +1551,12 @@ index records the providers its definitions came from and `status` prints them. 
 
 `context-query-mcp.mjs` is the same queries as a newline-delimited JSON-RPC 2.0 stdio server, so
 a host with no shell reaches them. The server is `code-ops-query` in the plugin manifest's
-`mcpServers`, and it declares two tools: `context_query`, taking a command of `find`, `callers`,
+`mcpServers`, and it declares three tools: `context_query`, taking a command of `find`, `callers`,
 `callees`, `blast`, `explore`, or `status` with a target and optional `budget`, `fuzzy`, and
-`root`, and `context_refresh`, taking optional `paths` and `root`. Each call spawns the sibling
+`root`, `context_refresh`, taking optional `paths` and `root`, and `transcript_recall`, which
+takes a `command` of `status`, `outline`, `search`, or `zoom` and a `session`, plus optional
+`id`, `line`, `terms`, `kind`, `depth`, `page`, and `budget` (minimum 200), and spawns
+`transcript-recall.mjs --json`. Each call spawns the sibling
 query script with `--json` and returns its JSON as the tool's text content, so a query that finds
 nothing still answers. A caller's mistake comes back as an Invalid-params error and a failure
 inside the script as an Internal error, never a process exit. Evidence:
@@ -1569,6 +1572,62 @@ five-second budget and prints nothing. Setting `CODE_OPS_INDEX` to `off`, `0`, o
 canonical environment turns it off; rendered hosts use their documented process environment.
 Evidence: `scripts/context-query.mjs:96` and
 `plugins/code-ops-suite/hooks/index-refresh.mjs:25-36`.
+
+## Transcript recall
+
+After host compaction, a session recovers exact earlier detail from its own host transcript
+JSONL without reading the whole file. Every answer ends at the original bytes, checked by
+sha256. The feature makes zero model calls and adds nothing to the hot path.
+`transcript-recall.mjs` is the library and the CLI, `node scripts/transcript-recall.mjs
+<status|outline|search|zoom|build> --session <id>`, and `co recall` routes to it. Line scanning
+comes from `walkLines(buf)` in `transcript-lib.mjs`, which yields `{off, len, line, text}` per raw
+line, with offsets in bytes.
+
+The index is a home-directory tree,
+`<CODE_OPS_HOME or home>/.claude/code-ops/recall/<project slug>/<session slug>/`, keyed like the
+compact snapshot path. It holds two files, both written with `atomicWrite`. `meta.json` carries
+`version`, `transcript`, `indexedBytes`, `tailSha256`, and `boundaries`. `tree.json` carries
+nodes of `{id, kind, parent, off, len, sha256, uuid?, label}`. The index never stores raw bytes,
+and every label passes the masker before it is written.
+
+The first call whose meta is missing or behind the file size builds the index. If `tailSha256` of
+the last indexed line still matches, the build extends from `indexedBytes`. Otherwise it rebuilds
+in full. An `O_EXCL` lock file guards the build, with a stale check on its PID and age.
+
+The tree has five levels. L0 is the session. L1 is an epoch between `compact_boundary` rows. L2 is
+a turn, from one operator prompt to the next. L3 is a step, one assistant `message.id` group. L4
+is a block, a text block or a `tool_use` paired with its `tool_result` by `tool_use_id`. The leaf
+is the raw line bytes. Sidechain rows and `isCompactSummary` rows are never leaves. A node id is
+`@<off>+<len>`, and `zoom` also accepts a uuid. `line:<n>` resolves to the leaf for that
+transcript line, which is how snapshot stubs point into the transcript. A label is computed, not
+written by a model, and is capped at about 200 characters. A turn label holds `prompt line:<n>`
+as a reference and never the prompt text.
+
+Every command stops at `--budget` bytes of output.
+
+- `status` prints the index age, `indexedBytes`, the file size, the boundaries, the node count,
+  and whether the index is current.
+- `outline` prints the child labels of `--id` (default the root) down to `--depth`.
+- `search` scans the raw transcript bytes at query time, with no stored posting list. It ranks
+  leaf blocks by term hits, weighs exact identifiers (SHAs, PR numbers, paths, ids) higher, takes
+  an optional `--kind` of `text`, `tool`, or `error`, and returns `[{id, label, score, snippet}]`.
+  Only the snippet is masked at output.
+- `zoom` on an interior node returns child labels. On a leaf it re-reads `[off,len]`, checks the
+  sha256, masks the text, and pages it by `--page`.
+
+A sha mismatch or a truncated file makes `zoom` fail closed with `anchor drift`: a non-zero exit
+and no content. No path prints raw unmasked transcript text. `CODE_OPS_RECALL` of `off`, `0`, or
+`false` makes every command print a one-line disabled notice and exit 0.
+
+`evals/transcript-recall/run.mjs` is deterministic and uses no model. It generates a synthetic
+fixture and never reads a real transcript. It gates that the host summary and the compact
+snapshot lack the planted tool-result, free-text, and id needles while search then zoom recalls
+each within four tool calls with a sha match; that an incremental build equals a full rebuild
+byte for byte; that a rewritten or truncated transcript yields `anchor drift`; that the secret
+needle appears in no recall file and no output; that `line:<n>` resolves and the off switch
+works; and that sidechain and compact-summary rows are never leaves. Three mutants must each
+fail the eval: an offset off by one, a scrambled id map, and masking disabled. One
+paraphrase-only fact is a declared miss, reported and not gated.
 
 ## Atlas claims and scope suggestion
 
