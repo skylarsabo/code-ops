@@ -13,7 +13,7 @@
 //
 // The hook also marks the session's presence board record ended (see endBoard below), appends
 // an `ended` marker to the session's agent ledger file (see endLedger below), and starts a
-// detached recall index build (see spawnRecallBuild). Each of the three has its own switch, so
+// detached recall index build (spawnRecallBuild in hooks/recall-spawn.mjs). Each of the three has its own switch, so
 // `CODE_OPS_RECEIPTS=off` skips only the receipt row.
 //
 // Fail-open on every path: bad stdin, missing transcript, unwritable ledger → exit 0 silently.
@@ -25,11 +25,11 @@
 //   tokens: { main: {...}, subagents: {...} } }. Fields are added without a version bump:
 //   every reader tolerates an unknown key and treats a missing one as absent.
 
-import { spawn } from 'node:child_process';
 import { readFileSync, appendFileSync, mkdirSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { spawnRecallBuild } from './recall-spawn.mjs';
 
 let input = '';
 let pending = null;
@@ -80,24 +80,6 @@ async function pendingWorkers(sessionId) {
     const list = pendingAgents({ sessionId });
     return { count: list.length, ids: list.slice(0, PENDING_IDS).map((a) => a.agent_id) };
   } catch { return none; }
-}
-
-// Prebuilds the transcript recall index (`transcript-recall.mjs build`) in a detached child, so
-// a later `co recall` call finds it current. The hook never waits for the child and a spawn failure
-// changes nothing it does: a build that never ran is caught up by the first recall call. The child
-// runs in the payload's `cwd`, because the index directory keys on it. `CODE_OPS_RECALL` of `off`,
-// `0`, or `false` skips the spawn, and so does a payload without a session id and a transcript.
-function spawnRecallBuild(sessionId, transcriptPath, cwd) {
-  try {
-    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_RECALL ?? '') || !sessionId || !transcriptPath) return;
-    const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-recall.mjs');
-    if (!existsSync(script)) return;
-    const child = spawn(process.execPath, [script, 'build', '--session', sessionId, '--transcript', transcriptPath], {
-      cwd: existsSync(cwd) ? cwd : undefined, detached: true, stdio: 'ignore', windowsHide: true,
-    });
-    child.on('error', () => {});
-    child.unref();
-  } catch { /* the lazy build on the first recall call covers it */ }
 }
 
 function finish() {

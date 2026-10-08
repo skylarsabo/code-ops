@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
+      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -102,12 +102,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 440,
+          "line": 460,
           "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 428,
+          "line": 447,
           "anchor": "lines.push(...gitLine(cwd));"
         },
         {
@@ -232,7 +232,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 111,
+          "line": 93,
           "anchor": "async function endBoard() {"
         },
         {
@@ -276,28 +276,38 @@
           "anchor": "\"command\": \"node \\\"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
         },
         {
+          "file": "plugins/code-ops-suite/hooks/recall-spawn.mjs",
+          "line": 15,
+          "anchor": "export function spawnRecallBuild(sessionId, transcriptPath, cwd) {"
+        },
+        {
           "file": "plugins/code-ops-suite/hooks/compact-snapshot.mjs",
-          "line": 61,
-          "anchor": "function spawnRecallBuild(sessionId, transcriptPath, cwd) {"
+          "line": 73,
+          "anchor": "spawnRecallBuild(sessionId, transcriptPath, cwd);"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 147,
-          "anchor": "function prebuildRecall() {"
+          "line": 134,
+          "anchor": "spawnRecallBuild(typeof sid === 'string' ? sid : '', typeof value === 'string' ?"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 424,
+          "line": 392,
+          "anchor": "function recallLine(sessionId, transcriptPath) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 443,
           "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 284,
+          "line": 291,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 299,
+          "line": 306,
           "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
@@ -351,7 +361,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "a48353e686d5bb2687ce641bc1b2372665278f9e76039d269d4cabf8b270f737"
+      "verifiedDigest": "ce1d23f35736aa8d096e0db1702eb2758583af3d3a6103fef825708aa501432c"
     },
     {
       "slug": "gate-scripts",
@@ -360,7 +370,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
+      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -689,7 +699,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 333,
+          "line": 340,
           "anchor": "async function routingLine(sessionId) {"
         },
         {
@@ -968,7 +978,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "a055b3aff0dcf5413be463a93becef2965db4cbdcecd1f464b6a6b6eb2e9c5ff"
+      "verifiedDigest": "cba9dd2b7f8c5d007d572020749f0ad6c71e140da9808f52fa57a7365f7ccb1c"
     },
     {
       "slug": "evals-and-calibration",
@@ -976,8 +986,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
-      "verifiedDigest": "000c904b7581168c12098ddab5c894c13555d0862c5ecb519a193eeb46c9508b",
+      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
+      "verifiedDigest": "f45484ff161d27430c8ca7d65fb57645ada3de833595475cf21be42dc4246827",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1161,12 +1171,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 609,
+          "line": 618,
           "anchor": "check('9a. PARITY: every CARRIED_FIELDS section, and the Run: path, is in a simu"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 618,
+          "line": 627,
           "anchor": "check('9d. PARITY: every handoff Write field has a CARRIED_FIELDS entry, and the"
         },
         {
@@ -1191,7 +1201,7 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 499,
+          "line": 508,
           "anchor": "writeFileSync(cardSnap, 'garbage that is not a snapshot\\n- REPLY OWED Nobody x:"
         },
         {
@@ -1286,12 +1296,12 @@
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 477,
+          "line": 486,
           "anchor": "writeFileSync(tasksFile, unchecked(13));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
-          "line": 487,
+          "line": 496,
           "anchor": "cl = linesOf(c);"
         },
         {
@@ -1329,7 +1339,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "748a8f62282df3ba91905e4cffb9d91bd1bb36ae",
+      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1378,17 +1388,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 284,
+          "line": 291,
           "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 299,
+          "line": 306,
           "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 289,
+          "line": 296,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
@@ -1442,7 +1452,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "47d799b4508b341f0c81b7b48ab33cb7f655d3753ee5c187349fa02cad262591"
+      "verifiedDigest": "166f8fd1d9ec7786ff29b8586c766682e160aceadab3cd17337c598cc2faeeb3"
     },
     {
       "slug": "ci-workflows",
@@ -1545,7 +1555,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "e77e404c6a2c864bcf1ece03be3d14e55b19b5ce",
+      "verifiedAt": "845424c30802a3cebeb4bb04089204e87c968512",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1613,11 +1623,11 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
-          "line": 185,
+          "line": 167,
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "c068b6faf40e41428a8e0765fcdf2c4541f6f2a4f7eaf63427fa855922522ec8"
+      "verifiedDigest": "fe8ed9b323b9f61dc3d6cbcb4425df0aa63b269c8410457e520f49d84251d46a"
     },
     {
       "slug": "root-contracts",
