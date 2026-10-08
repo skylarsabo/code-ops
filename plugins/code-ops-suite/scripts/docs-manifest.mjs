@@ -138,8 +138,25 @@ function domainInputs(snap, hub, domain) {
     contents: snap.contents(hub, domain.path),
   };
 }
-const digestsOf = (snap, root, { sources, contents }) => ({
-  sourceDigest: hashPaths(root, sources, snap.read), contentDigest: hashPaths(root, contents, snap.read),
+// The atlas domain digests its MANIFEST.json without the fields `atlas-check.mjs stamp` writes
+// per section (`target.verifiedAt`, `target.verifiedDigest`, `target.claims`). A restamp then
+// leaves the domain digest alone, while prose, slug, file, scope, and every other byte still count.
+// The JSON is re-serialized compactly, so a layout-only change is invisible too. Text that is not
+// the expected shape is hashed raw, which fails closed.
+const ATLAS_STAMP_FIELDS = new Set(['verifiedAt', 'verifiedDigest', 'claims']);
+function withoutAtlasStamps(bytes) {
+  let atlas;
+  try { atlas = JSON.parse(bytes.toString('utf8')); } catch { return bytes; }
+  if (!atlas || !Array.isArray(atlas.sections) || !atlas.sections.every((s) => s && typeof s === 'object' && !Array.isArray(s))) return bytes;
+  const sections = atlas.sections.map((s) => Object.fromEntries(Object.entries(s).filter(([key]) => !ATLAS_STAMP_FIELDS.has(key))));
+  return Buffer.from(JSON.stringify({ ...atlas, sections }));
+}
+const contentReader = (snap, hub, domain) => {
+  const stamped = `${hub}/${domain.path}/MANIFEST.json`;
+  return domain.id === 'atlas' ? (path) => (path === stamped ? withoutAtlasStamps(snap.read(path)) : snap.read(path)) : snap.read;
+};
+const digestsOf = (snap, root, hub, domain, { sources, contents }) => ({
+  sourceDigest: hashPaths(root, sources, snap.read), contentDigest: hashPaths(root, contents, contentReader(snap, hub, domain)),
 });
 function exactKeys(value, keys, label, errors) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) { errors.push(`${label} must be an object`); return false; }
@@ -285,7 +302,7 @@ function inspect(root, manifest, hub, snap) {
     const { sources, contents } = validSources ? domainInputs(snap, hub, domain) : { sources: [], contents: snap.contents(hub, domain.path) };
     if (validSources && !sources.length) errors.push(`${domain.id} source patterns match no repository files`);
     if (!contents.length) errors.push(`${domain.id} target is missing or empty: ${domain.path}`);
-    const { sourceDigest: expectedSource, contentDigest: expectedContent } = digestsOf(snap, root, { sources, contents });
+    const { sourceDigest: expectedSource, contentDigest: expectedContent } = digestsOf(snap, root, hub, domain, { sources, contents });
     if (domain.sourceDigest !== expectedSource) errors.push(`${domain.id} source digest is stale`);
     if (domain.contentDigest !== expectedContent) errors.push(`${domain.id} content digest is stale`);
     domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent };
@@ -319,7 +336,7 @@ function attestedIds(root, revs, relative, hub, candidates) {
       if (!attested.has(domain.id) || !entry || entry.path !== domain.path || !Array.isArray(entry.sources)
         || !entry.sources.every((pattern) => typeof pattern === 'string' && pattern)
         || JSON.stringify(entry.sources) !== JSON.stringify(domain.sources)) return false;
-      const digests = digestsOf(snap, root, domainInputs(snap, hub, entry));
+      const digests = digestsOf(snap, root, hub, entry, domainInputs(snap, hub, entry));
       return entry.sourceDigest === digests.sourceDigest && entry.contentDigest === digests.contentDigest;
     }).map((domain) => domain.id));
   }
