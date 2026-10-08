@@ -1,0 +1,1 @@
+- The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.

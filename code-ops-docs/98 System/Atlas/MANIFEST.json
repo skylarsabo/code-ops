@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
+      "verifiedAt": "9c05c407cd7aa8ef7e2031c76f6482271a7ce7f4",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -122,12 +122,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 963,
+          "line": 965,
           "anchor": "// call (a wide-surface reason excuses it); a literal effort above high never pa"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 946,
+          "line": 948,
           "anchor": "// an internal error adds nothing."
         },
         {
@@ -142,13 +142,18 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1303,
-          "anchor": "}"
+          "line": 1316,
+          "anchor": "${skeleton.join('\\n')}\\n${prose}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1128,
+          "line": 1130,
           "anchor": "// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 1274,
+          "anchor": "} else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'str"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
@@ -242,7 +247,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1257,
+          "line": 1259,
           "anchor": "if (spawn) {"
         },
         {
@@ -361,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "2ac65e0cd582d79d6c860b595cc851df7227e3255ae972c0b994ef2b4a3f1c6e"
+      "verifiedDigest": "c079d01c5a124cd8c0cbbd71f4d68364a40c378a425a25c785b8b500e9c47012"
     },
     {
       "slug": "gate-scripts",
@@ -370,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b86faf0c56a7da9dd15fd32877d1b8da5353e33f",
+      "verifiedAt": "43b95deae8b734351227574606faa9b7f9522a89",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -389,17 +394,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 954,
+          "line": 952,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1541,
+          "line": 1539,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1551,
+          "line": 1549,
           "anchor": "function checkDocsStandardsAlignment() {"
         },
         {
@@ -983,7 +988,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "73ea8fabd074ff968c8fc7d18532d39fe333539540661675f20e750a26a85491"
+      "verifiedDigest": "101ff2f91e2083a449f88b62c6645bcb4db230403cfbb24e1cb485df59fbc82e"
     },
     {
       "slug": "evals-and-calibration",
@@ -991,8 +996,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b86faf0c56a7da9dd15fd32877d1b8da5353e33f",
-      "verifiedDigest": "5bab97a3a3b50f6525308dd07ff9af354f4fc34da3807a2b63426e99e1cb8189",
+      "verifiedAt": "43b95deae8b734351227574606faa9b7f9522a89",
+      "verifiedDigest": "c97856127182158b9a262c0a4876329868300a1c16eaf15125e332bced62f744",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1211,7 +1216,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 852,
+          "line": 861,
           "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
@@ -1344,7 +1349,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "0df7c4bc32b0750c5d880c4a52427752d3ec3a0f",
+      "verifiedAt": "9c05c407cd7aa8ef7e2031c76f6482271a7ce7f4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1457,7 +1462,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "c676ce503f10bee8a2452a330c90c9976b41de97a36861611d8bbc8cafff8e71"
+      "verifiedDigest": "06ef31fd2a03650856dea108742918c42a1f508a7254912ee6e1995d9fc0a178"
     },
     {
       "slug": "ci-workflows",

@@ -1,6 +1,7 @@
 ---
 name: explorer
 description: Read-only codebase explorer for fast, parallel investigation. Delegate to it to map structure, locate definitions and call-sites, trace data/control flow, and gather context. It never edits files. Use several in parallel to cover disjoint areas of a large codebase.
+effort: medium
 ---
 
 Codex role checklist:

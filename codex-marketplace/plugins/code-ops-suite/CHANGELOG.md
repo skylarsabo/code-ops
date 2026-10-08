@@ -4,8 +4,10 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.67.0
+## 2.68.0
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
+- The dispatch guard holds every Agent or Task call to an `effort` of low, medium, or high. The check ran only inside the routing review, so an agent whose brief lists no Tier, such as mech, probe, or explorer, accepted `max` or `xhigh`. The dispatch-guard eval adds max on explorer, xhigh on probe, a miscased High on mech, and a silent medium.
+- The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, and lint check 30 now requires an `effort:` on every agent, the light rung included. Haiku 5.5 takes an effort setting, so an omitted value inherited the session dial. The lint eval adds a Haiku agent with no effort.
 The handoff draft now lists the open rows of PLAN.md, or warns when it cannot read a source. The init step records the host session id from CLAUDE_CODE_HOST_SESSION_ID.
 - The handoff ledger records first-hop session names and not-dispatched markers. `dispatch-ledger.mjs skip` declares a contract unit that the run chose not to dispatch, and the marker carries a reason. `check-handoff` lists each marker, and refuses a marker for a unit that already has a row, a repeated marker, a marker for a unit outside the contract, and a malformed marker. `run-runtime` no longer reports a declared unit as pending and prints `not dispatched <id>: <reason>`. The handoff skill tells the lead to supply the host agent id when it records a dispatch. `artifact-grammars.md` and `CONTRACTS.md` state the marker grammar.
 - The compact card names the recall tool after a compaction: `transcript_recall`, or `co recall search --session <id> --terms <words>`. The line prints when recall is on, the payload carries a session id, and its transcript path is a file. It does not wait for the index, because the first recall call builds it.
