@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "e82444ef4bac65423f42ed303933565e87325d73",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -17,7 +17,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 93,
+          "line": 95,
           "anchor": "gate: 'docs-gate.mjs',"
         },
         {
@@ -212,23 +212,23 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
-          "line": 116,
+          "line": 118,
           "anchor": "},"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 412,
+          "line": 419,
           "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
-          "line": 1334,
+          "line": 1341,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
           "line": 107,
-          "anchor": "},"
+          "anchor": "resume: { script: 'handoff-state.mjs', cmd: 'resume' },"
         },
         {
           "file": "plugins/code-ops-suite/hooks/index-refresh.mjs",
@@ -347,17 +347,17 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 87,
+          "line": 88,
           "anchor": "On Claude and Codex, context size alone never selects HANDOFF. Claude Code compa"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 101,
+          "line": 102,
           "anchor": "On Grok, the host compacts near 184,000 tokens. That is 72 percent of the 256,00"
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 105,
+          "line": 106,
           "anchor": ". The latest such line wins, and a malformed one sets no bound. The card stays q"
         },
         {
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "64c246121636acb5ae2ddea775e6544cde54a9cc4351fc5441aea3946895b22c"
+      "verifiedDigest": "cc5aaa1284561e853a748ceed0b877d09301008a8265f0a2723b3aa493e148c2"
     },
     {
       "slug": "gate-scripts",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -639,7 +639,7 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 798,
+          "line": 805,
           "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
         },
         {
@@ -649,12 +649,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 1067,
+          "line": 1074,
           "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 1334,
+          "line": 1341,
           "anchor": "function overlapLines(programFile, root, sid) {"
         },
         {
@@ -714,12 +714,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 660,
+          "line": 667,
           "anchor": "function routingForDraft(sid, own) {"
         },
         {
           "file": "scripts/co.mjs",
-          "line": 154,
+          "line": 156,
           "anchor": "// Route basis lines for one unit and its binding on each host. Read-only."
         },
         {
@@ -774,12 +774,12 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 747,
+          "line": 754,
           "anchor": "warning: ${lists.owed.length} peer message(s) still await a reply, and a new ses"
         },
         {
           "file": "scripts/handoff-state.mjs",
-          "line": 863,
+          "line": 870,
           "anchor": "...lists.running.slice(0, RUNNING_SEEDED).map((line) =>"
         },
         {
@@ -794,7 +794,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 157,
+          "line": 159,
           "anchor": "// COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peer"
         },
         {
@@ -974,7 +974,7 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 95,
+          "line": 97,
           "anchor": "distill: 'distill-check.mjs',"
         },
         {
@@ -998,7 +998,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "08bd62e78fd856a78278c64686ec8e4f00f68ef13728cf3eb39d95014e21a3b2"
+      "verifiedDigest": "8fbf6a707be74d04371de838418068fe2af5404757f265d33e1eef4f853d7f2b"
     },
     {
       "slug": "evals-and-calibration",
@@ -1006,8 +1006,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
-      "verifiedDigest": "65868d8d83f7d536cb6256316e76402f6add0259cc0440a84581e02e3665a26e",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
+      "verifiedDigest": "dc38bd29eef1015778170c5d7ac2025b48218cad10fbc88f4327fbe0b0384783",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1359,7 +1359,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "e82444ef4bac65423f42ed303933565e87325d73",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1463,7 +1463,7 @@
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
-          "line": 240,
+          "line": 241,
           "anchor": "- The existing run log records CONTINUE, COMPACT, or HANDOFF with observed evide"
         },
         {
@@ -1472,7 +1472,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "f85b418c9e4440a59468fb75ca1ee403e7913807379a8f0fcb50df17031613db"
+      "verifiedDigest": "0f38850e0903325de7e9a5f5fc6a5b4c839ea8a1dc2a91321b87905b5fc3579a"
     },
     {
       "slug": "ci-workflows",
@@ -1480,8 +1480,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "b985b1da8174256f4a922a9d0defb01a1c0b3542",
-      "verifiedDigest": "35fead9031cd01e0a01ac8033e3d1a2000e352bee9160d8e184fc2652aa7af30",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
+      "verifiedDigest": "22c9384297db991895bed5707946331035614b3883f76cb973805571e0ec4cde",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1579,7 +1579,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "ab284c4a7e23c4b500d211732631dc3c7f018018",
+      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1603,7 +1603,7 @@
         },
         {
           "file": "plugins/code-ops-suite/skills/handoff/SKILL.md",
-          "line": 76,
+          "line": 77,
           "anchor": ". Execute the host action only through a callable host"
         },
         {
@@ -1651,7 +1651,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "ee54f13263829b54fca9b02bb5a359f6d065058b5f74f57fd4358154120af318"
+      "verifiedDigest": "e64c48843de187033cd81fe5029677e6d562d422e0a8c2567f5c2d33ddd7d25e"
     },
     {
       "slug": "root-contracts",

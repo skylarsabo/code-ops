@@ -421,7 +421,7 @@ A new command, `co docs gate`, runs every docs check in order:
 
 A project-wide profile is too coarse for a repository that mixes research with routine work. Murmuration runs include research evidence the operator calls extremely important, beside build and cleanup runs. So retention is set per run, and the project profile supplies only the default.
 
-This section is a proposal built from a survey of 164 murmuration run folders (DSN-4). It waits on operator acceptance.
+This section is a proposal built from a survey of 164 murmuration run folders (DSN-4). The operator accepted it on 2026-10-08. The run classes, the skill defaults, the raise and lower rule, and the citation gate are built; the retention profiles and untracking are not.
 
 ### What the survey showed
 

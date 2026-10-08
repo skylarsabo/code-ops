@@ -1,0 +1,1 @@
+- `co run open` records a retention class (`--retention evidence|working`, default from `--skill`), `co run retention` raises a class (lowering needs `--operator`), and `co run retention-check` fails a `working` run that a tracked file cites outside its `CLOSEOUT.md`. The run index shows the class.

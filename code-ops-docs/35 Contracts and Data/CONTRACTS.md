@@ -1061,6 +1061,8 @@ chain head. It prints the head's session name, id, and run folder, and marks the
 resume when that run already wrote an unconsumed `HANDOFF.md`. Evidence: `scripts/handoff-state.mjs`
 and `evals/handoff-state/run.mjs`.
 
+Run retention classes. `co run open <slug> [--retention evidence|working] [--skill <skill>]` records the class in `SESSION.json` as `retention` and in the run index. An explicit `--retention` wins. Otherwise `--skill` picks the default from `RETENTION_BY_SKILL`: `ship`, `feature-implementation`, and `remediation` open `working`, research, audit, calibration, and review skills open `evidence`, and an unmapped or absent skill opens `evidence`. `co run retention <run dir> evidence|working` sets a class. Any agent may raise a run to `evidence`. Lowering to `working` needs `--operator`, which is operator-only, and without it the command refuses. `co run retention-check` is the citation gate: it fails a `working` run that a tracked file outside `80 Runs/` cites, unless the citation targets that run's `CLOSEOUT.md`. The error names the run and the citing `file:line`, and gives the fix: raise the run to `evidence` or retarget the citation. It passes when no run folder exists, and CI runs it in `validate.yml`. Evidence: `scripts/handoff-state.mjs` and `evals/handoff-state/run.mjs`.
+
 Program overlap (C6). `co run open <slug> --program <PROGRAM.md>` and `co handoff resume` compare
 the program's Scope documents paths with every other live program on the presence board. They
 print a `program overlap:` block before `links:`. It holds one warning line per shared path,

@@ -40,7 +40,8 @@ run opens its own folder, so simultaneous sessions never share one:
 `node <plugin-root>/scripts/co.mjs run open <slug> --name "<program name>"`. One run folder
 belongs to one session, which its `SESSION.json` records. In the Claude desktop app, the host
 session id (`local_<uuid>`) differs from the session id. Add `--host-session <id>` to `run open` and
-to `handoff resume` there, so peers can find the session by either id.
+to `handoff resume` there, so peers can find the session by either id. Add `--skill <skill>` to `run open` so
+the run records its retention class: build skills open `working`, every other skill `evidence`.
 
 Each hop names the next session in sequence: `Ledger2 AMM`, then `Ledger2 AMM HO 1`, then
 `Ledger2 AMM HO 2`. The handoff's `Session:` line holds the successor's name, and `Hop:` holds its
