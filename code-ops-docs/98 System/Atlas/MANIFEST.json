@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
+      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -974,13 +974,18 @@
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 19,
+          "line": 27,
           "anchor": "export const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         },
         {
           "file": "scripts/changelog-fragments.mjs",
-          "line": 37,
+          "line": 45,
           "anchor": "export function assembleChangelog(text, bodies, version) {"
+        },
+        {
+          "file": "scripts/changelog-fragments.mjs",
+          "line": 74,
+          "anchor": "export function assemblePlugin(pluginDir) {"
         },
         {
           "file": "scripts/check-plugin-bump.mjs",
@@ -988,7 +993,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "b27f920dbd20fc576f404787da7affd7e529a5481ab037cb626fd5b5e48b8895"
+      "verifiedDigest": "9745dc1d04635877dba73470b7bb868137cec4adab3438f74a4c31f10d5622ac"
     },
     {
       "slug": "evals-and-calibration",
@@ -996,8 +1001,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "bd608177f02dff47f8e91d1a1375106a2a808702",
-      "verifiedDigest": "05968a73c11eaf2cfb0552cd081a37a3dcb3694a9e8d40484f92ac5f1f9da1b3",
+      "verifiedAt": "bb0eb58c3d1a0791b9e7c80f0ad7edd0bb23a588",
+      "verifiedDigest": "cb2db9c29c414f5c5497af60ebacff8fe41fbbe4a361da867ede65f4d2a4d296",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
