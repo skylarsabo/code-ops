@@ -510,6 +510,62 @@ try {
     check('changelog-fragments: readFragments returns the .md files sorted by name with LF endings',
       JSON.stringify(frag.readFragments(fragDir)) === JSON.stringify([{ name: 'a.md', body: '- A.\n' }, { name: 'b.md', body: '- B.\n' }])
       && frag.readFragments(join(work, 'no-such-dir')).length === 0);
+
+    // The assemble command. Render = what the Codex builder does with the plugin (LF text, fragments
+    // folded under the manifest version). `assembleCase` builds a throwaway tree around a copy of the
+    // script (real or mutated), renders, assembles, renders again, and reports what changed.
+    const render = (pluginDir) => frag.assembleChangelog(
+      readFileSync(join(pluginDir, 'CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n'),
+      frag.readFragments(pluginDir).map((f) => f.body),
+      JSON.parse(readFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), 'utf8')).version);
+    const assembleCase = (label, scriptText, fragments = { 'b-second.md': '- B.\n', 'a-first.md': '- A.\n' }) => {
+      const caseDir = join(work, `assemble-${label}`);
+      const pluginDir = join(caseDir, 'plugins', 'demo-plugin');
+      mkdirSync(join(caseDir, 'scripts'), { recursive: true });
+      mkdirSync(join(pluginDir, '.claude-plugin'), { recursive: true });
+      mkdirSync(join(pluginDir, 'changelog.d'), { recursive: true });
+      const script = join(caseDir, 'scripts', 'changelog-fragments.mjs');
+      writeFileSync(script, scriptText);
+      writeFileSync(join(pluginDir, '.claude-plugin', 'plugin.json'), JSON.stringify({ name: 'demo-plugin', version: '1.1.0' }));
+      writeFileSync(join(pluginDir, 'CHANGELOG.md'), '# Changelog\n\n## 1.0.0\n- Old.\n');
+      for (const [name, body] of Object.entries(fragments)) writeFileSync(join(pluginDir, 'changelog.d', name), body);
+      const before = render(pluginDir);
+      const checkBefore = run(script, ['assemble', '--check']);
+      const r = run(script, ['assemble']);
+      const after = render(pluginDir);
+      return {
+        r, checkBefore, pluginDir, before, script,
+        same: before === after,
+        left: frag.readFragments(pluginDir).length,
+        changelog: readFileSync(join(pluginDir, 'CHANGELOG.md'), 'utf8'),
+      };
+    };
+    const realScript = readFileSync(join(SCRIPTS_DIR, 'changelog-fragments.mjs'), 'utf8');
+    const good = assembleCase('real', realScript);
+    check('changelog-fragments assemble: the render is byte-identical before and after, with zero fragments left',
+      good.r.status === 0 && good.same && good.left === 0 && good.changelog === good.before);
+    check('changelog-fragments assemble: fragments fold in name order into a new section above the first',
+      good.changelog === '# Changelog\n\n## 1.1.0\n- A.\n- B.\n\n## 1.0.0\n- Old.\n');
+    check('changelog-fragments assemble: --check exits 1 while fragments exist and writes nothing',
+      good.checkBefore.status === 1 && good.checkBefore.stdout.includes('unassembled 2'));
+    const again = run(good.script, ['assemble']);
+    const checkAfter = run(good.script, ['assemble', '--check']);
+    check('changelog-fragments assemble: no fragments is a no-op (exit 0), and --check then exits 0',
+      again.status === 0 && checkAfter.status === 0 && readFileSync(join(good.pluginDir, 'CHANGELOG.md'), 'utf8') === good.changelog);
+    check('changelog-fragments assemble: an unknown --plugin exits 2',
+      run(good.script, ['assemble', '--plugin', 'no-such-plugin']).status === 2 && run(good.script, ['assemble', '--plugin', 'demo-plugin']).status === 0);
+    check('changelog-fragments assemble: a bad verb or a stray argument exits 2',
+      run(good.script, []).status === 2 && run(good.script, ['assemble', '--bogus']).status === 2 && run(good.script, ['assemble', '--plugin']).status === 2);
+    const blank = assembleCase('blank', realScript, { 'only-blank.md': '\n \n' });
+    check('changelog-fragments assemble: a blank fragment leaves CHANGELOG.md unchanged and is removed',
+      blank.r.status === 0 && blank.changelog === '# Changelog\n\n## 1.0.0\n- Old.\n' && blank.left === 0);
+    // Mutants the eval must catch: folding without deleting, and a different fold order.
+    const keep = assembleCase('mutant-keep', realScript.replace('for (const f of fragments) rmSync(', 'for (const f of []) rmSync('));
+    check('changelog-fragments assemble: mutant that folds without deleting is caught',
+      keep.left !== 0 && !(keep.same && keep.left === 0));
+    const reversed = assembleCase('mutant-order', realScript.replace('fragments.map((f) => f.body), version)', 'fragments.map((f) => f.body).reverse(), version)'));
+    check('changelog-fragments assemble: mutant that folds in a different order is caught',
+      reversed.changelog !== good.changelog && !(reversed.same && reversed.left === 0));
   }
 
   // ================================================================================
