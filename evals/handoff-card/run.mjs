@@ -1255,6 +1255,35 @@ function noticeRepo({ state } = {}) {
   cleanup();
 }
 
+// ---------------------------------------------------------------- stale plugin advisory (routing card)
+
+{
+  const routingCard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'routing-card.mjs');
+  const cache = mkdtempSync(join(tmpdir(), 'stale-plugin-'));
+  const pluginDir = join(cache, 'cache', 'code-ops', 'code-ops-suite');
+  for (const v of ['2.40.1', '2.9.0', '2.69.0', '2.70.0-rc1', 'latest', '10.0']) mkdirSync(join(pluginDir, v), { recursive: true });
+  const cardWith = (pluginRoot) => {
+    const env = { ...process.env };
+    for (const key of ['GROK_PLUGIN_ROOT', 'CLAUDE_PLUGIN_ROOT']) delete env[key];
+    if (pluginRoot !== undefined) env.CLAUDE_PLUGIN_ROOT = pluginRoot;
+    const run = spawnSync('node', [routingCard], { input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', cwd: cache }), encoding: 'utf8', env });
+    return { status: run.status, lines: (run.stdout || '').split('\n').filter((l) => l.startsWith('This session loaded code-ops-suite')) };
+  };
+  const stale = cardWith(join(pluginDir, '2.40.1'));
+  expect(stale.status === 0 && stale.lines.length === 1 && stale.lines[0] === 'This session loaded code-ops-suite 2.40.1; 2.69.0 is installed. Start a new session to load it.',
+    `a stale loaded version must name the highest strict-semver sibling (2.69.0, numerically over 2.9.0, ignoring 2.70.0-rc1, latest, 10.0), got ${JSON.stringify(stale.lines)}`);
+  expect(cardWith(join(pluginDir, '2.69.0')).lines.length === 0, 'the highest loaded version must print no stale line');
+  mkdirSync(join(pluginDir, '2.100.0'));
+  expect(cardWith(join(pluginDir, '2.69.0')).lines[0]?.includes('2.100.0 is installed'), 'versions must compare numerically, so 2.100.0 outranks 2.69.0');
+  expect(cardWith(join(cache, 'cache', 'code-ops', 'missing', '2.40.1')).lines.length === 0, 'a root whose parent is not code-ops-suite must print nothing');
+  expect(cardWith(join(pluginDir, '2.70.0-rc1')).lines.length === 0, 'a non-semver loaded directory must print nothing');
+  expect(cardWith(join(cache, 'none', 'code-ops-suite', '1.0.0')).lines.length === 0, 'an unreadable (missing) cache directory must fail open to no line');
+  expect(cardWith(join(root, 'plugins', 'code-ops-suite')).lines.length === 0, 'a repo checkout root must print nothing');
+  expect(cardWith(undefined).lines.length === 0, 'an unset CLAUDE_PLUGIN_ROOT must print nothing');
+  rmSync(cache, { recursive: true, force: true });
+  console.log('ok   the card warns when a higher semver sibling is installed and fails open on every other layout');
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`  x ${f}`);
   console.log(`\nhandoff-card eval FAILED (${fails.length})`);

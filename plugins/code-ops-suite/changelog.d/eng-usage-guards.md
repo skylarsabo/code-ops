@@ -1,0 +1,4 @@
+- `co handoff draft` refuses while the program ledger holds a stale open row: a row the two previous handoffs both carried, or whose `Hop:` is older than one handoff, with no `Forwarded-to:`, `Next:`, or close. `--allow-stale` drafts anyway and records an override line.
+- The routing card warns when the session loaded an older code-ops-suite than the host plugin cache holds, so the operator starts a new session. It is advisory and fails open.
+- `CODE_OPS_DIGEST_READ=lead` digests long `Read` results on the lead thread only and arms a `Write` guard: a whole-file `Write` to a path whose last `Read` was digested is denied until a ranged `Read` of that path. The `on` values behave as before. Off by default.
+- New `co build-graph check|plan` validates a program's `BUILD_GRAPH.json` and fails closed on unordered units that share a path, a missing done-when or gate, a cycle, or a generated path in scope. `plan` prints the dependency waves. Repository-only.

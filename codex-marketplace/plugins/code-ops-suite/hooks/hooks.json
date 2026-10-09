@@ -17,6 +17,14 @@
         "hooks": [
           {
             "type": "command",
+            "command": "node \"${PLUGIN_ROOT}/hooks/digest-rewrite.mjs\""
+          }
+        ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
             "command": "node \"${PLUGIN_ROOT}/hooks/dispatch-guard.mjs\""
           }
         ]

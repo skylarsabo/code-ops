@@ -32,6 +32,9 @@ async function main() {
   const replacement = digestToolResponse(tool, payload.tool_response, {
     agentId: typeof payload.agent_id === 'string' && payload.agent_id !== '' ? payload.agent_id : undefined,
     cwd: typeof payload.cwd === 'string' ? payload.cwd : undefined,
+    sessionId: typeof payload.session_id === 'string' && payload.session_id !== '' ? payload.session_id : undefined,
+    filePath: typeof payload.tool_input?.file_path === 'string' ? payload.tool_input.file_path : undefined,
+    ranged: payload.tool_input?.offset !== undefined || payload.tool_input?.limit !== undefined,
     command: typeof command === 'string' ? command : undefined,
   });
   if (replacement === null || replacement === undefined) return;

@@ -1,11 +1,12 @@
 # Changelog — rigor
 
-## 3.6.6
+## 3.6.7
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
+- `co.mjs` lists `co build-graph`, which runs only in the code-ops repository and prints "not bundled here" from an installed plugin.
 
 ## 3.6.2
 - The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.

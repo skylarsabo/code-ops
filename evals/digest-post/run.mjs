@@ -13,12 +13,18 @@
 //   - Read stays untouched by default; with CODE_OPS_DIGEST_READ on it keeps the exact
 //     tool_response shape and swaps only file.content for head, an elision line naming the
 //     store file, and tail;
+//   - CODE_OPS_DIGEST_READ=lead digests Read on the lead thread only (a subagent and a ranged Read
+//     arrive whole); a digested Read marks its path for its thread, and writeDenial refuses a full
+//     Write of a marked path, naming the elided range, until a later Read of that path arrives
+//     whole; it is inert with the switch off, scoped to one session, thread, and path, and fails open;
 //   - the PostToolUse hook (plugins/code-ops-suite/hooks/digest-post.mjs) prints the replacement
 //     envelope over the threshold, and prints nothing below it, when switched off, for any tool
 //     but Bash and Read, and on malformed stdin, always exiting 0;
 //   - mutation controls: a copy of the library without the trailer skip, and one with the two
 //     thresholds swapped, must each fail this same case list, and a hook that prints on error or
-//     drops agent_id must fail the hook cases, so the cases are proven able to fail.
+//     drops agent_id must fail the hook cases, and seven edits to the Read marks (lead mode that digests
+//     a subagent, a ranged Read that stays digested, a mark shared across threads, a mark that never
+//     clears, marks armed in on mode, a deny armed in on mode, a clear row appended with no live mark) must each fail the lib cases, so the cases are proven able to fail.
 //
 //   node evals/digest-post/run.mjs   (exit 0 = pass)
 
@@ -141,6 +147,61 @@ async function runCases(lib, scratch, quiet) {
   ok('read: a short file is left alone', run('Read', { ...read, file: { ...read.file, content: 'a\nb\n' } }, {}, readEnv) === null);
   ok('read: a result without file content is left alone', run('Read', { type: 'file_unchanged', file: { filePath: '/x' } }, {}, readEnv) === null);
 
+  // Read, lead mode and the Write guard
+  const leadEnv = { CODE_OPS_DIGEST_READ: 'lead' };
+  const total = read.file.content.split('\n').length;
+  ok('lead: the lead thread is digested', run('Read', read, {}, leadEnv) !== null);
+  ok('lead: the value is case-insensitive', run('Read', read, {}, { CODE_OPS_DIGEST_READ: 'LEAD' }) !== null);
+  ok('lead: a subagent Read arrives whole', run('Read', read, { agentId: 'a1' }, { ...leadEnv, CODE_OPS_DIGEST_POST_SUBAGENT: '0' }) === null);
+  ok('on: a subagent Read is still digested', run('Read', read, { agentId: 'a1' }, { ...readEnv, CODE_OPS_DIGEST_POST_SUBAGENT: '0' }) !== null);
+  ok('lead: a ranged Read arrives whole', run('Read', read, { ranged: true }, leadEnv) === null);
+  ok('on: a ranged Read is digested as before', run('Read', read, { ranged: true }, readEnv) !== null);
+  const wctx = { sessionId: 's1', filePath: '/x/a.txt', cwd: '/x', store: store(), now: NOW, env: leadEnv };
+  const mark = (extra = {}, env = leadEnv) => lib.digestToolResponse('Read', structuredClone(read), { ...wctx, env, ...extra });
+  ok('guard: nothing is refused before any Read', lib.writeDenial(wctx) === null);
+  ok('guard: a digested lead Read is marked', mark() !== null);
+  const denial = lib.writeDenial(wctx) ?? '';
+  ok('guard: a full Write of the marked path is refused, naming the elided range and the offset', denial.includes(`lines 41-${total - 40}`) && denial.includes('offset 41') && denial.includes(`limit ${total - 80}`), denial);
+  ok('guard: the refusal names the raw copy', /raw copy at .*.txt/.test(denial), denial);
+  ok('guard: a relative form of the same path is refused too', lib.writeDenial({ ...wctx, filePath: 'a.txt' }) !== null);
+  ok('guard: a path never digested is allowed', lib.writeDenial({ ...wctx, filePath: '/x/b.txt' }) === null);
+  ok('guard: another thread is allowed', lib.writeDenial({ ...wctx, agentId: 'a2' }) === null);
+  ok('guard: another session is allowed', lib.writeDenial({ ...wctx, sessionId: 's2' }) === null);
+  ok('guard: inert with the Read switch off', lib.writeDenial({ ...wctx, env: {} }) === null && lib.writeDenial({ ...wctx, env: { CODE_OPS_DIGEST_READ: 'off' } }) === null);
+  ok('guard: inert with the whole digest off', lib.writeDenial({ ...wctx, env: { ...leadEnv, CODE_OPS_DIGEST: 'off' } }) === null);
+  ok('guard: a ranged Read clears the mark', mark({ ranged: true }) === null && lib.writeDenial(wctx) === null);
+  mark();
+  ok('guard: the mark returns after another digested Read', lib.writeDenial(wctx) !== null);
+  ok('guard: a short whole Read clears the mark', lib.digestToolResponse('Read', { ...structuredClone(read), file: { ...read.file, content: 'a\nb\n' } }, wctx) === null && lib.writeDenial(wctx) === null);
+  mark();
+  mark({ agentId: 'a2' }, { ...leadEnv });
+  ok('guard: a subagent Read under lead mode leaves the lead mark alone', lib.writeDenial(wctx) !== null && lib.writeDenial({ ...wctx, agentId: 'a2' }) === null);
+  // Under `on` a ranged Read is digested again, so the guard stays unarmed: no mark file, no deny.
+  const dirOn = store();
+  const onCtx = { ...wctx, store: dirOn, env: { ...readEnv, CODE_OPS_DIGEST_POST_SUBAGENT: '0' } };
+  const onDigested = ['Read', 'Read'].map((n, i) => lib.digestToolResponse(n, structuredClone(read), i ? { ...onCtx, agentId: 'a3' } : onCtx));
+  ok('guard: on mode digests lead and subagent Reads as before', onDigested.every((d) => d !== null));
+  ok('guard: on mode writes no mark file', !existsSync(dirOn) || !readdirSync(dirOn).some((f) => f.startsWith('READ_MARKS')));
+  ok('guard: on mode never refuses a Write', lib.writeDenial(onCtx) === null && lib.writeDenial({ ...onCtx, agentId: 'a3' }) === null);
+  ok('guard: a lead-mode mark is not honored once the switch is on', mark() !== null && lib.writeDenial({ ...wctx, env: readEnv }) === null);
+  // The marks file grows only on a digested Read or on a clear over a live mark.
+  const dirG = store();
+  const gctx = { ...wctx, store: dirG };
+  const marksRows = () => { const f = existsSync(dirG) ? readdirSync(dirG).find((n) => n.startsWith('READ_MARKS')) : undefined; return f ? readFileSync(join(dirG, f), 'utf8').split('\n').filter(Boolean).length : 0; };
+  lib.digestToolResponse('Read', structuredClone(read), { ...gctx, filePath: '/x/other.txt', ranged: true });
+  ok('guard: a whole Read with no marks file creates none', marksRows() === 0);
+  lib.digestToolResponse('Read', structuredClone(read), gctx);
+  ok('guard: a digested Read appends one mark', marksRows() === 1);
+  lib.digestToolResponse('Read', structuredClone(read), { ...gctx, ranged: true });
+  ok('guard: a ranged Read over a live mark appends one clear', marksRows() === 2);
+  for (let i = 0; i < 3; i++) lib.digestToolResponse('Read', structuredClone(read), { ...gctx, ranged: true });
+  lib.digestToolResponse('Read', structuredClone(read), { ...gctx, filePath: '/x/other.txt', ranged: true });
+  ok('guard: repeated whole Reads with no live mark append nothing', marksRows() === 2);
+  const dead = join(scratch, 'not-a-dir');
+  writeFileSync(dead, 'x');
+  const failOpen = lib.digestToolResponse('Read', structuredClone(read), { ...wctx, store: join(dead, 'sub') });
+  ok('guard: an unwritable store still digests and the Write guard fails open', failOpen !== null && lib.writeDenial({ ...wctx, store: join(dead, 'sub') }) === null);
+
   return fails;
 }
 
@@ -182,15 +243,16 @@ function runHookCases(hook, scratch, quiet) {
   return fails;
 }
 
-// A copy of the hook beside a copy of the plugin library, with one edit to the hook.
+// A copy of the hook beside a copy of the repo library (scripts/, whose vendored copy the integration
+// step refreshes), with one edit to the hook; the 'real' copy takes no edit.
 function hookMutant(scratch, name, edit) {
   const src = readFileSync(hookPath, 'utf8');
   const out = edit(src);
-  if (out === src) throw new Error(`hook mutant ${name} changed nothing: the anchor moved`);
+  if (out === src && name !== 'real') throw new Error(`hook mutant ${name} changed nothing: the anchor moved`);
   const dir = join(scratch, `hook-${name}`);
   mkdirSync(join(dir, 'hooks'), { recursive: true });
   mkdirSync(join(dir, 'scripts'), { recursive: true });
-  copyFileSync(join(pluginDir, 'scripts', 'digest-lib.mjs'), join(dir, 'scripts', 'digest-lib.mjs'));
+  copyFileSync(libPath, join(dir, 'scripts', 'digest-lib.mjs'));
   writeFileSync(join(dir, 'hooks', 'digest-post.mjs'), out);
   return join(dir, 'hooks', 'digest-post.mjs');
 }
@@ -203,6 +265,13 @@ try {
 
   const mutants = [
     ['no-trailer-skip', (s) => s.replace("if (TRAILER_END_RE.test(stdout) || TRAILER_END_RE.test(stderr)) return null;", '')],
+    ['lead-digests-subagent', (s) => s.replace("if (mode === 'lead' && ctx.agentId) return null;", '')],
+    ['ranged-stays-digested', (s) => s.replace("mode === 'lead' && ctx.ranged === true", 'false')],
+    ['mark-shared-across-threads', (s) => s.replace('m.t !== thread || m.p !== key', 'm.p !== key')],
+    ['mark-never-clears', (s) => s.replace('return m.clear ? null : m;', 'return m;')],
+    ['on-mode-arms-guard', (s) => s.replace("if (mode === 'lead') noteRead(", 'noteRead(')],
+    ['deny-armed-in-on-mode', (s) => s.replace("readMode(env.CODE_OPS_DIGEST_READ) !== 'lead'", 'readMode(env.CODE_OPS_DIGEST_READ) === null')],
+    ['clear-always-appended', (s) => s.replace('if (liveMark(file, row.t, row.p) === null) return;', '')],
     ['swapped-thresholds', (s) => s.replace("['CODE_OPS_DIGEST_POST_LEAD', 4000]", "['CODE_OPS_DIGEST_POST_LEAD', 8000]").replace("['CODE_OPS_DIGEST_POST_SUBAGENT', 8000]", "['CODE_OPS_DIGEST_POST_SUBAGENT', 4000]")],
   ];
   const { fails: mutantFails, check } = tally((name, detail) => (detail ? `${name}: ${detail}` : name));
@@ -210,7 +279,7 @@ try {
     const m = await runCases(await mutant(scratch, name, edit), scratch, true);
     check(`mutant ${name} is killed (${m.length} case${m.length === 1 ? '' : 's'} fail)`, m.length > 0);
   }
-  fails.push(...runHookCases(hookPath, scratch, false));
+  fails.push(...runHookCases(hookMutant(scratch, 'real', (t) => t), scratch, false));
   const hookMutants = [
     // the first `catch { return; }` is the stdin parse
     ['print-on-bad-json', (t) => t.replace('catch { return; }', "catch { writeSync(1, 'bad payload\\n'); return; }")],

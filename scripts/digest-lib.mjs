@@ -21,7 +21,7 @@
 // exactly one of three sets: kept, folded (a duplicate collapsed into its representative), or
 // inside one elision range. The eval checks that partition.
 
-import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync, appendFileSync, readFileSync, existsSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
 import { homedir } from 'node:os';
 import { createHash } from 'node:crypto';
@@ -754,7 +754,7 @@ const THRESHOLD_SUBAGENT = ['CODE_OPS_DIGEST_POST_SUBAGENT', 8000];
 const sha = (/** @type {string} */ text) => createHash('sha256').update(text).digest('hex');
 const lineCount = (/** @type {string} */ t) => (t === '' ? 0 : t.split('\n').length - (t.endsWith('\n') ? 1 : 0));
 
-/** @typedef {{ agentId?: string, cwd?: string, store?: string, command?: string, env?: Env, now?: Date }} PostCtx */
+/** @typedef {{ agentId?: string, sessionId?: string, filePath?: string, ranged?: boolean, cwd?: string, store?: string, command?: string, env?: Env, now?: Date }} PostCtx */
 /** @typedef {Record<string, string | undefined>} Env */
 
 // A subagent thread carries agent_id on every hook input; the lead thread carries none.
@@ -861,6 +861,112 @@ function digestRead(r, ctx, env, now) {
   return { ...r, file: { ...r.file, content: next } };
 }
 
+// CODE_OPS_DIGEST_READ: `lead` digests Read on the lead thread only; any other on value digests
+// every thread, as before. In `lead` mode a digested Read leaves a mark so a later full Write of that
+// file by the same thread can be refused (writeDenial), because the elided lines never reached the model.
+/** @param {string | undefined} v */
+const readMode = (v) => (/^lead$/i.test(v ?? '') ? 'lead' : switchOn(v) ? 'on' : null);
+const ELISION_PATH_RE = /^\[elided \d+ lines: sed -n '[^']*' (.+)\]$/m;
+
+/** @param {PostCtx} ctx */
+function marksFile(ctx) {
+  const dir = storeDir({ store: ctx.store }, ctx.cwd ?? process.cwd());
+  return join(dir, `READ_MARKS-${sha(String(ctx.sessionId)).slice(0, 16)}.jsonl`);
+}
+/**
+ * @param {string} p
+ * @param {PostCtx} ctx
+ */
+function markKey(p, ctx) {
+  const abs = resolve(ctx.cwd ?? process.cwd(), p);
+  return process.platform === 'win32' ? abs.toLowerCase() : abs;
+}
+
+/**
+ * The latest mark row for one thread and path, or null when none exists or the latest is a clear.
+ * @param {string} file
+ * @param {string} thread
+ * @param {string} key
+ * @returns {any}
+ */
+function liveMark(file, thread, key) {
+  if (!existsSync(file)) return null;
+  const rows = readFileSync(file, 'utf8').split('\n');
+  for (let i = rows.length - 1; i >= 0; i--) {
+    const row = rows[i];
+    if (!row) continue;
+    const m = JSON.parse(row);
+    if (m.t !== thread || m.p !== key) continue;
+    return m.clear ? null : m;
+  }
+  return null;
+}
+
+// Records the outcome of one Read for the Write guard: a digested Read sets a mark for its thread
+// and path, and any later Read of the path that was not digested clears it. Fail open.
+/**
+ * @param {PostCtx} ctx
+ * @param {any} r
+ * @param {string | null} digested the replacement content, or null when the Read stayed whole
+ */
+function noteRead(ctx, r, digested) {
+  try {
+    const p = ctx.filePath || r.file.filePath;
+    if (!ctx.sessionId || typeof p !== 'string' || p === '') return;
+    const file = marksFile(ctx);
+    if (digested === null && !existsSync(file)) return;
+    const row = { t: ctx.agentId || 'lead', p: markKey(p, ctx) };
+    if (digested === null) {
+      // Append a clear only over a live mark, so a Read-heavy session does not grow the file.
+      if (liveMark(file, row.t, row.p) === null) return;
+      Object.assign(row, { clear: true });
+    } else {
+      const start = Number.isInteger(r.file.startLine) ? r.file.startLine : 1;
+      const total = r.file.content.split('\n').length;
+      Object.assign(row, { from: READ_HEAD + start, to: total - READ_TAIL + start - 1, raw: ELISION_PATH_RE.exec(digested)?.[1] ?? null });
+    }
+    mkdirSync(dirname(file), { recursive: true });
+    appendFileSync(file, `${JSON.stringify(row)}\n`);
+  } catch { /* fail open: a lost mark only loses the Write guard */ }
+}
+
+/**
+ * @param {any} r
+ * @param {PostCtx} ctx
+ * @param {Env} env
+ * @param {Date} now
+ * @param {string} mode
+ */
+function readResult(r, ctx, env, now, mode) {
+  if (typeof r.file?.content !== 'string') return null;
+  if (mode === 'lead' && ctx.agentId) return null;
+  // A ranged Read in lead mode is the way back to the elided lines, so it arrives whole.
+  const whole = mode === 'lead' && ctx.ranged === true;
+  const out = whole || r.file.content.length < threshold(ctx, env) ? null : digestRead(r, ctx, env, now);
+  // Only lead mode arms the Write guard: there a ranged Read arrives whole, so the advice to read
+  // the elided range can be followed. Under `on` a ranged Read is digested again and would loop.
+  if (mode === 'lead') noteRead(ctx, r, out ? out.file.content : null);
+  return out;
+}
+
+/**
+ * The refusal text for a full Write of `ctx.filePath` when the latest Read of it on this thread was
+ * digested and no ranged or whole Read has followed, else null. Inert unless the Read switch is `lead`.
+ * @param {PostCtx} ctx
+ * @returns {string | null}
+ */
+export function writeDenial(ctx) {
+  try {
+    const env = ctx.env ?? process.env;
+    if (switchOff(env.CODE_OPS_DIGEST) || switchOff(env.CODE_OPS_DIGEST_POST) || readMode(env.CODE_OPS_DIGEST_READ) !== 'lead') return null;
+    if (!ctx.sessionId || !ctx.filePath) return null;
+    const m = liveMark(marksFile(ctx), ctx.agentId || 'lead', markKey(ctx.filePath, ctx));
+    if (m === null) return null;
+    return `Refused: the latest Read of ${ctx.filePath} was digested, so its lines ${m.from}-${m.to} never reached you, and a full Write would overwrite them unseen. `
+      + `Read that range first (Read with offset ${m.from} and limit ${m.to - m.from + 1}${m.raw ? `; raw copy at ${m.raw}` : ''}), or change the file with Edit.`;
+  } catch { return null; }
+}
+
 /**
  * Post-output digest for one tool response. Returns a replacement with every key of
  * `toolResponse` preserved (Bash: only stdout and stderr change; Read: only file.content), or
@@ -883,10 +989,8 @@ export function digestToolResponse(toolName, toolResponse, ctx = {}) {
       if (r.stdout.length + r.stderr.length < threshold(ctx, env)) return null;
       return digestBash(r, ctx, env, now);
     }
-    if (name === 'read' && switchOn(env.CODE_OPS_DIGEST_READ)) {
-      if (typeof r.file?.content !== 'string' || r.file.content.length < threshold(ctx, env)) return null;
-      return digestRead(r, ctx, env, now);
-    }
+    const mode = name === 'read' ? readMode(env.CODE_OPS_DIGEST_READ) : null;
+    if (mode !== null) return readResult(r, ctx, env, now, mode);
     return null;
   } catch { return null; }
 }

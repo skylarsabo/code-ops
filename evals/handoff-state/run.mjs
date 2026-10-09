@@ -972,6 +972,63 @@ try {
   rmSync(g2, { recursive: true, force: true });
 }
 
+// ---- stale-row gate (design L1-e): draft refuses an open ledger row older than one handoff ----
+const st = mkdtempSync(join(tmpdir(), 'handoff-stale-'));
+try {
+  const inSt = (args) => spawnSync(process.execPath, args, { cwd: st, encoding: 'utf8', env });
+  const gitSt = (...args) => execFileSync('git', ['-c', 'user.name=eval', '-c', 'user.email=eval@example.com', ...args], { cwd: st, stdio: 'ignore' });
+  writeFileSync(join(st, 'src.txt'), 'alpha line\n');
+  gitSt('init', '-q');
+  gitSt('add', 'src.txt');
+  gitSt('commit', '-q', '-m', 'base');
+  const hubSt = join(st, '80 Runs');
+  const ledgerSt = join(hubSt, 'programs', 'st', 'PROGRAM.md');
+  mkdirSync(dirname(ledgerSt), { recursive: true });
+  const row = (id, extra = '') => `- [ ] ${id} row ${id} · Owner: agent · Done when: ${id} lands${extra}`;
+  const rows = {
+    plain: row('OI-1'), next: row('OI-2', ' · Next: run the case'), fwd: row('OI-3', ' · Forwarded-to: other/OI-3'),
+    young: row('OI-4'), hopOld: row('OI-5', ' · Hop: 1'), hopNew: row('OI-6', ' · Hop: 2'), closed: row('OI-7').replace('[ ]', '[x]'),
+  };
+  const ledgerStText = ['# PROGRAM: ST', '', 'Grammar: 2', '', '## Program goal', '', 'Stale rows.', '', '## Request history', '', '- 2026-10-01: go.', '',
+    '## Scope documents', '', '- `src.txt` · Status: current · Role: the file', '', '## Open items', '', ...Object.values(rows), '', '## Decisions ledger', '', '## Closed items', '', ''].join('\n');
+  writeFileSync(ledgerSt, ledgerStText);
+  const handoffSt = (name, hop, predecessor, ids) => {
+    mkdirSync(join(hubSt, name));
+    writeFileSync(join(hubSt, name, 'HANDOFF.md'), `# HANDOFF: ${name}\n\n## Program\n\nProgram: 80 Runs/programs/st/PROGRAM.md\nPredecessor: ${predecessor}\nSession: ST HO ${hop}\nHop: ${hop}\n\n## Open items\n\n${ids.map((id) => `- [ ] ${id} row ${id}`).join('\n')}\n`);
+  };
+  handoffSt('st-r0', 1, 'none', ['OI-1', 'OI-2', 'OI-3']);
+  handoffSt('st-r1', 2, '80 Runs/st-r0/HANDOFF.md', ['OI-1', 'OI-2', 'OI-3', 'OI-4']);
+  const runSt = join(hubSt, 'st-r2');
+  mkdirSync(runSt);
+  writeFileSync(join(runSt, 'SESSION.json'), JSON.stringify({ v: 1, sessionId: null, name: 'ST HO 3', hop: 3, predecessor: '80 Runs/st-r1/HANDOFF.md' }));
+  writeFileSync(join(runSt, 'TASKS.md'), '# Tasks\n');
+  const stArgs = ['--run', '80 Runs/st-r2', '--out', '80 Runs/st-r2/HANDOFF.md'];
+  const refusedSt = inSt([co, 'handoff', 'draft', ...stArgs]);
+  const listed = refusedSt.stderr.split('\n').filter((l) => /^ {2}OI-\d+$/.test(l)).map((l) => l.trim());
+  check('stale: draft refuses with exit 1 and writes no handoff', refusedSt.status === 1 && !existsSync(join(runSt, 'HANDOFF.md')), refusedSt.stderr);
+  check('stale: the refusal lists exactly the aged row and the row with an old Hop', listed.join(',') === 'OI-1,OI-5', refusedSt.stderr);
+  check('stale: the refusal names the fixes and the override', /Forward each/.test(refusedSt.stderr) && /Next: <action>/.test(refusedSt.stderr) && refusedSt.stderr.includes('--allow-stale'));
+  const allowedSt = inSt([co, 'handoff', 'draft', ...stArgs, '--allow-stale']);
+  const stDraft = existsSync(join(runSt, 'HANDOFF.md')) ? readFileSync(join(runSt, 'HANDOFF.md'), 'utf8') : '';
+  check('stale: --allow-stale drafts, exits 0, and names the overridden ids in In-flight boundaries',
+    allowedSt.status === 0 && stDraft.includes('- Stale-row override: --allow-stale drafted past 2 stale open row(s): OI-1, OI-5'), allowedSt.stderr);
+  // A Next: on the TASKS.md line and a close both clear a row; with every stale row cleared the draft needs no override.
+  for (const f of ['HANDOFF.md', 'SCOPE_DIGESTS.md']) rmSync(join(runSt, f), { force: true });
+  writeFileSync(join(runSt, 'TASKS.md'), '# Tasks\n\n- [ ] OI-1 row OI-1 · Next: rerun the case\n- [x] OI-5 row OI-5\n');
+  const clearedSt = inSt([co, 'handoff', 'draft', ...stArgs]);
+  check('stale: a TASKS.md Next: and a TASKS.md close clear the refusal', clearedSt.status === 0 && existsSync(join(runSt, 'HANDOFF.md')), clearedSt.stderr + clearedSt.stdout);
+  check('stale: a clean draft writes no override line',
+    !readFileSync(join(runSt, 'HANDOFF.md'), 'utf8').includes('Stale-row override'));
+  // No ledger at all: the gate does not run.
+  const bareSt = join(hubSt, 'st-bare');
+  mkdirSync(bareSt);
+  writeFileSync(join(bareSt, 'TASKS.md'), '# Tasks\n');
+  const bareDraft = inSt([co, 'handoff', 'draft', '--run', '80 Runs/st-bare']);
+  check('stale: a run with no ledger drafts as before', bareDraft.status === 0, bareDraft.stderr);
+} finally {
+  rmSync(st, { recursive: true, force: true });
+}
+
 // ---- program overlap at run open (design C6): live programs on the presence board, warn only ----
 const ov = realpathSync(mkdtempSync(join(tmpdir(), 'handoff-overlap-')));
 let rtDir = null;

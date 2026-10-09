@@ -21,13 +21,16 @@
 //     metacharacter guard and the bare-token charset wraps `git diff | head`, so the contract
 //     is proven able to fail, while removing it from one guard alone changes nothing, which is
 //     what makes the second guard redundancy rather than the only thing holding;
+//   - a full `Write` is denied after a digested Read of the same path (CODE_OPS_DIGEST_READ=lead only; the on values never deny),
+//     allowed for other paths, threads, sessions, tools, and switch values, and allowed again after a
+//     ranged Read; five mutants of the guard each fail those cases;
 //   - `--cwd` is proven end-to-end on the digest CLI itself, because the rewrite is worthless
 //     if the flag it emits does not move the child's working directory.
 //
 //   node evals/digest-hook/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdtempSync, mkdirSync, rmSync, existsSync, realpathSync, readdirSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -288,6 +291,86 @@ const tmp = mkdtempSync(join(tmpdir(), 'digest-hook-'));
   expect(bare.status === 2, `--cwd with no value must exit 2, got ${bare.status}`);
 }
 
+// ---------------------------------------------------------------- Write guard after a digested Read
+
+// The scratch plugin carries the repo's hooks and library (the vendored copy is refreshed at
+// integration), so the digest-post hook records the Read and the digest-rewrite hook judges the Write.
+const guardRoot = mkdtempSync(join(tmpdir(), 'digest-guard-'));
+function guardPlugin(name, edits = {}) {
+  const dir = join(guardRoot, name);
+  mkdirSync(join(dir, 'hooks'), { recursive: true });
+  mkdirSync(join(dir, 'scripts'), { recursive: true });
+  writeFileSync(join(dir, 'scripts', 'digest.mjs'), readFileSync(join(root, 'scripts', 'digest.mjs')));
+  const place = (to, from, f) => {
+    const src = readFileSync(join(root, ...from, f), 'utf8');
+    const out = edits[f] ? edits[f](src) : src;
+    if (edits[f] && out === src) throw new Error(`guard mutant ${name} changed nothing: the anchor moved`);
+    writeFileSync(join(dir, to, f), out);
+  };
+  place('scripts', ['scripts'], 'digest-lib.mjs');
+  for (const f of ['digest-rewrite.mjs', 'digest-post.mjs']) place('hooks', ['plugins', 'code-ops-suite', 'hooks'], f);
+  return dir;
+}
+const READ_FIXTURE = JSON.parse(readFileSync(join(root, 'evals', 'digest-post', 'fixtures', 'read-text.json'), 'utf8'));
+
+// Returns the failed case names for one scratch plugin.
+function guardCases(dir, label) {
+  const bad = [];
+  const store = mkdtempSync(join(guardRoot, 'store-'));
+  const fire = (script, payload, env = {}) => spawnSync('node', [join(dir, 'hooks', script)], {
+    input: JSON.stringify(payload), encoding: 'utf8', cwd: root,
+    env: { ...process.env, CODE_OPS_DIGEST: '', CODE_OPS_DIGEST_POST: '', CODE_OPS_DIGEST_READ: 'lead', CODE_OPS_DIGEST_DIR: store, ...env },
+  });
+  const read = (file, input = {}, extra = {}, env = {}) => fire('digest-post.mjs', { session_id: 'sg1', hook_event_name: 'PostToolUse', tool_name: 'Read', cwd: root, tool_input: { file_path: file, ...input }, tool_response: READ_FIXTURE, ...extra }, env);
+  const write = (file, extra = {}, env = {}, tool = 'Write') => fire('digest-rewrite.mjs', { session_id: 'sg1', hook_event_name: 'PreToolUse', tool_name: tool, cwd: root, tool_input: { file_path: file, content: 'x' }, ...extra }, env);
+  const denies = (r) => { try { const o = JSON.parse(r.stdout).hookSpecificOutput; return r.status === 0 && o.hookEventName === 'PreToolUse' && o.permissionDecision === 'deny' && /lines 41-260/.test(o.permissionDecisionReason) && /offset 41/.test(o.permissionDecisionReason); } catch { return false; } };
+  const quiet = (r) => r.status === 0 && r.stdout === '';
+  const a = join(root, 'a.txt');
+  const t = (name, cond) => { if (!cond) bad.push(`${label}: ${name}`); };
+  t('a Write before any Read is allowed', quiet(write(a)));
+  t('a lead Read is digested by the post hook', read(a).stdout.includes('updatedToolOutput'));
+  t('a full Write of the digested path is denied with the range', denies(write(a)));
+  t('an Edit of the digested path is allowed', quiet(write(a, {}, {}, 'Edit')));
+  t('a Write of another path is allowed', quiet(write(join(root, 'b.txt'))));
+  t('a subagent Write is allowed (the mark is the lead thread\'s)', quiet(write(a, { agent_id: 'sub-1' })));
+  t('another session is allowed', quiet(write(a, { session_id: 'sg2' })));
+  t('switch off: the Write is allowed', quiet(write(a, {}, { CODE_OPS_DIGEST_READ: 'off' })) && quiet(write(a, {}, { CODE_OPS_DIGEST_READ: '' })) && quiet(write(a, {}, { CODE_OPS_DIGEST: 'off' })));
+  t('a ranged Read arrives whole and clears the mark', !read(a, { offset: 41, limit: 20 }).stdout.includes('updatedToolOutput') && quiet(write(a)));
+  read(a);
+  t('the mark returns after a digested Read', denies(write(a)));
+  // Under `on` a ranged Read is digested again, so the guard stays unarmed: no mark, no deny.
+  const onStore = mkdtempSync(join(guardRoot, 'store-on-'));
+  const onEnv = { CODE_OPS_DIGEST_READ: 'on', CODE_OPS_DIGEST_DIR: onStore };
+  t('on mode: a Read is still digested', read(a, {}, {}, onEnv).stdout.includes('updatedToolOutput'));
+  t('on mode: a Write after a digested Read is allowed', quiet(write(a, {}, onEnv)));
+  t('on mode: no marks file is written', !readdirSync(onStore).some((f) => f.startsWith('READ_MARKS')));
+  t('a payload with no file path is allowed', quiet(fire('digest-rewrite.mjs', { session_id: 'sg1', tool_name: 'Write', tool_input: {} })));
+  t('bad JSON exits 0 silently', quiet(spawnSync('node', [join(dir, 'hooks', 'digest-rewrite.mjs')], { input: 'not json', encoding: 'utf8' })));
+  t('a Bash rewrite is unchanged', /updatedInput/.test(fire('digest-rewrite.mjs', { tool_name: 'Bash', tool_input: { command: 'git diff --stat' } }).stdout));
+  return bad;
+}
+
+try {
+  const real = guardCases(guardPlugin('real'), 'real');
+  for (const f of real) fails.push(f);
+  const mutants = [
+    ['no-write-dispatch', { 'digest-rewrite.mjs': (s) => s.replace("payload?.tool_name === 'Write'", "payload?.tool_name === 'Nothing'") }],
+    ['drop-agent-id', { 'digest-rewrite.mjs': (s) => s.replace("typeof payload.agent_id === 'string' && payload.agent_id !== '' ? payload.agent_id : undefined", 'undefined') }],
+    ['arm-in-on-mode', {
+      'digest-lib.mjs': (s) => s.replace("if (mode === 'lead') noteRead(", 'noteRead(').replace("readMode(env.CODE_OPS_DIGEST_READ) !== 'lead'", 'readMode(env.CODE_OPS_DIGEST_READ) === null'),
+      'digest-rewrite.mjs': (s) => s.replace('!/^lead$/i.test(', '!/^(1|on|true|yes|lead)$/i.test('),
+    }],
+    ['drop-ranged', { 'digest-post.mjs': (s) => s.replace('payload.tool_input?.offset !== undefined || payload.tool_input?.limit !== undefined', 'false') }],
+    ['drop-session', { 'digest-rewrite.mjs': (s) => s.replace("typeof payload.session_id === 'string' && payload.session_id !== '' ? payload.session_id : undefined", 'undefined') }],
+  ];
+  for (const [name, edits] of mutants) {
+    const killed = guardCases(guardPlugin(`m-${name}`, edits), name).length;
+    expect(killed > 0, `the Write guard mutant ${name} must fail the guard cases`);
+  }
+} finally {
+  rmSync(guardRoot, { recursive: true, force: true });
+}
+
 rmSync(tmp, { recursive: true, force: true });
 
 if (fails.length) {
@@ -306,5 +389,6 @@ console.log(`ok   ${REWRITTEN.length} allowlisted commands rewrite exactly, cd p
 console.log(`ok   ${PASSED_THROUGH.length} compound, structured, unlisted, wrapped, and over-long commands pass through`);
 console.log('ok   no permissionDecision: the host re-evaluates permissions against updatedInput');
 console.log('ok   a pipe is refused twice: one guard removed still holds, both removed wraps');
+console.log('ok   a full Write after a digested Read is denied, cleared by a ranged Read, and five mutants of the guard fail');
 console.log("ok   digest.mjs --cwd moves the child's working directory and exits 2 on a bad value");
 console.log('\ndigest-hook eval passed');

@@ -169,8 +169,15 @@
 // shells, workflows, and wakeups seed In-flight boundaries as `Running work (snapshot):` lines, at
 // most 8. CODE_OPS_COMPACT_SNAPSHOT=off skips both.
 //
-// Exit: 0 = done; 1 = a step failed, --out exists or is refused, pending agents block the draft,
-// or a name matched no single handoff; 2 = usage error.
+// STALE ROWS (design L1-e). Under grammar 2, draft refuses, exit 1, while a ledger Open items row is
+// older than one handoff with no `Forwarded-to:`, no `Next:` (ledger row or TASKS.md line), and no
+// close. Age follows check 12: the row's own `Hop: <n>` below this session's hop minus one, else the
+// row sits in both the predecessor's and the grand-predecessor's Open items. The refusal lists each
+// id and the fixes. `--allow-stale` drafts anyway and writes a `Stale-row override:` line naming the
+// ids under In-flight boundaries, so a false refusal is countable.
+//
+// Exit: 0 = done; 1 = a step failed, --out exists or is refused, pending agents or stale rows block
+// the draft, or a name matched no single handoff; 2 = usage error.
 
 import { execFileSync, spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -190,7 +197,7 @@ const USAGE = [
   'usage: handoff-state.mjs open <slug> [--name <name>] [--program <PROGRAM.md>] [--retention evidence|working] [--skill <skill>] [--session <id>] [--host-session <id>] [--hub <dir>] [--root <repo>]',
   '       handoff-state.mjs retention <run dir> evidence|working [--operator] [--root <repo>]   (--operator lowers a class and is operator-only)',
   '       handoff-state.mjs retention-check [--root <repo>]',
-  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--pending-agents-ok] [--root <repo>]',
+  '       handoff-state.mjs draft --run <dir> [--base <ref>] [--out <file>] [--name <base name>] [--program <PROGRAM.md>] [--session <id>] [--pending-agents-ok] [--allow-stale] [--root <repo>]',
   '       handoff-state.mjs program-archive <PROGRAM.md | program slug> [--root <repo>]',
   '       handoff-state.mjs program-split <PROGRAM.md | program slug> --into <a>,<b>[,...] --assign <id>=<child>[,...] [--root <repo>]',
   '       handoff-state.mjs program-merge <PROGRAM.md | program slug> --into <PROGRAM.md | program slug> [--head-ended] [--root <repo>]',
@@ -703,6 +710,28 @@ function snapshotLists(runDir, sid) {
   return none;
 }
 
+// L1-e: ids of the unchecked ledger Open items rows that are older than one handoff and carry no
+// `Forwarded-to:`, no `Next:` (on the ledger row or its TASKS.md line), and no close. Age follows
+// check 12: a row's own `Hop: <n>` below the writing session's hop (hop - 1), else the row sits in
+// both the predecessor's and the grand-predecessor's handoff Open items. An unreadable chain is
+// not stale, because the age is unknown.
+function staleRows(ledger, predecessor, root, hop, done, tasks) {
+  const read = (rel) => {
+    const file = rel && !rel.startsWith('[') && rel !== 'none' ? resolve(root, rel.replace(/^`|`$/g, '')) : null;
+    return file && isFile(file) ? readFileSync(file, 'utf8') : null;
+  };
+  const prior = read(predecessor);
+  const older = read(prior && pathValue(sectionBody(prior, 'program'), 'Predecessor'));
+  const idsIn = (text) => new Set(text ? bullets(sectionBody(text, 'open items')).map(itemId).filter(Boolean) : []);
+  const [inPrior, inOlder] = [idsIn(prior), idsIn(older)];
+  const nextOf = new Set(tasks.filter((l) => NEXT_RE.test(l)).map(itemId));
+  return [...ledger.open].filter(([id, line]) => {
+    if (/^[-*]\s+\[[xX]\]/.test(line) || FORWARDED_RE.test(line) || NEXT_RE.test(line) || done.has(id) || nextOf.has(id)) return false;
+    const rowHop = Number(/\bHop:\s*(\d+)/.exec(line)?.[1]);
+    return rowHop && hop ? rowHop < hop - 1 : inPrior.has(id) && inOlder.has(id);
+  }).map(([id]) => id);
+}
+
 function draft(flags) {
   if (!flags.run) usage(['x draft needs --run <dir>', ...USAGE]);
   const root = resolve(flags.root);
@@ -801,6 +830,14 @@ function draft(flags) {
   // Check 12: a pending decision from before the writing session's hop needs a disposition. The
   // writing session is the handoff's Hop minus one, because a handoff's Hop names its successor.
   const unsettled = ledger.grammar2 && hop ? ledger.pending.filter((d) => d.hop < hop - 1).map((d) => `- [FILL: disposition] ${titleOf(d.line)}`) : [];
+  // L1-e: a ledger open row older than one handoff needs a Forwarded-to:, a close, or a Next:.
+  const stale = ledger.grammar2 ? staleRows(ledger, lin.predecessor, root, hop, done, open) : [];
+  if (stale.length && !flags['allow-stale']) {
+    console.error(`x refusing to draft: ${stale.length} stale open row(s) in ${lin.program}, each older than one handoff with no Forwarded-to:, close, or Next:`);
+    for (const id of stale) console.error(`  ${id}`);
+    console.error('Forward each (co handoff program-split or program-merge), close it (check it off and record it under Closed items), or give it a `Next: <action>` on its ledger row; or pass --allow-stale to draft and record the ids in In-flight boundaries.');
+    return 1;
+  }
   // The established session name outranks the ledger title, so a hop keeps its name.
   const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) || programTitle(lin.programFile)
     || '[FILL: the program base name, the PROGRAM.md "# PROGRAM:" title]';
@@ -866,6 +903,7 @@ function draft(flags) {
     '',
     ...(dirty.length ? dirtyLines(dirty, git(['rev-parse', '--show-toplevel'], { cwd: root })) : ['- Working tree clean.']),
     ...pendingNow.agents.map((a) => `- Pending agent: ${formatLine(a).replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\[FILL:/g, '[fill:')} · launched ${a.launched_at}`),
+    ...(stale.length ? [`- Stale-row override: --allow-stale drafted past ${stale.length} stale open row(s): ${stale.join(', ')}`] : []),
     ...routingLines,
     ...lists.running.slice(0, RUNNING_SEEDED).map((line) => `- Running work (snapshot): ${line}`),
     ...(lists.running.length > RUNNING_SEEDED ? [`- +${lists.running.length - RUNNING_SEEDED} more running work entries in the snapshot.`] : []),
@@ -1107,6 +1145,7 @@ function archive(arg, flags) {
 const LEDGER_SECTIONS = ['program goal', 'request history', 'scope documents', 'open items', 'decisions ledger', 'closed items'];
 const SLUG_RE = /^[a-z0-9][a-z0-9-]*$/i;
 const FORWARDED_RE = /\bForwarded-to:\s*\S/;
+const NEXT_RE = /\bNext:\s*\S/;
 const ENDED_RE = /^[-*\t ]*Status:[^\S\r\n]*(merged into .+?|closed)\s*$/m;
 const ledgerHeading = (l) => {
   const h = /^##[ \t]+(.+)$/.exec(l);
@@ -1712,6 +1751,7 @@ if (isEntry()) {
     assign: { value: true },
     'head-ended': { value: false },
     'pending-agents-ok': { value: false },
+    'allow-stale': { value: false },
     retention: { value: true },
     skill: { value: true },
     operator: { value: false },

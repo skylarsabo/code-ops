@@ -72,7 +72,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_DIGEST_POST` | `off`, `0`, or `false` | the `PostToolUse` output replacement, `digest-post.mjs`; `CODE_OPS_DIGEST=off` also silences it. On by default |
 | `CODE_OPS_DIGEST_POST_LEAD` | not an off switch | the character threshold under which `digest-post.mjs` leaves a lead-thread result raw; default 4000; an unset, empty, negative, or non-numeric value keeps the default |
 | `CODE_OPS_DIGEST_POST_SUBAGENT` | not an off switch | the same threshold for a subagent thread (a payload with `agent_id`); default 8000, same parsing |
-| `CODE_OPS_DIGEST_READ` | off unless `1`, `on`, `true`, or `yes` | the `Read` path of `digest-post.mjs`, which keeps the first and last 40 lines of a result over the threshold |
+| `CODE_OPS_DIGEST_READ` | off unless `1`, `on`, `true`, `yes`, or `lead` | the `Read` path of `digest-post.mjs`, which keeps the first and last 40 lines of a result over the threshold; `lead` digests only the lead thread's unranged `Read` and arms the `Write` guard in `digest-rewrite.mjs` |
 | `CODE_OPS_WORKFLOW_ARGS` | not an off switch; `first` restores the earlier reading | where the dispatch guard reads a `Workflow` `agent()` call's options: the second argument by default, the first argument only under `first` |
 | `CODE_OPS_REDISPATCH_NOTE` | `off`, `0`, or `false` | the advisory redispatch note inside `dispatch-guard.mjs` (behaviour 8); `CODE_OPS_DISPATCH_GUARD=off` also silences it |
 | `CODE_OPS_SNAPSHOT_RUN_FALLBACK` | `off`, `0`, or `false` | the inferred run folder fallback in `compact-snapshot.mjs`; with it off, a session no `SESSION.json` names gets the `not recorded` gap lines |

@@ -33,19 +33,26 @@
 // directory. Every other token is appended verbatim into the same shell position it came from,
 // which is why the contract can promise the shell reads it the same way in both positions.
 //
-// PERMISSION. The hook returns no `permissionDecision`. The installed host re-runs its whole
+// PERMISSION. For a rewrite the hook returns no `permissionDecision`. The installed host re-runs its whole
 // permission evaluation against the rewritten command, so the operator's own rules decide the
 // digest run as they would decide any other `node` call. The CONTRACTS section "Digest rewrite
 // hook" carries the bundle evidence for that.
 //
+// WRITE GUARD. The one non-Bash input is a `Write` (whole-file overwrite), matched by its own
+// hooks.json entry so a Write spawns no other hook. With `CODE_OPS_DIGEST_READ=lead`, the post-output
+// digest records each digested Read; a `Write` to a path whose latest Read on the same thread was
+// digested is denied until a ranged or whole Read of that path follows (writeDenial in
+// scripts/digest-lib.mjs). Under `on` a ranged Read is digested again, so the guard stays unarmed.
+// `Edit` is never denied. With any other switch value, the hook returns before it imports anything.
+//
 // FAIL-OPEN on every path: bad JSON, a missing command, another tool, or any thrown error exits
-// 0 with no output. The hook never exits 2, never blocks, and never spawns or imports anything,
+// 0 with no output. The hook never exits 2 and never spawns anything. A Bash call imports nothing,
 // because it sits in front of every Bash call and owns a latency budget in the tens of
-// milliseconds.
+// milliseconds; only a `Write` with the Read switch on imports the library.
 
 import { readFileSync, writeSync, existsSync } from 'node:fs';
 import { join, dirname } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const MAX_COMMAND = 2000;
 
@@ -174,13 +181,33 @@ const CONTEXT = 'Output runs through the code-ops digest: a short output arrives
 const CONTEXT_NO_STORE = 'Output digested by code-ops with the raw store off: elided regions are not '
   + 'recoverable. Run the original command if you need the whole output.';
 
-function main() {
+// Prints a deny for a full Write over a digested Read. The library import is dynamic so a Bash call
+// never pays for it.
+async function guardWrite(payload) {
+  if (!/^lead$/i.test(process.env.CODE_OPS_DIGEST_READ ?? '')) return;
+  const filePath = payload?.tool_input?.file_path;
+  if (typeof filePath !== 'string' || filePath === '') return;
+  const libPath = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'digest-lib.mjs');
+  if (!existsSync(libPath)) return;
+  const { writeDenial } = await import(pathToFileURL(libPath).href);
+  const reason = writeDenial({
+    sessionId: typeof payload.session_id === 'string' && payload.session_id !== '' ? payload.session_id : undefined,
+    agentId: typeof payload.agent_id === 'string' && payload.agent_id !== '' ? payload.agent_id : undefined,
+    cwd: typeof payload.cwd === 'string' ? payload.cwd : undefined,
+    filePath,
+  });
+  if (reason) writeSync(1, `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: reason } })}
+`);
+}
+
+async function main() {
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST ?? '')) return;
 
   let raw = '';
   try { raw = readFileSync(0, 'utf8'); } catch { return; }
   let payload;
   try { payload = JSON.parse(raw.replace(/^\uFEFF/, '')); } catch { return; }
+  if (payload?.tool_name === 'Write') { await guardWrite(payload); return; }
   const name = String(payload?.tool_name ?? payload?.toolName ?? payload?.tool?.name ?? '').toLowerCase();
   if (!['bash', 'shell', 'exec_command', 'functions.exec_command', 'run_terminal_command'].some((tool) => name === tool || name.endsWith(`.${tool}`))) return;
   const toolInput = payload?.tool_input ?? payload?.toolInput ?? payload?.input;
@@ -209,5 +236,5 @@ function main() {
   })}\n`);
 }
 
-try { main(); } catch { /* fail open: a hook error must never cost the operator a tool call */ }
+try { await main(); } catch { /* fail open: a hook error must never cost the operator a tool call */ }
 process.exit(0);
