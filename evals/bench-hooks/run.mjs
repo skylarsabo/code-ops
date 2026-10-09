@@ -23,7 +23,7 @@ const real = run(['--runs', '2', '--warmup', '1', '--json']);
 let report;
 try { report = JSON.parse(real.stdout); } catch { report = null; }
 const ids = (report?.cases ?? []).map((c) => c.id);
-const want = ['pre-bash', 'pre-all', 'pre-message', 'post-edit', 'post-all', 'UserPromptSubmit', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop', 'base1', 'pre-bash-push', 'pre-all-edit', 'pre-all-bash', 'pre-all-push', 'post-all-push', 'pre-all-push-solo', 'post-all-push-solo', 'post-output', 'post-output-small', 'post-output-read'];
+const want = ['pre-bash', 'pre-all', 'pre-message', 'pre-write', 'post-edit', 'post-all', 'UserPromptSubmit', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop', 'base1', 'pre-bash-push', 'pre-all-edit', 'pre-all-bash', 'pre-all-push', 'post-all-push', 'pre-all-push-solo', 'post-all-push-solo', 'post-output', 'post-output-small', 'post-output-read'];
 check('a. the real plugin benches every event entry and the baseline', real.status === 0 && want.every((id) => ids.includes(id)), `${real.status} ${ids.join(',')} ${real.stderr}`);
 check('b. every case carries numeric p50, p95, and added figures',
   (report?.cases ?? []).every((c) => [c.p50, c.p95, c.addedP50, c.addedP95].every(Number.isFinite)), JSON.stringify(report?.cases?.[0]));

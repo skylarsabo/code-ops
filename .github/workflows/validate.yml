@@ -378,6 +378,9 @@ jobs:
       - name: Brief template eval (co brief --continue checkpoint prefill)
         run: node evals/brief-template/run.mjs
 
+      - name: Build graph eval (fail-closed BUILD_GRAPH.json check and plan waves)
+        run: node evals/build-graph/run.mjs
+
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
 
@@ -710,6 +713,9 @@ jobs:
 
       - name: Brief template eval (co brief --continue checkpoint prefill)
         run: node evals/brief-template/run.mjs
+
+      - name: Build graph eval (fail-closed BUILD_GRAPH.json check and plan waves)
+        run: node evals/build-graph/run.mjs
 
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs

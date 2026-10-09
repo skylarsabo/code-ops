@@ -63,11 +63,18 @@
 // during the session. It is one line under the card's own caps and prints on every source that carries a
 // session id; no routed dispatch, `CODE_OPS_AGENT_LEDGER` off, or any error prints nothing.
 //
+// STALE PLUGIN LINE. A session keeps the plugin version it loaded, so a long session can run an old
+// hook set while a newer cache entry is installed. When `CLAUDE_PLUGIN_ROOT` is
+// `<cache>/<marketplace>/code-ops-suite/<x.y.z>` and a sibling `<x.y.z>` directory is numerically higher,
+// the card adds one advisory line telling the operator to start a new session. Advisory only, never a
+// deny. Any other layout (Codex, Grok, OpenCode, a repo checkout), a non-semver sibling, or any error
+// prints nothing. It prints on every live source, never in the baked dist (empty stdin).
+//
 //   node hooks/routing-card.mjs
 
 import { spawnSync } from 'node:child_process';
 import { closeSync, openSync, readFileSync, readSync, readdirSync, existsSync, statSync } from 'node:fs';
-import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -401,6 +408,28 @@ function recallLine(sessionId, transcriptPath) {
   } catch { return []; }
 }
 
+// One advisory line when the loaded plugin directory is older than a sibling version directory.
+const SEMVER_RE = /^\d+\.\d+\.\d+$/;
+const semverParts = (name) => name.split('.').map(Number);
+function stalePluginLine() {
+  try {
+    const root = process.env.CLAUDE_PLUGIN_ROOT;
+    if (!root) return [];
+    const loaded = basename(root);
+    const plugin = dirname(root);
+    if (!SEMVER_RE.test(loaded) || basename(plugin) !== 'code-ops-suite') return [];
+    const mine = semverParts(loaded);
+    let best = null;
+    for (const name of readdirSync(plugin)) {
+      if (!SEMVER_RE.test(name)) continue;
+      const parts = semverParts(name);
+      const order = parts.findIndex((n, i) => n !== (best ?? mine)[i]);
+      if (order !== -1 && parts[order] > (best ?? mine)[order]) best = parts;
+    }
+    return best ? [`This session loaded code-ops-suite ${loaded}; ${best.join('.')} is installed. Start a new session to load it.`] : [];
+  } catch { return []; }
+}
+
 async function main() {
   if (process.env.GROK_PLUGIN_ROOT) return 0;
   let raw = '';
@@ -427,7 +456,7 @@ async function main() {
   ];
   // build-opencode-dist.mjs runs this hook with empty stdin and bakes the card into the dist, so
   // the platform lines print only for a live host payload and the dist stays machine-independent.
-  if (raw.trim()) lines.push(...shellLines());
+  if (raw.trim()) lines.push(...shellLines(), ...stalePluginLine());
   const sessionId = typeof payload?.session_id === 'string' ? payload.session_id : '';
   const shortId = sessionId.slice(0, 8);
   if (/^[A-Za-z0-9_-]+$/.test(shortId)) lines.push(`this session: ${shortId}`);

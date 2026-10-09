@@ -398,6 +398,12 @@ its own omission:
 The standard card, on every source, adds one line: `compaction keeps what a handoff keeps: tag
 RUN_LOG.md lines Decision:, Grant:, In flight:, Next: (co snapshot --fields)`.
 
+On a live payload, the card also adds `This session loaded code-ops-suite <v>; <w> is installed. Start
+a new session to load it.` when `CLAUDE_PLUGIN_ROOT` ends in a strict `x.y.z` directory under a
+`code-ops-suite` parent and a sibling strict `x.y.z` directory is higher. The line is advisory. Any
+error, a repository checkout, another host's layout, or an empty payload prints nothing. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs` (`stalePluginLine`) and `evals/handoff-card/run.mjs`.
+
 The card looks for the snapshot in the run folder and then in the home copies. It skips a copy
 whose header `Session` differs from the payload's and is not `unknown`. Host auto-compaction is the
 default context relief on Claude and Codex (DEC-73), and this card carries the open items across
@@ -718,11 +724,20 @@ The hook prints nothing, and the model sees the raw result, in these cases:
   override leaves the default.
 - The digest would not be smaller than the raw bytes.
 
-A `Read` result is digested only behind `CODE_OPS_DIGEST_READ` set to `1`, `on`, `true`, or `yes`.
+A `Read` result is digested only behind `CODE_OPS_DIGEST_READ` set to `1`, `on`, `true`, `yes`, or `lead`.
 It keeps the first 40 and last 40 lines and replaces the middle with `[elided N lines: sed -n 'A,Bp'
 <raw path>]`. A file of 81 lines or fewer passes. Evidence: `scripts/digest-lib.mjs:729-748`,
 `scripts/digest-lib.mjs:766-768`, `scripts/digest-lib.mjs:799-815`, and
 `scripts/digest-lib.mjs:872-892`.
+
+`CODE_OPS_DIGEST_READ=lead` digests a `Read` on the lead thread only. A subagent `Read` and a ranged
+`Read` (offset or limit set) arrive whole. In lead mode, a digested `Read` writes a mark for the session,
+thread, and path to `READ_MARKS-<session hash>.jsonl` in the digest store directory. A later `Write`
+to that path from the same session and thread is denied with a reason that names the elided lines and
+the ranged `Read` that clears the mark. An undigested `Read` of the path clears it. `Edit` is never
+denied. The `on` values write no mark and never deny. Any error fails open. Evidence:
+`scripts/digest-lib.mjs` (`readMode`, `writeDenial`), `plugins/code-ops-suite/hooks/digest-rewrite.mjs`,
+`evals/digest-post/run.mjs`, and `evals/digest-hook/run.mjs`.
 
 The hook keeps the raw output. It writes the full text to the digest store at the path the
 digest names, in the store, receipt, and slug rules of the Output digest section, and appends
@@ -1060,6 +1075,16 @@ card adds a `Pending agents: (<shown> of <total> shown)` block for the payload `
 8 lines of 80 characters. The block fails open and honours the same switch. Evidence:
 `scripts/handoff-state.mjs`, `plugins/code-ops-suite/hooks/routing-card.mjs`,
 `evals/handoff-state/run.mjs`, and `evals/handoff-card/run.mjs`.
+
+On a grammar-2 ledger, `co handoff draft` also refuses with exit 1 while a stale open row remains. A
+row's `Hop:` names the handoff that first recorded it. A row is stale when its `Hop:` is below the
+writing hop minus one, or, with no `Hop:`, when it appears in
+the Open items of both the predecessor and the grand-predecessor handoff. A row is exempt when it is
+checked, carries `Forwarded-to:` or `Next:`, or its `TASKS.md` line is checked or carries `Next:`. An
+unreadable chain counts as not stale. The refusal lists each stale id and names the fixes. With
+`--allow-stale`, the draft proceeds and writes a `Stale-row override:` line under In-flight
+boundaries, which records the override count. Evidence: `scripts/handoff-state.mjs` (`staleRows`)
+and `evals/handoff-state/run.mjs`.
 
 `co handoff draft` also reads the compaction snapshot: the run folder's `COMPACT_SNAPSHOT.md`, else
 the home copies, else reply-owed peers built from the session transcript with no write (the running

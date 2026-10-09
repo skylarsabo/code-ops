@@ -44,7 +44,7 @@ function parse(argv) {
 // The bench key of one hooks.json entry. An entry the bench has no payload for fails closed.
 function idOf(event, matcher) {
   const m = matcher ?? '';
-  if (event === 'PreToolUse') return /Bash/.test(m) ? 'pre-bash' : /Send/.test(m) ? 'pre-message' : m ? null : 'pre-all';
+  if (event === 'PreToolUse') return /Bash/.test(m) ? 'pre-bash' : /Send/.test(m) ? 'pre-message' : /Write/.test(m) ? 'pre-write' : m ? null : 'pre-all';
   if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : /Agent/.test(m) ? 'post-agent' : /Bash/.test(m) ? 'post-output' : m ? null : 'post-all';
   return ['UserPromptSubmit', 'PreCompact', 'PostCompact', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop'].includes(event) ? event : null;
 }
@@ -74,6 +74,8 @@ function payloadsFor(id, ctx) {
       { id: 'pre-all-push-solo', label: 'PreToolUse, all tools (Bash `git push`, solo session)', payload: pre('Bash', { command: pushCommand }), reset: ctx.resetSolo, solo: true },
       { id: 'pre-all-agent', label: 'PreToolUse, all tools (`Agent` dispatch)', payload: pre('Agent', { subagent_type: agent, description: 'bench', prompt: ['Scope: one file.', 'Objective: bench.', 'Round budget: 20.', 'Report cap: 40 lines.', 'Report path: report.md', 'Expected return: verdict.'].join('\n') }) },
     ];
+    // The Write guard returns before it imports anything while CODE_OPS_DIGEST_READ is not `lead`.
+    case 'pre-write': return [{ id, label: 'PreToolUse, Write (`digest-rewrite` guard)', payload: pre('Write', { file_path: join(ctx.repo, 'src', 'new.mjs'), content: 'export {};\n' }) }];
     case 'pre-message': return [{ id, label: 'PreToolUse, message tool (`SendMessage`)', payload: pre('SendMessage', { to: 'peer-session', message: 'status' }) }];
     case 'post-edit': return [{ id, label: 'PostToolUse, edit tool (`Edit`)', payload: post('Edit', { file_path: join(ctx.repo, 'src', 'a.mjs'), old_string: 'a', new_string: 'b' }, { success: true }) }];
     case 'post-agent': return [{ id, label: 'PostToolUse, dispatch tool (`Agent`, background launch)', payload: post('Agent', { subagent_type: agent, description: 'bench', run_in_background: true }, { status: 'async_launched', agentId: 'bench-agent' }) }];

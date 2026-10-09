@@ -164,6 +164,9 @@ const TABLE = {
   // [--budget <bytes>] [--json]` recovers exact earlier detail from the session's host transcript
   // through a byte-anchored index, checked by sha256 and masked. `CODE_OPS_RECALL=off` disables it.
   recall: 'transcript-recall.mjs',
+  // A command: `co build-graph <check|plan> <graph.json>` validates a program's BUILD_GRAPH.json
+  // (exit 1 lists every problem) and `plan` prints its dependency waves. Read-only.
+  'build-graph': 'build-graph.mjs',
 };
 
 // A domain named here runs this verb when the caller gives none, so `co board` lists the board.

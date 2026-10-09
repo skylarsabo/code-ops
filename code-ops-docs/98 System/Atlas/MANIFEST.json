@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -38,7 +38,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/hooks.json",
           "line": 85,
-          "anchor": "\"hooks\": ["
+          "anchor": "{"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -103,12 +103,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 460,
-          "anchor": "lines.push(...recallLine(sessionId, payload?.transcript_path));"
+          "anchor": "const sessionId = typeof payload?.session_id === 'string' ? payload.session_id :"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 447,
-          "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
+          "anchor": "'everything (broad/multi-domain) -> /code-ops-suite:everything',"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -222,12 +222,12 @@
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
           "line": 419,
-          "anchor": "export const recordBase = (rec, ident, fallback) => (typeof rec.worktree === 'st"
+          "anchor": "try {"
         },
         {
           "file": "plugins/code-ops-suite/scripts/handoff-state.mjs",
           "line": 1341,
-          "anchor": "function overlapLines(programFile, root, sid) {"
+          "anchor": "// The register as this ledger's promoted decisions see it. A promoted id not se"
         },
         {
           "file": "plugins/code-ops-suite/scripts/co.mjs",
@@ -282,7 +282,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/hooks.json",
           "line": 79,
-          "anchor": "}"
+          "anchor": "]"
         },
         {
           "file": "plugins/code-ops-suite/hooks/recall-spawn.mjs",
@@ -302,22 +302,22 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 392,
-          "anchor": "// One line telling a compacted session it can recover exact earlier detail from"
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 443,
-          "anchor": "} else {"
+          "anchor": "'audit/quality sweep -> /code-ops-suite:everything plugins: suite or plugins: ri"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 291,
-          "anchor": "const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return"
+          "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 306,
-          "anchor": "Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed inp"
+          "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
@@ -343,6 +343,21 @@
           "file": "plugins/code-ops-suite/hooks/digest-post.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/hooks.json",
+          "line": 18,
+          "anchor": "\"matcher\": \"Write\","
+        },
+        {
+          "file": "scripts/digest-lib.mjs",
+          "line": 957,
+          "anchor": "export function writeDenial(ctx) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
+          "line": 414,
+          "anchor": "function stalePluginLine() {"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -375,7 +390,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "e3b938536025eb24c1800444efce0862c3bd3bda223804b58535bf583d7d3d20"
+      "verifiedDigest": "2b0afeaa38b7c1271fd255c2bcee293084f4bc6b53f6f15f20ca5fdcbb8d00b1"
     },
     {
       "slug": "gate-scripts",
@@ -384,7 +399,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -648,8 +663,18 @@
         },
         {
           "file": "scripts/handoff-state.mjs",
+          "line": 718,
+          "anchor": "function staleRows(ledger, predecessor, root, hop, done, tasks) {"
+        },
+        {
+          "file": "scripts/build-graph.mjs",
+          "line": 58,
+          "anchor": "function unsafeSegment(path) {"
+        },
+        {
+          "file": "scripts/handoff-state.mjs",
           "line": 805,
-          "anchor": "const base = flags.name || baseName(lin.priorSession) || baseName(own?.name) ||"
+          "anchor": "const active = [];"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -659,12 +684,12 @@
         {
           "file": "scripts/handoff-state.mjs",
           "line": 1074,
-          "anchor": "archived ${count('request history')} request(s), ${count('decisions ledger')} de"
+          "anchor": "const requests = entries.filter((e) => e.section === 'request history');"
         },
         {
           "file": "scripts/handoff-state.mjs",
           "line": 1341,
-          "anchor": "function overlapLines(programFile, root, sid) {"
+          "anchor": "// The register as this ledger's promoted decisions see it. A promoted id not se"
         },
         {
           "file": "scripts/change-feed.mjs",
@@ -718,12 +743,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 340,
-          "anchor": "}"
+          "anchor": "const { pendingAgents, formatLine } = await import(pathToFileURL(lib).href);"
         },
         {
           "file": "scripts/handoff-state.mjs",
           "line": 667,
-          "anchor": "function routingForDraft(sid, own) {"
+          "anchor": "const byId = new Map();"
         },
         {
           "file": "scripts/co.mjs",
@@ -783,12 +808,12 @@
         {
           "file": "scripts/handoff-state.mjs",
           "line": 754,
-          "anchor": "warning: ${lists.owed.length} peer message(s) still await a reply, and a new ses"
+          "anchor": "// Not cli-lib's git(): its trim would eat the first porcelain line's leading st"
         },
         {
           "file": "scripts/handoff-state.mjs",
           "line": 870,
-          "anchor": "...lists.running.slice(0, RUNNING_SEEDED).map((line) =>"
+          "anchor": "}"
         },
         {
           "file": "scripts/transcript-lib.mjs",
@@ -803,7 +828,7 @@
         {
           "file": "scripts/digest-lib.mjs",
           "line": 872,
-          "anchor": "export function digestToolResponse(toolName, toolResponse, ctx = {}) {"
+          "anchor": "function marksFile(ctx) {"
         },
         {
           "file": "scripts/co.mjs",
@@ -1011,7 +1036,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "a151a1c469c03aa12136edd88872c785eacd5247155aaa155f3e98ee99c9b6cb"
+      "verifiedDigest": "7e43f2d2dd4f2f43d7ca79a1841b41071fb38fb772271b68a5cbd7a5e5d46748"
     },
     {
       "slug": "evals-and-calibration",
@@ -1019,8 +1044,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
-      "verifiedDigest": "03f15446b49f5c4dc07366c57b17f2cfed559d3768e0f5a4a86fd7dd87ca3a76",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedDigest": "e4d820216f6fc5e5c65c36055fac4c53f3e9657a52ad6d7eae64e907c65c4ddf",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1173,11 +1198,6 @@
           "anchor": "// Regression eval for the change feed (scripts/change-feed.mjs, C3 of the progr"
         },
         {
-          "file": "evals/bench-hooks/run.mjs",
-          "line": 2,
-          "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
-        },
-        {
           "file": "evals/record-collections/harness.mjs",
           "line": 23,
           "anchor": "// copies the fixture repo, which fails the copy with ENOENT. Every child git, i"
@@ -1195,7 +1215,7 @@
         {
           "file": "evals/co-facade/run.mjs",
           "line": 123,
-          "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall'];"
+          "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall', '"
         },
         {
           "file": "evals/digest-post/run.mjs",
@@ -1377,7 +1397,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1416,7 +1436,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/hooks.json",
           "line": 75,
-          "anchor": "\"command\": \"node \\\"${PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
+          "anchor": "]"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -1426,22 +1446,22 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 291,
-          "anchor": "const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return"
+          "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 306,
-          "anchor": "Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed inp"
+          "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 296,
-          "anchor": "} else if (snap.state === 'stale') {"
+          "anchor": "function snapshotLines(snap, cwd, open, sessionId) {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
           "line": 12,
-          "anchor": "retains 15 hook commands on 9 events. Codex skips plugin hooks until the user re"
+          "anchor": "retains 16 hook commands on 9 events. Codex skips plugin hooks until the user re"
         },
         {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
@@ -1489,7 +1509,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "27f48e2337e97057786416f5f6b2a7dc2f10ceae80cc4ecd31f16000bceb4880"
+      "verifiedDigest": "757202d25868970538078fda4499687a8febf821f9b2d41563bfa2f7b1b6b4d0"
     },
     {
       "slug": "ci-workflows",
@@ -1497,8 +1517,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
-      "verifiedDigest": "a27aee171435d9906333552ac27ba1136155eebc1189d7a47b2a39232fcf530b",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedDigest": "d1b084d741347438fb09dd7206acd16d9fe103cce0d10bcf9f2b904199f72017",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1515,6 +1535,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 629
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 382
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 718
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1604,7 +1632,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1676,7 +1704,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "44be2ff15dc9728cc98564c9871bb4d8130602a59fdad5e9397c8dbbf086c7a8"
+      "verifiedDigest": "a0d1cf0a56a4807d68b59b2e75a3a436fb007715a0f13197ff17fd84f4d8848c"
     },
     {
       "slug": "root-contracts",
