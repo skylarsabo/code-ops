@@ -27,10 +27,15 @@
 //        once across every file read, a line with no id counts per line, and a Haiku 5.5 repeat prices once.
 //   g.   DEC-6. The script keeps its own table: it does not import model-tiers.mjs, and
 //        `PROVIDER_PRICES` gains no Anthropic key, which would change the opencode distribution.
+//   k.   Window. `--since` counts a message by its own timestamp, in the main thread and in each
+//        subagent thread. A line with no timestamp follows the last one before it.
+//   l.   Cost per merged PR, from a fixture git repo: merges are two-parent commits whose subject
+//        starts `Merge pull request #<n>`, counted in the window; `--all` skips the section.
+//   m.   Context columns: turns over 250,000 input side, and compact_boundary rows once per uuid.
 //
 // MUTATION CONTROL. A copy of the script that prices an unknown id at the Opus rate (the family
 // alias V-REF found) runs on the same fixture and on the advisor fixture. The unpriced assertions
-// must fail on both.
+// must fail on both. Cases k, l, and m each cut one line of the script in the same way.
 //
 //   node evals/cost-split/run.mjs   (exit 0 = all assertions pass)
 
@@ -317,6 +322,153 @@ writeFileSync(join(mutantDir, 'transcript-lib.mjs'), libSource.replace(nested, '
 writeFileSync(join(mutantDir, 'cost-split.mjs'), source);
 const flatMutant = json(join(mutantDir, 'cost-split.mjs'), wf);
 check('mutation: the flat read drops the Workflow agents', flatMutant.rep?.subagentThreads === 1 && flatMutant.rep.files === 2, JSON.stringify([flatMutant.rep?.files, flatMutant.rep?.subagentThreads]));
+
+// k. Window (--since). Only a message whose own timestamp is at or after the date counts, in the main
+//    thread and in each subagent thread; a line with no timestamp follows its thread's last one.
+//    Window starts 2026-10-02. Lead Opus in window: wi (2000 in, 500 out) and the untimestamped wn1
+//    (100, 100) after it; the untimestamped wn0 (7, 7) follows the pre-window wo, so it is out.
+//    (2100*4 + 600*20) / 1e6 = 0.0204. Subagent Sonnet in window: (400*2 + 400*10) / 1e6 = 0.0048.
+//    The old rule (a whole session whose last message is in the window) would add wo and wn0: input 3107.
+//    With no window, w2's 5000 joins as well: 8107, which is also what the first mutant below reports.
+const SINCE = '2026-10-02T00:00:00Z';
+const stamped = (ts, id, model, u) => JSON.stringify({
+  type: 'assistant', ...(ts ? { timestamp: ts } : {}),
+  message: { id, model, usage: u, content: [{ type: 'text', text: 'x' }] },
+});
+const win = join(tmp, 'win');
+writeLines(join(win, 'w1.jsonl'), [
+  stamped('2026-10-01T10:00:00Z', 'wo', OPUS, usage(1000, 0, 0, 1000)),
+  stamped(null, 'wn0', OPUS, usage(7, 0, 0, 7)),
+  stamped('2026-10-05T10:00:00Z', 'wi', OPUS, usage(2000, 0, 0, 500)),
+  stamped(null, 'wn1', OPUS, usage(100, 0, 0, 100)),
+]);
+writeLines(join(win, 'w2.jsonl'), [stamped('2026-09-20T10:00:00Z', 'wp', OPUS, usage(5000, 0, 0, 5000))]);
+const winSub = (name, lines) => {
+  writeLines(join(win, 'w1', 'subagents', `${name}.jsonl`), lines);
+  writeFileSync(join(win, 'w1', 'subagents', `${name}.meta.json`), JSON.stringify({ agentType: 'code-ops-suite:implementer' }));
+};
+winSub('agent-new', [stamped('2026-10-01T11:00:00Z', 'ws0', SONNET, usage(300, 0, 0, 300)), stamped('2026-10-06T11:00:00Z', 'ws1', SONNET, usage(400, 0, 0, 400))]);
+winSub('agent-old', [stamped('2026-09-25T11:00:00Z', 'ws2', SONNET, usage(9000, 0, 0, 9000))]);
+const winRun = (script_, extra = []) => {
+  const r = run(script_, ['--transcripts', win, '--since', SINCE, '--json', ...extra]);
+  return { ...r, rep: r.status === 0 ? JSON.parse(r.stdout) : null };
+};
+const winRep = winRun(script).rep;
+const winLead = row(winRep ?? { rows: [] }, 'lead', OPUS);
+const winSubRow = row(winRep ?? { rows: [] }, 'agent:code-ops-suite:implementer', SONNET);
+check('k. only messages at or after --since count in the main thread; an untimestamped line follows the last timestamp before it', winLead?.input === 2100 && winLead.output === 600 && winLead.messages === 2 && near(winLead.usd, 0.0204), JSON.stringify(winLead));
+check('k. only in-window messages count in a subagent thread', winSubRow?.input === 400 && winSubRow.output === 400 && near(winSubRow.usd, 0.0048), JSON.stringify(winSubRow));
+check('k. a session and a subagent thread wholly before the window are not counted', winRep?.sessions === 1 && winRep.subagentThreads === 1 && winRep.files === 2, JSON.stringify([winRep?.sessions, winRep?.subagentThreads, winRep?.files]));
+check('k. the priced subtotal is the in-window sum', near(winRep?.totals.pricedUsd, 0.0252), String(winRep?.totals.pricedUsd));
+const winAll = json(script, win).rep;
+check('k. without --since every message counts', row(winAll ?? { rows: [] }, 'lead', OPUS)?.input === 8107, JSON.stringify(row(winAll ?? { rows: [] }, 'lead', OPUS)));
+
+// l. Cost per merged PR. A throwaway git repo is built with commit-tree, so every parent list and
+//    commit time is exact. Merges (two parents, subject `Merge pull request #<n>`): #11 on 2026-09-15,
+//    #12 on 2026-10-03, #13 on 2026-10-05. Not merged PRs: a one-parent commit whose subject names
+//    #99, and a two-parent merge whose subject is not a PR merge. In the 2026-10-02 window two PRs
+//    merged, so lead 0.0204 / 2 = 0.0102 and total 0.0252 / 2 = 0.0126.
+const gitEnv = (date) => ({
+  ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@example.invalid', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@example.invalid',
+  GIT_AUTHOR_DATE: date, GIT_COMMITTER_DATE: date,
+});
+const gitIn = (dir, args, date = '2026-09-01T00:00:00Z', input = '') => spawnSync('git', args, { cwd: dir, encoding: 'utf8', input, env: gitEnv(date) }).stdout.trim();
+function buildRepo(dir, spec) {
+  mkdirSync(dir, { recursive: true });
+  gitIn(dir, ['init', '-q']);
+  const tree = gitIn(dir, ['mktree']);
+  const made = {};
+  let head = null;
+  for (const [name, message, date, ...parents] of spec) {
+    head = made[name] = gitIn(dir, ['commit-tree', tree, ...parents.flatMap((p) => ['-p', made[p]]), '-m', message], date);
+  }
+  gitIn(dir, ['update-ref', 'refs/heads/main', head]);
+  gitIn(dir, ['symbolic-ref', 'HEAD', 'refs/heads/main']);
+}
+const repo = join(tmp, 'repo');
+buildRepo(repo, [
+  ['root', 'root', '2026-09-01T00:00:00Z'],
+  ['a', 'feature a', '2026-09-14T00:00:00Z', 'root'],
+  ['m1', 'Merge pull request #11 from x/a', '2026-09-15T00:00:00Z', 'root', 'a'],
+  ['b', 'feature b', '2026-10-02T12:00:00Z', 'm1'],
+  ['m2', 'Merge pull request #12 from x/b', '2026-10-03T00:00:00Z', 'm1', 'b'],
+  ['c', 'feature c', '2026-10-04T00:00:00Z', 'm2'],
+  ['m3', 'Merge pull request #13 from x/c', '2026-10-05T00:00:00Z', 'm2', 'c'],
+  ['sq', 'Merge pull request #99 from x/z', '2026-10-06T00:00:00Z', 'm3'],
+  ['d', 'feature d', '2026-10-06T12:00:00Z', 'sq'],
+  ['mb', "Merge branch 'topic'", '2026-10-07T00:00:00Z', 'sq', 'd'],
+]);
+const bare = join(tmp, 'bare');
+buildRepo(bare, [['root', 'root', '2026-09-01T00:00:00Z'], ['next', 'next', '2026-10-03T00:00:00Z', 'root']]);
+const prRun = (script_, extra, since = SINCE) => {
+  const r = run(script_, ['--transcripts', win, ...(since ? ['--since', since] : []), '--json', ...extra]);
+  return { ...r, rep: r.status === 0 ? JSON.parse(r.stdout) : null };
+};
+const pr = prRun(script, ['--cwd', repo]).rep?.perPr;
+check('l. the cwd repo is the default; merges in the window are counted', pr?.mergedPrs === 2 && near(pr.leadUsd, 0.0204) && near(pr.totalUsd, 0.0252), JSON.stringify(pr));
+check('l. lead and total USD divide by the merged PR count', near(pr?.leadUsdPerPr, 0.0102) && near(pr?.totalUsdPerPr, 0.0126), JSON.stringify(pr));
+const prElsewhere = prRun(script, ['--repo', repo]).rep?.perPr;
+check('l. --repo overrides the cwd project', prElsewhere?.mergedPrs === 2, JSON.stringify(prElsewhere));
+check('l. without --since the whole history counts', prRun(script, ['--repo', repo], null).rep?.perPr?.mergedPrs === 3);
+check('l. a later --since narrows the count', prRun(script, ['--repo', repo], '2026-10-04T00:00:00Z').rep?.perPr?.mergedPrs === 1);
+const prNone = prRun(script, ['--repo', bare]).rep?.perPr;
+check('l. a repo with no PR merge reports zero and no per-PR cost', prNone?.mergedPrs === 0 && prNone.leadUsdPerPr === null && prNone.totalUsdPerPr === null, JSON.stringify(prNone));
+const prText = run(script, ['--transcripts', win, '--since', SINCE, '--repo', repo]).stdout;
+check('l. the text report prints the per-PR table', /## Cost per merged PR[\s\S]*\| 2 \| \$0\.02 \| \$0\.03 \| \$0\.01 \| \$0\.01 \|/.test(prText), prText.slice(-700));
+const prNoneText = run(script, ['--transcripts', win, '--since', SINCE, '--repo', bare]).stdout;
+check('l. the text report says when no PR merged', /## Cost per merged PR\s+No PR merged in /.test(prNoneText), prNoneText.slice(-500));
+const prAbsent = prRun(script, ['--repo', join(tmp, 'no-such-repo')]);
+check('l. a path that is not a git repository skips the section and still exits 0', prAbsent.status === 0 && prAbsent.rep?.perPr === null && /not a readable git repository/.test(prAbsent.rep?.perPrNote ?? ''), prAbsent.stderr);
+const home = join(tmp, 'home');
+writeLines(join(home, '.claude', 'projects', 'p1', 'w1.jsonl'), readFileSync(join(win, 'w1.jsonl'), 'utf8').trim().split('\n'));
+const allRun = spawnSync(process.execPath, [script, '--all', '--since', SINCE, '--json', '--repo', repo], { encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home } });
+const allRep = allRun.status === 0 ? JSON.parse(allRun.stdout) : null;
+check('l. --all skips the section with one line naming the reason', allRep?.perPr === null && /needs a single project/.test(allRep?.perPrNote ?? '') && allRep.files === 1, allRun.stderr || allRun.stdout.slice(0, 300));
+
+// m. Context columns. f1 holds five assistant turns by input side: x1 300,000 (over), x2 exactly 250,000
+//    (not over), x3 streamed twice (first 6, then 260,000: the per-field max puts it over), x4 100,000.
+//    f2 is a fork: it repeats x1 and the boundary b1, then adds x5 at 260,000 (over) and boundary b3.
+//    Over 250K turns: x1, x3, x5 = 3. Boundaries by uuid: b1, b2, b3 = 3.
+const boundaryRow = (uuid) => JSON.stringify({ type: 'system', subtype: 'compact_boundary', uuid, timestamp: new Date(clock += 1000).toISOString(), content: 'Conversation compacted' });
+const ctxDir = join(tmp, 'ctx');
+const x1 = line('x1', OPUS, usage(100000, 150000, 50000, 10));
+writeLines(join(ctxDir, 'f1.jsonl'), [
+  x1, boundaryRow('b1'),
+  line('x2', OPUS, usage(125000, 125000, 0, 5)),
+  line('x3', OPUS, usage(1, 2, 3, 4)), line('x3', OPUS, usage(100000, 160000, 0, 4)),
+  boundaryRow('b2'), line('x4', OPUS, usage(100000, 0, 0, 1)),
+]);
+writeLines(join(ctxDir, 'f2.jsonl'), [x1, boundaryRow('b1'), line('x5', OPUS, usage(260000, 0, 0, 1)), boundaryRow('b3')]);
+const ctxRun = json(script, ctxDir);
+const ctxLead = ctxRun.rep?.context.find((c) => c.group === 'lead');
+check('m. turns with an input side over 250,000 are counted once per message id', ctxLead?.over250kTurns === 3, JSON.stringify(ctxLead));
+check('m. compact_boundary rows are counted once per uuid across files', ctxLead?.compactions === 3, JSON.stringify(ctxLead));
+check('m. the existing context fields are unchanged', ctxLead?.threads === 2 && ctxLead.peakMax === 300000 && ctxLead.overStep === 2, JSON.stringify(ctxLead));
+check('m. the text table appends both columns after the existing ones', /\| Over 100K \| Over 250K turns \| Compactions \|/.test(run(script, ['--transcripts', ctxDir]).stdout));
+
+// Mutation controls for k, l, and m. Each cuts one line; the matching assertions must fail.
+const mutate = (name, target, replacement) => {
+  check(`mutation target exists: ${name}`, source.includes(target));
+  writeFileSync(join(mutantDir, 'transcript-lib.mjs'), libSource);
+  writeFileSync(join(mutantDir, 'cost-split.mjs'), source.replace(target, replacement));
+  return join(mutantDir, 'cost-split.mjs');
+};
+const keepAll = mutate('window test', 'const inWindow = (stamp, sinceMs) => stamp === null || stamp >= sinceMs;', 'const inWindow = () => true;');
+const keepAllLead = row(winRun(keepAll).rep ?? { rows: [] }, 'lead', OPUS);
+check('mutation: keeping pre-window messages inflates the lead row', keepAllLead?.input === 8107 && !near(keepAllLead.usd, 0.0204), JSON.stringify(keepAllLead));
+const dropUntimed = mutate('untimestamped inheritance', 'if (r.stamp !== null) current = r.stamp;', 'current = r.stamp;');
+const dropRep = winRun(dropUntimed).rep;
+check('mutation: an untimestamped line that does not follow the last timestamp changes the lead row', row(dropRep ?? { rows: [] }, 'lead', OPUS)?.input !== 2100, JSON.stringify(row(dropRep ?? { rows: [] }, 'lead', OPUS)));
+const anyMerge = mutate('merge-only log', "'--merges', ", '');
+check('mutation: counting one-parent commits miscounts the merged PRs', prRun(anyMerge, ['--cwd', repo]).rep?.perPr?.mergedPrs === 3, JSON.stringify(prRun(anyMerge, ['--cwd', repo]).rep?.perPr));
+const offByOne = mutate('PR count', '.filter(Boolean)).size', '.filter(Boolean)).size + 1');
+check('mutation: an off-by-one count fails the merged PR assertion', prRun(offByOne, ['--cwd', repo]).rep?.perPr?.mergedPrs === 3);
+const noThreshold = mutate('250K threshold', 'export const OVER_TURN = 250000;', 'export const OVER_TURN = 25000000;');
+check('mutation: a raised threshold misses the over-250K turns', json(noThreshold, ctxDir).rep?.context.find((c) => c.group === 'lead')?.over250kTurns === 0);
+const noBoundary = mutate('boundary test', 'if (isBoundary(o)) {', 'if (false) {');
+check('mutation: ignoring compact_boundary misses the compactions', json(noBoundary, ctxDir).rep?.context.find((c) => c.group === 'lead')?.compactions === 0);
+const noUuid = mutate('boundary dedupe', 'if (seenBoundaries.has(o.uuid)) continue;', '');
+check('mutation: no uuid dedupe counts the forked boundary twice', json(noUuid, ctxDir).rep?.context.find((c) => c.group === 'lead')?.compactions === 4);
 
 rmSync(tmp,{ recursive: true, force: true });
 if (fails.length) {

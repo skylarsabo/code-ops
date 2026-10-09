@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -123,12 +123,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1031,
-          "anchor": "const stop = s[i + 1] === '/' ? s.indexOf('\\n', i) : s.indexOf('*/', i + 2) + 1;"
+          "anchor": "if (c === '/' && (s[i + 1] === '/' || s[i + 1] === '*')) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1014,
-          "anchor": "}"
+          "anchor": "return null;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -142,17 +142,18 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1382
+          "line": 1382,
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1196,
-          "anchor": "routeUnit: route.routeUnit, surfaceOfScope: route.surfaceOfScope, rungRank: rout"
+          "anchor": "routingLibs = {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1340,
-          "anchor": "+ 'A Route override line does not clear a surface mismatch.');"
+          "anchor": "Route basis says surface=${basis.surface} but the Scope paths derive surface=${d"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
@@ -251,7 +252,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1325,
-          "anchor": "Effort: ${effort} is below the ${runEffort} that ${source}. Pass effort: \"${effo"
+          "anchor": "} else if (asked < given) {"
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -374,7 +375,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "13005bf555e7bf5be8235b1e6585db7fa9b8d67e6109ec505641c8b88a920842"
+      "verifiedDigest": "e3b938536025eb24c1800444efce0862c3bd3bda223804b58535bf583d7d3d20"
     },
     {
       "slug": "gate-scripts",
@@ -383,7 +384,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "113bd35b7cda4e83133b534cb21752b7affd7f66",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1010,7 +1011,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "ab28ae13bb936fd72779de8e5f559f106f729c0069f7820520cf0ffeb68efe77"
+      "verifiedDigest": "a151a1c469c03aa12136edd88872c785eacd5247155aaa155f3e98ee99c9b6cb"
     },
     {
       "slug": "evals-and-calibration",
@@ -1018,8 +1019,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "113bd35b7cda4e83133b534cb21752b7affd7f66",
-      "verifiedDigest": "71006d9038d7fdc1170fc3aba452fdb6fc8ca443ab00b559d239a90a722a27e8",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedDigest": "03f15446b49f5c4dc07366c57b17f2cfed559d3768e0f5a4a86fd7dd87ca3a76",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1376,7 +1377,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1488,7 +1489,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "1b95f667800cd5feb4e3df684c75eaab48234627decbb9bd6e418779914c6c3d"
+      "verifiedDigest": "27f48e2337e97057786416f5f6b2a7dc2f10ceae80cc4ecd31f16000bceb4880"
     },
     {
       "slug": "ci-workflows",
@@ -1496,8 +1497,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
-      "verifiedDigest": "4094e6d68242d0a59466bc5acaca56823be8c18d82f3d5ca490f699f20b38a47",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedDigest": "a27aee171435d9906333552ac27ba1136155eebc1189d7a47b2a39232fcf530b",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1514,6 +1515,14 @@
         {
           "file": "github/workflows/validate.yml",
           "line": 629
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 378
+        },
+        {
+          "file": "github/workflows/validate.yml",
+          "line": 711
         },
         {
           "file": "github/workflows/validate.yml",
@@ -1595,7 +1604,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1667,7 +1676,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "f07cb311ff78f4d6738800992c7b5c28bcac6361075c9a087a1ba3023ab920c3"
+      "verifiedDigest": "44be2ff15dc9728cc98564c9871bb4d8130602a59fdad5e9397c8dbbf086c7a8"
     },
     {
       "slug": "root-contracts",
@@ -1682,7 +1691,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1725,7 +1734,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "bbd6c489602e059ad63024557ea4938486f8a184c7d6277ca15de53c43037d2f"
+      "verifiedDigest": "0ffb8f415040e2a77221b69401496028d4dd4794d1380fcad89a9a27da00a58b"
     },
     {
       "slug": "runtime-toolchain",

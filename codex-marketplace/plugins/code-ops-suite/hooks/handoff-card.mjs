@@ -383,7 +383,7 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   const ceiling = contextCeiling();
   const gated = ceiling !== null && context >= ceiling
     ? (grok ? ' New dispatches are now gated until you run /compact or code-ops-suite:handoff assess.'
-      : ' New dispatches are now gated until you run code-ops-suite:handoff assess.') : '';
+      : ' New dispatches are now gated until you run code-ops-suite:handoff assess or the host compacts.') : '';
   // Autonomous: an earlier card of this arm was shown and no operator prompt followed it. Only
   // Grok counts prompts apart from cards; elsewhere the call showing this card is itself a prompt.
   const autonomous = grok && pastPoint && state.fired && state.prompts === 0;
