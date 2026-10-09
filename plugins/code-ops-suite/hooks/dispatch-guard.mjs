@@ -159,7 +159,12 @@
 //      `Anchors:` line. The note names `co brief code-ops-suite:implementer --anchors <path[:line]>...`
 //      so the operative skips its orientation reads. An `Anchors:` line, including
 //      `Anchors: none (<reason>)`, silences it. It never denies and reads no library. A Workflow
-//      `agent()` call is not checked: the script's prompt argument is not parsed.
+//      `agent()` call to the implementer is checked the same way on its prompt argument when that
+//      is a string literal, a template literal, or a `+` concatenation of those; a Route basis
+//      kind other than `execution` or an `Anchors:` line silences it. A prompt the scan cannot
+//      read (a variable, a call) earns a note that the brief could not be checked. One note
+//      per Workflow lists the affected call indexes. With `CODE_OPS_WORKFLOW_ARGS=first` the
+//      prompt is not read and the check is skipped.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -1052,9 +1057,30 @@ function skipArgument(s, i) {
   return -1;
 }
 
+// The text of a prompt argument that spans `from` up to `end`: one string or template literal, or `+`
+// concatenated ones, with simple escapes decoded and template `${}` holes kept as written. Null for
+// anything else (a variable, a call), so the caller reports it as unreadable.
+function readPrompt(s, from, end) {
+  let text = '';
+  let i = from;
+  for (;;) {
+    while (/\s/.test(s[i] ?? '')) i++;
+    if (!QUOTE.test(s[i] ?? '')) return null;
+    const next = readString(s, i, end);
+    if (next < 0) return null;
+    text += s.slice(i + 1, next - 1).replace(/\\(.)/gs, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
+    i = next;
+    while (/\s/.test(s[i] ?? '')) i++;
+    if (i >= end) return text;
+    if (s[i] !== '+') return null;
+    i++;
+  }
+}
+
 // Each `agent(` call of a Workflow script as its options (null when they cannot be read), or null when
 // the script does not parse. The options are the second argument when it is an object literal, else
-// the first argument when that is an inline object.
+// the first argument when that is an inline object. In second-argument mode each readable call also
+// carries `prompt`, the first argument's text or null when the scan cannot read it.
 function workflowCalls(script) {
   const second = workflowArgsMode() === 'second';
   const calls = [];
@@ -1065,8 +1091,10 @@ function workflowCalls(script) {
     while (/\s/.test(script[i] ?? '')) i++;
     const first = i;
     let open = script[first] === '{' ? first : -1;
+    let prompt;
     if (second) {
       const comma = skipArgument(script, first);
+      prompt = comma >= 0 ? readPrompt(script, first, comma) : null;
       if (comma >= 0 && script[comma] === ',') {
         let j = comma + 1;
         while (/\s/.test(script[j] ?? '')) j++;
@@ -1076,6 +1104,7 @@ function workflowCalls(script) {
     if (open < 0) { calls.push(null); continue; }
     const options = readOptions(script, open);
     if (!options) return null;
+    options.prompt = prompt;
     calls.push(options);
     AGENT_CALL.lastIndex = options.end;
   }
@@ -1127,6 +1156,8 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
   let unreadable = 0;
   let nonLiteral = 0;
   let noEffort = 0;
+  const noAnchors = [];
+  const unreadableBriefs = [];
   // A literal model is judged against its literal agentType's floor, which needs the rung table.
   const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string') ? await getRoutingLibs() : null;
   calls.forEach((call, index) => {
@@ -1144,6 +1175,13 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
       const floor = libs.rungOf(agentFrontmatter(literalType.trim())?.model);
       const rung = libs.rungOf(model.trim());
       if (floor && rung && libs.floorRank[rung] < libs.floorRank[floor]) belowFloor.push({ call: index + 1, model: model.trim(), rung, type: literalType.trim(), floor });
+    }
+    if (literalType?.trim() === 'code-ops-suite:implementer' && call.prompt !== undefined) {
+      if (call.prompt === null) unreadableBriefs.push(index + 1);
+      else {
+        const basis = briefValue(call.prompt, 'Route basis');
+        if ((basis === null || parseRouteBasis(basis).kind === 'execution') && !briefHas(call.prompt, 'Anchors')) noAnchors.push(index + 1);
+      }
     }
     if (!keys.has('agentType')) {
       if (spread) unreadable++; else failed.push(index + 1);
@@ -1184,7 +1222,20 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     advisories.push(`${nonLiteral} of ${calls.length} Workflow agent() calls pass a model or effort that is not a literal string, `
       + 'so the guard cannot check it against the agent floor or the effort ceiling; confirm the value.');
   }
+  workflowAnchorsNote(calls.length, noAnchors, unreadableBriefs, advisories);
   reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, advisories);
+}
+
+// Behaviour 9 for a Workflow: one note naming the implementer calls whose prompt has no `Anchors:` line,
+// and those whose prompt the scan cannot read. It lists up to ten indexes of each and never denies.
+function workflowAnchorsNote(total, missing, unread, advisories) {
+  if (!missing.length && !unread.length) return;
+  const list = (calls) => `${calls.slice(0, 10).join(', ')}${calls.length > 10 ? ', ...' : ''}`;
+  const parts = [];
+  if (missing.length) parts.push(`${missing.length} of ${total} Workflow agent() calls to code-ops-suite:implementer have an execution brief with no Anchors block (call ${list(missing)})`);
+  if (unread.length) parts.push(`${unread.length} pass a prompt the guard cannot read, so its anchors could not be checked (call ${list(unread)})`);
+  advisories.push(`Anchors note: ${parts.join('; ')}. Run \`co brief code-ops-suite:implementer --anchors <path[:line]>...\` `
+    + 'with the files the unit will edit, so the operative skips its orientation reads, or add "Anchors: none (<reason>)".');
 }
 
 // The routing libraries, loaded once and only for a routed dispatch or a Workflow model. Null when

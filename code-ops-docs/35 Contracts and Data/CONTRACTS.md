@@ -1456,8 +1456,13 @@ dispatch of `code-ops-suite:implementer` whose `Route basis` kind is `execution`
 note when the brief has no `Anchors:` line. The note names `co brief code-ops-suite:implementer
 --anchors <path[:line]>...`, which prints the `Anchors:` block, so the operative skips its
 orientation reads. Any `Anchors:` line silences it, `Anchors: none (<reason>)` included. Another agent
-type, another kind, and `CODE_OPS_DISPATCH_GUARD=off` also stay silent. A Workflow `agent()` call is
-not checked, because the hook does not parse the script's prompt argument. The gate id is
+type, another kind, and `CODE_OPS_DISPATCH_GUARD=off` also stay silent. A Workflow `agent()` call to
+the implementer is checked on its prompt argument when that is a string literal, a template literal
+(holes kept as written), or a `+` concatenation of those. A `Route basis` kind other than `execution`
+or an `Anchors:` line silences it, and a prompt with no `Route basis` line is checked. A prompt the
+scan cannot read (a variable, a function call) earns a note that its anchors could not be checked.
+One note per Workflow lists the affected call indexes, up to ten of each kind. With
+`CODE_OPS_WORKFLOW_ARGS=first` the prompt is not read and the check is skipped. The gate id is
 `anchors-note`. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`anchorsNote`) and
 `evals/dispatch-guard/run.mjs`.
 

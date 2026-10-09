@@ -448,7 +448,11 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     `two variables earn an advisory and no denial, got ${JSON.stringify(out)}`);
   const replica = [contract, ...['plan', 'build', 'check'].map((phase) =>
     `await agent(brief({ unit: '${phase}', scope: [\`a/\${${phase}}.mjs\`] }), { label: '${phase}', phase: '${phase}', agentType: 'code-ops-suite:implementer', effort: 'high', schema: { type: 'object', properties: { ok: { type: 'boolean' } } } });`)].join('\n');
-  silent(replica, 'a script of the brief(...) plus options shape reads with no unreadable call');
+  // The implementer prompt is a brief(...) call, so only the anchors note (prompt unreadable) is expected.
+  out = workflow(replica);
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && !/pass options the guard cannot read/.test(contextOf(out) ?? '')
+    && /Anchors note: 3 pass a prompt the guard cannot read/.test(contextOf(out) ?? ''),
+  `a script of the brief(...) plus options shape reads with no unreadable options and only the unreadable-prompt anchors note, got ${JSON.stringify(out)}`);
   denies(`${replica}\nagent(brief(y), { label: 'z', agentType: 'general-purpose' });`, /1 of 4 .*first is call 4/, 'the replica shape plus one wide call');
   // CODE_OPS_WORKFLOW_ARGS=first restores first-argument-only parsing.
   out = parseOut(runHook(dispatchCall({ script: secondWide }, { tool_name: 'Workflow' }), { home, env: { CODE_OPS_WORKFLOW_ARGS: 'first' } }));
@@ -1823,6 +1827,43 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
     expect(offRun.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must silence the anchors note, got ${offRun.stdout}`);
   }
   console.log('ok   an execution implementer brief with no Anchors line earns the anchors note; an Anchors line, Anchors: none, another kind or agent, and the off switch stay silent');
+
+  // Behaviour 9, Workflow: the prompt argument of each implementer agent() call is read statically.
+  {
+    const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
+    const JUDG = { basis: 'judgment; surface=none; ambiguity=low; reversible=yes' };
+    const WF_NOTE = /Anchors note: (.*)\. Run `co brief code-ops-suite:implementer --anchors/;
+    const opts = `{ agentType: '${IMP}', effort: 'medium' }`;
+    const run = (script, env = {}) => runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home, ...env } });
+    const noteOf = (script, env) => {
+      const out = parseOut(run(script, env));
+      const hit = WF_NOTE.exec(contextOf(out) ?? '');
+      expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'), 'the Workflow anchors note must never deny');
+      return hit?.[1] ?? null;
+    };
+    const call = (prompt, o = opts) => `await agent(${prompt}, ${o});`;
+    const lit = (extra, over = EXEC) => JSON.stringify(brief(over) + extra);
+    const noted = noteOf(call(lit('')));
+    expect(noted && /1 of 1 .*no Anchors block \(call 1\)/.test(noted), `a literal prompt with no Anchors must advise call 1, got ${noted}`);
+    expect(noteOf(call(lit('\nAnchors:\nsrc/app.js:1-20'))) === null, 'a literal prompt with an Anchors block must stay silent');
+    expect(noteOf(call(lit('\nAnchors: none (x)'))) === null, 'Anchors: none (x) must stay silent');
+    expect(noteOf(call('`' + (brief(EXEC) + '\nAnchors: src/a.js').replaceAll('`', '') + ' ${extra}`')) === null, 'a template literal with a hole and Anchors must stay silent');
+    expect(noteOf(call(`${lit('\n')} + '\\nAnchors: none (x)'`)) === null, 'a concatenation that ends in an Anchors line must stay silent');
+    expect(noteOf(call('`' + brief(EXEC).replaceAll('`', '') + '${extra}`')), 'a template literal with a hole and no Anchors must advise');
+    const unread = noteOf(call('prompt'));
+    expect(unread && /cannot read.*call 1/.test(unread) && !/no Anchors block/.test(unread), `a variable prompt must advise as unreadable, got ${unread}`);
+    expect(noteOf(call('makePrompt(unit)')) !== null, 'a function-call prompt must advise as unreadable');
+    expect(noteOf(call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`)) === null, 'a non-implementer agentType must stay silent');
+    expect(noteOf(call(lit('', JUDG))) === null, 'a non-execution Route basis must stay silent');
+    expect(noteOf(call(lit(''), opts), { CODE_OPS_DISPATCH_GUARD: 'off' }) === null && run(call(lit('')), { CODE_OPS_DISPATCH_GUARD: 'off' }).stdout === '', 'CODE_OPS_DISPATCH_GUARD=off must silence the Workflow anchors note');
+    const mixed = [
+      call(lit('\nAnchors: none (x)')), call(lit('')), call('prompt'), call(lit('', JUDG)),
+      call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`), call(lit('')),
+    ].join('\n');
+    const note = noteOf(mixed);
+    expect(note && /2 of 6 .*no Anchors block \(call 2, 6\)/.test(note) && /1 pass a prompt.*\(call 3\)/.test(note), `mixed calls must list the right indexes in one note, got ${note}`);
+  }
+  console.log('ok   a Workflow implementer call earns one combined anchors note by call index; Anchors, another kind or agent, and the off switch stay silent; an unreadable prompt is reported');
 
   // The ledger writes the hash the guard compares, and the guard calls the ledger library's scopeHashOf
   // (one function, no copy). For each brief shape a row carrying the library's hash earns the note. A
