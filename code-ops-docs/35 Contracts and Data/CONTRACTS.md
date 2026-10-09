@@ -1261,6 +1261,19 @@ accept the `derived` disposition, so no real manifest can declare one and the fa
 path today. That validation is a tracked follow-up. Evidence: `scripts/legacy-paths-lib.mjs`
 (`legacyDenial`, `DERIVED_FALLBACK`) and `evals/dispatch-guard/run.mjs`.
 
+The subagent git guard is a seventh behavior. Inside a subagent only (`agent_id` present, or Grok's
+`subagentType`), for a shell tool, the hook denies a command with any `&&`, `&`, `||`, `;`, `|`, or
+newline segment (a backslash line continuation joins first) that runs `git checkout`, `switch`, `reset`,
+`restore`, `clean`, `merge`, `rebase`, `pull`, `cherry-pick`, `am`, or `stash` with any subcommand but
+`list` or `show`, or any git verb with `--autostash`. Those verbs rewrite the working tree or index that
+the lead and parallel operatives share. A verb with `--help` or `-h`, and `git clean` with `-n` or
+`--dry-run`, are read-only and pass. The parse is string work only: it strips grouping characters and
+quotes from word edges, skips shell keywords, `NAME=value` words, and global options (including
+`--config-env`), and it spawns and imports nothing. The main thread is untouched. A denied call still
+counts as a round, and its round advisory joins the denial. `warn` turns the deny into advisory
+context. The off switch is `CODE_OPS_SUBAGENT_GIT`, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`rewritingGitVerb`) and `evals/dispatch-guard/run.mjs`.
+
 Every output that denies or advises appends one decision row to `guard-decisions.jsonl`. The file
 sits beside the session-receipt ledger: in the directory of `CODE_OPS_RECEIPTS` when it names a
 path, else in `~/.claude/code-ops/`. A row is one JSON line holding ids and counts only, never

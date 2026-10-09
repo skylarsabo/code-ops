@@ -45,6 +45,10 @@
 //     off values of `CODE_OPS_LEGACY_PATHS` and the whole-hook switch silence it, `warn` makes it
 //     advisory, a denied subagent call counts a round, and a corrupt, wrong-version, or absent
 //     manifest fails open;
+//   - a subagent shell call (not the main thread) that runs git checkout, switch, reset, restore,
+//     clean, or stash (any subcommand but list or show) in any command segment is denied; read-only
+//     git, echoed text, and other tools pass; `CODE_OPS_SUBAGENT_GIT` off values and the whole-hook
+//     switch silence it, `warn` makes it advisory, and a denied call counts a round;
 //   - the off switch silences every branch, and bad JSON, another event name, empty stdin, and a
 //     missing agent id all fail open with no output and exit 0.
 //
@@ -95,6 +99,7 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   delete env.CODE_OPS_CONTEXT_CEILING;
   delete env.GROK_PLUGIN_ROOT;
   delete env.CODE_OPS_LEGACY_PATHS;
+  delete env.CODE_OPS_SUBAGENT_GIT;
   env.CODE_OPS_RECEIPTS = receiptsFile;
   Object.assign(env, extra);
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
@@ -1151,6 +1156,81 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   }
   cleanup();
   console.log('ok   an invalid CODE_OPS_ROUND_BUDGET falls back to the 40-round default');
+}
+
+// ---------------------------------------------------------------- subagent git guard (behaviour 7)
+
+{
+  const { home, cleanup } = fakeHome();
+  let calls = 0; // a fresh agent per call keeps the round counter under the hard stop
+  const shell = (command, extra = {}, tool = 'Bash') => ({
+    hook_event_name: 'PreToolUse', session_id: 'sess-G', cwd: 'C:/fixture-project',
+    tool_name: tool, tool_input: { command }, tool_use_id: 'tu-g', agent_id: `agent-G${calls++}`, ...extra,
+  });
+  const out = (r) => parseOut(r)?.hookSpecificOutput;
+
+  for (const command of ['git stash', 'git stash push -u', 'git stash pop', 'git checkout main', 'git switch -c topic',
+    'git reset --hard', 'git restore src/a.mjs', 'git clean -fd', '/usr/bin/git.exe reset', 'GIT_DIR=x git checkout .',
+    'git -c core.pager=cat -C repo --no-pager reset', 'git --git-dir=.git --work-tree=. clean -f',
+    'cd a && git -C b reset --hard', 'echo ok; git stash', 'git status | git checkout .',
+    '(cd sub && git stash)', '(git reset)', '{ git stash; }', 'if true; then git checkout -- x; fi',
+    'for f in a; do git restore "$f"; done', 'sleep 1 & git stash', '& git stash', 'git -C repo \\\n  reset --hard',
+    'git -C repo \\\r\n  reset --hard', 'git merge topic', 'git rebase main', 'git pull', 'git cherry-pick abc', 'git am x.patch',
+    'git pull --autostash', 'git log --autostash', 'git --config-env core.x=Y stash', '! git reset', 'time git stash']) {
+    const o = out(runHook(shell(command), { home }));
+    expect(o?.permissionDecision === 'deny' && o.permissionDecisionReason.startsWith('Subagent git guard: `git ')
+      && o.permissionDecisionReason.includes('git worktree add'), `a subagent \`${command}\` must be denied, got ${JSON.stringify(o)}`);
+  }
+  const verbs = ['checkout', 'switch', 'reset', 'restore', 'clean', 'stash', 'merge', 'rebase', 'pull', 'cherry-pick', 'am'];
+  for (const verb of verbs) {
+    const o = out(runHook(shell(`git ${verb}`), { home }));
+    expect(o?.permissionDecisionReason?.includes(`\`git ${verb}\` rewrites`), `the denial must name git ${verb}, got ${JSON.stringify(o)}`);
+  }
+  console.log('ok   a subagent shell call to a tree-rewriting git verb is denied in every segment and option form');
+
+  for (const command of ['git stash list', 'git stash show -p', 'git status', 'git diff', 'git show HEAD:src/a.mjs', 'git log --oneline',
+    'git worktree add ../scratch HEAD', 'echo git reset', 'echo "git stash"', 'ls && git branch',
+    'git merge-base HEAD main', 'git rebase --help', 'git reset -h', 'git stash --help', 'git clean -n', 'git clean -nd',
+    'git clean --dry-run -f', 'git clean -fdn', 'git status 2>&1 | head', '(cd sub && git status)']) {
+    const r = runHook(shell(command), { home });
+    expect(r.status === 0 && r.stdout === '', `a subagent \`${command}\` must pass, got ${JSON.stringify(r.stdout)}`);
+  }
+  for (const tool of ['Read', 'Write']) {
+    const r = runHook({ ...shell('git stash'), tool_name: tool, tool_input: { file_path: 'a.txt', content: 'git stash' } }, { home });
+    expect(r.stdout === '', `${tool} must not be inspected, got ${JSON.stringify(r.stdout)}`);
+  }
+  console.log('ok   read-only git, worktree add, echoed text, and non-shell tools pass');
+
+  const main = runHook(shell('git stash', { agent_id: undefined }), { home });
+  expect(main.status === 0 && main.stdout === '', `the main thread may stash, got ${JSON.stringify(main.stdout)}`);
+  const grok = out(runHook({ hookEventName: 'pre_tool_use', hook_event_name: 'PreToolUse', sessionId: 'sess-GK', cwd: 'C:/fixture-project',
+    toolName: 'run_terminal_command', toolInput: { command: 'git reset --hard' }, subagentType: 'implementer', agent_id: undefined }, { home, grok: true }));
+  expect(grok?.permissionDecision === 'deny' && grok.permissionDecisionReason.includes('Subagent git guard:'), `a Grok subagent must be denied, got ${JSON.stringify(grok)}`);
+  const pwsh = out(runHook({ ...shell('git stash'), tool_name: 'PowerShell' }, { home }));
+  expect(pwsh?.permissionDecision === 'deny', `a subagent PowerShell call must be denied, got ${JSON.stringify(pwsh)}`);
+  console.log('ok   the main thread is untouched, and Grok and PowerShell subagent calls are denied');
+
+  for (const value of ['off', '0', 'FALSE']) {
+    const r = runHook(shell('git stash'), { home, env: { CODE_OPS_SUBAGENT_GIT: value } });
+    expect(r.status === 0 && r.stdout === '', `CODE_OPS_SUBAGENT_GIT=${value} must allow, got ${JSON.stringify(r.stdout)}`);
+  }
+  const wholeOff = runHook(shell('git stash'), { home, guard: 'off' });
+  expect(wholeOff.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must allow, got ${JSON.stringify(wholeOff.stdout)}`);
+  console.log('ok   CODE_OPS_SUBAGENT_GIT off values and the whole-hook switch allow the call');
+
+  const warn = out(runHook(shell('git stash'), { home, guard: 'warn' }));
+  expect(warn?.permissionDecision === undefined && warn?.additionalContext?.includes('Subagent git guard:'),
+    `warn mode must give advisory context, got ${JSON.stringify(warn)}`);
+  console.log('ok   warn mode downgrades the git guard to advisory context');
+
+  const cwd = 'C:/fixture-git-round';
+  const child = out(runHook(shell('git clean -fd', { cwd, agent_id: 'agent-GR' }), { home, budget: 1 }));
+  expect(child?.permissionDecision === 'deny' && child.permissionDecisionReason.includes('Subagent git guard:')
+    && child.permissionDecisionReason.includes('1 tool rounds used'), `a denied call must merge the round advisory, got ${JSON.stringify(child)}`);
+  expect(readFileSync(join(home, '.claude', 'code-ops', 'dispatch', stateKey(cwd), `${stateKey('agent-GR')}.rounds`)).length === 1,
+    'the denied call must count as one round');
+  console.log('ok   a denied git call counts one round and merges the round advisory');
+  cleanup();
 }
 
 // ---------------------------------------------------------------- legacy path deny (behaviour 6)
