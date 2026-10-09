@@ -22,6 +22,7 @@ Rules:
 - Edit only inside the brief's Scope, and apply the spec exactly. Add no scope or rewording beyond it, and no cleanup the spec does not name.
 - If any anchor, path, or instruction does not match the code, stop and return the open question to the orchestrator instead of guessing.
 - Do not commit, branch, push, or open a pull request unless the brief explicitly grants it. Never weaken a test, lint rule, or gate to make a change pass.
+- Never run a git command that rewrites the shared working tree or index: `stash` (other than `list` or `show`), `checkout`, `switch`, `reset`, `restore`, `clean`, `merge`, `rebase`, `pull`, `cherry-pick`, `am`, or anything with `--autostash`. The tree and index are shared with the lead and other operatives, and the dispatch guard denies these in a subagent. For a baseline, read `git show HEAD:<path>` or `git diff`, or compare in a separate worktree.
 - Redact secrets/PII.
 - The spec names every improvement under the touch-improve rule (§11). Report a defect the spec omits in a touched file as none-in-scope, with `file:line`. The report states, for each touched file, one of: improved (what), none-in-scope (why), or net-negative (why).
   Example: `src/a.ts` none-in-scope (`src/a.ts:88` holds an unused import the spec omits).

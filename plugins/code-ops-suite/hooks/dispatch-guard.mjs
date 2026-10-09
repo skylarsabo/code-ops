@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// SIX BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// SEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -129,6 +129,23 @@
 //      the denial and any round advisory leave in one output. `CODE_OPS_DISPATCH_GUARD=warn`
 //      downgrades it to advisory text. Its own off switch is `CODE_OPS_LEGACY_PATHS`, taking
 //      `off`, `0`, or `false`.
+//   7. SUBAGENT GIT GUARD, inside a subagent only (`agent_id` present, or Grok's `subagentType`),
+//      for a shell tool (the shell names behaviour 5 lists, plus PowerShell). A command with any
+//      `&&`, `&`, `||`, `;`, `|`, or newline segment (a backslash line continuation joins first)
+//      that runs `git checkout`, `switch`, `reset`, `restore`, `clean`, `merge`, `rebase`, `pull`,
+//      `cherry-pick`, `am`, or `stash` with any subcommand but `list` or `show`, or any git verb
+//      with `--autostash`, is denied, because those rewrite the shared working tree or index that
+//      the lead and parallel operatives use (an operative's `git stash` once wiped the tree
+//      mid-run). Read-only exceptions: a verb with `--help` or `-h`, and `git clean` with `-n`
+//      (alone or inside a short-flag cluster) or `--dry-run`. The parse is pure string work, no
+//      import and no spawn: it strips `(`, `)`, `{`, `}`, and quotes from word edges, skips leading
+//      shell keywords (`do`, `then`, `else`, `elif`, `if`, `while`, `until`, `!`, `time`) and
+//      `NAME=value` words, takes a `git` or `git.exe` executable with an optional path, and skips
+//      global options (`-C <dir>`, `-c <k=v>`, `--git-dir`, `--work-tree`, `--namespace`,
+//      `--config-env`, and `--opt=value` forms) before the verb. The main thread is untouched. The
+//      denial rides behaviour 6's held path, so a denied call still counts a round and the round
+//      advisory joins one output; `CODE_OPS_DISPATCH_GUARD=warn` downgrades it to advisory text.
+//      Its own off switch is `CODE_OPS_SUBAGENT_GIT`, taking `off`, `0`, or `false`.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -536,6 +553,7 @@ const GATES = [
   ['workflow-contract', /"Run contract: <path>" line/, []],
   ['legacy-path', /Legacy path guard:/, []],
   ['derived-path', /Derived path guard:/, []],
+  ['subagent-git', /Subagent git guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
@@ -580,7 +598,7 @@ function recordDecision(body) {
 }
 
 function emit(body) {
-  // Behaviour 6 turns any PreToolUse output into a denial that keeps the rest of the text.
+  // Behaviours 6 and 7 turn any PreToolUse output into a denial that keeps the rest of the text.
   const held = body?.hookSpecificOutput;
   if (legacy && held?.hookEventName === 'PreToolUse') {
     const rest = held.permissionDecisionReason ?? held.additionalContext;
@@ -626,6 +644,44 @@ async function legacyFor(payload) {
     const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
     return lib.legacyDenial(cwd, payload.tool_input) ?? null;
   } catch { return null; }
+}
+
+// Behaviour 7. Pure string parsing, no import and no spawn.
+const SHELL_TOOLS = /(?:^|\.)(?:bash|shell|powershell|exec_command|run_terminal_command)$/i;
+const GIT_REWRITE_VERBS = new Set(['checkout', 'switch', 'reset', 'restore', 'clean', 'merge', 'rebase', 'pull', 'cherry-pick', 'am']);
+const GIT_OPTIONS_WITH_VALUE = new Set(['-C', '-c', '--git-dir', '--work-tree', '--namespace', '--config-env']);
+const SHELL_SEGMENT = /&&|&|\|\||;|\||\r?\n/;
+const SHELL_KEYWORDS = new Set(['do', 'then', 'else', 'elif', 'if', 'while', 'until', '!', 'time']);
+const WORD_EDGES = /^[("'{]+|[)"'}]+$/g;
+
+// The first denied git verb in `command`, or null. Every segment is read, not just the first.
+function rewritingGitVerb(command) {
+  for (const segment of command.replace(/\\\r?\n/g, ' ').split(SHELL_SEGMENT)) {
+    const words = segment.split(/\s+/).map((word) => word.replace(WORD_EDGES, '')).filter(Boolean);
+    let i = 0;
+    while (i < words.length && (SHELL_KEYWORDS.has(words[i]) || /^[A-Za-z_][A-Za-z0-9_]*=/.test(words[i]))) i++;
+    if (!/^git(?:\.exe)?$/i.test((words[i] ?? '').split(/[\\/]/).pop())) continue;
+    for (i++; i < words.length && words[i].startsWith('-'); i++) if (GIT_OPTIONS_WITH_VALUE.has(words[i])) i++;
+    const verb = words[i];
+    const rest = words.slice(i + 1);
+    if (!verb) continue;
+    if (rest.includes('--autostash')) return verb;
+    if (rest.includes('--help') || rest.includes('-h')) continue;
+    if (verb === 'clean' && rest.some((word) => word === '--dry-run' || /^-[A-Za-z]*n[A-Za-z]*$/.test(word))) continue;
+    if (GIT_REWRITE_VERBS.has(verb) || (verb === 'stash' && rest[0] !== 'list' && rest[0] !== 'show')) return verb;
+  }
+  return null;
+}
+
+function gitGuardFor(payload) {
+  if (off('CODE_OPS_SUBAGENT_GIT') || !SHELL_TOOLS.test(String(payload.tool_name ?? ''))) return null;
+  const input = payload.tool_input;
+  const command = typeof input?.command === 'string' ? input.command : input?.cmd;
+  const verb = typeof command === 'string' ? rewritingGitVerb(command) : null;
+  return verb && `Subagent git guard: \`git ${verb}\` rewrites the shared working tree or index that the lead and other `
+    + 'operatives use, so a subagent may not run it. For a baseline, read `git show HEAD:<path>` or `git diff`, '
+    + 'or compare in a separate worktree (`git worktree add <scratch dir> HEAD`). If the brief needs the command, '
+    + 'return the open question to the lead.';
 }
 
 // A denial no other output carried goes out alone.
@@ -1355,7 +1411,8 @@ async function main() {
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
   current = { tool_name: payload.tool_name, session_id: payload.session_id, subagent: typeof agentId === 'string' && agentId !== '' };
   collision = await collisionFor(payload, agentId);
-  const denial = await legacyFor(payload);
+  const hasAgent = typeof agentId === 'string' && agentId !== '';
+  const denial = [await legacyFor(payload), hasAgent ? gitGuardFor(payload) : null].filter(Boolean).join(' ') || null;
   if (denial && hardStop) legacy = denial;
   // Warn mode lifts the denial: the text joins the note, which reaches the model as context.
   else if (denial) collision = { text: collision ? `${denial}\n${collision.text}` : denial, commit: collision?.commit ?? (() => {}) };

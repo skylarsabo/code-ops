@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -57,7 +57,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 170,
+          "line": 187,
           "anchor": "// the field, not a captured payload). Codex's dispatch tool name is UNVERIFIED,"
         },
         {
@@ -112,47 +112,47 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 223,
+          "line": 240,
           "anchor": "// FAIL-OPEN on host input and absent binding evidence. A present but malformed"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 232,
+          "line": 249,
           "anchor": "import { fileURLToPath, pathToFileURL } from 'node:url';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 975,
+          "line": 1031,
           "anchor": "// call (a wide-surface reason excuses it); a literal effort above high never pa"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 958,
+          "line": 1014,
           "anchor": "// an internal error adds nothing."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
-          "anchor": "// SIX BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command"
+          "anchor": "// SEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comma"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 811,
+          "line": 867,
           "anchor": "// input is missing or unreadable (fail open)."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1326,
+          "line": 1382,
           "anchor": "${skeleton.join('\\n')}\\n${prose}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1140,
+          "line": 1196,
           "anchor": "// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1284,
+          "line": 1340,
           "anchor": "} else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'str"
         },
         {
@@ -162,7 +162,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 511,
+          "line": 528,
           "anchor": "let legacy = null;"
         },
         {
@@ -172,13 +172,18 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 521,
+          "line": 538,
           "anchor": "// eval fires every row, so a reworded message that no longer matches fails ther"
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
           "line": 148,
           "anchor": "export function legacyDenial(cwd, input) {"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 133,
+          "anchor": "//      for a shell tool (the shell names behaviour 5 lists, plus PowerShell). A"
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -247,7 +252,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1269,
+          "line": 1325,
           "anchor": "if (spawn) {"
         },
         {
@@ -366,7 +371,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "1174726aabd85f96c2a0b73ba602b49e618cac37a5653dbdf6c678e2f5cb9d14"
+      "verifiedDigest": "972d758ef3c5b6bc91aea703cf1a180f2d8b0570d0bb9422379b03b10e179572"
     },
     {
       "slug": "gate-scripts",
@@ -1006,8 +1011,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
-      "verifiedDigest": "8e4f92c91ac4b49484d8cb42f939ce537e421463284a5a591381b29d462ad99a",
+      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
+      "verifiedDigest": "4e8d979021e5765a8566870f5efb916b8ee833f26deea3ac23d8ce056a074640",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1226,7 +1231,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 867,
+          "line": 872,
           "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
@@ -1359,7 +1364,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1443,7 +1448,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 511,
+          "line": 528,
           "anchor": "let legacy = null;"
         },
         {
@@ -1472,7 +1477,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "17d05233b2f2979d9941f19b9e271d07e248fb5e75ca921ffe6f1e7fb29a323b"
+      "verifiedDigest": "3e1607ac6d74ea273626302edd72f7d2ad694ec6cff9fd9ce2b140b859646882"
     },
     {
       "slug": "ci-workflows",
@@ -1579,7 +1584,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1651,7 +1656,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "83b8e2bc2cff5621ff6c3c1b8b903ee0dad0d9259957e9ca4b1fcd19997765e6"
+      "verifiedDigest": "8762f054854760c18b0370add3016331933ce9a9c355a998063e7ddff4b7ad0c"
     },
     {
       "slug": "root-contracts",
