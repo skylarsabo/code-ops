@@ -8,6 +8,8 @@
 //     prints `(not in checkpoint)` instead of a guess;
 //   - an oversize report is bounded and elided with a count, and the Remaining text survives it;
 //   - carried text is quoted, so an indented `Objective:` line in a report never passes for a field;
+//   - --anchors appends a quoted Anchors block of current skim outlines, keeps a :line target, caps
+//     the block, marks a missing path (not found), and combines with --continue;
 //   - an unreadable report, a bare --continue, and a repeated --continue exit 2 with no template;
 //   - a mutant copy whose parser drops the Remaining part fails the same check the real script
 //     passes, so the check cannot be satisfied vacuously.
@@ -144,6 +146,40 @@ expect(has(huge, `> - src/file000.ts:0 ${'x'.repeat(80)}`) && !huge.stdout.inclu
 expect(lines(huge).some((l) => l.startsWith('> - yyy') && l.endsWith('...') && l.length <= 305) && has(huge, '>   finish the tail'), 'an oversize line must be clipped and the Next action must survive the budget');
 expect(huge.stdout.length < 6000, `an oversize report must not bloat the brief, got ${huge.stdout.length} characters`);
 
+// --anchors: a quoted outline per path from the file as it is now, the lead's :line target kept,
+// an unreadable path marked, the rest of the brief unchanged.
+const doc = report('anchor-doc.md', '# Alpha\n\ntext\n\n## Beta\n\nmore\n');
+const anchored = run([AGENT, '--anchors', `${doc}:5`, join(work, 'gone.md')]);
+const anchorAt = lines(anchored).indexOf('Anchors:');
+expect(anchored.status === 0 && anchorAt >= 0 && lines(plain).every((l) => lines(anchored).includes(l)), `--anchors must keep every plain line and add an Anchors block, got ${JSON.stringify(anchored.stdout)}`);
+expect(has(anchored, `> ${doc} (target :5)`) && lines(anchored).some((l) => /^>\s+1: h1 Alpha/.test(l)) && lines(anchored).some((l) => /^>\s+5: h2 Beta/.test(l)), 'an anchor must carry its target and the current outline with line numbers');
+expect(has(anchored, `> ${join(work, 'gone.md')} (not found)`), 'an unreadable anchor must read (not found)');
+expect(lines(anchored).slice(anchorAt + 1).filter(Boolean).every((l) => l.startsWith('> ')), 'every Anchors line must be quoted, so an outline never passes for a brief field');
+expect(lines(plain).filter(Boolean).join('\n') === lines(anchored).slice(0, anchorAt).join('\n'), 'the Anchors block must follow the unchanged template');
+// The outline is read at brief time, not cached: an edit shows up on the next run.
+writeFileSync(doc, '# Alpha\n\n## Gamma\n');
+expect(lines(run([AGENT, '--anchors', doc])).some((l) => /^>\s+3: h2 Gamma/.test(l)), 'the outline must come from the current file');
+// The cap: a long outline stays near 2,500 characters and says what it dropped.
+const longDoc = report('anchor-long.md', Array.from({ length: 80 }, (_, i) => `## Section ${i} ${'z'.repeat(60)}\n`).join('\n'));
+const capped = run([AGENT, '--anchors', longDoc]);
+const anchorText = lines(capped).slice(lines(capped).indexOf('Anchors:')).join('\n');
+expect(capped.status === 0 && anchorText.length <= 2800 && /\(elided \d+ lines, \d+ chars\)/.test(anchorText), `a long outline must be capped with an elision note, got ${anchorText.length} characters`);
+// With --continue the continuation blocks stay and Anchors comes last; flag order does not matter.
+const both = run([AGENT, '--anchors', doc, '--continue', fullPath]);
+expect(fullCheckpointHolds(both, fullPath) && lines(both).indexOf('Anchors:') > lines(both).indexOf('Dirty paths:'), `--anchors with --continue must keep the checkpoint blocks, got ${JSON.stringify(both.stdout)}`);
+expect(run(['--continue', fullPath, AGENT, '--anchors', doc]).stdout === both.stdout, 'flag order must not change the brief');
+for (const args of [[AGENT, '--anchors'], [AGENT, '--anchors', '--continue', fullPath]]) {
+  const r = run(args);
+  expect(r.status === 2 && r.stdout === '' && /usage:/.test(r.stderr), `an empty --anchors must exit 2 with usage, got ${r.status}/${JSON.stringify(r.stderr)}`);
+}
+// The anchor list ends at an agent type, so the type may follow it; a flag-shaped argument also ends it.
+const typeLast = run(['--anchors', doc, AGENT]);
+expect(typeLast.status === 0 && carriesEveryLabel(typeLast) && has(typeLast, `> ${doc}`) && lines(typeLast).filter((l) => l.startsWith('> ')).every((l) => !l.includes(AGENT)), `--anchors <path> <plugin>:<agent> must read the type as the agent, got ${typeLast.status}/${typeLast.stderr}`);
+// A path that exists but cannot be outlined reports skim's reason, not (not found).
+const dirAnchor = run([AGENT, '--anchors', work]);
+expect(has(dirAnchor, `> ${work} (cannot read ${work}: EISDIR)`), `an unreadable existing anchor must carry skim's reason, got ${JSON.stringify(dirAnchor.stdout.slice(-200))}`);
+expect(anchorText.length <= 2650, `the quote heads must count toward the anchors budget, got ${anchorText.length} characters`);
+
 // Errors: nothing on stdout, one stderr line, exit 2.
 for (const [name, args, pattern] of [
   ['an unreadable path', [AGENT, '--continue', join(work, 'missing.md')], /cannot read the checkpoint report/],
@@ -184,5 +220,6 @@ console.log('ok   the plain template is unchanged and an empty report adds only 
 console.log('ok   a full checkpoint prefills Scope, Continues, Done so far, Remaining with Next action, and Dirty paths');
 console.log('ok   heading case, bold labels, and paragraph form read alike; a missing part prints (not in checkpoint)');
 console.log('ok   an oversize report is bounded and elided with a count, and carried text stays quoted');
+console.log('ok   --anchors appends a quoted current outline with the lead target, caps it, marks a missing path, and combines with --continue');
 console.log('ok   an unreadable report and a malformed flag exit 2; a mutant that drops Remaining fails the check');
 console.log('\nbrief-template eval passed');

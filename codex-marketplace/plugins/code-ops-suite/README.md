@@ -10,37 +10,37 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
 
 ## Skills
 
-- `adr` — Use to capture the reasons behind a codebase's architecture as decision records, by backfilling load-bearing past decisions or writing an ADR for a current one.
-- `api-docs` — Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory.
-- `architecture` — Use when you need a deep, diagram-rich architecture reference for a codebase, written for a senior engineer and grounded in the actual code.
-- `atlas` — Use to create a repo's atlas, its durable cache of codebase judgment, refresh it after code moves, or consolidate inbox notes. atlas-check sets freshness.
-- `calibration-run` — Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals.
-- `codebase-audit` — Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes.
-- `conform` — Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract.
-- `current-docs` — Use when you need current, version-accurate docs for a library or framework before coding against its API. It reads the installed version, not memory.
-- `data-model` — Use when you need a clear data-model reference for a codebase, generated from the real schema and migrations.
+- `adr` — Use to capture architecture rationale as decision records, backfilling past decisions or writing one for a current decision.
+- `api-docs` — Use for an accurate API or interface reference generated from the code and types, not memory.
+- `architecture` — Use for a deep, diagram-rich architecture reference for senior engineers, grounded in the code.
+- `atlas` — Use to create a repo's atlas (durable cache of codebase judgment), refresh it after code moves, or consolidate inbox notes; atlas-check sets freshness.
+- `calibration-run` — Use for a standard isolated assess-only calibration run against a real-scale target repo; sanitized trend entry, no target internals.
+- `codebase-audit` — Use for a broad multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes.
+- `conform` — Use to assess and repair a repo's standards contract, vault, atlas, and doc drift; scope global aligns the Claude or Codex contract.
+- `current-docs` — Use for current, version-accurate library or framework docs before coding against its API; reads the installed version, not memory.
+- `data-model` — Use for a data-model reference generated from the real schema and migrations.
 - `debug` — Use when you have a bug symptom and want it driven from reproduction to a root-cause fix at full rigor.
-- `dependency-upgrade` — Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps.
-- `distill` — Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check, install a baseline and gate, and run a maintain pass.
-- `doc-alignment` — Use when docs have drifted from code and you want them reconciled into a clean single source of truth.
-- `everything` — Use for a checkpointed pass over installed plugins, from one plugin pipeline to the cross-plugin superset. Pick plugins and a track: assess-only, full, feature.
-- `feature-discovery` — Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code.
-- `feature-implementation` — Use when feature specs already exist and you want them built incrementally. It requires specs as input.
-- `handoff` — Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim.
-- `local-review-gate` — Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication.
-- `normalize` — Use when code has inconsistent style or hasty-code artifacts and needs a behavior-preserving standard. Concept mode unifies a divergent concept and enforces it.
-- `onboarding` — Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor.
-- `ops-docs` — Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it.
-- `performance` — Use when something is measurably slow or hot paths need optimization with proof. Profiles first. For broad measured wins, use rigor:improve-measured.
-- `pr-split` — Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless.
+- `dependency-upgrade` — Use when dependencies are outdated or carry CVEs; safe staged upgrades verified at each step, never bulk-bumped.
+- `distill` — Use to cut a program ledger to its finish line, or back-fill a docs vault with a no-loss check, baseline, gate, and maintain pass.
+- `doc-alignment` — Use when docs have drifted from code and need reconciling into one source of truth.
+- `everything` — Use for a checkpointed pass over installed plugins, from one pipeline to the cross-plugin superset; pick plugins and a track (assess-only, full, feature).
+- `feature-discovery` — Use for grounded, high-value feature ideas mined from the codebase, not a generic wishlist. Discovery only; writes no code.
+- `feature-implementation` — Use when feature specs exist and you want them built incrementally. Requires specs as input.
+- `handoff` — Use when a long run needs a continue, compact, or transfer decision. Transfer writes verifiable state to HANDOFF.md; resume re-verifies every claim.
+- `local-review-gate` — Use to run deep review, OpSec review, or judgment evals locally before a PR, with exact-SHA receipts and optional GitHub status publication.
+- `normalize` — Use for a behavior-preserving standard on inconsistent style or hasty-code artifacts. Concept mode unifies a divergent concept.
+- `onboarding` — Use for a verified, code-grounded orientation guide with an architecture diagram for a new contributor.
+- `ops-docs` — Use for an operational runbook for the senior engineer who operates or is on call for the codebase.
+- `performance` — Use when something is measurably slow or hot paths need optimization with proof; profiles first. Broad measured wins go to rigor:improve-measured.
+- `pr-split` — Use to carve one big branch into a clean, reviewable stack of small PRs, each independently green and traceless.
 - `provider-parity-audit` — Use to audit the suite on Claude, Codex, Grok, and OpenCode for host-specific assumptions in hooks, agents, skills, scripts, settings, manifests, and docs.
-- `remediation` — Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register as input.
-- `repo-docs` — Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub.
-- `run-cost-audit` — Use to audit a finished run's cost discipline: dispatch counts, artifact sizes, and tier and effort mix. Requires its artifact folder, not a live run.
-- `security-privacy-audit` — Use for an adversarial security and privacy threat model deeper than the audit's lens. Anonymity egress, metadata, and fingerprints go to privacy-opsec-suite.
-- `ship` — Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR.
-- `test-hardening` — Use when critical paths lack coverage or tests are flaky. Builds characterization and regression tests. To audit fault detection, use rigor:test-suite-audit.
-- `vault` — Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance.
+- `remediation` — Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register.
+- `repo-docs` — Use to extract, refresh, or prove current the repository documentation in one manifest-owned hub.
+- `run-cost-audit` — Use to audit a finished run's cost discipline (dispatch counts, artifact sizes, tier and effort mix). Requires its artifact folder.
+- `security-privacy-audit` — Use for an adversarial security and privacy threat model deeper than the audit lens. Anonymity egress, metadata, and fingerprints go to privacy-opsec-suite.
+- `ship` — Use to implement one change, a feature or one-off, end to end at high quality, shipped as a clean traceless PR.
+- `test-hardening` — Use when critical paths lack coverage or tests are flaky; builds characterization and regression tests. Auditing fault detection goes to rigor:test-suite-audit.
+- `vault` — Use to create a repo's Obsidian docs vault, migrate a docs tree into the standard layout, or check a vault for conformance.
 
 ## Packaging notes
 

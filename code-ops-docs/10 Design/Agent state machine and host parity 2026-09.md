@@ -258,6 +258,7 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 - A Workflow script runs JavaScript with `agent()`, `parallel()`, and `pipeline()`.
 - Each `agent()` may set `agentType` and `effort`. Today the dispatch guard denies a Workflow script that holds an `agent(` call and no `agentType:` field anywhere in the script (`plugins/code-ops-suite/hooks/dispatch-guard.mjs:681-688`, `CONTRACTS.md:909-910`). It checks the script as a whole, not each call. It skips the brief-contract checks for a Workflow.
 - A Workflow needs explicit operator opt-in for each run, unless ultracode is on.
+- 2026-10-09 amendment (D-027): the platform counts a skill or slash command whose instructions call Workflow as opt-in, so an operator-invoked orchestrator skill is an opt-in, and a skill the lead loaded alone is not. `§16` now says so, and `distill` asks no extra checkpoint question.
 - Scripts cannot touch the filesystem.
 - Results are journaled and the run can resume.
 - Other hosts have no Workflow tool.

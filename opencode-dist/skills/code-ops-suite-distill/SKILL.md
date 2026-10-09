@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-distill
-description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check, install a baseline and gate, and run a maintain pass."
+description: "Use to cut a program ledger to its finish line, or back-fill a docs vault with a no-loss check, baseline, gate, and maintain pass."
 ---
 
 # Distill: a program ledger down to its finish line, or a docs vault into standard order
@@ -226,9 +226,9 @@ record each digest with `node <plugin-root>/scripts/co.mjs check vault <hub> --s
 and stamp again after any source changes. The lead reads each batch sample and records `state result 7`,
 with the same full-review rule. Checkpoint with the page list.
 
-**Fan-out.** On Claude, phases 3 and 7 fan out through a Workflow as `§16` allows. The operator must opt in
-to Workflow first, so ask at the checkpoint before phase 3, and never start one alone. Without that opt-in,
-and on every other host, dispatch the same batches as parallel operatives with the host's dispatch tool.
+**Fan-out.** On Claude, phases 3 and 7 fan out through a Workflow as `§16` allows when a batch holds three or more independent units. An operator-invoked distill is the opt-in,
+so ask no extra question at the checkpoint. A distill the lead loaded on its own is not, so dispatch with
+the host's tool. On every other host, dispatch the same batches as parallel operatives with the host's dispatch tool.
 Write the phase plan to the run folder first: each batch, its suite agent (the implementer subagent), its effort, and its artifact path. Register each batch in the dispatch ledger
 before dispatch, and `state assign` it. The lead writes each batch report from the returned results.
 

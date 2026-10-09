@@ -17,6 +17,8 @@
 //     on a bare, unknown, or non-suite type, and leaves `co context brief` on worker-brief.mjs;
 //   - `co.mjs` copied alone into an empty directory reports the missing sibling as
 //     not-bundled with exit 2, which is what a plugin that vendors a partial script set does;
+//   - the scripts/co-run.mjs verbs (gh, fetch, until, each, show) keep the child's exit code,
+//     cap output with a dropped-line count, and stop `until` at its timeout;
 //   - parseFlags separates flags from positionals and throws UsageError on an unknown flag,
 //     a prototype-named flag, a flag whose value is missing, or a flag-shaped value.
 //
@@ -120,7 +122,7 @@ for (const [verb, script] of SCAN_VERBS) {
 }
 
 // Commands: a table key whose value is one script takes no verb. Pinned like DOMAINS.
-const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall', 'build-graph'];
+const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall', 'build-graph', 'gh', 'fetch', 'until', 'each', 'show'];
 const tableCommands = [...tableBlock.matchAll(/^ {2}'?([a-z][a-z-]*)'?: '[\w.-]+\.mjs',$/gm)].map((m) => m[1]);
 expect(tableCommands.join(',') === COMMANDS.join(','), `table commands ${JSON.stringify(tableCommands)} must equal the pinned list ${JSON.stringify(COMMANDS)}`);
 for (const command of COMMANDS) expect(new RegExp(`^ {2}${command} +\\S+\\.mjs \\(command\\)$`, 'm').test(help.stdout), `--help must list the ${command} command`);
@@ -160,6 +162,68 @@ const workerViaCo = run([co, 'context', 'brief', '--help']);
 const workerDirect = run([join(root, 'scripts', 'worker-brief.mjs'), '--help']);
 expect(workerViaCo.status === workerDirect.status && workerViaCo.stdout === workerDirect.stdout && /worker-brief\.mjs/.test(workerViaCo.stdout),
   'co context brief must still reach worker-brief.mjs byte for byte');
+
+// co-run verbs: a failing child keeps its exit code, truncation names the dropped lines, and
+// until stops at its timeout. `co each` and `co until` spawn node directly as the child.
+const lineEnv = { ...process.env, CO_RUN_TAIL: '3', CO_SHOW_LINES: '5' };
+const runCo = (args) => run([co, ...args], { env: lineEnv });
+const passEach = runCo(['each', 'node', '-e', 'console.log("hi " + process.argv[1])', '--', 'a', 'b']);
+expect(passEach.status === 0 && /^ok   a {2}hi a$/m.test(passEach.stdout) && /each: 2 ok, 0 failed of 2/.test(passEach.stdout), `co each passing children must exit 0 with one line per item, got ${passEach.status}/${passEach.stdout}`);
+const failEach = runCo(['each', 'node', '-e', 'process.stderr.write("boom"); process.exit(Number(process.argv[1]))', '--', '0', '7', '9']);
+expect(failEach.status === 7 && /^FAIL exit 7 7 {2}boom$/m.test(failEach.stdout) && /each: 1 ok, 2 failed of 3/.test(failEach.stdout), `co each must exit with the first failing code and name each failure, got ${failEach.status}/${failEach.stdout}`);
+const slotEach = runCo(['each', 'node', '-p', '"v={}"', '--', 'x']);
+expect(slotEach.status === 0 && /v=x/.test(slotEach.stdout), `co each must fill the {} slot, got ${slotEach.stdout}`);
+const untilPass = runCo(['until', '--every', '1', '--timeout', '5', '--', 'node', '-e', 'process.exit(0)']);
+expect(untilPass.status === 0 && /until: succeeded, attempts 1/.test(untilPass.stdout), `co until must stop on the first success, got ${untilPass.status}/${untilPass.stdout}`);
+const untilFail = runCo(['until', '--every', '1', '--timeout', '3', '--', 'node', '-e', 'console.error("nope"); process.exit(5)']);
+expect(untilFail.status === 5 && /until: timed out after \d+s, attempts [2-9]/.test(untilFail.stdout) && /nope/.test(untilFail.stdout), `co until must time out with the child's code and its stderr, got ${untilFail.status}/${untilFail.stdout}`);
+expect(runCo(['until', 'node']).status === 2, 'co until without -- must exit 2');
+const missing = runCo(['until', '--timeout', '0', '--', 'no-such-command-co-run']);
+expect(missing.status === 127, `a command that cannot start must exit 127, got ${missing.status}`);
+// A command that cannot start stops `until` at once, not at the timeout.
+const missingAt = Date.now();
+const missingLong = runCo(['until', '--every', '1', '--timeout', '60', '--', 'no-such-command-co-run']);
+expect(missingLong.status === 127 && /until: command cannot start, attempts 1/.test(missingLong.stdout) && Date.now() - missingAt < 20000, `a command that cannot start must stop until at once with 127, got ${missingLong.status}/${missingLong.stdout}`);
+expect(runCo(['until', '--every', '0', '--', 'node', '-e', 'process.exit(0)']).status === 2, 'co until must reject --every below 1');
+const ghBad = runCo(['gh', '--no-such-flag-co-run']);
+expect(ghBad.status !== 0 && /^exit \d+/m.test(ghBad.stdout), `co gh must carry gh's nonzero exit and print it, got ${ghBad.status}/${ghBad.stdout}`);
+// `co show` runs against its own temp repository, so it never depends on the checkout's HEAD (CI
+// checks out a merge commit). Commit A is large, B adds a side file, M merges B into A's line.
+const showRepo = mkdtempSync(join(tmpdir(), 'co-show-'));
+const git = (...a) => spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@example.invalid', '-c', 'commit.gpgsign=false', ...a], { encoding: 'utf8', cwd: showRepo });
+git('init', '-q');
+writeFileSync(join(showRepo, 'big.txt'), Array.from({ length: 50 }, (_, i) => `line ${i}`).join('\n') + '\n');
+git('add', '.');
+git('commit', '-q', '-m', 'big');
+const trunk = git('rev-parse', '--abbrev-ref', 'HEAD').stdout.trim();
+git('checkout', '-q', '-b', 'side');
+writeFileSync(join(showRepo, 'side.txt'), 'side\n');
+git('add', '.');
+git('commit', '-q', '-m', 'side');
+git('checkout', '-q', trunk);
+writeFileSync(join(showRepo, 'main.txt'), 'main\n');
+git('add', '.');
+git('commit', '-q', '-m', 'main');
+git('merge', '-q', '--no-ff', 'side', '-m', 'merge side');
+const showIn = (args) => run([co, ...args], { env: lineEnv, cwd: showRepo });
+const showBig = showIn(['show', 'HEAD~2']);
+expect(showBig.status === 0 && /^patch:$/m.test(showBig.stdout) && /\[\.\.\. \d+ more lines dropped\]/.test(showBig.stdout), `co show must cap the patch and name the dropped lines, got ${showBig.status}/${showBig.stdout.slice(0, 300)} ${showBig.stderr}`);
+const showMerge = showIn(['show', 'HEAD']);
+expect(showMerge.status === 0 && /^patch:$/m.test(showMerge.stdout) && /side\.txt/.test(showMerge.stdout), `co show of a merge commit must print its first-parent patch, got ${showMerge.status}/${showMerge.stdout.slice(0, 300)} ${showMerge.stderr}`);
+const showPath = showIn(['show', 'HEAD~2', 'big.txt']);
+expect(showPath.status === 0 && /^patch:$/m.test(showPath.stdout), `co show with a path must still patch, got ${showPath.status}/${showPath.stdout.slice(0, 200)}`);
+rmSync(showRepo, { recursive: true, force: true });
+expect(runCo(['show', 'no-such-ref-co-run']).status !== 0, 'co show of a bad ref must exit nonzero');
+const showFlag = runCo(['show', '--output=co-run-should-not-exist']);
+expect(showFlag.status === 2, `co show must reject a ref that starts with -, got ${showFlag.status}`);
+// A line over 2,000 characters is clipped with a marker.
+const longEach = runCo(['until', '--timeout', '0', '--', 'node', '-e', 'console.log("y".repeat(3000))']);
+expect(longEach.status === 0 && /\[\.\.\. 1000 chars dropped\]/.test(longEach.stdout) && !/y{2001}/.test(longEach.stdout), `a long line must be clipped with a marker, got ${longEach.stdout.length} characters`);
+const fetchStatus = runCo(['fetch', 'no-such-remote-co-run']);
+expect(fetchStatus.status !== 0 && /^branch /m.test(fetchStatus.stdout) && /^dirty files \d+$/m.test(fetchStatus.stdout), `co fetch must keep a failed fetch's code and still print the status block, got ${fetchStatus.status}/${fetchStatus.stdout}`);
+// Truncation: a child with ten stdout lines prints the last three and the dropped count.
+const trunc = runCo(['until', '--timeout', '0', '--', 'node', '-e', 'for (let i = 1; i <= 10; i++) console.log("L" + i)']);
+expect(trunc.status === 0 && /\[\.\.\. 7 earlier lines dropped\]/.test(trunc.stdout) && /L10/.test(trunc.stdout) && !/L7\b/.test(trunc.stdout), `a long stream must keep the tail and name 7 dropped lines, got ${trunc.stdout}`);
 
 // co.mjs alone in an empty directory: every verb's script is a missing sibling.
 const lone = mkdtempSync(join(tmpdir(), 'co-lone-'));
@@ -225,5 +289,6 @@ if (fails.length) {
 console.log('ok   help lists every table domain; a wrapped verb matches the direct call exactly');
 console.log('ok   unknown domain and verb exit 2; an unbundled verb names its missing script');
 console.log('ok   every scan verb answers --help exactly as its own script does');
+console.log('ok   co gh|fetch|until|each|show keep the child exit code, cap output, and time out');
 console.log('ok   cli-lib parses flags and positionals and throws UsageError on caller error');
 console.log('\nco-facade eval passed');

@@ -1,5 +1,5 @@
 ---
-description: "Use when repository documentation must be extracted, refreshed, or proven current from one manifest-owned documentation hub."
+description: "Use to extract, refresh, or prove current the repository documentation in one manifest-owned hub."
 ---
 
 # Repo docs: manifest-governed documentation extraction

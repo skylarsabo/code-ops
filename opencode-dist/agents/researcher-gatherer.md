@@ -1,5 +1,5 @@
 ---
-description: "Read-only research gatherer for fast, parallel sourcing. Delegate to it to gather evidence on a precisely-scoped question from the codebase, version-control history, and installed-dependency docs. It never edits files and never makes network requests, because web sourcing is orchestrated at the skill level with the egress manifest. Use several in parallel over disjoint sub-questions."
+description: "Read-only research gatherer. Delegate a precisely-scoped question; it gathers evidence from the codebase, version-control history, and installed-dependency docs. No edits and no network requests (web sourcing runs at the skill level). Run several in parallel over disjoint sub-questions."
 mode: subagent
 permission:
   edit: deny

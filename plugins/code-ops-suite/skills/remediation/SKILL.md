@@ -1,5 +1,5 @@
 ---
-description: "Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register as input."
+description: "Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register."
 ---
 
 # Remediation implementation: execute the findings backlog
@@ -38,7 +38,7 @@ blocking items first.
 ## Phase 1: the implementation, parallel where disjoint and serial where coupled
 
 Dispatch an ephemeral implementation operative per item or batch, with conflict-aware fan-out
-(`§1`), and run each through the implementation loop (`§11`). Dispatch every batch as `§16` directs.
+(`§1`), and run each through the implementation loop (`§11`). Dispatch every batch as `§16` directs. On Claude, when the operator invoked this skill, a fan-out of three or more independent units runs through the Workflow tool; otherwise dispatch with the host's tool.
 
 **NEEDS-REVIEW** items change behavior or contracts by definition. Confirm the intended new
 behavior with the developer before implementing, and pin it with tests.

@@ -1,6 +1,6 @@
 ---
 name: anon-session-audit
-description: "Use when you need to verify sessions are truly unlinkable. Owns linkability and session identity, not network egress or file metadata."
+description: "Use to verify sessions are unlinkable. Owns linkability and session identity, not network egress or file metadata."
 ---
 
 # Anonymous session audit: are sessions truly unlinkable

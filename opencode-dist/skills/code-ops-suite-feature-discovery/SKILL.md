@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-feature-discovery
-description: "Use when you want grounded, high-value feature ideas mined from the codebase rather than a generic wishlist. Discovery only, and it writes no code."
+description: "Use for grounded, high-value feature ideas mined from the codebase, not a generic wishlist. Discovery only; writes no code."
 ---
 
 # Feature discovery: find and specify high-value improvements

@@ -1,6 +1,6 @@
 ---
 name: onboarding
-description: "Use when you need a verified, code-grounded orientation guide, with an architecture diagram, for a new contributor."
+description: "Use for a verified, code-grounded orientation guide with an architecture diagram for a new contributor."
 ---
 
 # Codebase onboarding: generate the orientation guide

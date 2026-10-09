@@ -1,5 +1,5 @@
 ---
-description: "Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register as input."
+description: "Use when a FINDINGS_REGISTER.md exists and its NEEDS-REVIEW and NEEDS-DESIGN items need safe implementation with tests. Requires a register."
 ---
 
 Use the `code-ops-suite-remediation` skill for this task, following it end to end.

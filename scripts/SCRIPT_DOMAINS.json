@@ -46,6 +46,7 @@
     "citation-lib.mjs": "docs",
     "cli-lib.mjs": "cli",
     "co.mjs": "cli",
+    "co-run.mjs": "cli",
     "collision-lib.mjs": "program",
     "compact-snapshot.mjs": "context",
     "context-audit.mjs": "context",

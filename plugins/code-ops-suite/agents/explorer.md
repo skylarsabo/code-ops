@@ -1,6 +1,6 @@
 ---
 name: explorer
-description: Read-only codebase explorer for fast, parallel investigation. Delegate to it to map structure, locate definitions and call-sites, trace data/control flow, and gather context. It never edits files. Use several in parallel to cover disjoint areas of a large codebase.
+description: Read-only codebase explorer. Delegate mapping structure, locating definitions and call-sites, tracing flow, and gathering context. Run several in parallel over disjoint areas. Never edits.
 tools: Read, Grep, Glob
 model: claude-haiku-5-5
 effort: medium

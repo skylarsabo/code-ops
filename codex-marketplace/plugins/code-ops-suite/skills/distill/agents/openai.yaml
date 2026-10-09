@@ -1,6 +1,6 @@
 interface:
   display_name: "Distill"
-  short_description: "Use to cut a program ledger to its finish line, or to back-fill a docs vault with a no-loss check, install a baseline and gate, and run a maintain pass."
+  short_description: "Use to cut a program ledger to its finish line, or back-fill a docs vault with a no-loss check, baseline, gate, and maintain pass."
   default_prompt: "Use code-ops-suite:distill for this task."
 policy:
   allow_implicit_invocation: true

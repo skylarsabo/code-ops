@@ -1,5 +1,5 @@
 ---
-description: "Use when docs have drifted from code and you want them reconciled into a clean single source of truth."
+description: "Use when docs have drifted from code and need reconciling into one source of truth."
 ---
 
 # Documentation alignment: reconcile drift, establish one source of truth

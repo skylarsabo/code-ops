@@ -1,6 +1,6 @@
 ---
 name: adr
-description: "Use to capture the reasons behind a codebase's architecture as decision records, by backfilling load-bearing past decisions or writing an ADR for a current one."
+description: "Use to capture architecture rationale as decision records, backfilling past decisions or writing one for a current decision."
 ---
 
 # ADR: architecture decision records

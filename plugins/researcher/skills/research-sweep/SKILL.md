@@ -1,5 +1,5 @@
 ---
-description: "Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates and proposes; writes no code."
+description: "Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates; writes no code."
 ---
 
 # Research sweep: the whole research pipeline, end to end

@@ -770,8 +770,20 @@ reaches `atlas-check.mjs check`, and an explicit subcommand passes through. The 
 exits 2 on an unknown domain, an unknown verb, or a verb whose script the running plugin
 does not vendor. `--help` and `--version` exit 0. Every other exit code, and all stdout and
 stderr, belong to the wrapped script. The direct `node scripts/<name>.mjs` paths stay valid
-and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-183`, and
-`scripts/co.mjs:186-196`.
+and unchanged. Evidence: `scripts/co.mjs:20-22`, `scripts/co.mjs:163-196`, and
+`scripts/co.mjs:199-209`.
+
+Five top-level commands cut lead shell turns: `co gh`, `co fetch`, `co until`, `co each`, and
+`co show`. Each passes its own name to `co-run.mjs`, which spawns the child from an argument
+array with no shell. Each exits with the child's nonzero code and never exits 0 on a child
+failure. A command that cannot start exits 127, and a caller error exits 2. Output is capped:
+a stream tail of 40 lines (`CO_RUN_TAIL`), a patch of 200 lines (`CO_SHOW_LINES`), and 2,000
+characters per line, and each cap prints what it dropped. `co until` reruns its command every
+`--every` seconds (at least 1) until it exits 0 or `--timeout` passes (default 100 s, under the
+Bash tool's 120 s default), and it stops at once when the command cannot start. `co show` shows
+a merge against its first parent. Evidence: `scripts/co.mjs:170-183`, `scripts/co.mjs:282`,
+`scripts/co-run.mjs:38-90`, and `scripts/co-run.mjs:126-163`. The eval is
+`evals/co-facade/run.mjs`.
 
 The `scan` domain runs on the shared CLI library, and the skills reach its scripts as
 `co scan <verb>`. Its seven scripts hand `argv` to `parseFlags` in `cli-lib.mjs`. A caller
@@ -779,7 +791,7 @@ error goes through `parseOrDie`, which prints `x <message>` on stderr and exits 
 declares `many` for a repeatable flag and `raw` for a flag whose own check must see a smuggled
 option. The `missing` key carries the wording a caller already pins, so no flag, exit code, or
 message changed. Evidence: `scripts/cli-lib.mjs:38-47`, `scripts/cli-lib.mjs:112-123`,
-`scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:101-117`.
+`scripts/check-autofix-scope.mjs:50-57`, and `evals/co-facade/run.mjs:103-119`.
 
 A script that passes a usage line to `parseOrDie`, or calls `exitOnHelp`, answers `--help` or
 `-h` with its usage on stdout and exit 0, before any other work. `check-no-deps`,

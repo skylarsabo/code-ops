@@ -1,6 +1,6 @@
 ---
 name: privacy-doc-alignment
-description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code and you want them reconciled into the single source of truth."
+description: "Use when privacy promises, the threat model, or opsec runbooks have drifted from code; reconciles them into one source of truth."
 ---
 
 # Privacy documentation alignment: promises that match reality

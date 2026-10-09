@@ -1,6 +1,6 @@
 ---
 name: normalize
-description: "Use when code has inconsistent style or hasty-code artifacts and needs a behavior-preserving standard. Concept mode unifies a divergent concept and enforces it."
+description: "Use for a behavior-preserving standard on inconsistent style or hasty-code artifacts. Concept mode unifies a divergent concept."
 ---
 
 # Code normalization: one consistent, professional, hand-crafted codebase

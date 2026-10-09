@@ -1,5 +1,5 @@
 ---
-description: "Use before refactoring or fixing low-coverage code. Writes characterization tests that lock current observable behavior."
+description: "Use before refactoring or fixing low-coverage code; writes characterization tests that lock current behavior."
 ---
 
 # Safety net: pin behavior before you touch it

@@ -1,6 +1,6 @@
 interface:
   display_name: "Conform"
-  short_description: "Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract."
+  short_description: "Use to assess and repair a repo's standards contract, vault, atlas, and doc drift; scope global aligns the Claude or Codex contract."
   default_prompt: "Use code-ops-suite:conform for this task."
 policy:
   allow_implicit_invocation: true

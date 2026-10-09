@@ -1,5 +1,5 @@
 ---
-description: "Use to reduce timing, size, and volume side channels and add padding or batching defaults. Header and TLS fingerprints belong to fingerprint-resistance."
+description: "Use to reduce timing, size, and volume side channels and add padding or batching defaults. Header and TLS fingerprints go to fingerprint-resistance."
 ---
 
 # Traffic-analysis resistance: reduce observable signatures

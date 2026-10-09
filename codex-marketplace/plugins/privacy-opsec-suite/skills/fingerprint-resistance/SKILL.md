@@ -1,6 +1,6 @@
 ---
 name: fingerprint-resistance
-description: "Use to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Traffic timing and size belong to traffic-analysis-resistance."
+description: "Use to reduce the fingerprinting and uniqueness surface that could re-link anonymous users. Timing and size go to traffic-analysis-resistance."
 ---
 
 # Fingerprint resistance: make users indistinguishable

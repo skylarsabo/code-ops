@@ -1,6 +1,6 @@
 ---
 name: calibration-run
-description: "Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals."
+description: "Use for a standard isolated assess-only calibration run against a real-scale target repo; sanitized trend entry, no target internals."
 ---
 
 # Calibration run: standardized real-scale measurement
@@ -68,7 +68,7 @@ premise handed to a run rather than ordinary staleness.
 Then dispatch `code-ops-suite:everything` in the **`assess-only`** track against the target,
 with `plugins: suite`, or `plugins: rigor` when `rigor` is the mechanism under calibration.
 Let the sweep run its own
-phases and checkpoints. The sweep dispatches every fan-out as `§16` directs. This run's artifacts (registers, `DISPATCH_LEDGER.md`,
+phases and checkpoints. The sweep dispatches every fan-out as `§16` directs. On Claude, when the operator invoked this skill, a fan-out of three or more independent units runs through the Workflow tool; otherwise dispatch with the host's tool. This run's artifacts (registers, `DISPATCH_LEDGER.md`,
 `EXECUTIVE_SUMMARY.md`) stay inside the run folder. They are the raw material Phase 2 extracts
 from, and are never quoted here directly.
 

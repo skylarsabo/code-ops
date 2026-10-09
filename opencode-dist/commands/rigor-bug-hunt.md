@@ -1,5 +1,5 @@
 ---
-description: "Use when you want REAL bugs found and proven, not a list of guesses. Each candidate is proven with a failing test. The flagship."
+description: "Use to find REAL bugs, each proven with a failing test, not a list of guesses. The flagship."
 ---
 
 Use the `rigor-bug-hunt` skill for this task, following it end to end.

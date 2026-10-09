@@ -1,6 +1,6 @@
 interface:
   display_name: "Normalize"
-  short_description: "Use when code has inconsistent style or hasty-code artifacts and needs a behavior-preserving standard. Concept mode unifies a divergent concept and enforces it."
+  short_description: "Use for a behavior-preserving standard on inconsistent style or hasty-code artifacts. Concept mode unifies a divergent concept."
   default_prompt: "Use code-ops-suite:normalize for this task."
 policy:
   allow_implicit_invocation: true

@@ -1,6 +1,6 @@
 ---
 name: security-privacy-audit
-description: "Use for an adversarial security and privacy threat model deeper than the audit's lens. Anonymity egress, metadata, and fingerprints go to privacy-opsec-suite."
+description: "Use for an adversarial security and privacy threat model deeper than the audit lens. Anonymity egress, metadata, and fingerprints go to privacy-opsec-suite."
 ---
 
 # Security and privacy audit: adversarial threat assessment

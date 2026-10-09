@@ -1,5 +1,5 @@
 ---
-description: "Use to capture the reasons behind a codebase's architecture as decision records, by backfilling load-bearing past decisions or writing an ADR for a current one."
+description: "Use to capture architecture rationale as decision records, backfilling past decisions or writing one for a current decision."
 ---
 
 Use the `code-ops-suite-adr` skill for this task, following it end to end.

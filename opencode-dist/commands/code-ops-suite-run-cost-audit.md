@@ -1,5 +1,5 @@
 ---
-description: "Use to audit a finished run's cost discipline: dispatch counts, artifact sizes, and tier and effort mix. Requires its artifact folder, not a live run."
+description: "Use to audit a finished run's cost discipline (dispatch counts, artifact sizes, tier and effort mix). Requires its artifact folder."
 ---
 
 Use the `code-ops-suite-run-cost-audit` skill for this task, following it end to end.

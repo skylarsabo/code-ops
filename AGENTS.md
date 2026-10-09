@@ -1,8 +1,7 @@
 # Working on this repo
 
 This is a plugin marketplace whose product is quality discipline. The rules below are
-ordered by how little mechanical backstop they have. The rules at the top are the easiest
-to break silently.
+ordered by how little mechanical backstop they have; the top ones break silently.
 
 ## Never (no gate will save you)
 
@@ -21,11 +20,10 @@ to break silently.
   own read of the final diff run on every change. `code-ops-suite:local-review-gate` (deep
   review plus the OpSec gate) runs only when the operator says so at the checkpoint or a
   brief names it, for changes that touch a high-risk surface (security, egress, data
-  migrations, public contracts, gate scripts) or that the operator wants reviewed. When it
-  runs, it binds the exact base and HEAD, both receipts land before push, and the verified
-  `local-deep-review` and `local-opsec-gate` statuses are published. Any new commit or
-  base movement voids them. Hosted Actions run deterministic checks only and are the
-  required merge gate.
+  migrations, public contracts, gate scripts) or that the operator wants reviewed. It binds
+  the exact base and HEAD, both receipts land before push, and any new commit or base
+  movement voids them. Hosted Actions run deterministic checks only and are the required
+  merge gate.
 - **`evals/*/ANSWER_KEY.*` never enters the context handed to a skill under eval.**
 - **The real-scale calibration channel is one-way** (see `evals/README.md`). Only the
   sanitized calibration note returns from a private-repo calibration run. Never quote
@@ -41,38 +39,27 @@ The "Run contract" and "Dispatch guard hook" sections of
 ## One contract, two filenames
 
 `AGENTS.md` holds the only copy of this contract. `CLAUDE.md` is the single line `@AGENTS.md`
-(lint check 20 fails closed otherwise), which Claude Code expands on load. Codex and opencode
-read `AGENTS.md`, and opencode never falls back to `CLAUDE.md` while `AGENTS.md` exists. Grok
-Build lists both files, so the import keeps Grok from loading the contract twice.
-
-Edit `AGENTS.md` only.
+(lint check 20 fails closed otherwise). Edit `AGENTS.md` only. The per-host reading rules are
+the comment on check 20 in `scripts/lint-plugins.mjs`.
 
 Skill ids here use the colon form, such as `code-ops-suite:repo-docs`. OpenCode calls the
 same skills by hyphenated names, such as `code-ops-suite-repo-docs`.
 
-## Writing standard
+## Standards
 
-Every artifact this repo produces follows the house writing standard in
-`code-ops-docs/40 Engineering/Techniques/writing-standard.md`, which is the single source
-of truth for it: the sentence and paragraph caps, one term per concept, active voice, and
-the code carve-outs for identifiers and quoted output. It binds calibration notes,
-findings registers, commit messages, PR bodies, and skill prose alike. It stops at code
-blocks, quoted tool output, and generated tables.
+Every artifact follows the house writing standard,
+`code-ops-docs/40 Engineering/Techniques/writing-standard.md`, which binds calibration notes,
+findings registers, commit messages, PR bodies, and skill prose. Every code change follows the
+house code standard, `code-ops-docs/40 Engineering/Techniques/code-standard.md`.
 
-The core clause is pinned across all four `CONVENTIONS.md` files: lint check 14 pins it
-byte-identically (`SHARED_PASSAGES` in `scripts/lint-plugins.mjs`, mirrored in `PINNED_TEXTS`
-in `evals/lint-plugins/run.mjs`). Edit every copy in one commit.
+Lint check 14 pins the core clause of each standard byte-identically across all four
+`CONVENTIONS.md` files (`SHARED_PASSAGES` in `scripts/lint-plugins.mjs`, mirrored in
+`PINNED_TEXTS` in `evals/lint-plugins/run.mjs`). Edit every copy in one commit.
 
-## Code standard
+## Session mechanisms
 
-Every code change follows the house code standard in
-`code-ops-docs/40 Engineering/Techniques/code-standard.md`, which is the single source of
-truth for it. `code-standard-core` is pinned the same way.
-
-## Session mechanisms that run under every change
-
-`INFRASTRUCTURE.md` under `code-ops-docs/` lists the suite hooks, their off switches, and
-the per-host coverage table. `CONTRACTS.md` owns each hook contract and `MEASUREMENTS.md` its
+`code-ops-docs/50 Platform/INFRASTRUCTURE.md` lists the suite hooks, their off switches, and
+the per-host coverage. `CONTRACTS.md` owns each hook contract and `MEASUREMENTS.md` its
 measured effect. Use `scripts/co.mjs context skim|query` before loading large files or maps.
 
 ## Before declaring any change done
@@ -89,27 +76,24 @@ Bump `version` in `plugins/<name>/.claude-plugin/plugin.json`, update the matchi
 `.claude-plugin/marketplace.json` entry (lint check 1 enforces parity), and add a
 `plugins/<name>/CHANGELOG.md` entry. Then regenerate the host distributions with
 `node scripts/build-codex-marketplace.mjs` and `node scripts/build-opencode-dist.mjs`. Their
-files, `.agents/plugins/marketplace.json`, and `opencode-dist/` are derived artifacts, never
-hand-edited. Scripts under `plugins/*/scripts/` are vendored
-byte-identical copies of `scripts/`, so edit the canonical root file and re-copy (lint check 6
-enforces parity; the pre-commit hook re-copies).
+files, `.agents/plugins/marketplace.json`, and `opencode-dist/` are derived, never
+hand-edited. Scripts under `plugins/*/scripts/` are vendored byte-identical copies of
+`scripts/`, so edit the canonical root file and re-copy (lint check 6; the pre-commit hook re-copies).
 
 Install `node scripts/install-git-hooks.mjs` once per checkout. Its pre-commit hook
-regenerates only derived host paths and refuses dirty renderer inputs. CI still rejects
-drift when the hook is absent or bypassed. When the hook changes staged derived bytes, it also
-runs the atlas gate and `docs-manifest.mjs check` and aborts with the fix commands on failure.
-Write each CHANGELOG entry first and pass it as `integrate-branch.mjs --changelog <plugin>=<file>`
-so no authored edit follows the stamp and the manifest sync.
+regenerates only derived host paths and refuses dirty renderer inputs. When it changes staged
+derived bytes, it runs the atlas gate and `docs-manifest.mjs check` and aborts with the fix
+commands on failure. CI rejects derived drift when the hook is absent or bypassed. Write each CHANGELOG entry first and pass it as
+`integrate-branch.mjs --changelog <plugin>=<file>` so no authored edit follows the stamp and
+the manifest sync.
 
 `node scripts/integrate-branch.mjs [--base <ref>] [--bump <plugin>:<major|minor|patch>]...`
-runs this section's mechanical steps — the version bump, the two regenerations, the
-documentation-manifest sync, and the applicable CI gates — in one pass, so a helper only has
-to supply the judgment call (which bump, whether a stale atlas section still holds).
+runs the bump, the two regenerations, the manifest sync, and the applicable CI gates in one
+pass (steps in its file header). A helper supplies only the judgment call: which bump, and
+whether a stale atlas section still holds.
 
 Edit the global contract only in `global-contracts/AGENTS.source.md`, then run
-`node scripts/render-global-contracts.mjs`. It writes the three derived `AGENTS.<host>.md`
-files, which are never hand-edited.
-
+`node scripts/render-global-contracts.mjs`; the three `AGENTS.<host>.md` files are derived.
 After a merge to main, run `node scripts/sync-global.mjs` to refresh this machine's global
 contracts and plugin caches.
 
@@ -121,11 +105,10 @@ Zero third-party dependencies, so `node:` builtins only (`check-no-deps.mjs`; CI
 reference their plugin's `CONVENTIONS.md` by section and never copy 40 or more words from it.
 Every skill has a `## Done when` (lint check 3) and a handbook entry (lint check 8). `§<id>` citations
 and "the X subagent" prose must resolve (lint checks 9 and 10). No `<` or `>` in SKILL.md
-frontmatter values (lint check 11). Some doctrine sentences are duplicated byte-identically
-across `CONVENTIONS.md` files on purpose (`SHARED_PASSAGES` in `lint-plugins.mjs`); never dedupe
-them or delete the pin. Agent frontmatter `model:` tiers have floors (lint check 12;
-`AGENT_MODEL_FLOORS`, kept in sync with
-`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`), so do not downgrade them to
+frontmatter values (lint check 11). Never dedupe the doctrine sentences duplicated across
+`CONVENTIONS.md` files (`SHARED_PASSAGES`) or delete the pin. Agent frontmatter `model:` tiers
+have floors (lint check 12; `AGENT_MODEL_FLOORS`, in sync with
+`code-ops-docs/40 Engineering/Techniques/subagent-trade-offs.md`); do not downgrade them to
 save tokens.
 
 ## The documentation hub
@@ -134,8 +117,6 @@ save tokens.
 `code-ops-docs/Standard.md`. `code-ops-docs/98 System/DOCS_MANIFEST.json` is the sole topic
 and source registry: run `node scripts/docs-manifest.mjs check` before trusting it, and
 `node scripts/records.mjs check --collection <id>` for each record collection. CI runs both.
-`docs-manifest.mjs sync` stamps digests only for domains that drifted (so parallel
-feature PRs stop colliding on the whole digest table). Pass `--base <ref>` to further
-limit stamping to domains whose sources or content paths differ from that ref; pass
-`--all` to restamp every domain. `integrate-branch.mjs` passes `--base` for you.
+`docs-manifest.mjs sync` stamps only drifted domains; `--base <ref>` limits it further and
+`--all` restamps every domain (`integrate-branch.mjs` passes `--base`).
 `code-ops-docs/80 Runs/` is gitignored run scratch (ADR 0001 treatment).

@@ -1,6 +1,6 @@
 ---
 name: researcher-research-ideate
-description: "Use for novel feature ideas grounded in our code, its domain, and opt-in web trends. Writes no code. For code-only ideas, use /code-ops-suite-feature-discovery."
+description: "Use for novel feature ideas grounded in our code, domain, and opt-in web trends. Writes no code. Code-only ideas go to /code-ops-suite-feature-discovery."
 ---
 
 # Research ideate: net-new directions, grounded and feasibility-checked

@@ -1,5 +1,5 @@
 ---
-description: "Use when you need the keystone anonymity threat model that the other privacy audits build on."
+description: "Use for the keystone anonymity threat model the other privacy audits build on."
 ---
 
 Use the `privacy-opsec-suite-anonymity-threat-model` skill for this task, following it end to end.

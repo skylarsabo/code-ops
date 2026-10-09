@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-performance
-description: "Use when something is measurably slow or hot paths need optimization with proof. Profiles first. For broad measured wins, use /rigor-improve-measured."
+description: "Use when something is measurably slow or hot paths need optimization with proof; profiles first. Broad measured wins go to /rigor-improve-measured."
 ---
 
 # Performance optimization: measure, optimize, verify

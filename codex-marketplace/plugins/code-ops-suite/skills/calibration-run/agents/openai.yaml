@@ -1,6 +1,6 @@
 interface:
   display_name: "Calibration Run"
-  short_description: "Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals."
+  short_description: "Use for a standard isolated assess-only calibration run against a real-scale target repo; sanitized trend entry, no target internals."
   default_prompt: "Use code-ops-suite:calibration-run for this task."
 policy:
   allow_implicit_invocation: true

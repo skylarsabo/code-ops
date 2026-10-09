@@ -10,14 +10,14 @@ Name a workflow in Codex as `rigor:<skill>`. Every generated skill sets `policy.
 
 ## Skills
 
-- `bug-hunt` — Use when you want REAL bugs found and proven, not a list of guesses. Each candidate is proven with a failing test. The flagship.
+- `bug-hunt` — Use to find REAL bugs, each proven with a failing test, not a list of guesses. The flagship.
 - `deep-review` — Use for pre-merge review of a PR or diff. bar verified (default) blocks only on CONFIRMED defects; bar standard reviews every lens; unproven items are advisory.
-- `fix-verified` — Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input.
-- `ground-truth` — Use first, for the factual baseline before any analysis. Runs the real toolchain and captures ground truth plus a coverage and blind-spot map.
-- `improve-measured` — Use for measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization, use code-ops-suite:performance.
+- `fix-verified` — Use when CONFIRMED bugs exist and need root-cause fixes with proof. Requires CONFIRMED findings.
+- `ground-truth` — Use first, for the factual baseline before analysis: runs the real toolchain, captures ground truth and a coverage and blind-spot map.
+- `improve-measured` — Use for measured, behavior-preserving improvements, not speculative refactors. Profiling-led hot-path work goes to code-ops-suite:performance.
 - `quality-scan` — Use when you want high-signal, defect-causing quality issues with evidence and tiers, not cosmetic nits.
-- `regression-hunt` — Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes.
-- `safety-net` — Use before refactoring or fixing low-coverage code. Writes characterization tests that lock current observable behavior.
+- `regression-hunt` — Use when something used to work: pinpoints the breaking commit and related regressions in recent changes.
+- `safety-net` — Use before refactoring or fixing low-coverage code; writes characterization tests that lock current behavior.
 - `test-suite-audit` — Use when you need to know whether a green suite actually catches faults. Validates the tests other proofs rest on.
 
 ## Packaging notes

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -361,7 +361,7 @@
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
-          "line": 199,
+          "line": 200,
           "anchor": "## 16 · Workflow fan-out"
         },
         {
@@ -390,7 +390,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "b2c10f76aacc28668652eceb81362d1a77a1c5d6073d14643c7c30a91125f464"
+      "verifiedDigest": "b0f10f8a5256a5c6751c932d6dd14561d4261c3c1326d7f5d414cd3361e774c3"
     },
     {
       "slug": "gate-scripts",
@@ -399,7 +399,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -752,8 +752,8 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 156,
-          "anchor": "// Route basis lines for one unit and its binding on each host. Read-only."
+          "line": 161,
+          "anchor": "snapshot: 'compact-snapshot.mjs',"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
@@ -797,7 +797,7 @@
         },
         {
           "file": "scripts/vendored-manifest.mjs",
-          "line": 125,
+          "line": 127,
           "anchor": "// The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledge"
         },
         {
@@ -832,8 +832,13 @@
         },
         {
           "file": "scripts/co.mjs",
-          "line": 159,
-          "anchor": "// COMPACT_SNAPSHOT.md, the operator words, running work, active items, and peer"
+          "line": 186,
+          "anchor": "const DEFAULT_VERB = { board: 'list' };"
+        },
+        {
+          "file": "scripts/co.mjs",
+          "line": 170,
+          "anchor": "// Commands over co-run.mjs, which takes the command name as its first argument"
         },
         {
           "file": "scripts/cli-lib.mjs",
@@ -1036,7 +1041,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "7653e8e11550ba5760065e3bdab03352a7e5e05aaa774fa38c5013087a1b88d8"
+      "verifiedDigest": "ef4a41f2170172d5794dc07de7a6f1d9a7cfba827a8494dc6a53c0205e57ba19"
     },
     {
       "slug": "evals-and-calibration",
@@ -1044,8 +1049,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
-      "verifiedDigest": "e4d820216f6fc5e5c65c36055fac4c53f3e9657a52ad6d7eae64e907c65c4ddf",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedDigest": "b22f91dcea9465dd60ccb8c69023259b142abd19ae1b6d9b84dfd2b61bd0283e",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1214,7 +1219,7 @@
         },
         {
           "file": "evals/co-facade/run.mjs",
-          "line": 123,
+          "line": 125,
           "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall', '"
         },
         {
@@ -1397,7 +1402,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1490,7 +1495,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
-          "line": 33,
+          "line": 34,
           "anchor": "block records the session model. A lead below strong prints a warning, not an er"
         },
         {
@@ -1509,7 +1514,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "5316b02c60e41700b25d0279b91b94cd5ec5466d7011a3402029d2953f9391fe"
+      "verifiedDigest": "ecd6a57611464b6999545f748da2400218f2ebf4739fa7db7bc6d07ba2a7470a"
     },
     {
       "slug": "ci-workflows",
@@ -1632,7 +1637,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1692,7 +1697,7 @@
         },
         {
           "file": "Data/CONTRACTS.md",
-          "line": 932
+          "line": 944
         },
         {
           "file": "Platform/INFRASTRUCTURE.md",
@@ -1704,7 +1709,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "a0d1cf0a56a4807d68b59b2e75a3a436fb007715a0f13197ff17fd84f4d8848c"
+      "verifiedDigest": "b52b18cfcab8766592759acd98a24b5c3513dd96be935f99a8862f9b4f25b564"
     },
     {
       "slug": "root-contracts",
@@ -1719,7 +1724,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "7c24e4d94e1a3f4006c9374a54e58954ce740eac",
+      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1762,7 +1767,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "0ffb8f415040e2a77221b69401496028d4dd4794d1380fcad89a9a27da00a58b"
+      "verifiedDigest": "8b5fc2d79bb4b2e49ddb7aee37b982e0e6959613a595f05aac63fec985504c02"
     },
     {
       "slug": "runtime-toolchain",

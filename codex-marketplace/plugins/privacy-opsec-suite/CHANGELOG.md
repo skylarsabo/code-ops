@@ -1,6 +1,6 @@
 # Changelog — privacy-opsec-suite
 
-## 2.6.6
+## 2.6.7
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
@@ -8,6 +8,9 @@
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
 - `co.mjs` lists `co build-graph`, which runs only in the code-ops repository and prints "not bundled here" from an installed plugin.
+- The Workflow fan-out section admits an opt-in from an operator-invoked skill whose own instructions call Workflow, for fan-outs of three or more independent units. Every `agent()` call names a suite agent type.
+- Skill and agent descriptions are shorter, to cut session-start context.
+- Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
 
 ## 2.6.0
 - The `explorer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.

@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-vault
-description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
+description: "Use to create a repo's Obsidian docs vault, migrate a docs tree into the standard layout, or check a vault for conformance."
 ---
 
 # Vault: the repo's Obsidian notebook, to one standard

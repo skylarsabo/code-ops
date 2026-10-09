@@ -1,6 +1,6 @@
 interface:
   display_name: "OpSec Hardening"
-  short_description: "Use when a LEAK_REGISTER.md exists and you want its leaks fixed safely, each pinned with a regression test. Requires a register as input."
+  short_description: "Use when a LEAK_REGISTER.md exists and its leaks need safe fixes, each pinned by a regression test. Requires a register."
   default_prompt: "Use privacy-opsec-suite:opsec-hardening for this task."
 policy:
   allow_implicit_invocation: true

@@ -1,5 +1,5 @@
 ---
-description: "Use for a checkpointed pass over installed plugins, from one plugin pipeline to the cross-plugin superset. Pick plugins and a track: assess-only, full, feature."
+description: "Use for a checkpointed pass over installed plugins, from one pipeline to the cross-plugin superset; pick plugins and a track (assess-only, full, feature)."
 ---
 
 Use the `code-ops-suite-everything` skill for this task, following it end to end.

@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-api-docs
-description: "Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory."
+description: "Use for an accurate API or interface reference generated from the code and types, not memory."
 ---
 
 # API docs: the interface reference

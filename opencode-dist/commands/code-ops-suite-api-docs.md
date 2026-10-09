@@ -1,5 +1,5 @@
 ---
-description: "Use when you need an accurate API or interface reference for a codebase, generated from the code and types, not from memory."
+description: "Use for an accurate API or interface reference generated from the code and types, not memory."
 ---
 
 Use the `code-ops-suite-api-docs` skill for this task, following it end to end.

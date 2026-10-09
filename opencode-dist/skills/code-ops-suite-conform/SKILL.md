@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-conform
-description: "Use to assess and repair a repo's standards contract, vault, atlas, and doc drift, or with scope global to align the user-wide Claude or Codex contract."
+description: "Use to assess and repair a repo's standards contract, vault, atlas, and doc drift; scope global aligns the Claude or Codex contract."
 ---
 
 # Conform: assess and repair every standardization surface

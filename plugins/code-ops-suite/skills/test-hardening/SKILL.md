@@ -1,5 +1,5 @@
 ---
-description: "Use when critical paths lack coverage or tests are flaky. Builds characterization and regression tests. To audit fault detection, use rigor:test-suite-audit."
+description: "Use when critical paths lack coverage or tests are flaky; builds characterization and regression tests. Auditing fault detection goes to rigor:test-suite-audit."
 ---
 
 # Test hardening: build and strengthen the test suite

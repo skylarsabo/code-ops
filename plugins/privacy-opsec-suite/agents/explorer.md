@@ -1,6 +1,6 @@
 ---
 name: explorer
-description: Read-only leak-aware codebase explorer for parallel investigation. Delegate to it to map egress paths, find logging/telemetry calls, locate identifiers/session handling, trace routing/proxy code, and surface metadata sources, without editing. Use several in parallel across disjoint areas.
+description: Read-only leak-aware explorer. Delegate mapping egress paths, logging and telemetry calls, identifier and session handling, routing and proxy code, and metadata sources. Run several in parallel over disjoint areas. Never edits.
 tools: Read, Grep, Glob
 model: claude-haiku-5-5
 effort: medium

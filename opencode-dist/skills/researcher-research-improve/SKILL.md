@@ -1,6 +1,6 @@
 ---
 name: researcher-research-improve
-description: "Use for improvements to our existing code grounded in external best practice, not a generic checklist. Writes no code, and proposes and hands off instead."
+description: "Use for improvements to existing code grounded in external best practice, not a generic checklist. Writes no code; hands off."
 ---
 
 # Research improve: ground the code, gather the outside, propose verified improvements

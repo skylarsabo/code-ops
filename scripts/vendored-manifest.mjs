@@ -15,6 +15,8 @@ export const RUNTIME_SCRIPTS = [
   // resolves in every plugin. It imports no sibling of its own: a plugin vendors only the scripts
   // its skills use, and co.mjs has to report a verb whose script is absent rather than fail to load.
   { name: 'co.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
+  // The shell-turn commands (co gh, fetch, until, each, show) behind co.mjs; it ships wherever co.mjs does.
+  { name: 'co-run.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },
   // The shared CLI primitives the canonical scripts migrate onto one domain at a time. It ships
   // beside co.mjs everywhere so the first migration needs no new vendoring.
   { name: 'cli-lib.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'researcher'] },

@@ -1,6 +1,6 @@
 ---
 name: regression-hunt
-description: "Use when something used to work and you need to pinpoint the commit that broke it and find related regressions in recent changes."
+description: "Use when something used to work: pinpoints the breaking commit and related regressions in recent changes."
 ---
 
 # Regression hunt: when it broke, and what else did

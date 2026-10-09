@@ -1,6 +1,6 @@
 interface:
   display_name: "Vault"
-  short_description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
+  short_description: "Use to create a repo's Obsidian docs vault, migrate a docs tree into the standard layout, or check a vault for conformance."
   default_prompt: "Use code-ops-suite:vault for this task."
 policy:
   allow_implicit_invocation: true
