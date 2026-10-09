@@ -21,6 +21,7 @@
 //     `endedOnly` read lists a session's workers only after its marker, and the off switch writes none;
 //   - a dispatched row carries the routing fields (unit, requested tier and effort from the brief,
 //     applied model and effort, effort source, flag), null when absent, with no other brief text;
+//   - a dispatched row carries `scopeHash` (the dispatch guard's redispatch note keys on it), and a mutant without it is killed;
 //   - `attemptOf` counts failed and redispatched agents of a unit, and `routingSummary` raises the
 //     starvation and overuse advisories and stays silent when the premium share is in bounds;
 //   - a Grok SubagentStop (camelCase subagentId and subagentType) is recorded; a spawn_subagent
@@ -28,7 +29,7 @@
 //
 //   node evals/agent-ledger/run.mjs
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -37,7 +38,7 @@ import { tally } from '../harness.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hook = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'agent-ledger.mjs');
 const co = join(repo, 'scripts', 'co.mjs');
-const { MIN_OVERUSE_DISPATCHES, attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
+const { MIN_OVERUSE_DISPATCHES, attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload, scopeHashOf } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
 
 const home = mkdtempSync(join(tmpdir(), 'agent-ledger-eval-'));
@@ -318,6 +319,21 @@ try {
     forms?.unit === 'U8-a' && forms.requestedTier === 'strong' && forms.requestedEffort === 'high', JSON.stringify(forms));
   const junk = routed('r8', 'rt8', 'Unit:\nTier: ultra\nEffort: 11');
   check('p9. an empty unit and an unknown tier or effort word record null', junk?.unit === null && junk.requestedTier === null && junk.requestedEffort === null, JSON.stringify(junk));
+
+  // The Scope hash: behaviour 8 of the dispatch guard compares it, so the row must carry it. A mutant
+  // copy of the module without the field must fail the same check.
+  const hashed = routed('r9', 'rt9', 'Scope: src/app.js   only.\nObjective: y');
+  check('p10. a dispatched row carries scopeHash, the whitespace-collapsed Scope text hashed to 16 hex, and no Scope text',
+    /^[0-9a-f]{16}$/.test(hashed?.scopeHash ?? '') && hashed.scopeHash === scopeHashOf('Scope: src/app.js only.') && !JSON.stringify(hashed).includes('src/app.js')
+    && hashed.scopeHash !== scopeHashOf('Scope: src/other.js only.') && bare.scopeHash === scopeHashOf('Scope: x') && junk.scopeHash === null && scopeHashOf(undefined) === null, JSON.stringify(hashed));
+  const mutantDir = join(home, 'mutant-ledger');
+  mkdirSync(mutantDir, { recursive: true });
+  cpSync(join(repo, 'scripts', 'ledger-grammar.mjs'), join(mutantDir, 'ledger-grammar.mjs'));
+  const ledgerSource = readFileSync(join(repo, 'scripts', 'agent-ledger.mjs'), 'utf8');
+  const target = '    scopeHash: scopeHashOf(prompt),\n';
+  writeFileSync(join(mutantDir, 'agent-ledger.mjs'), ledgerSource.replace(target, ''));
+  const mutantRows = (await import(pathToFileURL(join(mutantDir, 'agent-ledger.mjs')).href)).rowsFromPayload(launch('m1', 'mut1'), new Date());
+  check('p11. the no-scopeHash mutant is killed by the p10 check', ledgerSource.includes(target) && mutantRows[0]?.scopeHash === undefined);
 
   // attempt: failed and redispatched rows of the same unit, each agent once.
   const history = [

@@ -143,6 +143,42 @@ function briefLine(prompt, label) {
   return value || null;
 }
 
+// The Scope hash a `dispatched` row stores as `scopeHash`. The dispatch guard's behaviour 8
+// compares it, so the guard calls this library's scopeHashOf and
+// scopeText instead of keeping a copy; the dispatch-guard eval pins that. A hash of the text keeps
+// the brief itself out of the ledger.
+const LABEL_HEAD = '^[ \\t]*(?:(?:[-*]|\\d+\\.)[ \\t]+)?(?:\\*\\*|__)?';
+const LABEL_TAIL = '(?:\\*\\*|__)?[ \\t]*(?:\\([^)\\n]*\\))?[ \\t]*(?:\\*\\*|__)?[ \\t]*:';
+const LABEL_LINE = new RegExp(`${LABEL_HEAD}[A-Za-z][A-Za-z\\t -]{0,40}${LABEL_TAIL}(?![\\\\/])`, 'i');
+const SCOPE_MAX = 8_000;
+
+export function scopeText(prompt) {
+  const colon = new RegExp(`${LABEL_HEAD}Scope${LABEL_TAIL}(.*)$`, 'i');
+  const heading = /^[ \t]*#{1,6}[ \t]+Scope(?![A-Za-z0-9])(.*)$/i;
+  const parts = [];
+  let mode = null;
+  let empty = false;
+  for (const line of prompt.split(/\r?\n/)) {
+    if (mode) {
+      if (empty && !line.trim()) continue;
+      const ends = LABEL_LINE.test(line) || (mode === 'colon' ? !line.trim() : /^[ \t]*#{1,6}[ \t]/.test(line));
+      if (!ends) { empty = false; parts.push(line); continue; }
+      mode = null;
+    }
+    const start = colon.exec(line);
+    const head = start ? null : heading.exec(line);
+    if (start || head) { mode = start ? 'colon' : 'heading'; empty = start !== null && !start[1].trim(); parts.push((start ?? head)[1]); }
+  }
+  return parts.join('\n').slice(0, SCOPE_MAX);
+}
+
+// First 16 hex of sha256 over the brief's Scope text with whitespace collapsed; null with no Scope.
+export function scopeHashOf(prompt) {
+  if (typeof prompt !== 'string') return null;
+  const scope = scopeText(prompt).replace(/\s+/g, ' ').trim();
+  return scope ? createHash('sha256').update(scope).digest('hex').slice(0, 16) : null;
+}
+
 // The first word of a brief value when it is one of `allowed`, lowercased, else null.
 const wordIn = (value, allowed) => {
   const word = value?.split(/[\s,;:()]+/)[0]?.toLowerCase();
@@ -187,6 +223,7 @@ function routingOf(input, agentType, agentsDir) {
   const applied = rungOfModel(appliedModel);
   return {
     unit: oneLine(briefLine(prompt, 'Unit') ?? '', UNIT_MAX) || null,
+    scopeHash: scopeHashOf(prompt),
     requestedTier,
     requestedEffort: wordIn(briefLine(prompt, 'Effort'), EFFORT_LEVELS),
     appliedModel: appliedModel ?? null,

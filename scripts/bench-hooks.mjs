@@ -45,7 +45,7 @@ function parse(argv) {
 function idOf(event, matcher) {
   const m = matcher ?? '';
   if (event === 'PreToolUse') return /Bash/.test(m) ? 'pre-bash' : /Send/.test(m) ? 'pre-message' : m ? null : 'pre-all';
-  if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : /Agent/.test(m) ? 'post-agent' : m ? null : 'post-all';
+  if (event === 'PostToolUse') return /Edit/.test(m) ? 'post-edit' : /Agent/.test(m) ? 'post-agent' : /Bash/.test(m) ? 'post-output' : m ? null : 'post-all';
   return ['UserPromptSubmit', 'PreCompact', 'PostCompact', 'SessionStart', 'SessionEnd', 'SubagentStart', 'SubagentStop'].includes(event) ? event : null;
 }
 
@@ -77,6 +77,13 @@ function payloadsFor(id, ctx) {
     case 'pre-message': return [{ id, label: 'PreToolUse, message tool (`SendMessage`)', payload: pre('SendMessage', { to: 'peer-session', message: 'status' }) }];
     case 'post-edit': return [{ id, label: 'PostToolUse, edit tool (`Edit`)', payload: post('Edit', { file_path: join(ctx.repo, 'src', 'a.mjs'), old_string: 'a', new_string: 'b' }, { success: true }) }];
     case 'post-agent': return [{ id, label: 'PostToolUse, dispatch tool (`Agent`, background launch)', payload: post('Agent', { subagent_type: agent, description: 'bench', run_in_background: true }, { status: 'async_launched', agentId: 'bench-agent' }) }];
+    // The oversize case takes the digest path and writes the raw file under the fixture home; the
+    // small cases pass through under the threshold.
+    case 'post-output': return [
+      { id, label: 'PostToolUse, output digest (Bash, 6,000 characters, digested)', payload: post('Bash', { command: 'npm test' }, { stdout: Array.from({ length: 200 }, (_, i) => `ok ${i + 1} - case ${i + 1} passes in the bench fixture`).join('\n'), stderr: '', interrupted: false, isImage: false }) },
+      { id: 'post-output-small', label: 'PostToolUse, output digest (Bash, small, passed through)', payload: post('Bash', { command: pushCommand }, { stdout: '', stderr: ctx.pushSummary, interrupted: false, isImage: false }) },
+      { id: 'post-output-read', label: 'PostToolUse, output digest (`Read`, passed through)', payload: post('Read', readInput, { type: 'text' }) },
+    ];
     // The push case records the move, then delivers the seeded peer events; it resets the feed cursors first.
     case 'post-all': return [
       { id, label: 'PostToolUse, all tools (`Read`)', payload: post('Read', readInput, { type: 'text' }) },
@@ -219,11 +226,11 @@ try {
   // Added latency per tool call: the entries that fire together, summed per iteration.
   const byId = Object.fromEntries(cases.map((c) => [c.id, c]));
   const calls = [
-    ['Bash tool call', ['pre-bash', 'pre-all-bash', 'post-all']],
-    ['Bash `git push` tool call, with peers', ['pre-bash-push', 'pre-all-push', 'post-all-push']],
-    ['Bash `git push` tool call, solo session', ['pre-bash-push', 'pre-all-push-solo', 'post-all-push-solo']],
+    ['Bash tool call', ['pre-bash', 'pre-all-bash', 'post-all', 'post-output']],
+    ['Bash `git push` tool call, with peers', ['pre-bash-push', 'pre-all-push', 'post-all-push', 'post-output-small']],
+    ['Bash `git push` tool call, solo session', ['pre-bash-push', 'pre-all-push-solo', 'post-all-push-solo', 'post-output-small']],
     ['Edit tool call', ['pre-all-edit', 'post-edit', 'post-all']],
-    ['Other tool call (`Read`)', ['pre-all', 'post-all']],
+    ['Other tool call (`Read`)', ['pre-all', 'post-all', 'post-output-read']],
     ['Message tool call', ['pre-all', 'pre-message', 'post-all']],
   ].filter(([, ids]) => ids.every((id) => byId[id])).map(([label, ids]) => {
     const total = options.runs;

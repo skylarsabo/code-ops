@@ -27,6 +27,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Compatibility](#compatibility)
 - [Output digest](#output-digest)
 - [Digest rewrite hook](#digest-rewrite-hook)
+- [Post-output digest hook](#post-output-digest-hook)
 - [Script entrypoint](#script-entrypoint)
 - [File skim](#file-skim)
 - [Over-build scanner](#over-build-scanner)
@@ -288,11 +289,35 @@ the counts, which end with `decisions N, grants N, in flight N`. An older header
 counts still parses. Running agents come
 live from the agent ledger. A peer is reply-owed when its last message sits later in the
 transcript than the lead's last `SendMessage` to it. Truncation stubs older operator messages
-first, then cuts item lines, drops quiet peers, and cuts running-work descriptions. It never cuts
+first. A words elision step then drops the oldest operator words one at a time, down to the newest 3
+prompts, which return to verbatim, and shows the drops as one line, `N older prompts and answers
+dropped, in the transcript`. That step holds the 12,000-character total on a long session; it
+stubs the newest 3 prompts only as a last resort. Truncation then cuts item lines, drops quiet
+peers, and cuts running-work descriptions. It never cuts
 ids, report paths, reply-owed peers, authority grants, the next command, or the `Run:` path.
+Evidence: `scripts/compact-snapshot.mjs:70`, `scripts/compact-snapshot.mjs:223-232`, and
+`scripts/compact-snapshot.mjs:259-274`.
 Decision text cuts to 600, 400, 280, 200, 140, and 100 characters, and then the oldest decisions
 drop to a floor of 6. In-flight lines cut to 240, 160, and 120 characters, then drop to a floor of
 2. A grant or the next command is capped at 600 characters at the source, with an omitted marker.
+
+A snapshot states a gap in words, never as an empty section. With no run folder resolved, the
+Decisions and Authority grants sections read `not recorded (no run folder resolved); do not assume
+none`, and the header's `Missing:` line names `run folder`. Before that gap stands, `createSnapshot`
+tries a fallback: `inferRunFolder` picks the newest run folder, by name, that no other session's
+`SESSION.json` owns and that the session's own time window touches. The window runs from the first
+transcript timestamp to now, and the folder qualifies through its `createdAt` or the mtime of the
+folder, its `RUN_LOG.md`, or its `TASKS.md`. With no transcript timestamp there is no window and no
+guess. Everything read from an inferred folder is labelled `inferred, unverified`: the section
+headings, the `Run:` line, and `Missing: run folder (inferred, unverified)`. The hook reads the
+inferred folder and never writes into it, so the file goes to the home directory. Its grants may
+belong to another session, so the snapshot never carries them: the section reads `Grants: not
+recorded; an inferred run folder's grants are not authority`. Grants and decisions never come from
+transcript text. `CODE_OPS_SNAPSHOT_RUN_FALLBACK` set to `off`, `0`, or `false` disables the guess.
+The `Missing:` reader splits on commas outside parentheses. Evidence:
+`scripts/compact-snapshot.mjs:29-36`, `scripts/compact-snapshot.mjs:182-206`,
+`scripts/compact-snapshot.mjs:250-251`, `scripts/compact-snapshot.mjs:345-358`, and
+`scripts/compact-snapshot.mjs:432-446`.
 
 The tag lines are `Decision:`, `Grant:`, `In flight:`, and `Next:`. A tag starts a line, with an
 optional bullet or bold markers, and the reader accepts CRLF. The reader keeps the last 1 MiB of the
@@ -346,6 +371,11 @@ its own omission:
   which replaces the open-item lines;
 - `snapshot also holds: <N> decisions, <N> authority grants, <N> in-flight lines, the next command,
   run folder <path>` for a snapshot with the new counts;
+- one gap line on the `compact` source only: `run folder inferred, not verified: ...` when the
+  snapshot's `Missing:` line says the folder is inferred, else `no run folder resolved: grants and
+  decisions were not recorded, so do not assume none; ...` when the card and the snapshot name no
+  run folder. Both end with the instruction to tag `Grant:`, `Decision:`, and `Next:` lines in the
+  run folder's `RUN_LOG.md`. Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs:456-458`;
 - `Snapshot partial: missing <inputs>; rebuild that input from the run folder or run co snapshot
   --session <id>` when the snapshot's `Status` is `partial`;
 - `Snapshot STALE: <path> predates an earlier compaction; verify its running work and peers`;
@@ -395,6 +425,14 @@ the restore instruction above. On Grok it emits nothing because passive hook std
 the paired instruction files carry the routing doctrine. Any error exits `0` silently.
 Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 `evals/grok-build-compat/run.mjs`.
+
+On the `compact` source, the card adds one gap line when the snapshot or the card's own lookup
+names no verified run folder. An inferred folder prints `run folder inferred, not verified: its
+decisions are a guess and its grants are not authority`. No folder prints `no run folder resolved:
+grants and decisions were not recorded, so do not assume none`. Each line tells the lead to tag
+`Grant:`, `Decision:`, and `Next:` lines in the run folder's `RUN_LOG.md`. The Compact snapshot
+paragraphs under "Session receipt hook" define the gap and the inference. Evidence:
+`plugins/code-ops-suite/hooks/routing-card.mjs:456-458`.
 
 On a fresh session, a `source` of `startup` or `clear`, the same card appends one passive line. It
 lists up to 3 pending handoffs, newest first. Each entry is the handoff's `Session:` name, or its
@@ -645,6 +683,68 @@ The hook fails open on every path. Bad JSON, a missing command, another tool, or
 error exits `0` with no output. It never exits `2`, never blocks a call, and never spawns or
 imports beyond three Node built-ins, because it runs in front of every Bash call. Evidence:
 `plugins/code-ops-suite/hooks/digest-rewrite.mjs:160-192`.
+
+## Post-output digest hook
+
+`digest-post.mjs` is a `PostToolUse` command stage that replaces a long `Bash` or `Read` result
+with its digest before the model sees it. It is registered with the matcher `Bash|Read`, and it
+also filters on `tool_name` itself, so a tool name that is not exactly `Bash` or `Read` exits `0`
+with no output. That keeps the hook harmless on a host that drops matchers. Evidence:
+`plugins/code-ops-suite/hooks/hooks.json:54-62` and `plugins/code-ops-suite/hooks/digest-post.mjs:26-27`.
+
+The hook passes `tool_name`, `tool_response`, `cwd`, the command, and the thread to
+`digestToolResponse` in `scripts/digest-lib.mjs`, which owns the rules below. The thread is a
+subagent when the payload carries a non-empty `agent_id`, and the lead otherwise. A replacement
+returns as `hookSpecificOutput.updatedToolOutput` with `hookEventName` `PostToolUse`. The
+replacement keeps every key of the original `tool_response`: a `Bash` result changes only `stdout`
+and `stderr`, and a `Read` result changes only `file.content`, so `numLines`, `startLine`, and
+`totalLines` keep describing the file. Evidence: `plugins/code-ops-suite/hooks/digest-post.mjs:29-39`,
+`scripts/digest-lib.mjs:766-796`, `scripts/digest-lib.mjs:799-815`, and
+`scripts/digest-lib.mjs:872-892`.
+
+The hook prints nothing, and the model sees the raw result, in these cases:
+
+- `CODE_OPS_DIGEST` or `CODE_OPS_DIGEST_POST` holds `off`, `0`, or `false`, compared without regard
+  to case. `CODE_OPS_DIGEST` is the one switch for both digest hooks.
+- The result already ends with a digest trailer on stdout or stderr, so a second pass never digests
+  a digest, and a `Read` result that already holds an `[elided N lines` marker.
+- A `Bash` result with `interrupted` true, `isImage` true, or a `persistedOutputPath`, because the
+  host already persisted that output.
+- A `Bash` result without string `stdout` and `stderr`, or a `Read` result without string
+  `file.content`.
+- The output is under the threshold: 4,000 characters on the lead thread
+  (`CODE_OPS_DIGEST_POST_LEAD`) and 8,000 on a subagent thread (`CODE_OPS_DIGEST_POST_SUBAGENT`).
+  A `Bash` threshold counts stdout and stderr together. An unset, empty, negative, or non-numeric
+  override leaves the default.
+- The digest would not be smaller than the raw bytes.
+
+A `Read` result is digested only behind `CODE_OPS_DIGEST_READ` set to `1`, `on`, `true`, or `yes`.
+It keeps the first 40 and last 40 lines and replaces the middle with `[elided N lines: sed -n 'A,Bp'
+<raw path>]`. A file of 81 lines or fewer passes. Evidence: `scripts/digest-lib.mjs:729-748`,
+`scripts/digest-lib.mjs:766-768`, `scripts/digest-lib.mjs:799-815`, and
+`scripts/digest-lib.mjs:872-892`.
+
+The hook keeps the raw output. It writes the full text to the digest store at the path the
+digest names, in the store, receipt, and slug rules of the Output digest section, and appends
+one receipt row with `source` `post`. `CODE_OPS_DIGEST_STORE=off` is honored: it writes no raw
+file and no receipt row, and the trailer says `raw - (store off, elided lines not recoverable)`.
+A failed store write drops the recovery hints and keeps the digest. Evidence:
+`scripts/digest-lib.mjs:703`, `scripts/digest-lib.mjs:754-764`, and `scripts/digest-lib.mjs:782-794`.
+
+The hook fails open on every path. Bad JSON, a missing field, a failed import, a thrown error, or
+no replacement exits `0` with no output. It never exits `2`, because a stray byte on stdout would
+replace the tool output. Evidence: `plugins/code-ops-suite/hooks/digest-post.mjs:15-17` and
+`plugins/code-ops-suite/hooks/digest-post.mjs:42-43`.
+
+The Claude Code host accepts `updatedToolOutput` for `Bash`: a live smoke on 2026-10-08 confirmed
+it. That smoke covered `Bash`; the opt-in `Read` path is UNVERIFIED on a live host. The Codex and OpenCode builds omit the
+hook. Codex support for `hookSpecificOutput.updatedToolOutput` is unproven, so
+`CODEX_EXCLUDED_HOOKS` removes the script, its `hooks.json` group, and its hook documentation from
+the Codex projection. OpenCode has no `PostToolUse` hook that replaces tool output, so its
+distribution bundles only `digest-rewrite.mjs` and `index-refresh.mjs`. Evidence:
+`scripts/build-codex-marketplace.mjs:367-369`, `scripts/build-codex-marketplace.mjs:375`,
+`scripts/build-codex-marketplace.mjs:451`, `scripts/build-codex-marketplace.mjs:606`, and
+`scripts/build-opencode-dist.mjs:796`. The eval is `evals/digest-post/run.mjs`.
 
 ## Script entrypoint
 
@@ -1102,6 +1202,18 @@ New state keys hash the working directory and exact
 agent ID. Legacy counters remain readable and are retained during migration. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs`.
 
+The hook finds the subagent's transcript at `<session id>/subagents/agent-<agent_id>.jsonl`, and
+when that file is absent in the first `<session id>/subagents/workflows/<workflow id>/` directory
+that holds it (one level, first match, the flat file wins). A `Round budget:` line in a Workflow
+agent's brief therefore binds that agent: it warns at the budget and denies at 1.5 times it.
+Before this change the hook read a workflow agent's transcript as absent, so such an agent ran
+under the default budget of 40 rounds and stopped at 60, whatever its brief said. A brief that
+states a larger or smaller budget now changes that stop. The warning names the layout the budget
+came from (`flat` or `workflow`). A missing directory fails open to the default. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:411-429`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:431-447`, and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:792`.
+
 `register --agent-id <id> --budget <calls> [--allowance <calls>]` binds an exact controller-known
 identity from the worker's working directory. It never infers correlation from timing, role, or
 the lead's dispatch prompt. The allowance defaults to two, ranges from one to four, and cannot
@@ -1126,6 +1238,18 @@ wide literal one. The denial names how many calls failed and the first one's pos
 gate denies a literal `effort` of `xhigh` or `max` in any call, with no reason escape. A call
 whose options it cannot read, such as a variable or a spread, gets an advisory. A script it cannot
 parse falls back to the script-wide test: an `agent(` call and no `agentType` anywhere.
+
+The guard reads each `agent()` call's options from the call's second argument when that argument is
+an object literal, and otherwise from the first argument when that is an inline object. A scan that
+balances parentheses, brackets, braces, quotes, template literals, and comments finds the end of the
+first argument, so a long first argument (a prompt string) does not hide the options. A call
+with neither an object-literal second argument nor an inline-object first argument is unreadable,
+which earns the advisory above. `CODE_OPS_WORKFLOW_ARGS=first` restores the earlier reading, first argument only. The
+`Workflow` decision row records the mode as `workflowArgs` (`second` or `first`). Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1016-1020`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1022-1045`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1050-1075`, and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1147`.
 
 The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
 `<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
@@ -1274,6 +1398,22 @@ counts as a round, and its round advisory joins the denial. `warn` turns the den
 context. The off switch is `CODE_OPS_SUBAGENT_GIT`, or `CODE_OPS_DISPATCH_GUARD=off`. Evidence:
 `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`rewritingGitVerb`) and `evals/dispatch-guard/run.mjs`.
 
+The redispatch note is an eighth behavior and is advisory only. On the lead's own `Agent`, `Task`,
+or spawn dispatch, the hook compares the dispatch's description (whitespace collapsed, cut to 80
+characters) and Scope hash with the session's ledger rows. `agent-ledger.mjs` writes the hash as
+`scopeHash` on each `dispatched` row: the first 16 hex characters of the SHA-256 of the brief's
+`Scope` text with whitespace collapsed, so the ledger never stores the brief. When an earlier row
+matches both, its agent reported, did not fail, and left a report path, the hook adds one note
+naming that report and saying a retry should cite it. The gate id is `redispatch-note`. A row
+without a `scopeHash` never matches, a failed prior row earns no note and keeps its `attemptOf`
+route, and the note never denies. The guard and the ledger each carry a copy of the Scope rules,
+and the dispatch-guard eval pins their parity. `CODE_OPS_REDISPATCH_NOTE` set to `off`, `0`, or
+`false` turns the note off. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs:149-156`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:587`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1259-1282`,
+`plugins/code-ops-suite/scripts/agent-ledger.mjs:146-181`, and
+`plugins/code-ops-suite/scripts/agent-ledger.mjs:226`.
+
 Every output that denies or advises appends one decision row to `guard-decisions.jsonl`. The file
 sits beside the session-receipt ledger: in the directory of `CODE_OPS_RECEIPTS` when it names a
 path, else in `~/.claude/code-ops/`. A row is one JSON line holding ids and counts only, never
@@ -1281,7 +1421,7 @@ brief text, script text, or paths: `v` (1), `ts`, `sessionId` (null when the hos
 safe token), `tool`, `subagent`, `decision` (`deny` or `advisory`), `gates`, and `ledger`.
 `gates` lists each gate id whose message phrase appears in the output, in table order, or
 `other` when none does. `ledger` lists the contract-rule ids those gates back. A `Workflow` row
-adds `workflow` with the `calls` count, the `unreadable` count, and `contract`, which is true when the script
+adds `workflow` with the `calls` count, the `unreadable` count, `workflowArgs`, and `contract`, which is true when the script
 carries a `Run contract:` line. The `workflow-contract` gate id marks the contract advisory. `CODE_OPS_RECEIPTS=off` stops the
 rows, and a write error fails open: the decision still reaches the host unchanged. The dispatch-guard
 eval fires every gate id in the table and fails when a message no longer matches its phrase.

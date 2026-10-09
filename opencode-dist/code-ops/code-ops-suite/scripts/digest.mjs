@@ -49,15 +49,14 @@
 // Exit: the wrapped command's exit code; 2 on usage error; 127 when the executable cannot spawn.
 
 import { spawn } from 'node:child_process';
-import { mkdirSync, writeFileSync, appendFileSync, statSync } from 'node:fs';
+import { statSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
-import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { sha256, spawnSpec } from './cli-lib.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const lib = await import(pathToFileURL(join(HERE, 'digest-lib.mjs')).href);
-const { DEFAULTS, SHAPES, detectShape, digestText } = lib;
+const { DEFAULTS, SHAPES, detectShape, digestText, storeDir, storeOff, writeStore, appendReceipt } = lib;
 
 function usage(message) {
   if (message) console.error(`x ${message}`);
@@ -111,21 +110,8 @@ const PASSTHROUGH_BELOW = 1536;
 
 // ---------------------------------------------------------------- receipt store
 
-// Same rule as transcript-lib.projectSlug: every non-alphanumeric byte becomes a dash, so one
-// checkout's raw outputs never mix with another's.
-const projectSlug = (cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
-
-function storeDir(o, startDir) {
-  if (o.store) return resolve(o.store);
-  if (process.env.CODE_OPS_DIGEST_DIR) return resolve(process.env.CODE_OPS_DIGEST_DIR);
-  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(startDir));
-}
-
-// Returns the raw path and its digest, or null when storing is off or fails. Never throws: an
-// unwritable store loses the recovery hints, not the run.
-// CODE_OPS_DIGEST_STORE=off binds the writer itself, the way CODE_OPS_RECEIPTS=off binds the
-// receipt hook, so a direct digest call under that switch stores nothing either.
-const storeOff = () => /^(off|0|false)$/i.test(process.env.CODE_OPS_DIGEST_STORE ?? '');
+// storeDir, storeOff, writeStore, and appendReceipt live in digest-lib.mjs, shared with the
+// post-output path. Writes fail open: an unwritable store loses the recovery hints, not the run.
 
 // The store is planned before the digest runs, so the elision hints can name the raw path, and
 // written only once the digest has proven it is worth printing.
@@ -136,22 +122,6 @@ function planStore(o, body, ts) {
   const clock = ts.slice(11, 19).replace(/:/g, '');
   const hash = sha256(body);
   return { dir, path: join(dir, day, `${clock}-${hash.slice(0, 8)}.txt`), sha256: hash };
-}
-
-function writeStore(plan, body) {
-  if (plan === null) return null;
-  try {
-    mkdirSync(dirname(plan.path), { recursive: true });
-    writeFileSync(plan.path, body);
-    return plan;
-  } catch { return null; }
-}
-
-function appendReceipt(dir, row) {
-  try {
-    mkdirSync(dir, { recursive: true });
-    appendFileSync(join(dir, 'DIGEST_RECEIPTS.jsonl'), `${JSON.stringify(row)}\n`);
-  } catch { /* fail open: the digest is still correct without its ledger row */ }
 }
 
 // ---------------------------------------------------------------- run

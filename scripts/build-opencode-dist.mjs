@@ -793,6 +793,7 @@ function buildExpectedFiles() {
       add(`code-ops/${pluginName}/scripts/${toPosix(relative(sourcePath(pluginName, 'scripts'), file))}`, readText(file));
     }
     if (pluginName === 'code-ops-suite') {
+      // digest-post.mjs is deliberately absent: OpenCode has no PostToolUse output-replacement hook.
       for (const hook of ['digest-rewrite.mjs', 'index-refresh.mjs']) add(`code-ops/code-ops-suite/hooks/${hook}`, readText(sourcePath(pluginName, 'hooks', hook)));
     }
   }

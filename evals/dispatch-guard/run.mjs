@@ -92,7 +92,7 @@ function decides(stdout) {
   } catch { return false; }
 }
 
-function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite, env: extra = {} } = {}) {
+function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRoot = suite, env: extra = {}, hookFile = hook } = {}) {
   const env = { ...process.env };
   delete env.CODE_OPS_DISPATCH_GUARD;
   delete env.CODE_OPS_ROUND_BUDGET;
@@ -100,6 +100,7 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   delete env.GROK_PLUGIN_ROOT;
   delete env.CODE_OPS_LEGACY_PATHS;
   delete env.CODE_OPS_SUBAGENT_GIT;
+  delete env.CODE_OPS_WORKFLOW_ARGS;
   env.CODE_OPS_RECEIPTS = receiptsFile;
   Object.assign(env, extra);
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
@@ -109,7 +110,7 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   if (home) { env.HOME = home; env.USERPROFILE = home; }
   env.CLAUDE_PLUGIN_ROOT = pluginRoot;
   const input = typeof payload === 'string' ? payload : JSON.stringify(payload);
-  const result = spawnSync('node', [hook], { input, encoding: 'utf8', env });
+  const result = spawnSync('node', [hookFile], { input, encoding: 'utf8', env });
   if (env.CODE_OPS_RECEIPTS === receiptsFile && decides(result.stdout)) expectedRows++;
   return result;
 }
@@ -429,6 +430,33 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // A parse surprise falls back to the script-wide test: an unclosed options literal.
   denies("agent({ prompt: 'never closed", /no agentType/, 'an unparsable script with no agentType falls back to the script-wide deny');
   silent("agent({ agentType: 'code-ops-suite:probe', prompt: 'never closed", 'an unparsable script with an agentType falls back to pass');
+  // Second-argument options: agent(brief, { agentType, effort, ... }) binds the same checks as the inline form.
+  const secondWide = 'agent(brief(x), {agentType: "general-purpose"})';
+  denies(secondWide, /1 of 1 .*first is call 1/, 'a wide agentType in the second argument');
+  silent('agent(brief(x), {agentType: "code-ops-suite:probe", effort: "medium"})', 'a narrow second-argument agentType');
+  denies('agent(brief(x), { agentType: "code-ops-suite:reviewer", effort: "max" })', /call 1 sets an effort above high/, 'a literal max effort in the second argument');
+  nonLiteral('agent(brief(x), { agentType: "code-ops-suite:reviewer", effort: level })', 'a variable effort in the second argument');
+  denies('agent(`a { b ( ${f({ k: "}" })} ${`in ${1} )`} `, { agentType: "general-purpose" })', /first is call 1/, 'a template first argument with braces, parens and nested ${}');
+  denies('agent("lone ) { [ \\" ", { agentType: "fork" })', /first is call 1/, 'a double-quoted first argument with unbalanced punctuation');
+  denies("agent('it\\'s ( [', { agentType: 'fork' })", /first is call 1/, 'a single-quoted first argument with unbalanced punctuation');
+  denies(`agent(brief(\`${'x'.repeat(25_000)}\`), { agentType: "general-purpose" })`, /first is call 1/, 'a first argument over 20,000 characters');
+  denies('agent({ prompt: "x" }, { agentType: "general-purpose" })', /first is call 1/, 'second-argument options win over an inline first argument');
+  silent("agent({ agentType: 'code-ops-suite:explorer', prompt: 'x' }, extra)", 'the first-argument object form with a variable second argument');
+  denies("agent({ prompt: 'x' }, extra)", /first is call 1/, 'the first-argument object form still denies an untyped call');
+  out = workflow('agent(opts, base);');
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /cannot read/.test(contextOf(out) ?? ''),
+    `two variables earn an advisory and no denial, got ${JSON.stringify(out)}`);
+  const replica = [contract, ...['plan', 'build', 'check'].map((phase) =>
+    `await agent(brief({ unit: '${phase}', scope: [\`a/\${${phase}}.mjs\`] }), { label: '${phase}', phase: '${phase}', agentType: 'code-ops-suite:implementer', effort: 'high', schema: { type: 'object', properties: { ok: { type: 'boolean' } } } });`)].join('\n');
+  silent(replica, 'a script of the brief(...) plus options shape reads with no unreadable call');
+  denies(`${replica}\nagent(brief(y), { label: 'z', agentType: 'general-purpose' });`, /1 of 4 .*first is call 4/, 'the replica shape plus one wide call');
+  // CODE_OPS_WORKFLOW_ARGS=first restores first-argument-only parsing.
+  out = parseOut(runHook(dispatchCall({ script: secondWide }, { tool_name: 'Workflow' }), { home, env: { CODE_OPS_WORKFLOW_ARGS: 'first' } }));
+  expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision') && /1 of 1 Workflow agent\(\) calls pass options the guard cannot read/.test(contextOf(out) ?? ''),
+    `CODE_OPS_WORKFLOW_ARGS=first must leave a second-argument call unreadable, got ${JSON.stringify(out)}`);
+  out = parseOut(runHook(dispatchCall({ script: "agent({ prompt: 'x' })" }, { tool_name: 'Workflow' }), { home, env: { CODE_OPS_WORKFLOW_ARGS: 'first' } }));
+  expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `CODE_OPS_WORKFLOW_ARGS=first must still read the first-argument form, got ${JSON.stringify(out)}`);
+  console.log('ok   Workflow options are read from the second argument, the first-argument form stays, and CODE_OPS_WORKFLOW_ARGS=first restores the old reading');
   // Run contract advisory: two or more agent() calls, or any call the guard cannot read, without a
   // readable `Run contract:` line earn one advisory that states the call count against the guideline of
   // 10 and the calls with no effort. It never denies; a one-call script, a parse failure, and a
@@ -480,7 +508,23 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '' },
   });
   expect(mutant.status === 0 && mutant.stdout === '', `the script-wide mutant must let a mixed script through, got ${JSON.stringify(mutant.stdout)}`);
-  console.log('ok   a Workflow is checked per agent() call, effort above high denies, an options variable is an advisory, and the script-wide mutant fails');
+  // Mutants of the second-argument reading: no second-argument path, and a skip that ignores template literals.
+  const mutate = (name, from, to, script) => {
+    const dir = join(home, name);
+    mkdirSync(dir);
+    const changed = source.replace(from, to);
+    expect(changed !== source, `the ${name} mutation must change the hook source`);
+    writeFileSync(join(dir, 'dispatch-guard.mjs'), changed);
+    writeFileSync(join(dir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    const res = spawnSync('node', [join(dir, 'dispatch-guard.mjs')], {
+      input: JSON.stringify(dispatchCall({ script }, { tool_name: 'Workflow' })),
+      encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_WORKFLOW_ARGS: '' },
+    });
+    expect(res.status === 0 && !/"permissionDecision":\s*"deny"/.test(res.stdout), `the ${name} mutant must let the wide call through, got ${JSON.stringify(res.stdout)}`);
+  };
+  mutate('mutant-no-second', "const second = workflowArgsMode() === 'second';", 'const second = false;', secondWide);
+  mutate('mutant-no-template', 'const QUOTE = /["\'`]/;', 'const QUOTE = /["\']/;', 'agent(`unbalanced ) { `, { agentType: "general-purpose" })');
+  console.log('ok   a Workflow is checked per agent() call, effort above high denies, an options variable is an advisory, and the script-wide and second-argument mutants fail');
 
   // A clean dispatch: narrow agent, no override, a Round budget in the brief.
   const clean = runHook(dispatchCall({ description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home });
@@ -1105,6 +1149,54 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   }
   console.log('ok   no budget line or no readable transcript keeps the default budget');
 
+  // A workflow agent's transcript sits under `subagents/workflows/<workflow id>/`; the flat file wins.
+  const workflowTranscript = (id, wf = 'wf-1') => join(project, 'sess-1', 'subagents', 'workflows', wf, `agent-${id}.jsonl`);
+  const writeWorkflowBrief = (id, content, wf) => {
+    mkdirSync(dirname(workflowTranscript(id, wf)), { recursive: true });
+    writeFileSync(workflowTranscript(id, wf), `${briefEntry(id, content)}\n`);
+  };
+  const runWorkflow = (id, calls, extraHook = hook) => {
+    const dir = extraHook === hook ? null : dirname(extraHook);
+    const outs = [];
+    for (let i = 0; i < calls; i++) {
+      const res = dir ? spawnSync('node', [extraHook], { input: JSON.stringify(briefCall(id)), encoding: 'utf8',
+        env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_ROUND_BUDGET: '', CODE_OPS_RECEIPTS: receiptsFile } })
+        : runHook(briefCall(id), { home });
+      outs.push(parseOut(res));
+    }
+    return outs;
+  };
+  writeWorkflowBrief('wf-15', 'Scope: x\nRound budget: 15 tool rounds\n', 'wf-a');
+  mkdirSync(join(project, 'sess-1', 'subagents', 'workflows', 'wf-empty'), { recursive: true });
+  const wfOuts = runWorkflow('wf-15', 22);
+  expect(wfOuts.slice(0, 14).every((out) => out === null), 'rounds 1-14 of a workflow agent with a 15-round brief must be silent');
+  const wfWarn = contextOf(wfOuts[14]);
+  expect(typeof wfWarn === 'string' && wfWarn.includes('15 tool rounds used against a brief-bound 15-round budget')
+    && wfWarn.includes('(read from the workflow subagent transcript)') && wfWarn.includes('from call 22'),
+  `a workflow agent's brief must bind 15 rounds and name its source, got ${wfWarn}`);
+  expect(wfOuts.slice(0, 21).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'), 'no call before 22 may deny under a 15-round workflow brief');
+  expect(/22 tool rounds used, the hard stop at 1\.5 times the 15-round budget/.test(reasonOf(wfOuts[21]) ?? ''), `call 22 must deny, got ${JSON.stringify(wfOuts[21])}`);
+  writeBrief('flat-wins', 'Round budget: 5');
+  writeWorkflowBrief('flat-wins', 'Round budget: 9', 'wf-a');
+  const flatWarn = contextOf(runWorkflow('flat-wins', 5)[4]);
+  expect(typeof flatWarn === 'string' && flatWarn.includes('5-round budget (read from the flat subagent transcript)'), `the flat file must win over a workflow copy, got ${flatWarn}`);
+  const missing = [1, 2, 3].map(() => parseOut(runHook(briefCall('wf-nowhere'), { home, budget: 3 })));
+  expect(missing[0] === null && missing[1] === null && contextOf(missing[2])?.includes('3 tool rounds used against a 3-round budget'),
+    `a workflow directory without the agent must keep the default, got ${JSON.stringify(missing)}`);
+  // Mutant: no workflows subtree search, so the 15-round brief reads as missing and the 40 default binds.
+  const wfMutantDir = join(home, 'mutant-no-workflows');
+  mkdirSync(wfMutantDir);
+  const hookSource = readFileSync(hook, 'utf8');
+  const wfMutated = hookSource.replace("join(dir, 'workflows')", "join(dir, 'no-workflows')");
+  expect(wfMutated !== hookSource, 'the no-workflows mutation must change the hook source');
+  writeFileSync(join(wfMutantDir, 'dispatch-guard.mjs'), wfMutated);
+  writeFileSync(join(wfMutantDir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+  writeWorkflowBrief('wf-mut', 'Scope: x\nRound budget: 15 tool rounds\n', 'wf-a');
+  const mutantOuts = runWorkflow('wf-mut', 22, join(wfMutantDir, 'dispatch-guard.mjs'));
+  expect(mutantOuts[21]?.hookSpecificOutput?.permissionDecision !== 'deny' && contextOf(mutantOuts[14]) === undefined,
+    'the no-workflows mutant must leave the 15-round brief unbound, so the eval kills it');
+  console.log('ok   a workflow agent brief under subagents/workflows binds its budget, the flat file wins, a missing file keeps 40, and the no-subtree mutant fails');
+
   // Array content blocks carry the brief too; later transcript text never moves the bound value.
   writeBrief('brief-late', [{ type: 'text', text: 'Round budget: 3' }]);
   runHook(briefCall('brief-late'), { home });
@@ -1660,6 +1752,111 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'other-session', requestedTier: 'frontier' }], 'other-session');
   advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above/, 'a frontier dispatch in another session does not count');
 
+  // Behaviour 8: a repeat of a finished dispatch (same description and Scope hash) earns one advisory
+  // naming its report. The ledger row stores `scopeHash`; the eval computes it as the hook does.
+  const scopeHash = (text) => createHash('sha256').update(text).digest('hex').slice(0, 16);
+  const done = { status: 'dispatched', agent_id: 'r1', agent_type: IMP, session_id: 'sess-1', description: 'build the thing', scopeHash: scopeHash('src/app.js only.'), report_path: 'reports/R1.md' };
+  const reported = { status: 'reported', agent_id: 'r1', agent_type: IMP, session_id: 'sess-1' };
+  const NOTE = /Redispatch note: .*finished and left reports\/R1\.md; a retry should cite that report/;
+  const again = { description: 'build the thing' };
+  seed([]);
+  quiet(send(IMP, {}, again), 'an empty ledger earns no redispatch note');
+  seed([done, reported]);
+  advised(send(IMP, {}, again), NOTE, 'the same description and Scope twice');
+  advised(send(IMP, { scope: 'src/app.js   only.' }, again), NOTE, 'whitespace in the Scope does not change the key');
+  quiet(send(IMP, { scope: 'src/other.js only.' }, again), 'the same description with a different Scope');
+  quiet(send(IMP, {}, { description: 'another thing' }), 'a different description with the same Scope');
+  quiet(send(IMP, {}, again, { env: { CODE_OPS_HOME: home, CODE_OPS_REDISPATCH_NOTE: 'off' } }), 'CODE_OPS_REDISPATCH_NOTE=off');
+  seed([done]);
+  quiet(send(IMP, {}, again), 'a prior dispatch that never reported');
+  seed([done, reported, { ...reported, status: 'failed' }]);
+  quiet(send(IMP, {}, again), 'a failed prior dispatch earns no note');
+  seed([{ ...done, report_path: undefined }, reported]);
+  quiet(send(IMP, {}, again), 'a prior dispatch with no report path');
+  seed([{ ...done, scopeHash: undefined }, reported]);
+  quiet(send(IMP, {}, again), 'a ledger row with no scope hash never matches');
+  // A failed prior row still routes through attemptOf: attempt 2 denies at strong, exactly as before.
+  seed([{ ...done, unit: 'u-redo', requestedTier: 'strong' }, { ...reported, status: 'failed' }]);
+  denied(send(IMP, { unit: 'u-redo' }, again), /below premium at high effort \(rule 7c/, 'a failed prior row still raises the attempt');
+  seed([]);
+  // Mutants. The note must stay advisory, and the Scope hash and the failed row must both gate it.
+  {
+    const hookText = readFileSync(hook, 'utf8');
+    const mutantRoot = join(home, 'mutant-redispatch');
+    mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+    cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+    writeFileSync(join(mutantRoot, 'hooks', 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    const mutate = (name, from, to, rows, over, killed) => {
+      expect(hookText.includes(from), `${name}: the mutation target is gone from the hook`);
+      const mutantHook = join(mutantRoot, 'hooks', `${name}.mjs`);
+      writeFileSync(mutantHook, hookText.replace(from, to));
+      seed(rows);
+      const out = parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: brief(over), description: 'build the thing' }),
+        { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, hookFile: mutantHook }));
+      expect(killed(out), `the ${name} mutant must change the outcome, got ${JSON.stringify(out)}`);
+    };
+    const denies = (out) => out?.hookSpecificOutput?.permissionDecision === 'deny';
+    mutate('mutant-deny', 'hardStop && denials.length', 'hardStop && (denials.length || advisories.length)', [done, reported], {}, denies);
+    mutate('mutant-no-scope', ' && r.scopeHash === hash', '', [done, reported], { scope: 'src/other.js only.' }, (out) => NOTE.test(contextOf(out) ?? ''));
+    mutate('mutant-failed-counts', ' && !failed.has(r.agent_id)', '', [done, reported, { ...reported, status: 'failed' }], {}, (out) => NOTE.test(contextOf(out) ?? ''));
+  }
+  console.log('ok   a repeated finished dispatch earns one advisory note naming its report, and the deny, scope-hash, and failed-row mutants fail');
+
+  // The ledger writes the hash the guard compares, and the guard calls the ledger library's scopeHashOf
+  // (one function, no copy). For each brief shape a row carrying the library's hash earns the note. A
+  // mutant library whose scopeHashOf changes stops the note matching, so the guard cannot be hashing
+  // on its own; a library that fails to export it leaves the guard silent, never denying. End to end:
+  // a row written by the real ledger hook, then a repeat dispatch, earns the note.
+  {
+    const { scopeHashOf: ledgerHash, rowsFromPayload } = await import(pathToFileURL(join(root, 'scripts', 'agent-ledger.mjs')).href);
+    const LNOTE = /Redispatch note: .*finished and left r\.md; a retry should cite that report/;
+    const shapes = {
+      colon: brief(),
+      'multi-line block': brief({ scope: 'src/app.js\n  scripts/x.mjs\n\nOut of scope: docs' }),
+      'bold list label': brief().replace('Scope:', '- **Scope**:'),
+      heading: ['## Scope', 'src/app.js only.', '', 'Objective: x', 'Round budget: 25', 'Report cap: 200 words.', 'Report path: r.md', 'Expected return: a line.', 'Unit: u1', 'Tier: strong', 'Effort: high', 'Route basis: judgment; surface=none; ambiguity=low; reversible=yes'].join('\n'),
+      crlf: brief().replace(/\n/g, '\r\n'),
+    };
+    const hookText = readFileSync(hook, 'utf8');
+    const mutantRoot = join(home, 'mutant-parity');
+    mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+    cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+    writeFileSync(join(mutantRoot, 'hooks', 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    const mutantHook = join(mutantRoot, 'hooks', 'mutant-hash.mjs');
+    expect(!/function scopeHashOf|function scopeText/.test(hookText), 'the guard must not keep its own copy of the Scope hash');
+    writeFileSync(mutantHook, hookText);
+    const ledgerFile = join(mutantRoot, 'scripts', 'agent-ledger.mjs');
+    const ledgerText = readFileSync(ledgerFile, 'utf8');
+    const hashTail = '.digest(\'hex\').slice(0, 16) : null';
+    expect(ledgerText.includes(hashTail) && ledgerText.includes('export function scopeHashOf'), 'the library mutation targets are gone from the ledger');
+    const useLibrary = (text) => writeFileSync(ledgerFile, text);
+    for (const [name, prompt] of Object.entries(shapes)) {
+      const hash = ledgerHash(prompt);
+      expect(/^[0-9a-f]{16}$/.test(hash ?? ''), 'the ledger hashes the ' + name + ' brief');
+      seed([{ ...done, report_path: 'r.md', scopeHash: hash }, reported]);
+      const call = (file) => parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt, description: 'build the thing' }),
+        { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, ...(file && { hookFile: file }) }));
+      expect(LNOTE.test(contextOf(call()) ?? ''), 'parity: the guard and the ledger hash the ' + name + ' brief alike');
+      useLibrary(ledgerText.replace(hashTail, '.digest(\'hex\').slice(0, 15) : null'));
+      expect(!LNOTE.test(contextOf(call(mutantHook)) ?? ''), 'a library whose scopeHashOf changes must stop the note matching on the ' + name + ' brief');
+      useLibrary(ledgerText.replace('export function scopeHashOf', 'function scopeHashOf'));
+      const failOpen = call(mutantHook);
+      expect(!LNOTE.test(contextOf(failOpen) ?? '') && failOpen?.hookSpecificOutput?.permissionDecision !== 'deny', 'a library without scopeHashOf must leave the guard silent, not denying, on the ' + name + ' brief');
+      useLibrary(ledgerText);
+    }
+    seed([]);
+    const stateOf = (input) => spawnSync(process.execPath, [join(suite, 'hooks', 'agent-ledger.mjs')], { input: JSON.stringify(input), encoding: 'utf8', env: { ...process.env, CODE_OPS_HOME: home, CODE_OPS_AGENT_LEDGER: '' }, timeout: 20000 });
+    const e2eBrief = brief().replace('Report path: r.md', 'Report path: reports/R1.md');
+    const first = stateOf({ hook_event_name: 'PostToolUse', session_id: 'sess-1', cwd: home, tool_name: 'Agent',
+      tool_input: { subagent_type: IMP, description: 'build the thing', prompt: e2eBrief }, tool_response: { status: 'completed', agentId: 'e2e1' } });
+    expect(first.status === 0, 'the real ledger hook ran: ' + first.stderr);
+    expect(rowsFromPayload({ hook_event_name: 'PostToolUse', session_id: 'sess-1', cwd: home, tool_name: 'Agent', tool_input: { subagent_type: IMP, description: 'x', prompt: brief() }, tool_response: { status: 'completed', agentId: 'e2e2' } })[0]?.scopeHash === ledgerHash(brief()),
+      'the dispatched row carries the Scope hash');
+    advised(send(IMP, {}, { description: 'build the thing' }), NOTE, 'a row written by the real ledger hook earns the redispatch note on a repeat dispatch');
+    seed([]);
+  }
+  console.log('ok   the guard uses the ledger library Scope hash, the real ledger path earns the note, and the changed-library and missing-export mutants fail');
+
   // An agent whose Contract does not list Tier keeps today's behavior exactly.
   const plainBrief = 'Scope: plugins/code-ops-suite/hooks/dispatch-guard.mjs\nObjective: x\nRound budget: 9\nReport cap: 1\nReport path: r.md\nExpected return: x\n'
     + 'Tier: ultra\nEffort: xhigh\nRoute basis: nonsense';
@@ -1823,7 +2020,7 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const last = JSON.parse(after.at(-1) ?? 'null');
   expect(after.length === before + 1 && r.stdout !== '', `a denied Workflow must write one row, wrote ${after.length - before}`);
   expect(last?.tool === 'Workflow' && last.decision === 'deny' && last.sessionId === 'sess-W' && last.gates.includes('wide-type')
-    && last.workflow?.calls === 3 && last.workflow.unreadable === 1 && last.workflow.contract === false,
+    && last.workflow?.calls === 3 && last.workflow.unreadable === 1 && last.workflow.contract === false && last.workflow.workflowArgs === 'second',
     `the Workflow row must carry the call and unreadable counts and no contract line, got ${JSON.stringify(last)}`);
   runHook(dispatchCall({ script: `// Run contract: x.json\n${script}` }, { tool_name: 'Workflow', session_id: 'sess-W', cwd: 'C:/secret-project-dir' }), { home });
   const afterLine = readFileSync(rowsFile, 'utf8').split('\n').filter(Boolean);

@@ -41,6 +41,9 @@
 // counts and says it outranks the summary on running work and peers, and omits the open-item lines.
 // A `snapshot also holds:` line counts the decisions, authority grants, and in-flight lines it carries
 // and names its run folder, and `Snapshot partial: missing <inputs>` names what a partial one lacks.
+// With no run folder resolved (the card's own lookup, or the snapshot's `Missing: run folder`), one line
+// tells the lead the snapshot's grants and decisions are unrecorded, not none, and to tag the run's
+// RUN_LOG.md; it prints on the `compact` source only.
 // `Snapshot STALE` or no snapshot keeps the open-item lines as before. The line
 // `active N/12 (last snapshot M)` counts the live unchecked TASKS.md lines against the header's
 // count, with ` GROWING` when N exceeds M and ` OVER CAP` when N exceeds 12. Pending agents stay live
@@ -298,7 +301,8 @@ function snapshotLines(snap, cwd, open, sessionId) {
   // What the snapshot also holds, and what it lacks: a partial snapshot names each missing input so the
   // session knows which part of the state to rebuild from the run folder.
   if (snap.state === 'fresh' || snap.state === 'stale') {
-    if (counts && Number.isInteger(counts.decisions)) lines.push(`snapshot also holds: ${counts.decisions} decisions, ${counts.grants} authority grants, ${counts.flight} in-flight lines, the next command${snap.header.run && snap.header.run !== 'unknown' ? `, run folder ${clean(snap.header.run).slice(0, PATH_CHARS)}` : ''}`);
+    const runGap = snap.header?.missing?.some((m) => m.startsWith('run folder'));
+    if (counts && Number.isInteger(counts.decisions)) lines.push(`snapshot also holds: ${runGap ? 'decisions not recorded, grants not recorded, in-flight lines not recorded' : `${counts.decisions} decisions, ${counts.grants} authority grants, ${counts.flight} in-flight lines, the next command`}${snap.header.run && snap.header.run !== 'unknown' ? `, run folder ${clean(snap.header.run).slice(0, PATH_CHARS)}` : ''}`);
     if (snap.header?.status === 'partial') lines.push(`Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed input').slice(0, PEER_CHARS)}; rebuild that input from the run folder or run co snapshot --session ${sessionId || '<id>'}`);
   }
   if (open) {
@@ -450,6 +454,9 @@ async function main() {
     const snap = await readSnapshot(cwd, runDir, sessionId, typeof payload?.transcript_path === 'string' ? payload.transcript_path : '');
     if (snap.state !== 'fresh' && runDir) lines.push(...openItemLines(runDir, open));
     lines.push(...snapshotLines(snap, cwd, open, sessionId));
+    const folderGap = snap.header?.missing?.find((m) => m.startsWith('run folder'));
+    if (folderGap?.includes('inferred')) lines.push('run folder inferred, not verified: its decisions are a guess and its grants are not authority; tag Grant:/Decision:/Next: lines in the run folder RUN_LOG.md');
+    else if (!runDir || folderGap) lines.push('no run folder resolved: grants and decisions were not recorded, so do not assume none; tag Grant:/Decision:/Next: lines in the run folder RUN_LOG.md');
     lines.push(...recallLine(sessionId, payload?.transcript_path));
     // The run folder's DISPATCH_LEDGER.md rows merge with the hook rows, so a host without the hook still lists them.
     lines.push(...await pendingAgentLines(sessionId ? { sessionId, runDir: runDir ? resolve(cwd, runDir) : undefined } : null, 'Pending agents:'));

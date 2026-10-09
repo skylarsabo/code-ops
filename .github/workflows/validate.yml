@@ -384,6 +384,9 @@ jobs:
       - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
 
+      - name: Post-output digest hook eval (PostToolUse replacement + thresholds)
+        run: node evals/digest-post/run.mjs
+
       - name: Over-build scanner eval (decoy garden + mutation control)
         run: node evals/overbuild-garden/run.mjs
 
@@ -467,6 +470,7 @@ jobs:
       - run: node evals/skim/run.mjs
       - run: node evals/digest/run.mjs
       - run: node evals/digest-hook/run.mjs
+      - run: node evals/digest-post/run.mjs
       - run: node evals/context-query/run.mjs
       - run: node evals/context-query-mcp/run.mjs
       - run: node evals/ladder-card/run.mjs
@@ -709,6 +713,9 @@ jobs:
 
       - name: Digest rewrite hook eval (opt-in switch + simple-command contract)
         run: node evals/digest-hook/run.mjs
+
+      - name: Post-output digest hook eval (PostToolUse replacement + thresholds)
+        run: node evals/digest-post/run.mjs
 
       - name: Over-build scanner eval (decoy garden + mutation control)
         run: node evals/overbuild-garden/run.mjs

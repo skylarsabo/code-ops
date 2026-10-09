@@ -146,6 +146,14 @@
 //      denial rides behaviour 6's held path, so a denied call still counts a round and the round
 //      advisory joins one output; `CODE_OPS_DISPATCH_GUARD=warn` downgrades it to advisory text.
 //      Its own off switch is `CODE_OPS_SUBAGENT_GIT`, taking `off`, `0`, or `false`.
+//   8. REDISPATCH NOTE (advisory only), on the lead's own Agent, Task, and spawn dispatch. A
+//      dispatch whose description and `scopeHash` (the ledger row's hash of the brief Scope text,
+//      see scopeHashOf in scripts/agent-ledger.mjs, which the guard calls) equal those of an earlier row in this session's ledger, where that agent
+//      reported, did not fail, and left a report path, adds one note naming the report and
+//      saying a retry should cite it. It never denies. A row with no `scopeHash` never matches,
+//      so a repeat only counts once the ledger writes the hash. A failed prior row earns no note
+//      and routes through `attemptOf` as before. It reuses the routing check's ledger read.
+//      Its off switch is `CODE_OPS_REDISPATCH_NOTE`, taking `off`, `0`, or `false`.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -210,8 +218,8 @@
 //   - A subagent's hook input carries the lead session's `transcript_path` (`<project>/<session
 //     id>.jsonl`, 203510159), not its own. The host writes the subagent transcript at
 //     `<project>/<session id>/subagents/agent-<agent_id>.jsonl` (198245300), or in a named
-//     subdirectory of `subagents` (a workflow agent), which this hook does not resolve and so
-//     reads as absent. Its first line is the brief: a `user` entry with a null `parentUuid`, the
+//     subdirectory `subagents/workflows/<workflow id>/` (a workflow agent), which transcriptHead
+//     finds with one directory scan when the flat file is absent. Its first line is the brief: a `user` entry with a null `parentUuid`, the
 //     same `agentId`, and `message.content` as a string (observed on 2.1.276).
 //   That an injected `additionalContext` on an allowed subagent tool call lands in the
 //   subagent's own context, rather than the lead's, is PROBABLE rather than confirmed: the
@@ -242,7 +250,7 @@
 // budget than the controller record intended. That denial, like an unavailable bound counter,
 // states the fix: report now, then re-dispatch under a new id bound with `register`.
 
-import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -400,12 +408,30 @@ function boundLimits(binding, fallbackBudget) {
   return { allowance, effectiveBudget, permitted: effectiveBudget + allowance };
 }
 
-// The first line of the subagent's own transcript, or null when it is absent or longer than
-// BRIEF_HEAD_BYTES.
-function transcriptHead(payload) {
+// The subagent's transcript: the flat file, else the first `workflows/<workflow id>/` directory
+// (one level, stopping at the first match) holding it. Null when neither exists.
+function transcriptLocation(payload) {
   const lead = payload.transcript_path;
   if (typeof lead !== 'string' || !lead.endsWith('.jsonl') || !SAFE_AGENT.test(payload.agent_id)) return null;
-  const path = join(lead.slice(0, -'.jsonl'.length), 'subagents', `agent-${payload.agent_id}.jsonl`);
+  const dir = join(lead.slice(0, -'.jsonl'.length), 'subagents');
+  const file = `agent-${payload.agent_id}.jsonl`;
+  const flat = join(dir, file);
+  if (existsSync(flat)) return { path: flat, layout: 'flat' };
+  try {
+    for (const entry of readdirSync(join(dir, 'workflows'), { withFileTypes: true })) {
+      const nested = join(dir, 'workflows', entry.name, file);
+      if (entry.isDirectory() && existsSync(nested)) return { path: nested, layout: 'workflow' };
+    }
+  } catch { /* no workflows directory: fail open */ }
+  return null;
+}
+
+// The first line of the subagent's own transcript and which layout held it, or null when it is
+// absent or longer than BRIEF_HEAD_BYTES.
+function transcriptHead(payload) {
+  const found = transcriptLocation(payload);
+  if (!found) return null;
+  const { path, layout } = found;
   let fd;
   try {
     fd = openSync(path, 'r');
@@ -413,7 +439,8 @@ function transcriptHead(payload) {
     const size = readSync(fd, buffer, 0, BRIEF_HEAD_BYTES, 0);
     const text = buffer.subarray(0, size).toString('utf8');
     const end = text.indexOf('\n');
-    return end >= 0 ? text.slice(0, end) : size < BRIEF_HEAD_BYTES ? text : null;
+    const line = end >= 0 ? text.slice(0, end) : size < BRIEF_HEAD_BYTES ? text : null;
+    return line === null ? null : { line, layout };
   } catch { return null; } finally {
     if (fd !== undefined) try { closeSync(fd); } catch { /* fail open */ }
   }
@@ -422,8 +449,9 @@ function transcriptHead(payload) {
 // The Round budget the lead's brief states: BRIEF within 1..MAX_BRIEF_BUDGET, CLAMPED above it,
 // INVALID for zero or two different values, NONE without a line, MISSING without a readable brief.
 function parseBrief(payload) {
+  const head = transcriptHead(payload);
   let entry;
-  try { entry = JSON.parse(transcriptHead(payload) ?? ''); } catch { return { status: 'MISSING' }; }
+  try { entry = JSON.parse(head?.line ?? ''); } catch { return { status: 'MISSING' }; }
   if (entry?.type !== 'user' || entry.parentUuid !== null
     || (entry.agentId !== undefined && entry.agentId !== payload.agent_id)) return { status: 'MISSING' };
   const content = entry.message?.content;
@@ -431,12 +459,13 @@ function parseBrief(payload) {
     ? content.filter((block) => block?.type === 'text' && typeof block.text === 'string').map((block) => block.text).join('\n')
     : '';
   const values = [...new Set([...text.matchAll(BRIEF_BUDGET)].map((match) => Number(match[1])))];
-  if (!values.length) return { status: 'NONE' };
-  if (values.length > 1 || values[0] < 1) return { status: 'INVALID' };
+  const { layout } = head;
+  if (!values.length) return { status: 'NONE', layout };
+  if (values.length > 1 || values[0] < 1) return { status: 'INVALID', layout };
   const requested = Math.min(values[0], Number.MAX_SAFE_INTEGER);
   return requested > MAX_BRIEF_BUDGET
-    ? { status: 'CLAMPED', requested, budget: MAX_BRIEF_BUDGET }
-    : { status: 'BRIEF', budget: requested };
+    ? { status: 'CLAMPED', requested, budget: MAX_BRIEF_BUDGET, layout }
+    : { status: 'BRIEF', budget: requested, layout };
 }
 
 function validBrief(record, agentId) {
@@ -555,6 +584,7 @@ const GATES = [
   ['derived-path', /Derived path guard:/, []],
   ['subagent-git', /Subagent git guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
+  ['redispatch-note', /Redispatch note:/, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
@@ -759,6 +789,7 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
     hookEventName: 'PreToolUse',
     additionalContext: (note ? `${note} ` : '')
       + `Dispatch guard: ${used} tool rounds used against ${bound ? 'a controller-bound' : briefBound ? 'a brief-bound' : 'a'} ${budget}-round budget`
+      + (briefBound && brief.layout ? ` (read from the ${brief.layout} subagent transcript)` : '')
       + (bound && binding.budget > budget ? ` (registered ${binding.budget}, capped by the ${fallbackBudget}-round default's stop)` : '')
       + (hardStop ? `; the hard stop denies every tool call from call ${stopAt}. ` : '. ')
       + (bound
@@ -982,17 +1013,60 @@ function readOptions(s, open) {
   return null;
 }
 
-// Each `agent(` call of a Workflow script as its options (null when the first argument is not an
-// inline object, so it cannot be read), or null when the script does not parse.
+const QUOTE = /["'`]/;
+
+// Where the Workflow script's agent() options are read: the second argument by default, the first
+// only when `CODE_OPS_WORKFLOW_ARGS=first`. The decision row records it as `workflowArgs`.
+const workflowArgsMode = () => (/^first$/i.test((process.env.CODE_OPS_WORKFLOW_ARGS ?? '').trim()) ? 'first' : 'second');
+
+// The index of the top-level `,` or `)` that ends the call argument starting at `i`, or -1 when the
+// argument does not close or holds syntax this scan does not read (a regex literal). Parens, brackets,
+// braces, quoted strings, template literals with nested `${}`, and comments are balanced. It has no
+// length cap: the options are measured from their own start.
+function skipArgument(s, i) {
+  let depth = 0;
+  for (; i < s.length; i++) {
+    const c = s[i];
+    if (c === '/' && (s[i + 1] === '/' || s[i + 1] === '*')) {
+      const stop = s[i + 1] === '/' ? s.indexOf('\n', i) : s.indexOf('*/', i + 2) + 1;
+      if (stop <= 0) return -1;
+      i = stop;
+    } else if (QUOTE.test(c)) {
+      const next = readString(s, i, s.length);
+      if (next < 0) return -1;
+      i = next - 1;
+    } else if (c === '{' || c === '[' || c === '(') depth++;
+    else if (c === '}' || c === ']' || c === ')') {
+      if (depth === 0) return c === ')' ? i : -1;
+      depth--;
+    } else if (c === ',' && depth === 0) return i;
+  }
+  return -1;
+}
+
+// Each `agent(` call of a Workflow script as its options (null when they cannot be read), or null when
+// the script does not parse. The options are the second argument when it is an object literal, else
+// the first argument when that is an inline object.
 function workflowCalls(script) {
+  const second = workflowArgsMode() === 'second';
   const calls = [];
   AGENT_CALL.lastIndex = 0;
   let m;
   while ((m = AGENT_CALL.exec(script))) {
     let i = m.index + m[0].length;
     while (/\s/.test(script[i] ?? '')) i++;
-    if (script[i] !== '{') { calls.push(null); continue; }
-    const options = readOptions(script, i);
+    const first = i;
+    let open = script[first] === '{' ? first : -1;
+    if (second) {
+      const comma = skipArgument(script, first);
+      if (comma >= 0 && script[comma] === ',') {
+        let j = comma + 1;
+        while (/\s/.test(script[j] ?? '')) j++;
+        if (script[j] === '{') open = j;
+      }
+    }
+    if (open < 0) { calls.push(null); continue; }
+    const options = readOptions(script, open);
     if (!options) return null;
     calls.push(options);
     AGENT_CALL.lastIndex = options.end;
@@ -1070,7 +1144,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     const type = keys.get('agentType');
     if (type !== null && (!type.trim() || WIDE_TYPES.has(type.trim().split(':').pop().toLowerCase()))) failed.push(index + 1);
   });
-  workflow = { calls: calls.length, unreadable, contract: RUN_CONTRACT_LINE.test(script) };
+  workflow = { calls: calls.length, unreadable, contract: RUN_CONTRACT_LINE.test(script), workflowArgs: workflowArgsMode() };
   if (failed.length && !script.includes('Wide-surface reason:')) {
     denials.push(`${failed.length} of ${calls.length} Workflow agent() calls name no agentType or a wide-surface one `
       + `(the first is call ${failed[0]}), which starts from the default surface; set agentType on each to a `
@@ -1115,46 +1189,18 @@ async function getRoutingLibs() {
     const scripts = join(dirname(HOOK_PATH), '..', 'scripts');
     const load = (name) => import(pathToFileURL(join(scripts, name)).href);
     const [route, ledger] = await Promise.all([load('route-unit.mjs'), load('agent-ledger.mjs')]);
-    for (const fn of [route.routeUnit, route.surfaceOfScope, route.applyMinKind, ledger.attemptOf, ledger.ledgerRows, ledger.rungOfModel]) {
+    for (const fn of [route.routeUnit, route.surfaceOfScope, route.applyMinKind, ledger.attemptOf, ledger.ledgerRows, ledger.rungOfModel, ledger.scopeHashOf, ledger.scopeText]) {
       if (typeof fn !== 'function') throw new TypeError('routing library');
     }
     routingLibs = {
       routeUnit: route.routeUnit, surfaceOfScope: route.surfaceOfScope, rungRank: route.RUNG_RANK, floorRank: route.FLOOR_RANK,
-      efforts: route.EFFORTS, surfaces: route.SURFACES, applyMinKind: route.applyMinKind, attemptOf: ledger.attemptOf, ledgerRows: ledger.ledgerRows, rungOf: ledger.rungOfModel,
+      efforts: route.EFFORTS, surfaces: route.SURFACES, applyMinKind: route.applyMinKind, attemptOf: ledger.attemptOf, ledgerRows: ledger.ledgerRows, rungOf: ledger.rungOfModel, scopeHashOf: ledger.scopeHashOf, scopeText: ledger.scopeText,
     };
   } catch { routingLibs = null; }
   return routingLibs;
 }
 
-// Any `Label:` line ends a Scope block, so `Out of scope:` paths and the lines after the Scope never count.
-// A label is words at line start under briefHas's rule; a colon followed by a slash (`C:/dir`) is a drive.
-const LABEL_LINE = new RegExp(`${LABEL_HEAD}[A-Za-z][A-Za-z\\t -]{0,40}${LABEL_TAIL}(?![\\\\/])`, 'i');
-const SCOPE_MAX = 8_000;
 const word = (value) => value?.split(/[\s,;:()]+/)[0]?.toLowerCase().slice(0, 24) ?? null;
-
-// The text of every `Scope:` line (or `## Scope` heading) block of the brief. A colon block runs to
-// the next blank line or label line (blank lines after an empty `Scope:` do not end it); a heading
-// block to the next heading or label line.
-function scopeText(prompt) {
-  const label = labelSource('Scope');
-  const colon = new RegExp(`${LABEL_HEAD}${label}${LABEL_TAIL}(.*)$`, 'i');
-  const heading = new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])(.*)$`, 'i');
-  const parts = [];
-  let mode = null;
-  let empty = false;
-  for (const line of prompt.split(/\r?\n/)) {
-    if (mode) {
-      if (empty && !line.trim()) continue;
-      const ends = LABEL_LINE.test(line) || (mode === 'colon' ? !line.trim() : /^[ \t]*#{1,6}[ \t]/.test(line));
-      if (!ends) { empty = false; parts.push(line); continue; }
-      mode = null;
-    }
-    const start = colon.exec(line);
-    const head = start ? null : heading.exec(line);
-    if (start || head) { mode = start ? 'colon' : 'heading'; empty = start !== null && !start[1].trim(); parts.push((start ?? head)[1]); }
-  }
-  return parts.join('\n').slice(0, SCOPE_MAX);
-}
 
 // Path candidates in a Scope text: each token holding a separator, alone and with up to five following
 // tokens, so a path with spaces (`35 Contracts and Data`) reaches the surface patterns whole. A bare
@@ -1170,9 +1216,34 @@ function scopePaths(text) {
   return [...paths];
 }
 
-// The session's ledger rows, or [] for an unsafe session id or a ledger error.
+// The session's ledger rows, or [] for an unsafe session id or a ledger error. One hook process
+// decides one call, so the read is kept for the routing check and the redispatch note to share.
+let rowsMemo = null;
 function sessionRows(libs, sessionId) {
-  try { return SAFE_SESSION.test(String(sessionId ?? '')) ? libs.ledgerRows({ sessionId }) : []; } catch { return []; }
+  if (rowsMemo && rowsMemo.sessionId === sessionId) return rowsMemo.rows;
+  let rows = [];
+  try { rows = SAFE_SESSION.test(String(sessionId ?? '')) ? libs.ledgerRows({ sessionId }) : []; } catch { /* fail open */ }
+  rowsMemo = { sessionId, rows };
+  return rows;
+}
+
+// Behaviour 8. The report path of the latest finished row with this description and Scope hash,
+// as one advisory. A row that failed, never reported, or kept no report path is no match.
+async function redispatchNote(input, prompt, sessionId, advisories) {
+  if (off('CODE_OPS_REDISPATCH_NOTE')) return;
+  const description = typeof input.description === 'string' ? input.description.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
+  if (!description) return;
+  const libs = await getRoutingLibs();
+  try {
+    const hash = libs?.scopeHashOf(prompt);
+    if (!hash) return;
+    const rows = sessionRows(libs, sessionId);
+    const failed = new Set(rows.filter((r) => r.status === 'failed').map((r) => r.agent_id));
+    const done = new Set(rows.filter((r) => r.status === 'reported' && !failed.has(r.agent_id)).map((r) => r.agent_id));
+    const prior = rows.findLast((r) => r.status === 'dispatched' && r.description === description && r.scopeHash === hash
+      && r.report_path && done.has(r.agent_id));
+    if (prior) advisories.push(`Redispatch note: an earlier dispatch with this description and Scope finished and left ${prior.report_path}; a retry should cite that report instead of repeating the work.`);
+  } catch { /* fail open */ }
 }
 
 // Frontier dispatches in ledger rows: `dispatched` rows that asked for frontier or applied a frontier
@@ -1259,7 +1330,7 @@ function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) 
   const basisLine = briefValue(prompt, 'Route basis');
   if (basisLine === null) return;
   const basis = parseRouteBasis(basisLine);
-  const derived = libs.surfaceOfScope(scopePaths(scopeText(prompt)));
+  const derived = libs.surfaceOfScope(scopePaths(libs.scopeText(prompt)));
   if (basis.surface === undefined) {
     denials.push('Route basis names no surface=<s>; add it (none, security, egress, migration, public-contract, or gate-script).');
   } else if (!libs.surfaces.includes(basis.surface)) {
@@ -1341,6 +1412,7 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
     // An unrouted agent never reaches the routing check, so its Agent `effort` is held to the same cap here.
     denials.push(`The Agent call passes effort "${input.effort.trim()}"; pass low, medium, or high, because effort is at most high.`);
   }
+  if (tool === 'Agent' || tool === 'Task' || spawn) await redispatchNote(input, prompt, sessionId, advisories);
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
       + 'add each as a "Label:" line or a heading. The missing lines open this denial, ready to fill; '

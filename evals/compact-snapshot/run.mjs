@@ -22,7 +22,7 @@
 //   node evals/compact-snapshot/run.mjs   (exit 0 = all assertions pass)
 
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { copyFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, utimesSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -685,6 +685,99 @@ try {
   c = fidCard();
   check('9p. a complete snapshot prints no Snapshot partial line', !c.stdout.includes('Snapshot partial'), c.stdout);
 
+  // snapshot gaps: with no run folder the Decisions and Authority grants sections say not recorded, never none
+  const GAP_D = 'Decisions: not recorded (no run folder resolved); do not assume none';
+  const GAP_G = 'Grants: not recorded (no run folder resolved); do not assume none';
+  const gapIn = (text) => text.includes(`\n${GAP_D}\n`) && text.includes(`\n${GAP_G}\n`);
+  const noRunBuild = (lib = snap, extra = {}) => lib.buildSnapshot({ conversation: null, running: [], items: null, runLog: null, now, sessionId: SID, mask: id, missing: ['run folder'], ...extra });
+  const gapSnap = noRunBuild();
+  check('10a. GAP: a snapshot with no run folder renders both explicit gap lines and neither section reads none',
+    gapIn(gapSnap.text) && !/## (Decisions|Authority grants)[^\n]*\nnone/.test(gapSnap.text), gapSnap.text.slice(-700));
+  const knownSnap = buildSnapshot({ conversation: null, running: [], items: null, runLog: null, runFolder: '80 Runs/x', now, sessionId: SID, mask: id });
+  check('10b. a resolved run folder with no RUN_LOG.md renders none and no gap line', !knownSnap.text.includes('not recorded') && /## Authority grants[^\n]*\nnone/.test(knownSnap.text), knownSnap.text.slice(-500));
+  const gapLines = (r) => linesOf(r).filter((l) => l.startsWith('no run folder resolved:'));
+  const partCard = runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact', session_id: PART, transcript_path: partT, cwd: partRepo }), {}, partRepo);
+  check('10c. GAP: the compact card prints one tagging line when no run folder resolves', partCard.status === 0 && gapLines(partCard).length === 1 && /Grant:\/Decision:\/Next:/.test(gapLines(partCard)[0]) && /do not assume none/.test(gapLines(partCard)[0]), partCard.stdout);
+  c = fidCard();
+  const startGap = runHook('routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup', session_id: PART, cwd: partRepo }), {}, partRepo);
+  check('10d. with SESSION.json resolving, the compact card has no gap line and the snapshot has no gap lines; a startup card never has one',
+    gapLines(c).length === 0 && !gapIn(readFileSync(fidSnap, 'utf8')) && startGap.status === 0 && gapLines(startGap).length === 0, c.stdout);
+  // Mutant: a copy of the scripts that never sees the gap renders none again, so 10a catches its removal.
+  const gapRoot = join(tmp, 'gap-mutant');
+  cpSync(SCRIPTS, gapRoot, { recursive: true });
+  const gapLib = join(gapRoot, 'compact-snapshot.mjs');
+  const gapFrom = "const noRun = gaps.includes('run folder');";
+  const gapSrc = readFileSync(gapLib, 'utf8');
+  check('10e. mutant harness: the source still holds the gap test it removes', gapSrc.includes(gapFrom));
+  writeFileSync(gapLib, gapSrc.replace(gapFrom, 'const noRun = false;'));
+  const gapMut = noRunBuild(await import(pathToFileURL(gapLib).href));
+  check('10f. mutant: without the gap rendering the gap lines vanish, so 10a catches its removal', !gapIn(gapMut.text), gapMut.text.slice(-400));
+
+  // the run folder fallback: a guess, labelled inferred, off by its switch, never a folder another session owns
+  const FB = 'Fallback-session-0001';
+  const fbRepo = initRepo('repo-fallback', true);
+  const fbRun = join(fbRepo, '80 Runs', '2026-10-08-fb');
+  mkdirSync(fbRun, { recursive: true });
+  writeFileSync(join(fbRun, 'RUN_LOG.md'), 'Grant: inferred grant words\nDecision: DEC-9 inferred decision\nNext: node x.mjs\n');
+  writeFileSync(join(fbRun, 'TASKS.md'), '- [ ] OI-1 inferred item\n');
+  runFolder(fbRepo, '2026-10-09-fb-other', { sessionId: 'someone-else', createdAt: new Date().toISOString() });
+  const fbT = transcript('fb.jsonl', [enqueue('fallback directive words')]);
+  const fbRead = (r) => { try { return readFileSync(JSON.parse(r.stdout).path, 'utf8'); } catch { return ''; } };
+  r = cli(fbRepo, ['--session', FB, '--transcript', fbT, '--json']);
+  const fbText = fbRead(r);
+  const fbOut = r.status === 0 ? JSON.parse(r.stdout) : {};
+  check('10g. FALLBACK: an unowned run folder in the session window is read, labelled inferred everywhere, and the file goes home',
+    fbOut.location === 'home' && fbOut.missing?.join() === 'run folder (inferred, unverified)' && /^Run: 80 Runs\/2026-10-08-fb \(inferred, unverified\)$/m.test(fbText)
+    && /## Authority grants \(not recorded, inferred run folder\)\nGrants: not recorded; an inferred run folder's grants are not authority\n/.test(fbText) && !fbText.includes('inferred grant words') && /grants 0,/.test(fbText) && /## Decisions \(1 of 1 shown, RUN_LOG\.md, inferred, unverified\)/.test(fbText)
+    && /## Next command \(latest Next: line, RUN_LOG\.md, inferred, unverified\)/.test(fbText) && !fbText.includes('verbatim') && !gapIn(fbText), `${r.stdout}${r.stderr}\n${fbText.slice(0, 500)}`);
+  // Mutant: a copy that carries the inferred folder's grants renders them, so 10g catches it.
+  const infRoot = join(tmp, 'inferred-grants-mutant');
+  cpSync(SCRIPTS, infRoot, { recursive: true });
+  const infLib = join(infRoot, 'compact-snapshot.mjs');
+  const infFrom = ['tagged(inferred ? [] : log.grants)', ': inferred ? ["Grants: not recorded;'];
+  const infSrc = readFileSync(infLib, 'utf8');
+  check('10g2. mutant harness: the source still holds the inferred-grants guard it removes', infFrom.every((f) => infSrc.includes(f)));
+  writeFileSync(infLib, infSrc.replace(infFrom[0], 'tagged(log.grants)').replace(infFrom[1], ': false ? ["Grants: not recorded;'));
+  const infMut = (await import(pathToFileURL(infLib).href)).buildSnapshot({ conversation: null, running: [], items: null, runLog: { decisions: [], grants: ['inferred grant words'], flight: [], next: null }, runFolder: '80 Runs/x', now, sessionId: SID, mask: id, inferred: true, missing: ['run folder (inferred, unverified)'] });
+  check('10g3. mutant: carrying the inferred grants prints them, so 10g catches it', infMut.text.includes('inferred grant words'), infMut.text.slice(-400));
+  // The card: the inferred label survives the Missing: split whole, and the card says inferred, not "no run folder".
+  const fbCardRun = (dir = HOOKS) => spawnSync(process.execPath, [join(dir, 'routing-card.mjs')], { cwd: fbRepo, input: JSON.stringify({ hook_event_name: 'SessionStart', source: 'compact', session_id: FB, transcript_path: fbT, cwd: fbRepo }), encoding: 'utf8', timeout: 60_000, env: cleanEnv });
+  const infLines = (r) => linesOf(r).filter((l) => l.startsWith('run folder inferred, not verified:'));
+  const fbCard = fbCardRun();
+  check('10g4. CARD: an inferred run folder prints the inferred line once, says its grants are not authority, and no "no run folder resolved" line',
+    fbCard.status === 0 && infLines(fbCard).length === 1 && /grants are not authority/.test(infLines(fbCard)[0]) && gapLines(fbCard).length === 0
+    && linesOf(fbCard).some((l) => l.includes('missing run folder (inferred, unverified);')), fbCard.stdout);
+  check('10g5. the Missing: split keeps a parenthesised label whole', JSON.stringify(readSnapshotHeader(fbText)?.missing) === JSON.stringify(['run folder (inferred, unverified)'])
+    && readSnapshotHeader('# Compact snapshot\nMissing: transcript, run folder (inferred, unverified), agent ledger\n')?.missing.length === 3);
+  const cardRoot = join(tmp, 'card-mutant');
+  cpSync(join(HOOKS, '..', 'scripts'), join(cardRoot, 'scripts'), { recursive: true });
+  mkdirSync(join(cardRoot, 'hooks'), { recursive: true });
+  const cardSrc = readFileSync(join(HOOKS, 'routing-card.mjs'), 'utf8');
+  const cardFrom = "folderGap?.includes('inferred')";
+  check('10g6. mutant harness: the card still holds the inferred test it removes', cardSrc.includes(cardFrom));
+  writeFileSync(join(cardRoot, 'hooks', 'routing-card.mjs'), cardSrc.replace(cardFrom, 'false'));
+  const cardMut = fbCardRun(join(cardRoot, 'hooks'));
+  check('10g7. mutant: a card without the inferred branch prints the no-folder line, so 10g4 catches it', cardMut.status === 0 && infLines(cardMut).length === 0 && gapLines(cardMut).length === 1, cardMut.stdout);
+  // The card never claims a count for what the snapshot did not record: a Missing run folder says "not recorded".
+  const holdsLines = (res) => linesOf(res).filter((l) => l.startsWith('snapshot also holds:'));
+  check('10g8. CARD: a snapshot missing its run folder says decisions and grants are not recorded, never "0 authority grants"',
+    holdsLines(fbCard).length === 1 && /grants not recorded/.test(holdsLines(fbCard)[0]) && /decisions not recorded/.test(holdsLines(fbCard)[0]) && !/\d+ authority grants/.test(holdsLines(fbCard)[0]), fbCard.stdout);
+  const runGapFrom = "snap.header?.missing?.some((m) => m.startsWith('run folder'))";
+  check('10g9. mutant harness: the card still holds the run folder gap test it removes', cardSrc.includes(runGapFrom));
+  writeFileSync(join(cardRoot, 'hooks', 'routing-card.mjs'), cardSrc.replace(runGapFrom, 'false'));
+  const holdsMut = fbCardRun(join(cardRoot, 'hooks'));
+  check('10g10. mutant: a card without the gap test prints "authority grants" for a missing run folder, so 10g8 catches it', holdsMut.status === 0 && holdsLines(holdsMut).some((l) => /\d+ authority grants/.test(l)), holdsMut.stdout);
+  r = cli(fbRepo, ['--session', FB, '--transcript', fbT, '--json'], { env: { CODE_OPS_SNAPSHOT_RUN_FALLBACK: 'off' } });
+  const fbOff = fbRead(r);
+  check('10h. CODE_OPS_SNAPSHOT_RUN_FALLBACK=off: no guess, the gap lines return, and nothing is read from the folder',
+    r.status === 0 && JSON.parse(r.stdout).missing.join() === 'run folder' && gapIn(fbOff) && !fbOff.includes('inferred grant words') && !fbOff.includes('inferred, unverified'), fbOff.slice(-500));
+  const stale = new Date('2020-01-01T00:00:00Z');
+  for (const p of [join(fbRun, 'RUN_LOG.md'), join(fbRun, 'TASKS.md'), fbRun]) utimesSync(p, stale, stale);
+  r = cli(fbRepo, ['--session', FB, '--transcript', fbT, '--json']);
+  check('10i. a folder the session window does not touch is not inferred, and a folder another session owns never is', r.status === 0 && JSON.parse(r.stdout).missing.join() === 'run folder' && gapIn(fbRead(r)), fbRead(r).slice(-400));
+  check('10j. inferRunFolder needs a window: no transcript timestamp, no folder', snap.inferRunFolder(fbRepo, FB, NaN) === null && snap.inferRunFolder(fbRepo, FB, Date.parse('2019-01-01T00:00:00Z'))?.endsWith('2026-10-08-fb') === true);
+
+
   // the tag parser
   const logDir = join(tmp, 'taglog');
   mkdirSync(logDir, { recursive: true });
@@ -715,6 +808,29 @@ try {
   check('9s2. 40 long grants stay within 12,000 characters: the newest grants stay within 800, one line counts the older ones, and the next command and Run: line stay',
     flood.chars <= BUDGET.total && !flood.overBudget && /^- \d+ older grants in RUN_LOG\.md$/m.test(flood.text) && flood.text.includes('- G-40 ') && !flood.text.includes('- G-01 ')
     && /## Authority grants \(1 of 40 shown, verbatim, RUN_LOG\.md\)\n- 39 older grants in RUN_LOG\.md\n/.test(flood.text) && flood.text.includes(`- ${bigLog.next}\n`) && flood.text.includes('Run: 80 Runs/big') && /grants 40,/.test(flood.text), `${flood.chars}`);
+  // 100 and 300 prompts of 500 characters overflow the words budget even as stubs: the oldest entries
+  // drop behind one count line, the newest 3 prompts stay verbatim, and no grant is cut for words.
+  const promptFlood = (n) => ({ ...manyWords, answers: [], operatorWords: Array.from({ length: n }, (_, i) => ({ text: `P-${String(i + 1).padStart(3, '0')} ${'w'.repeat(494)}`, at: 1_700_000_000_000, line: 10 + i })) });
+  const wordFlood = (n, mod = snap) => mod.buildSnapshot({ conversation: promptFlood(n), running: manyAgents, items: items(16, 200), runLog: bigLog, runFolder: '80 Runs/big', now, sessionId: SID, mask: id });
+  const keptNewest = (r, n) => [n, n - 1, n - 2].every((k) => r.text.includes(`P-${String(k).padStart(3, '0')} ${'w'.repeat(494)}\n`));
+  const wordsPart = (r) => section(r.text, 'Operator words');
+  const floods = [100, 300].map((n) => wordFlood(n));
+  check('9s3. 100 and 300 prompts of 500 characters fit 12,000 characters, keep the newest 3 verbatim, and name the dropped count',
+    floods.every((r, i) => r.chars <= BUDGET.total && !r.overBudget && wordsPart(r).length <= BUDGET.words && keptNewest(r, [100, 300][i]) && /^- \d+ older prompts and answers dropped/m.test(wordsPart(r))), floods.map((r) => `${r.chars}`).join(','));
+  check('9s4. when words alone overflowed, every grant stays whole and the grants count equals the input',
+    floods.every((r) => bigLog.grants.every((g) => r.text.includes(`- ${g}\n`)) && /Authority grants \(6, verbatim/.test(r.text) && !/older grants? in RUN_LOG/.test(r.text)), floods[1].text.slice(-1800));
+  check('9s5. the 31-word case is unchanged: no count line and the older prompts still stub', !/older prompts and answers dropped/.test(wordsSection) && /L10 prompt[^\n]*\[stub/.test(wordsSection));
+  // Mutant: a copy of the scripts without the elision step overflows, so 9s3 catches its removal.
+  const elideRoot = join(tmp, 'elide-mutant');
+  cpSync(SCRIPTS, elideRoot, { recursive: true });
+  const elideLib = join(elideRoot, 'compact-snapshot.mjs');
+  const elideFrom = '      if (state.wordsDropped < keepFrom) {\n';
+  const elideSrc = readFileSync(elideLib, 'utf8');
+  check('9s6. mutant harness: the source still holds the elision step it removes', elideSrc.includes(elideFrom));
+  writeFileSync(elideLib, elideSrc.replace(elideFrom, '      if (false) {\n'));
+  const elideMut = await import(pathToFileURL(elideLib).href);
+  const mutFlood = wordFlood(300, elideMut);
+  check('9s7. mutant: without the elision step 300 prompts overflow, so 9s3 catches its removal', mutFlood.overBudget || mutFlood.chars > BUDGET.total, `${mutFlood.chars}`);
   const maskOff = buildSnapshot({ conversation: null, running: [], items: null, runLog: bigLog, now, sessionId: SID, mask: () => { throw new Error('scanner down'); } });
   check('9v. a failing mask withholds grants and the next command rather than writing them raw', !maskOff.text.includes('verbatim words') && !maskOff.text.includes('long-command') && (maskOff.text.match(/\[withheld: masking failed\]/g) ?? []).length >= 7, maskOff.text.slice(0, 200));
 
