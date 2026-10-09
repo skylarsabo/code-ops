@@ -8,7 +8,7 @@
 // pre-commit and pre-merge-commit hooks and the real docs-manifest.mjs. Only the atlas gate is a
 // stub, because evals/atlas-check covers it and a fixture atlas adds nothing to a merge test.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { tally, withDetail } from '../harness.mjs';
@@ -41,13 +41,21 @@ const unmerged = (repo) => [...new Set(git(repo, 'ls-files', '-u').out.split('\n
 const clean = (repo) => git(repo, 'status', '--porcelain').out === '';
 // The domains `docs-manifest check` calls stale, one entry each.
 const staleIn = (repo) => [...new Set([...manifestCheck(repo).out.matchAll(/(\S+) (?:source|content) digest is stale/g)].map((m) => m[1]))];
+const DIGESTS = `${HUB}/98 System/Digests`;
+const digestFiles = (repo, dir = DIGESTS) => (existsSync(join(repo, dir)) ? readdirSync(join(repo, dir)).sort() : []);
+// Files mode needs the digest file store in docs-manifest.mjs. A checkout that lacks it
+// reports SKIP for the cases that build a files-mode repository.
+const FILES_MODE = readFileSync(join(ROOT, 'scripts', 'docs-manifest.mjs'), 'utf8').includes('digestStore');
+const STANDARD = '---\nstandard-version: 4\n---\n# Standard\n';
+// The manifest keys before the domains. Files mode needs version 2, so it also carries the keys v2 requires.
+const manifestHead = (hub, files) => (files ? { version: 2, hub, digestStore: 'files', runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [] } : { version: 1, hub });
 const placeholders = (repo) => (read(repo, MANIFEST).match(/"regenerated"/g) || []).length;
 
 // A repository whose manifest digests depend on src/**, with the hooks and the driver installed.
 // With `split`, the domains digest different files, so a merge can leave one domain unattested:
 // architecture reads src/a.md, contracts reads src/c.md, and the rest read src/b.md.
 const SPLIT = { architecture: ['src/a.md'], contracts: ['src/c.md'] };
-function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts'), split = false } = {}) {
+function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts'), split = false, files = false } = {}) {
   const repo = join(work, name);
   mkdirSync(join(repo, 'scripts'), { recursive: true });
   for (const file of SCRIPTS) cpSync(join(scriptsDir, file), join(repo, 'scripts', file));
@@ -59,9 +67,10 @@ function fixture(name, { install = true, scriptsDir = join(ROOT, 'scripts'), spl
   put(repo, 'src/a.md', 'one\ntwo\nthree\n');
   put(repo, 'src/b.md', 'alpha\nbeta\ngamma\n');
   if (split) put(repo, 'src/c.md', 'x\ny\nz\n');
+  if (files) put(repo, `${HUB}/Standard.md`, STANDARD);
   put(repo, MANIFEST, `${JSON.stringify({
-    version: 1, hub: HUB,
-    domains: REQUIRED.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: (split && SPLIT[id]) || (split ? ['src/b.md'] : ['src/**']), sourceDigest: '', contentDigest: '' })),
+    ...manifestHead(HUB, files),
+    domains: REQUIRED.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: (split && SPLIT[id]) || (split ? ['src/b.md'] : ['src/**']), ...(files ? {} : { sourceDigest: '', contentDigest: '' }) })),
   }, null, 2)}\n`);
   put(repo, ATLAS_MANIFEST, '{\n  "stamp": "base"\n}\n');
   put(repo, INTAKE, '{"line":"base"}\n');
@@ -150,7 +159,7 @@ const ATLAS_GATE_STUB = [
   'process.exit(0);',
   '',
 ].join('\n');
-function atlasFixture(name, { hooksDir = join(ROOT, '.githooks') } = {}) {
+function atlasFixture(name, { hooksDir = join(ROOT, '.githooks'), files = false } = {}) {
   const repo = join(work, name);
   mkdirSync(join(repo, 'scripts'), { recursive: true });
   for (const file of [...SCRIPTS, 'sync-vendored.mjs']) cpSync(join(ROOT, 'scripts', file), join(repo, 'scripts', file));
@@ -167,13 +176,14 @@ function atlasFixture(name, { hooksDir = join(ROOT, '.githooks') } = {}) {
   for (const id of REQUIRED) put(repo, `${AHUB}/40 Engineering/${id}.md`, `# ${id}\n`);
   put(repo, `${ATLAS_DIR}/sections/core.md`, '# core\n');
   put(repo, ATLAS_STAMP, '{\n  "stamp": "base"\n}\n');
+  if (files) put(repo, `${AHUB}/Standard.md`, STANDARD);
   put(repo, 'src/a.md', 'one\ntwo\nthree\n');
   put(repo, 'src/b.md', 'alpha\nbeta\ngamma\n');
   put(repo, AMANIFEST, `${JSON.stringify({
-    version: 1, hub: AHUB,
+    ...manifestHead(AHUB, files),
     domains: REQUIRED.map((id) => (id === 'atlas'
-      ? { id, path: '98 System/Atlas', status: 'current', sources: ['**'], sourceDigest: '', contentDigest: '' }
-      : { id, path: `40 Engineering/${id}.md`, status: 'current', sources: ['src/**'], sourceDigest: '', contentDigest: '' })),
+      ? { id, path: '98 System/Atlas', status: 'current', sources: ['**'], ...(files ? {} : { sourceDigest: '', contentDigest: '' }) }
+      : { id, path: `40 Engineering/${id}.md`, status: 'current', sources: ['src/**'], ...(files ? {} : { sourceDigest: '', contentDigest: '' }) })),
   }, null, 2)}\n`);
   git(repo, 'init', '-q', '-b', 'main');
   setIdentity(repo);
@@ -525,6 +535,54 @@ try {
     : JSON.stringify(c2Before[id]) === JSON.stringify(c2After[id])));
   check('S4: a stamp committed after the manifest sync restamps the atlas content digest only, and the commit passes', c2Commit.status === 0 && onlyAtlasContent && manifestCheck(c2).status === 0 && clean(c2) && /Restamped the atlas content digest/.test(c2Commit.out), `${c2Commit.status} ${c2Commit.out.slice(-240)} / ${manifestCheck(c2).out.slice(0, 120)}`);
   check('S4: the commit holds the stamp and the manifest and nothing else', git(c2, 'diff', '--name-only', 'HEAD~1', 'HEAD').out.split('\n').sort().join() === [ATLAS_STAMP, AMANIFEST].sort().join(), git(c2, 'diff', '--name-only', 'HEAD~1', 'HEAD').out);
+
+  // 11b. Digest files. Under "digestStore": "files" a restamp deletes and adds files in the Digests
+  // directory beside the manifest, so reconcile, rewrite, and the atlas restamp must stage those paths.
+  // JSON mode has no such directory, and the same commands stage the manifest alone.
+  const jsonMerge = fixture('json-reconcile', { split: true });
+  diverge(jsonMerge, { leftFile: 'src/a.md', rightFile: 'src/b.md' });
+  git(jsonMerge, 'merge', '--no-commit', '--no-ff', 'right');
+  const jsonReconciled = node(jsonMerge, 'scripts/derived-merge.mjs', 'reconcile');
+  check('digest files: JSON mode reconcile stages the manifest alone and creates no Digests directory', jsonReconciled.status === 0 && git(jsonMerge, 'diff', '--cached', '--name-only', '--', `${HUB}/98 System`).out === MANIFEST && !existsSync(join(jsonMerge, DIGESTS)) && git(jsonMerge, 'diff', '--quiet').status === 0 && manifestCheck(jsonMerge).status === 0, `${jsonReconciled.out.slice(-160)} / ${git(jsonMerge, 'status', '--porcelain').out}`);
+  if (!FILES_MODE) console.log('SKIP digest files: docs-manifest.mjs has no digestStore yet (D-001), so the files-mode cases did not run');
+  else {
+    const filesReady = (repo) => digestFiles(repo).length === 2 * REQUIRED.length && manifestCheck(repo).status === 0;
+    const fm = fixture('files-reconcile', { files: true });
+    check('digest files: the files-mode fixture seeds one file per domain and kind', filesReady(fm) && !/Digest"/.test(read(fm, MANIFEST)), `${digestFiles(fm).length} files / ${manifestCheck(fm).out.slice(0, 160)}`);
+    diverge(fm, { leftFile: 'src/a.md', rightFile: 'src/b.md' });
+    const fmMerge = git(fm, 'merge', '--no-commit', '--no-ff', 'right');
+    const fmTwo = digestFiles(fm).length > 2 * REQUIRED.length;
+    const fmReconciled = node(fm, 'scripts/derived-merge.mjs', 'reconcile');
+    const fmStatus = git(fm, 'status', '--porcelain').out.split('\n');
+    check('digest files: reconcile restamps a stopped merge and stages the digest additions and deletions', fmMerge.status === 0 && fmTwo && fmReconciled.status === 0 && filesReady(fm) && git(fm, 'diff', '--quiet').status === 0 && git(fm, 'diff', '--cached', '--name-status').out.split('\n').some((line) => line.startsWith('D\t')) && !fmStatus.some((line) => line.startsWith('??')), `${fmMerge.status} ${fmTwo} ${fmReconciled.out.slice(-160)} / ${fmStatus.slice(0, 6).join(' | ')}`);
+    const fmCommit = git(fm, 'commit', '--no-edit');
+    check('digest files: the reconciled merge commits fresh and clean', fmCommit.status === 0 && filesReady(fm) && clean(fm), fmCommit.out.slice(-200));
+    // rewrite: a rebase keeps the digest files of both restamps. The rewrite stages the deletions.
+    const fr = fixture('files-rewrite', { files: true });
+    diverge(fr);
+    const frOld = git(fr, 'rev-parse', 'HEAD').out;
+    const frBase = git(fr, 'rev-parse', 'right').out;
+    const frRebase = git(fr, '-c', 'core.hooksPath=.nohooks', 'rebase', 'right');
+    const frTip = git(fr, 'rev-parse', 'HEAD').out;
+    check('digest files: the rebase ends with a stale digest set', frRebase.status === 0 && manifestCheck(fr).status !== 0, `${frRebase.status} ${manifestCheck(fr).out.slice(0, 160)}`);
+    const frFile = join(fr, DIGESTS, digestFiles(fr)[0] ?? 'missing');
+    const frText = existsSync(frFile) ? readFileSync(frFile, 'utf8') : '';
+    if (frText) writeFileSync(frFile, `${frText}x`);
+    const frSkip = node(fr, 'scripts/derived-merge.mjs', 'rewrite', '--old', frOld, '--base', frBase, '--amend');
+    check('digest files: a digest file with unstaged edits is left alone and the command is printed', frSkip.status === 0 && git(fr, 'rev-parse', 'HEAD').out === frTip && frSkip.out.includes('rewrite --old'), frSkip.out.slice(-240));
+    if (frText) writeFileSync(frFile, frText);
+    const frRun = node(fr, 'scripts/derived-merge.mjs', 'rewrite', '--old', frOld, '--base', frBase, '--amend');
+    const frDiff = git(fr, 'diff', '--name-status', frTip, 'HEAD').out;
+    check('digest files: rewrite restamps, deletes the stale files, and amends the tip with digest files only', frRun.status === 0 && filesReady(fr) && clean(fr) && frDiff.split('\n').some((line) => line.startsWith('D\t')) && frDiff.split('\n').every((line) => line.includes(`${DIGESTS}/`)) && git(fr, 'rev-parse', 'HEAD^').out === frBase, `${frRun.status} ${frRun.out.slice(-200)} / ${frDiff.slice(0, 200)}`);
+    // pre-commit: the atlas content restamp writes one digest file and deletes the old one.
+    const fa = atlasFixture('files-class2', { files: true });
+    stampAtlas(fa);
+    git(fa, 'add', '-A');
+    const faCommit = git(fa, 'commit', '-qm', 'stamp an atlas section');
+    const faDiff = git(fa, 'diff', '--name-status', 'HEAD~1', 'HEAD').out.split('\n').sort();
+    const faDigests = faDiff.filter((line) => line.includes('/Digests/atlas.content.'));
+    check('digest files: the hook restamps the atlas content digest file and stages its deletion', faCommit.status === 0 && /Restamped the atlas content digest/.test(faCommit.out) && manifestCheck(fa).status === 0 && clean(fa) && faDigests.length === 2 && faDiff.length === 3, `${faCommit.status} ${faCommit.out.slice(-240)} / ${faDiff.join(' | ')}`);
+  }
 
   // 12b. Class 3: a source edit with no manifest sync stays refused, and the hook stamps nothing.
   // The printed remedy (sync --index, then git add the manifest) then lets the commit through.

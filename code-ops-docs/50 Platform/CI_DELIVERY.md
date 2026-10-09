@@ -39,6 +39,8 @@ The Windows leg runs the eval when the range under test touched one of these inp
 
 The documentation manifest is deliberately absent from that list, because it re-syncs on nearly every change and a manifest-only edit cannot alter record behavior. The weekly scheduled run runs the eval on Windows unconditionally. A manual dispatch does not, so an on-demand proof run for the macOS host evals costs no Windows record run. The gate removes about twelve minutes from an unrelated change's Windows leg.
 
+This repository keeps its manifest digests in files under `code-ops-docs/98 System/Digests/` (`"digestStore": "files"`). Two pull requests that restamp the same domain therefore merge with no conflict. Branch protection still requires a branch to be up to date before merge. After a catch-up merge, the manifest check fails the branch as stale until `node scripts/docs-manifest.mjs sync` runs and its digest files are committed.
+
 Repositories with record collections require a complete checkout using `fetch-depth: 0` and `filter: ""`. A shallow or partial checkout is infrastructure failure, not evidence loss.
 
 ## Gate-chain boundaries

@@ -2,7 +2,7 @@
 // Validates and stamps a repository's sole authored-documentation registry.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync, unlinkSync } from 'node:fs';
 import { basename, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { atomicWrite, pathMatchesGlob, safeRelative, sha256, toPosix } from './context-index-lib.mjs';
@@ -22,9 +22,18 @@ const COLLECTION_KEYS_V2 = new Set([...COLLECTION_KEYS, 'classificationVersion']
 const LEGACY_KEYS = new Set(['path', 'disposition', 'target', 'requiredBy']);
 const LEGACY_KEYS_REMOVED = new Set(['path', 'disposition', 'requiredBy']);
 const RECORDS_ROOT = '98 System/Records/';
+// Digest file store. With top-level `"digestStore": "files"` (manifest v2 and v3) each domain digest
+// lives in its own file, `<hub>/98 System/Digests/<id>.<source|content>.<16-hex>`, that holds the full digest
+// and a newline. The first 16 hex characters sit in the name too (a 64-hex name overran the Windows path limit), so two branches that restamp one domain delete the
+// old file and add different new ones, which git merges without a conflict. The merged tree then holds
+// two files for the domain and check reports it stale.
+const DIGESTS_DIR = '98 System/Digests';
+const DIGEST_FILE_RE = /^([a-z0-9]+(?:-[a-z0-9]+)*)\.(source|content)\.([0-9a-f]{16})$/;
+const DIGEST_KEYS = Object.freeze({ source: 'sourceDigest', content: 'contentDigest' });
+const usesFiles = (manifest) => (manifest.version === 2 || manifest.version === 3) && manifest.digestStore === 'files';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
-function usage() { die('usage: docs-manifest.mjs check|sync|plan|runs [--root <repo>] [--out <file>] [--base <ref>] [--all] [--index] [--only <id>] [--attested <rev>[,<rev>...]] [--now <YYYY-MM-DD>]', 2); }
+function usage() { die('usage: docs-manifest.mjs check|sync|plan|runs|migrate [--root <repo>] [--out <file>] [--base <ref>] [--all] [--index] [--only <id>] [--attested <rev>[,<rev>...]] [--now <YYYY-MM-DD>]', 2); }
 function flags(args) {
   const out = {};
   for (let i = 0; i < args.length; i++) {
@@ -61,6 +70,8 @@ function workingSnapshot(root) {
   const files = repoFiles(root);
   return {
     files, tracked: gitPaths(root, ['ls-files', '-z']),
+    // `files` is `ls-files -co`, so it still lists a file deleted on disk and not yet staged.
+    exists: (path) => existsSync(resolve(root, path)),
     read: (path) => readFileSync(resolve(root, path)),
     contents(hub, path) {
       const absolute = resolve(root, hub, path);
@@ -91,7 +102,7 @@ function blobSnapshot(root, entries) {
   const byPath = new Map(entries.map((entry) => [entry.path, blobs.get(entry.sha)]));
   const files = [...byPath.keys()];
   return {
-    files, tracked: files, read: (path) => byPath.get(path),
+    files, tracked: files, exists: (path) => byPath.has(path), read: (path) => byPath.get(path),
     contents(hub, path) {
       if (byPath.has(`${hub}/${path}`)) return [`${hub}/${path}`];
       const prefix = `${hub}/${path}/`;
@@ -158,6 +169,43 @@ const contentReader = (snap, hub, domain) => {
 const digestsOf = (snap, root, hub, domain, { sources, contents }) => ({
   sourceDigest: hashPaths(root, sources, snap.read), contentDigest: hashPaths(root, contents, contentReader(snap, hub, domain)),
 });
+// The digest files a snapshot holds: `held` maps `<id>.<kind>` to every digest found for it, so a
+// missing or duplicate file shows as a count other than one. A name that does not parse, a file for a
+// domain the manifest does not list, or content that differs from the name is a structural error.
+function storedDigests(snap, hub, manifest) {
+  const prefix = `${hub}/${DIGESTS_DIR}/`;
+  const ids = new Set((Array.isArray(manifest.domains) ? manifest.domains : []).map((domain) => domain?.id));
+  const held = new Map(); const errors = [];
+  for (const file of snap.files) {
+    if (!file.startsWith(prefix) || !snap.exists(file)) continue;
+    const match = DIGEST_FILE_RE.exec(file.slice(prefix.length));
+    if (!match) { errors.push(`malformed digest file name: ${file}`); continue; }
+    const [, id, kind, short] = match;
+    if (!ids.has(id)) { errors.push(`digest file for unknown domain ${id}: ${file}; delete that file`); continue; }
+    const digest = snap.read(file).toString('utf8').replace(/\r?\n$/, '');
+    if (!/^[0-9a-f]{64}$/.test(digest) || !digest.startsWith(short)) { errors.push(`digest file content is not the 64-hex digest its name prefixes: ${file}`); continue; }
+    held.set(`${id}.${kind}`, [...(held.get(`${id}.${kind}`) || []), digest]);
+  }
+  return { held, errors };
+}
+// The digests a domain holds, from its manifest entry or, with `stored`, from its digest files.
+// A missing or duplicate file holds null, which equals no computed digest.
+function heldDigests(domain, stored) {
+  if (!stored) return { sourceDigest: domain.sourceDigest, contentDigest: domain.contentDigest };
+  const one = (kind) => { const found = stored.held.get(`${domain.id}.${kind}`) || []; return found.length === 1 ? found[0] : null; };
+  return { sourceDigest: one('source'), contentDigest: one('content') };
+}
+// Replaces every digest file of one domain and kind with the single file for `digest`.
+function writeDigest(root, hub, id, kind, digest) {
+  const dir = resolve(root, hub, DIGESTS_DIR);
+  if (existsSync(dir)) {
+    for (const name of readdirSync(dir)) {
+      const match = DIGEST_FILE_RE.exec(name);
+      if (match && match[1] === id && match[2] === kind) unlinkSync(resolve(dir, name));
+    }
+  }
+  atomicWrite(resolve(dir, `${id}.${kind}.${digest.slice(0, 16)}`), `${digest}\n`);
+}
 function exactKeys(value, keys, label, errors) {
   if (!value || typeof value !== 'object' || Array.isArray(value)) { errors.push(`${label} must be an object`); return false; }
   for (const key of Object.keys(value)) if (!keys.has(key)) errors.push(`${label} has unknown key ${key}`);
@@ -281,13 +329,17 @@ function inspect(root, manifest, hub, snap) {
   const files = snap.files;
   const tracked = snap.tracked;
   const topKeys = TOP_KEYS[manifest.version] || TOP_KEYS_V1;
-  for (const key of Object.keys(manifest)) if (!topKeys.has(key)) errors.push(`manifest has unknown key ${key}`);
+  const storeKey = manifest.version === 2 || manifest.version === 3;
+  for (const key of Object.keys(manifest)) if (!topKeys.has(key) && !(storeKey && key === 'digestStore')) errors.push(`manifest has unknown key ${key}`);
+  if (storeKey && 'digestStore' in manifest && manifest.digestStore !== 'files') errors.push('digestStore must be "files" when present');
   for (const key of topKeys) if (!(key in manifest)) errors.push(`manifest is missing ${key}`);
   if (![1, 2, 3].includes(manifest.version) || !safeRelative(hub) || !Array.isArray(manifest.domains)) errors.push('manifest must use version 1, 2, or 3, a safe hub, and a domains array');
   const claimedStandard = standardVersion(root, hub); const minStandard = MIN_STANDARD[manifest.version];
   if (minStandard && (!Number.isInteger(claimedStandard) || claimedStandard < minStandard)) errors.push(`manifest version ${manifest.version} requires Standard.md standard-version ${minStandard} or newer`);
   inspectCollections(root, manifest, hub, files, tracked, errors);
   const ids = new Set(); const paths = new Set();
+  const stored = usesFiles(manifest) ? storedDigests(snap, hub, manifest) : null;
+  if (stored) errors.push(...stored.errors);
   for (const domain of manifest.domains || []) {
     for (const key of Object.keys(domain)) if (!KEYS.has(key)) errors.push(`${domain.id || 'domain'} has unknown key ${key}`);
     if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(domain.id || '') || ids.has(domain.id)) errors.push(`invalid or duplicate domain id ${domain.id}`);
@@ -303,9 +355,11 @@ function inspect(root, manifest, hub, snap) {
     if (validSources && !sources.length) errors.push(`${domain.id} source patterns match no repository files`);
     if (!contents.length) errors.push(`${domain.id} target is missing or empty: ${domain.path}`);
     const { sourceDigest: expectedSource, contentDigest: expectedContent } = digestsOf(snap, root, hub, domain, { sources, contents });
-    if (domain.sourceDigest !== expectedSource) errors.push(`${domain.id} source digest is stale`);
-    if (domain.contentDigest !== expectedContent) errors.push(`${domain.id} content digest is stale`);
-    domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent };
+    const held = heldDigests(domain, stored);
+    if (stored) for (const key of Object.values(DIGEST_KEYS)) if (key in domain) errors.push(`${domain.id} must not carry ${key} when digestStore is files`);
+    if (held.sourceDigest !== expectedSource) errors.push(`${domain.id} source digest is stale`);
+    if (held.contentDigest !== expectedContent) errors.push(`${domain.id} content digest is stale`);
+    domain._computed = { sourceDigest: expectedSource, contentDigest: expectedContent, held };
   }
   for (const id of REQUIRED) if (!ids.has(id)) errors.push(`missing required documentation domain ${id}`);
   const collectionRoots = (Array.isArray(manifest.recordCollections) ? manifest.recordCollections : [])
@@ -331,13 +385,16 @@ function attestedIds(root, revs, relative, hub, candidates) {
     let there = null;
     try { there = JSON.parse(snap.read(relative).toString('utf8')); } catch { /* absent or unparsable at this commit: nothing is attested */ }
     const byId = new Map((there?.hub === hub && Array.isArray(there.domains) ? there.domains : []).map((entry) => [entry?.id, entry]));
+    // At a files-mode rev the held digests are its digest files. Any structural error there means nothing is attested.
+    const stored = there && usesFiles(there) ? storedDigests(snap, hub, there) : null;
     attested = new Set(candidates.filter((domain) => {
       const entry = byId.get(domain.id);
-      if (!attested.has(domain.id) || !entry || entry.path !== domain.path || !Array.isArray(entry.sources)
+      if (stored?.errors.length || !attested.has(domain.id) || !entry || entry.path !== domain.path || !Array.isArray(entry.sources)
         || !entry.sources.every((pattern) => typeof pattern === 'string' && pattern)
         || JSON.stringify(entry.sources) !== JSON.stringify(domain.sources)) return false;
       const digests = digestsOf(snap, root, hub, entry, domainInputs(snap, hub, entry));
-      return entry.sourceDigest === digests.sourceDigest && entry.contentDigest === digests.contentDigest;
+      const held = heldDigests(entry, stored);
+      return held.sourceDigest === digests.sourceDigest && held.contentDigest === digests.contentDigest;
     }).map((domain) => domain.id));
   }
   return attested;
@@ -454,26 +511,38 @@ function reportRuns(root, hub, now) {
 const isEntry = process.argv[1] && realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 if (isEntry) {
   const command = process.argv[2];
-  if (!['check', 'sync', 'plan', 'runs'].includes(command)) usage();
+  if (!['check', 'sync', 'plan', 'runs', 'migrate'].includes(command)) usage();
   const f = flags(process.argv.slice(3)); const root = resolve(f['--root'] || process.cwd());
   const nowDay = /^\d{4}-\d{2}-\d{2}$/.test(f['--now'] ?? '') ? nameDay(f['--now']) : null;
   if (f['--now'] !== undefined && nowDay === null) usage();
   const nowDate = nowDay === null ? Date.now() : nowDay * MS_PER_DAY;
   if ((f['--now'] && command !== 'runs') || (command === 'runs' && Object.keys(f).some((key) => !['--root', '--now'].includes(key)))
     || ((f['--attested'] || f['--only']) && command !== 'sync') || (f['--index'] && command === 'plan')
-    || (f['--attested'] && f['--all'])) usage();
+    || (f['--attested'] && f['--all'])
+    || (command === 'migrate' && Object.keys(f).some((key) => key !== '--root'))) usage();
   const revs = f['--attested'] ? parseRevs(root, f['--attested']) : null;
   const snap = f['--index'] ? indexSnapshot(root) : workingSnapshot(root);
   const { path, manifest, hub, relative } = findManifest(snap, root, Boolean(f['--index']) && command === 'check');
   if (f['--only'] && !manifest.domains?.some((domain) => domain.id === f['--only'])) die(`--only: no documentation domain ${f['--only']}`);
   if (command === 'runs') { reportRuns(root, hub, nowDate); process.exit(0); }
+  if (command === 'migrate' && manifest.version !== 2 && manifest.version !== 3) die('migrate needs manifest version 2 or 3 (digestStore is not defined for version 1)');
   const errors = inspect(root, manifest, hub, snap);
   const digestDrift = /^[a-z0-9]+(?:-[a-z0-9]+)* (?:source|content) digest is stale$/;
   const structuralErrors = errors.filter((error) => !digestDrift.test(error));
-  if (command === 'sync') {
+  if (command === 'migrate') {
+    // Moves a JSON-mode manifest to the file store. It needs a clean check first, so the digests it
+    // writes are the ones the manifest already held and the migration hides no drift.
+    if (errors.length) die(`documentation manifest invalid; fix it (a stale digest needs sync) before migrate:\n${errors.map((error) => `  - ${error}`).join('\n')}`);
+    if (usesFiles(manifest)) die('documentation manifest already uses digestStore files');
+    for (const domain of manifest.domains) for (const [kind, key] of Object.entries(DIGEST_KEYS)) writeDigest(root, hub, domain.id, kind, domain._computed[key]);
+    const { version, hub: manifestHub, ...rest } = manifest;
+    const domains = manifest.domains.map(({ sourceDigest, contentDigest, _computed, ...domain }) => domain);
+    atomicWrite(path, `${JSON.stringify({ version, hub: manifestHub, digestStore: 'files', ...rest, domains }, null, 2)}\n`);
+    console.log(`ok documentation manifest migrated to digestStore files (${domains.length} domains)`);
+  } else if (command === 'sync') {
     if (structuralErrors.length) die(`documentation manifest invalid:\n${structuralErrors.map((error) => `  - ${error}`).join('\n')}`);
     // Stamp digests only where they drift. Unrelated domains keep their existing
-    // lines so parallel feature PRs stop colliding on the whole DOCS_MANIFEST.json.
+    // lines (or, in files mode, their existing digest files) so parallel feature PRs stop colliding on the whole DOCS_MANIFEST.json.
     // Pass --base <ref> to further limit stamping to domains whose sources or
     // content paths differ from that ref (plus untracked files). Pass --all to
     // restamp every domain even when digests already match. Pass --only <id> to
@@ -493,22 +562,24 @@ if (isEntry) {
       const inBaseScope = changed === null
         || inputs.sources.some((entry) => changed.has(entry))
         || inputs.contents.some((entry) => changed.has(entry));
-      const drifted = domain.sourceDigest !== next.sourceDigest
-        || domain.contentDigest !== next.contentDigest;
+      const drifted = next.held.sourceDigest !== next.sourceDigest
+        || next.held.contentDigest !== next.contentDigest;
       if ((!f['--only'] || domain.id === f['--only']) && inBaseScope && (forceAll || drifted)) wanted.push({ domain, next, inputs });
     }
     const attested = revs ? attestedIds(root, revs, relative, hub, wanted.map((entry) => entry.domain)) : null;
     const stamps = wanted.filter((entry) => !attested || attested.has(entry.domain.id));
+    // With the file store, sync rewrites only the digest files and leaves the manifest JSON alone.
+    const filesMode = usesFiles(manifest);
     for (const { domain, next } of stamps) {
-      domain.sourceDigest = next.sourceDigest;
-      domain.contentDigest = next.contentDigest;
+      if (!filesMode) { domain.sourceDigest = next.sourceDigest; domain.contentDigest = next.contentDigest; continue; }
+      for (const [kind, key] of Object.entries(DIGEST_KEYS)) if (next.held[key] !== next[key]) writeDigest(root, hub, domain.id, kind, next[key]);
     }
     const stale = wanted.filter((entry) => !stamps.includes(entry)).map((entry) => entry.domain.id);
     if (!f['--index'] && stamps.length) {
       const unstaged = unstagedInputs(root, stamps.map((entry) => entry.inputs));
       if (unstaged.length) console.error(`warn ${unstaged.length} unstaged path(s) fed these digests (${unstaged.slice(0, 3).join(', ')}${unstaged.length > 3 ? ', ...' : ''}); a commit takes the staged bytes, so stage them first or pass --index`);
     }
-    atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`);
+    if (!filesMode) atomicWrite(path, `${JSON.stringify(manifest, null, 2)}\n`);
     const scope = forceAll ? 'all' : (changed === null ? `${stamps.length} ${revs ? 'attested' : 'drifted'}` : `${stamps.length} changed vs ${f['--base']}`);
     console.log(`ok documentation manifest synced (${manifest.domains.length} domains, ${scope}${f['--only'] ? `, only ${f['--only']}` : ''}${f['--index'] ? ', index' : ''})`);
     if (stale.length) console.log(`left stale, not attested at ${revs.join(', ')}: ${stale.join(', ')}`);

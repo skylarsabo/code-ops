@@ -1688,6 +1688,7 @@ Each record collection declares `id`, permanent `collectionUuid`, `identityVersi
 `classificationVersion: 2` selects scopes containing exactly `id`, `match`, `paths`, `kind`, and `policy`. Exact tracked `paths` outrank glob `match` selectors. The manifest gate rejects stale exact paths and case mismatches. Record classification rejects multiple exact owners, multiple surviving glob owners, and zero owners. The single-owner rule makes scope order non-authoritative.
 
 Legacy paths contain `path`, `disposition`, hub-owned `target`, and qualifying `requiredBy` evidence. Manifest synchronization updates domain digests only. It never creates pointers, tombstones, inventories, citation baselines, or curation events.
+A v2 or v3 manifest may set the top-level `digestStore` to `"files"`. Domains then carry no `sourceDigest` or `contentDigest` key. Each digest lives in `<hub>/98 System/Digests/<id>.<source|content>.<first 16 hex>`, which holds the full SHA-256 digest and a newline. Synchronization adds the new file and deletes the old one. `check` fails a missing digest or two digests for one domain as stale. It fails a malformed name, an unknown domain, a name that does not match its content, or a leftover digest key as a structural error. `migrate` moves a fresh JSON-mode manifest to files mode. Evidence: `scripts/docs-manifest.mjs`.
 
 ## Record operations
 
