@@ -141,11 +141,12 @@ expect(churn.status === churnDirect.status && churn.stdout === churnDirect.stdou
 const brief = run([co, 'brief', 'code-ops-suite:implementer']);
 const briefDirect = run([join(root, 'scripts', 'brief-template.mjs'), 'code-ops-suite:implementer']);
 expect(brief.status === 0 && brief.stdout === briefDirect.stdout
-  && brief.stdout.startsWith('Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:\n')
+  && brief.stdout.startsWith('Scope:\nObjective:\nRound budget: 60\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:\n')
   && /^Tier takes light\|mid\|strong\|premium\|frontier; Effort takes low\|medium\|high; Route basis takes .*Route override: <reason>.*\nPrint them with: co route --kind <k> --ambiguity <l\|m\|h> --reversible <yes\|no> --scope <path>\n$/m.test(brief.stdout.slice(brief.stdout.indexOf('Route basis:\n') + 13)),
   `co brief must print the implementer template, got ${brief.status}/${JSON.stringify(brief.stdout)} ${brief.stderr}`);
+expect(/^Round budget: 60$/m.test(brief.stdout), `co brief code-ops-suite:implementer must prefill Round budget: 60, got ${JSON.stringify(brief.stdout)}`);
 const probeBrief = run([co, 'brief', 'code-ops-suite:probe']);
-expect(probeBrief.status === 0 && probeBrief.stdout === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\n',
+expect(probeBrief.status === 0 && probeBrief.stdout === 'Scope:\nObjective:\nRound budget: 25\nReport cap:\nReport path:\nExpected return:\n',
   `co brief must print no routing lines for an agent that does not require Tier, got ${probeBrief.status}/${JSON.stringify(probeBrief.stdout)}`);
 const siblingBrief = run([co, 'brief', 'rigor:tracer']);
 expect(siblingBrief.status === 0 && siblingBrief.stdout.startsWith('Scope:\n'), `co brief must resolve a sibling plugin's agent, got ${siblingBrief.status}: ${siblingBrief.stderr}`);

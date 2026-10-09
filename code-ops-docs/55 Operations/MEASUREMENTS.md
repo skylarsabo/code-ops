@@ -951,3 +951,34 @@ stays silent until P12-M1d fills a median.
 - **Decision rule.** The next reading uses the D-016 method on the same exclusions. A fall counts
   only when the pinned passages stay byte-identical. Excluding the derived renders from the metric
   is a method change, so it starts a new baseline and never counts as a fall.
+
+## Round budget stops, 2026-10-08
+
+This reading drove three changes: per-agent default round budgets in `scripts/route-unit.mjs`, a
+dispatch guard warning that lets an operative finish before the hard stop, and a doctrine line on
+unit size. The source is every subagent transcript under `~/.claude/projects/` modified in the 14
+days to 2026-10-08, across all projects. The counts hold no transcript text. A warned operative
+is one whose transcript holds the guard's "tool rounds used against" warning.
+
+- **Warn rate.** 1,494 of 3,761 operatives hit the warning (40%). Implementers: 1,120 of 2,496
+  (45%), median 39 tool calls against a median budget of 40. The run-folder count in P12-M1b (9 of
+  157) understates the stop rate, because most stops leave no report phrase it matches.
+- **Budget size does not move the rate.** The warn rate stays between 30% and 50% for every brief
+  budget from 25 to 80. Leads scale the unit to the budget.
+- **The warning acted as the stop.** A warned operative made a median of 1 call after the warning,
+  and its turns stopped at a median of 1.03 times the budget, though the hard stop sits at 1.5
+  times. The warning told the operative to return.
+- **Calls, not turns.** The median operative makes 1.00 tool calls per turn. Batching would not
+  help, because the guard counts each call.
+- **Relaunch length.** For 607 partial stops with an identifiable continuation, the continuation
+  made a median of 37 calls (0.89 times the original budget). Only 94 (15%) would have fit inside
+  the unused half of the original allowance. The match is heuristic, so this row is PROBABLE.
+- **Measured spend per agent type.** Median and p90 tool calls: implementer 39 and 66, explorer 28
+  and 40, reviewer 22 and 40, rigor tracer 30 and 42, rigor verifier 23 and 31, mech 12 and 32,
+  web-researcher 15 and 28, probe 13 and 27, mech-review 6 and 12. `AGENT_ROUND_BUDGET` sets each
+  default near the p90.
+- **Recorded sizes.** 16 of 3,761 briefs carried a `Size:` line, so P12-M1d still has no median.
+- **Decision rule.** Rerun this reading over the 14 days after the change ships. Success is an
+  implementer warn rate under 25% with no rise in the median calls per finished unit. A warn rate
+  that stays near 45% means leads still scale units to the budget, and the doctrine line on
+  splitting units is the next lever.

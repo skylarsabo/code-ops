@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f1ed08483379bf7641e3324bde937516a2a3577c",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -58,7 +58,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 170,
-          "anchor": "//"
+          "anchor": "// the field, not a captured payload). Codex's dispatch tool name is UNVERIFIED,"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -112,22 +112,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 218,
+          "line": 223,
           "anchor": "// FAIL-OPEN on host input and absent binding evidence. A present but malformed"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 227,
+          "line": 232,
           "anchor": "import { fileURLToPath, pathToFileURL } from 'node:url';"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 965,
+          "line": 975,
           "anchor": "// call (a wide-surface reason excuses it); a literal effort above high never pa"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 948,
+          "line": 958,
           "anchor": "// an internal error adds nothing."
         },
         {
@@ -137,32 +137,32 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 801,
+          "line": 811,
           "anchor": "// input is missing or unreadable (fail open)."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1316,
+          "line": 1326,
           "anchor": "${skeleton.join('\\n')}\\n${prose}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1130,
+          "line": 1140,
           "anchor": "// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1274,
+          "line": 1284,
           "anchor": "} else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'str"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
-          "line": 101,
+          "line": 119,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 506,
+          "line": 511,
           "anchor": "let legacy = null;"
         },
         {
@@ -172,7 +172,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 516,
+          "line": 521,
           "anchor": "// eval fires every row, so a reworded message that no longer matches fails ther"
         },
         {
@@ -247,7 +247,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1259,
+          "line": 1269,
           "anchor": "if (spawn) {"
         },
         {
@@ -366,7 +366,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "4938e44f5b4ab6cee5756d1207e41d29ceef16c2583c611973829675190a5bc1"
+      "verifiedDigest": "1174726aabd85f96c2a0b73ba602b49e618cac37a5653dbdf6c678e2f5cb9d14"
     },
     {
       "slug": "gate-scripts",
@@ -375,7 +375,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -824,22 +824,22 @@
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 121,
+          "line": 139,
           "anchor": "export function surfaceOfScope(paths) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 191,
+          "line": 209,
           "anchor": "export function routeUnit(basis) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 221,
+          "line": 239,
           "anchor": "if (rung === 'premium') return provider.premiumCollapse ?? null;"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 101,
+          "line": 119,
           "anchor": "export const AGENT_MIN_KIND = {"
         },
         {
@@ -998,7 +998,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "8fbf6a707be74d04371de838418068fe2af5404757f265d33e1eef4f853d7f2b"
+      "verifiedDigest": "2d1c7299d32039672cf2a3939613c85e13ed55a318f8ee789b40b93e2709a38b"
     },
     {
       "slug": "evals-and-calibration",
@@ -1006,8 +1006,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
-      "verifiedDigest": "dc38bd29eef1015778170c5d7ac2025b48218cad10fbc88f4327fbe0b0384783",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedDigest": "8e4f92c91ac4b49484d8cb42f939ce537e421463284a5a591381b29d462ad99a",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1226,7 +1226,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 861,
+          "line": 867,
           "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
         },
         {
@@ -1359,7 +1359,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f1ed08483379bf7641e3324bde937516a2a3577c",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1443,7 +1443,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 506,
+          "line": 511,
           "anchor": "let legacy = null;"
         },
         {
@@ -1472,7 +1472,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "e0be34a8498c513885d66504136f2ffd3a9069bae9570f94da59e0fa0949ec2a"
+      "verifiedDigest": "17d05233b2f2979d9941f19b9e271d07e248fb5e75ca921ffe6f1e7fb29a323b"
     },
     {
       "slug": "ci-workflows",
@@ -1579,7 +1579,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1651,7 +1651,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "e64c48843de187033cd81fe5029677e6d562d422e0a8c2567f5c2d33ddd7d25e"
+      "verifiedDigest": "83b8e2bc2cff5621ff6c3c1b8b903ee0dad0d9259957e9ca4b1fcd19997765e6"
     },
     {
       "slug": "root-contracts",
@@ -1666,50 +1666,50 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
+      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 62,
+          "line": 63,
           "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
           "file": "global-contracts/AGENTS.codex.md",
-          "line": 57,
+          "line": 58,
           "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
-          "line": 65,
+          "line": 66,
           "anchor": ". Stay on that window. After the compact, read the newest compaction segment bef"
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
-          "line": 167,
+          "line": 168,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 148,
+          "line": 149,
           "anchor": "## Compact Instructions"
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 160,
+          "line": 161,
           "anchor": "- The next command."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 162,
+          "line": 163,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
-          "line": 79,
+          "line": 80,
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "4bc3620af517da593b06dbd077f16c3546672f8db56a2fb0977b84adc2ca7bda"
+      "verifiedDigest": "bbd6c489602e059ad63024557ea4938486f8a184c7d6277ca15de53c43037d2f"
     },
     {
       "slug": "runtime-toolchain",

@@ -210,9 +210,9 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     expect(field.test(atBudget ?? ''), `the warning must require the checkpoint field ${field}, got ${atBudget}`);
     expect(field.test(hso.permissionDecisionReason ?? ''), `the stop must require the checkpoint field ${field}, got ${hso.permissionDecisionReason}`);
   }
-  expect(/Start no new edit/.test(atBudget ?? '') && /Finish or revert the partial edit/.test(atBudget ?? ''),
+  expect(/start no new edit/i.test(atBudget ?? '') && /finish or revert the partial edit/i.test(atBudget ?? ''),
     `the warning must stop new edits and settle the partial one, got ${atBudget}`);
-  expect(/write a checkpoint to the brief's Report path \(or the run folder\)/.test(atBudget ?? ''),
+  expect(/write a checkpoint to the brief's Report path \(or the run folder\)/i.test(atBudget ?? ''),
     `the warning must direct the checkpoint to the Report path before the stop, got ${atBudget}`);
   expect((atBudget ?? '').includes('hard stop denies every tool call from call 6'),
     `the warning must name the call the stop lands on, got ${atBudget}`);
@@ -508,8 +508,10 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   // order, and the Round budget advisory does not split it.
   out = parseOut(runHook(dispatchCall({ prompt: 'no labels here', subagent_type: 'code-ops-suite:implementer', model: 'x' }), { home }));
   const template = spawnSync('node', [join(root, 'scripts', 'co.mjs'), 'brief', 'code-ops-suite:implementer'], { encoding: 'utf8' });
-  // `co brief` follows its label lines with a legend and a `co route` hint; the denial carries the labels only.
-  const templateLabels = template.stdout.split('\n').filter((line) => /^[A-Z][A-Za-z ]*:$/.test(line)).join('\n');
+  // `co brief` follows its label lines with a legend and a `co route` hint, and prefills the Round
+  // budget value; the denial carries the labels only, so the value is dropped before comparing.
+  const templateLabels = template.stdout.split('\n').filter((line) => /^[A-Z][A-Za-z ]*:( \d+)?$/.test(line))
+    .map((line) => line.replace(/: \d+$/, ':')).join('\n');
   const skeleton = (reasonOf(out) ?? '').split('\n').slice(0, -1).join('\n');
   expect(deny(out) && template.status === 0 && skeleton === templateLabels
     && skeleton === 'Scope:\nObjective:\nRound budget:\nReport cap:\nReport path:\nExpected return:\nUnit:\nTier:\nEffort:\nRoute basis:',
@@ -624,6 +626,10 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   expect(boundWarning.includes('hard stop denies every tool call from call 5') && /controller replan/.test(boundWarning)
     && /marked complete or partial/.test(boundWarning) && /Report path/.test(boundWarning),
     `the bound warning must name its stop call, the replan, and the checkpoint, got ${boundWarning}`);
+  expect(boundWarning.includes('Start no new edit. Finish or revert the partial edit to reach a consistent state, then write a checkpoint to the brief\'s Report path (or the run folder): ')
+    && boundWarning.endsWith('Then request a controller replan and return, so the lead continues this unit in a fresh operative from the checkpoint.')
+    && !/can finish before call/.test(boundWarning),
+  `the bound warning text must stay unchanged, got ${boundWarning}`);
   expect(/marked complete or partial/.test(bound[4]?.hookSpecificOutput?.permissionDecisionReason ?? ''),
     `the bound stop must require the checkpoint, got ${JSON.stringify(bound[4])}`);
 
@@ -1054,6 +1060,10 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   expect(typeof warn60 === 'string' && warn60.includes('60 tool rounds used against a brief-bound 60-round budget') && warn60.includes('from call 90'),
     `a 60-round brief must warn at 60 and name stop call 90, got ${warn60}`);
   expect(typeof warn60 === 'string' && !warn60.includes('If your brief names a larger budget'), 'a brief-bound warning must not invite a larger brief budget');
+  expect(typeof warn60 === 'string' && warn60.includes('Write a checkpoint to the brief\'s Report path (or the run folder) now:')
+    && warn60.includes('If the unit can finish before call 90, finish it and keep the checkpoint current.')
+    && /Otherwise start no new edit/.test(warn60) && !/Then return/.test(warn60),
+  `a brief-bound warning must say finish before call 90 and not return unconditionally, got ${warn60}`);
   expect(outs.slice(0, 89).every((out) => out?.hookSpecificOutput?.permissionDecision !== 'deny'), 'no call before 90 may deny under a 60-round brief');
   expect(/90 tool rounds used, the hard stop at 1\.5 times the 60-round budget/.test(reasonOf(outs[89]) ?? ''), `call 90 must deny, got ${JSON.stringify(outs[89])}`);
   expect(contextOf(outs[79])?.includes('80 tool rounds used against a brief-bound 60-round budget'),

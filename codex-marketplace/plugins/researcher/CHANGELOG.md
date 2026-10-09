@@ -1,7 +1,8 @@
 # Changelog — researcher
 
-## 0.17.3
+## 0.17.4
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
+- Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
 

@@ -1089,9 +1089,12 @@ counts that subagent's attempted tool calls, including denied attempts. With no 
 the budget is the `Round budget:` line of the subagent's brief, read once from the first entry of
 its own transcript and cached, clamped to 120, else `CODE_OPS_ROUND_BUDGET` or 40. At that budget
 and every further 20 calls, the hook returns one `hookSpecificOutput.additionalContext` line. The
-line names the call where the hard stop lands and tells the operative to start no new edit and to
-finish or revert the partial edit. It then asks for a checkpoint written to the brief's Report
-path, or to the run folder. The checkpoint lists done items with file:line evidence, each dirty
+line names the call where the hard stop lands. It tells the operative to write a checkpoint now to
+the brief's Report path, or to the run folder. The operative then finishes the unit and keeps the
+checkpoint current if it can finish before the hard stop. Otherwise it starts no new edit, finishes
+or reverts the partial edit, and returns. The controller-bound warning keeps the older order:
+consistent state first, then checkpoint, replan, and return, because its allowance is two calls.
+The checkpoint lists done items with file:line evidence, each dirty
 path marked complete or partial, the exact next edit, and each gate run with its result. At 1.5
 times the budget, rounded down and at least one call past the budget, the hook returns `permissionDecision: deny`, forbids further edits, and requires the
 same checkpoint in the final report.

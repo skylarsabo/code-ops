@@ -1645,7 +1645,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         if (used === budget || (used > budget && (used - budget) % WARN_EVERY === 0)) {
           queueNote(
             row,
-            `Dispatch guard: ${used} tool rounds used against a ${budget}-round budget. Unless your brief names a larger budget, stop at the next consistent state and checkpoint to your report: what is done with file:line evidence, what remains, and the exact next action. Then return, so the lead continues this unit in a fresh operative.`,
+            `Dispatch guard: ${used} tool rounds used against a ${budget}-round budget. Checkpoint to your report now, even if your brief names a larger budget: what is done with file:line evidence, what remains, and the exact next action. ${hardStop() ? `If the unit can finish before call ${stopCall(budget)}, finish it` : 'If the unit is close to done, finish it'} and keep the checkpoint current. Otherwise stop at the next consistent state and return, so the lead continues this unit in a fresh operative.`,
           );
         }
       } catch (error) {
