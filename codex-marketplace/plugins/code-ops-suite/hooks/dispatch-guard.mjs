@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// SEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// NINE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -154,6 +154,12 @@
 //      so a repeat only counts once the ledger writes the hash. A failed prior row earns no note
 //      and routes through `attemptOf` as before. It reuses the routing check's ledger read.
 //      Its off switch is `CODE_OPS_REDISPATCH_NOTE`, taking `off`, `0`, or `false`.
+//   9. ANCHORS NOTE (advisory only), on the lead's own Agent, Task, and spawn dispatch of
+//      `code-ops-suite:implementer` whose brief `Route basis` kind is `execution` and that carries no
+//      `Anchors:` line. The note names `co brief code-ops-suite:implementer --anchors <path[:line]>...`
+//      so the operative skips its orientation reads. An `Anchors:` line, including
+//      `Anchors: none (<reason>)`, silences it. It never denies and reads no library. A Workflow
+//      `agent()` call is not checked: the script's prompt argument is not parsed.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -585,6 +591,7 @@ const GATES = [
   ['subagent-git', /Subagent git guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
   ['redispatch-note', /Redispatch note:/, []],
+  ['anchors-note', /Anchors note:/, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
@@ -1247,6 +1254,16 @@ async function redispatchNote(input, prompt, sessionId, advisories) {
   } catch { /* fail open */ }
 }
 
+// Behaviour 9. An execution brief for the implementer with no `Anchors:` line earns one note. Pure
+// string work: the kind is the first part of the `Route basis` line, as parseRouteBasis reads it.
+function anchorsNote(prompt, advisories) {
+  const basis = briefValue(prompt, 'Route basis');
+  if (basis === null || parseRouteBasis(basis).kind !== 'execution' || briefHas(prompt, 'Anchors')) return;
+  advisories.push('Anchors note: this execution brief has no Anchors block. Run `co brief code-ops-suite:implementer --anchors '
+    + '<path[:line]>...` with the files the unit will edit, so the operative skips its orientation reads, '
+    + 'or add "Anchors: none (<reason>)".');
+}
+
 // Frontier dispatches in ledger rows: `dispatched` rows that asked for frontier or applied a frontier
 // model, each agent once.
 function frontierCount(libs, rows) {
@@ -1414,6 +1431,7 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
     denials.push(`The Agent call passes effort "${input.effort.trim()}"; pass low, medium, or high, because effort is at most high.`);
   }
   if (tool === 'Agent' || tool === 'Task' || spawn) await redispatchNote(input, prompt, sessionId, advisories);
+  if ((tool === 'Agent' || tool === 'Task' || spawn) && type === 'code-ops-suite:implementer') anchorsNote(prompt, advisories);
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
       + 'add each as a "Label:" line or a heading. The missing lines open this denial, ready to fill; '

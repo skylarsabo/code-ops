@@ -1802,6 +1802,28 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   }
   console.log('ok   a repeated finished dispatch earns one advisory note naming its report, and the deny, scope-hash, and failed-row mutants fail');
 
+  // Behaviour 9: an execution brief for the implementer with no Anchors line earns the anchors note.
+  {
+    const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
+    const ANCH = /Anchors note: .*co brief code-ops-suite:implementer --anchors <path\[:line\]>/;
+    const withBrief = (extra, over = EXEC) => {
+      const text = brief(over) + extra;
+      return parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: text }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+    };
+    const noted = (out) => ANCH.test(contextOf(out) ?? '') && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision');
+    expect(noted(withBrief('')), 'an execution implementer brief with no Anchors line must earn the anchors note and not deny');
+    expect(!noted(withBrief('\nAnchors:\nsrc/app.js:1-20')), 'an Anchors block must silence the anchors note');
+    expect(!noted(withBrief('\nAnchors: none (new file, no existing code)')), 'Anchors: none (reason) must silence the anchors note');
+    expect(!noted(withBrief('', { basis: 'judgment; surface=none; ambiguity=low; reversible=yes' })), 'a judgment brief must not earn the anchors note');
+    const other = parseOut(runHook(dispatchCall({ subagent_type: 'code-ops-suite:steady', prompt: brief({ ...EXEC, effort: 'medium' }) }),
+      { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+    expect(!noted(other), 'a dispatch to another agent must not earn the anchors note');
+    const offRun = runHook(dispatchCall({ subagent_type: IMP, prompt: brief(EXEC) }),
+      { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: 'off' } });
+    expect(offRun.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must silence the anchors note, got ${offRun.stdout}`);
+  }
+  console.log('ok   an execution implementer brief with no Anchors line earns the anchors note; an Anchors line, Anchors: none, another kind or agent, and the off switch stay silent');
+
   // The ledger writes the hash the guard compares, and the guard calls the ledger library's scopeHashOf
   // (one function, no copy). For each brief shape a row carrying the library's hash earns the note. A
   // mutant library whose scopeHashOf changes stops the note matching, so the guard cannot be hashing

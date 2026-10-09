@@ -1,0 +1,1 @@
+- The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
