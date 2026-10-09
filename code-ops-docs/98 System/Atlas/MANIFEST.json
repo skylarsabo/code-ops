@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -351,7 +351,7 @@
         },
         {
           "file": "scripts/digest-lib.mjs",
-          "line": 957,
+          "line": 958,
           "anchor": "export function writeDenial(ctx) {"
         },
         {
@@ -390,7 +390,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "2b0afeaa38b7c1271fd255c2bcee293084f4bc6b53f6f15f20ca5fdcbb8d00b1"
+      "verifiedDigest": "b2c10f76aacc28668652eceb81362d1a77a1c5d6073d14643c7c30a91125f464"
     },
     {
       "slug": "gate-scripts",
@@ -399,7 +399,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1036,7 +1036,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "7e43f2d2dd4f2f43d7ca79a1841b41071fb38fb772271b68a5cbd7a5e5d46748"
+      "verifiedDigest": "7653e8e11550ba5760065e3bdab03352a7e5e05aaa774fa38c5013087a1b88d8"
     },
     {
       "slug": "evals-and-calibration",
@@ -1397,7 +1397,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedAt": "f5eeb1c998422efdb118b9ba434e0a9457a1691e",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1509,7 +1509,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "757202d25868970538078fda4499687a8febf821f9b2d41563bfa2f7b1b6b4d0"
+      "verifiedDigest": "5316b02c60e41700b25d0279b91b94cd5ec5466d7011a3402029d2953f9391fe"
     },
     {
       "slug": "ci-workflows",

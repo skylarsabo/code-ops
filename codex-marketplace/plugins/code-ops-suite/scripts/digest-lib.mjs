@@ -893,8 +893,9 @@ function liveMark(file, thread, key) {
   if (!existsSync(file)) return null;
   const rows = readFileSync(file, 'utf8').split('\n');
   for (let i = rows.length - 1; i >= 0; i--) {
-    if (rows[i] === '') continue;
-    const m = JSON.parse(rows[i]);
+    const row = rows[i];
+    if (!row) continue;
+    const m = JSON.parse(row);
     if (m.t !== thread || m.p !== key) continue;
     return m.clear ? null : m;
   }

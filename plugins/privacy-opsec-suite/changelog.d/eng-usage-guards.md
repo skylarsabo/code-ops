@@ -1,0 +1,1 @@
+- `co.mjs` lists `co build-graph`, which runs only in the code-ops repository and prints "not bundled here" from an installed plugin.

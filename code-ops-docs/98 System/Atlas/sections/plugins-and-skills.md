@@ -102,7 +102,7 @@ that doctrine. OpenCode uses its native compaction port.
 
 `digest-post.mjs` runs at `PostToolUse` for `Bash` and `Read` and replaces an oversize result with its digest through `updatedToolOutput`, keeping the raw output in the digest store (plugins/code-ops-suite/hooks/digest-post.mjs:1). The Codex and OpenCode builds omit it.
 
-A separate `Write` entry runs `digest-rewrite.mjs` for the lead-only Read guard, which denies a whole-file `Write` after a digested lead `Read` of that path only under `CODE_OPS_DIGEST_READ=lead` (plugins/code-ops-suite/hooks/hooks.json:18, scripts/digest-lib.mjs:957). The routing card adds a stale-plugin advisory when a higher code-ops-suite version sits beside the loaded one in the host cache (plugins/code-ops-suite/hooks/routing-card.mjs:414). `digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
+A separate `Write` entry runs `digest-rewrite.mjs` for the lead-only Read guard, which denies a whole-file `Write` after a digested lead `Read` of that path only under `CODE_OPS_DIGEST_READ=lead` (plugins/code-ops-suite/hooks/hooks.json:18, scripts/digest-lib.mjs:958). The routing card adds a stale-plugin advisory when a higher code-ops-suite version sits beside the loaded one in the host cache (plugins/code-ops-suite/hooks/routing-card.mjs:414). `digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
 `PreToolUse` stage behind the traceless gate and rewrites an allowlisted simple command through
 `updatedInput`, returning no permission decision. Claude, Codex, and installed Grok 1.0.13
 accept the projected shape. An on/off comparison is descriptive until a pre-registered matched

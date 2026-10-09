@@ -121,8 +121,9 @@ export function checkGraph(graph) {
     if (!isText(unit.doneWhen)) bad('doneWhen must be a non-empty string');
     if (!isText(unit.gate)) bad('gate must be a non-empty string');
     if (!Number.isInteger(unit.roundBudget) || unit.roundBudget <= 0) bad('roundBudget must be a positive integer');
-    if (isText(unit.id) && !byId.has(unit.id) && sound) { byId.set(unit.id, unit); valid.push(unit); }
-    else if (isText(unit.id) && !byId.has(unit.id)) byId.set(unit.id, unit);
+    const typed = /** @type {Unit} */ (unit);
+    if (isText(unit.id) && !byId.has(unit.id) && sound) { byId.set(unit.id, typed); valid.push(typed); }
+    else if (isText(unit.id) && !byId.has(unit.id)) byId.set(unit.id, typed);
   });
 
   for (const unit of valid) {
@@ -212,5 +213,5 @@ function cli(argv) {
   return 0;
 }
 
-const isMain = () => { try { return Boolean(process.argv[1]) && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url); } catch { return false; } };
+const isMain = () => { const entry = process.argv[1]; try { return entry !== undefined && realpathSync(entry) === fileURLToPath(import.meta.url); } catch { return false; } };
 if (isMain()) process.exitCode = cli(process.argv.slice(2));
