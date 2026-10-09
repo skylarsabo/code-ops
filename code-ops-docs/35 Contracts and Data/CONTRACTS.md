@@ -923,7 +923,7 @@ session that loads updated code-ops plugins." DEC-76 sets that handoff rule. It 
 On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that
 setting (250000 recommended); a Codex or Grok card never carries it.
 At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated:
-on Claude and Codex until the lead runs `/code-ops-suite:handoff assess`, and on Grok until the
+on Claude and Codex until the lead runs `/code-ops-suite:handoff assess` or the host compacts, and on Grok until the
 operator runs `/compact` or `/code-ops-suite:handoff assess`. The OpenCode note says "New dispatches are now gated until you run
 /code-ops-suite-handoff assess." Every host carries the sentence, because the guard also gates Grok's
 `spawn_subagent`. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,

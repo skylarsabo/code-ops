@@ -375,6 +375,9 @@ jobs:
       - name: Script facade eval (co.mjs verb table + cli-lib)
         run: node evals/co-facade/run.mjs
 
+      - name: Brief template eval (co brief --continue checkpoint prefill)
+        run: node evals/brief-template/run.mjs
+
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs
 
@@ -704,6 +707,9 @@ jobs:
 
       - name: Script facade eval (co.mjs verb table + cli-lib)
         run: node evals/co-facade/run.mjs
+
+      - name: Brief template eval (co brief --continue checkpoint prefill)
+        run: node evals/brief-template/run.mjs
 
       - name: File skim regression eval (outline and range reading)
         run: node evals/skim/run.mjs

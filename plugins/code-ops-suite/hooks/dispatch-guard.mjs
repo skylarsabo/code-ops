@@ -920,7 +920,8 @@ function ceilingReason(gate) {
     + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
   return process.env.GROK_PLUGIN_ROOT
     ? `Run /compact. It records this ceiling band and unlocks dispatch. ${reason}`
-    : reason;
+    : `Host compaction has not run, so this session outgrew its window. ${reason}`
+      + ' If the operator runs /compact, the context drops below the ceiling and dispatch reopens.';
 }
 
 const AGENT_CALL = /\bagent\s*\(/g;

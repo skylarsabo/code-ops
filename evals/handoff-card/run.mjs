@@ -127,7 +127,7 @@ const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w
 const SNAPSHOT_CODEX = 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
 const BAND2 = 'Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.';
 const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Claude Code settings so the host compacts near that size.';
-const GATED = ' New dispatches are now gated until you run /code-ops-suite:handoff assess.';
+const GATED = ' New dispatches are now gated until you run /code-ops-suite:handoff assess or the host compacts.';
 const CLAUDE_WINDOW_SET = { CLAUDECODE: '1', CLAUDE_CODE_AUTO_COMPACT_WINDOW: '250000' };
 // The old non-Grok card told the lead to run the assessment; no Claude or Codex card may again.
 const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
@@ -362,7 +362,7 @@ const OLD_ASSESS = /run \/code-ops-suite:handoff assess to choose/;
 {
   const { home, cleanup } = fakeHome();
   const dir = mkdtempSync(join(tmpdir(), 'handoff-ceiling-'));
-  const gated = /New dispatches are now gated until you run \/code-ops-suite:handoff assess\./;
+  const gated = /New dispatches are now gated until you run \/code-ops-suite:handoff assess or the host compacts\./;
   const gatedGrok = /New dispatches are now gated until you run \/compact or \/code-ops-suite:handoff assess\./;
   const relief = /Host auto-compaction is the relief/;
   const messageAt = (context, sessionId, ceiling, env) => {

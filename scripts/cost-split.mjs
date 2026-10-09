@@ -4,12 +4,19 @@
 // each message id, and prices them against the table below. No model in the loop, no egress.
 //
 //   node scripts/cost-split.mjs [--transcripts <dir> | --all] [--cwd <dir>] [--since <ISO>]
-//                               [--json] [--check]
+//                               [--repo <dir>] [--json] [--check]
 //
 // Default transcript dir: `<home>/.claude/projects/<slug of --cwd or the current directory>`.
-// `--all` reads every project directory under `<home>/.claude/projects`. `--since` drops a main
-// session whose last timestamp is older than the date, with its subagent threads, as
-// context-audit.mjs does. Claude transcripts only: the price table is Anthropic's.
+// `--all` reads every project directory under `<home>/.claude/projects`. `--since` counts only the
+// messages whose own timestamp is at or after the date, in the main thread and in each subagent
+// thread alike. A line with no timestamp follows its thread's last timestamp. Claude transcripts
+// only: the price table is Anthropic's.
+//
+// COST PER MERGED PR. `--repo <dir>` (default: `--cwd`; skipped with `--all`, which spans projects)
+// counts the PRs merged into HEAD of that git repository in the same window, by churn.mjs's rule:
+// a merge commit whose subject starts `Merge pull request #<n>`. It then divides the lead and the
+// total priced USD by that count. Local git only, no network. The window is the commit time of the
+// merge, so the count and the transcripts share one start date but not one clock.
 //
 // PRICES. The table below is this script's own. It is not `PROVIDER_PRICES` in model-tiers.mjs,
 // whose keys feed the opencode distribution, so a price edit here never changes a shipped file.
@@ -35,14 +42,14 @@
 // Exit: 0 = report written; 1 = no transcripts found, or `--check` found an unpriced model id
 // that carries tokens; 2 = bad invocation.
 
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { parseOrDie } from './cli-lib.mjs';
-import { defaultTranscriptDir, percentile, subagentFilesFor, summarizeTranscript } from './transcript-lib.mjs';
+import { git, parseOrDie } from './cli-lib.mjs';
+import { defaultTranscriptDir, isBoundary, percentile, subagentFilesFor, summarizeTranscript } from './transcript-lib.mjs';
 
-const USAGE = 'usage: cost-split.mjs [--transcripts <dir> | --all] [--cwd <dir>] [--since <ISO>] [--json] [--check]';
+const USAGE = 'usage: cost-split.mjs [--transcripts <dir> | --all] [--cwd <dir>] [--since <ISO>] [--repo <dir>] [--json] [--check]';
 
 export const PRICING_SOURCE = 'https://platform.claude.com/docs/en/about-claude/pricing';
 export const PRICES_VERIFIED_AT = '2026-10-07';
@@ -139,8 +146,71 @@ function scanTiered(text, prior) {
   return [...byId.values()];
 }
 
+// The input side of one request that puts a turn in the "Over 250K turns" count.
+export const OVER_TURN = 250000;
+
+// A line's own timestamp in epoch milliseconds, or null. Same reading as transcript-lib.
+const stampOf = (o) => {
+  const t = o?.timestamp;
+  const ms = typeof t === 'string' ? Date.parse(t) : typeof t === 'number' && Number.isFinite(t) ? (t < 1e12 ? t * 1000 : t) : NaN;
+  return Number.isFinite(ms) ? ms : null;
+};
+const inWindow = (stamp, sinceMs) => stamp === null || stamp >= sinceMs;
+
+// The lines of one thread's text whose own timestamp is at or after `sinceMs`. A line with no
+// timestamp, or one that does not parse, follows the last timestamp before it, or the thread's
+// first timestamp when it opens the file. A thread with no timestamp at all has no basis to drop a
+// line, so it keeps them all. Returns '' when no line is left.
+export function windowText(text, sinceMs) {
+  const rows = String(text).split('\n').filter((raw) => raw.trim()).map((raw) => {
+    try { return { raw, stamp: stampOf(JSON.parse(raw.replace(/^﻿/, ''))) }; } catch { return { raw, stamp: null }; }
+  });
+  let current = rows.find((r) => r.stamp !== null)?.stamp ?? null;
+  const kept = [];
+  for (const r of rows) {
+    if (r.stamp !== null) current = r.stamp;
+    if (inWindow(current, sinceMs)) kept.push(r.raw);
+  }
+  return kept.join('\n');
+}
+
+// Turns whose input side (input + cache read + cache write) is over OVER_TURN, and the compaction
+// boundaries, in one thread's text. Turns dedupe by message id at the per-field max, as
+// transcript-lib does, and skip ids earlier files claimed. A boundary counts once per uuid across
+// every file read, so a forked session that repeats its parent's rows does not count them twice.
+function scanContext(text, prior, seenBoundaries) {
+  const byId = new Map();
+  let compactions = 0;
+  let index = 0;
+  for (const raw of text.split('\n')) {
+    index++;
+    const boundary = raw.includes('"compact_boundary"');
+    if (!boundary && !raw.includes('"usage"')) continue;
+    let o;
+    try { o = JSON.parse(raw.replace(/^﻿/, '')); } catch { continue; }
+    if (isBoundary(o)) {
+      if (typeof o.uuid === 'string') {
+        if (seenBoundaries.has(o.uuid)) continue;
+        seenBoundaries.add(o.uuid);
+      }
+      compactions++;
+      continue;
+    }
+    const msg = o?.message;
+    if (o?.type !== 'assistant' || !msg?.usage || typeof msg.usage !== 'object') continue;
+    if (typeof msg.id === 'string' && prior.has(msg.id)) continue;
+    const key = typeof msg.id === 'string' ? msg.id : `line-${index}`;
+    const prev = byId.get(key) ?? [0, 0, 0];
+    byId.set(key, [msg.usage.input_tokens, msg.usage.cache_read_input_tokens, msg.usage.cache_creation_input_tokens]
+      .map((n, i) => Math.max(prev[i], Number(n) || 0)));
+  }
+  return { over: [...byId.values()].filter((f) => f[0] + f[1] + f[2] > OVER_TURN).length, compactions };
+}
+
 // Group every thread under `lead` or `agent:<type>`, then total tokens per group and model.
 export function splitCost(dirs, { since = null } = {}) {
+  const sinceMs = since ? Date.parse(since) : null;
+  const boundaries = new Set();
   const rows = new Map();
   const advisor = new Map();
   const threads = new Map();
@@ -168,10 +238,15 @@ export function splitCost(dirs, { since = null } = {}) {
     }
     for (const [model, n] of Object.entries(s.models)) rowOf(group, model).messages += n;
     for (const m of scanTiered(text, claimed)) addTier(rowOf(group, m.model), m);
-    if (!s.turns) return;
-    const t = threads.get(group) ?? { turns: [], peaks: [] };
-    t.turns.push(s.turns);
-    t.peaks.push(s.contextMax);
+    const ctx = scanContext(text, claimed, boundaries);
+    if (!s.turns && !ctx.compactions) return;
+    const t = threads.get(group) ?? { turns: [], peaks: [], over: 0, compactions: 0 };
+    t.over += ctx.over;
+    t.compactions += ctx.compactions;
+    if (s.turns) {
+      t.turns.push(s.turns);
+      t.peaks.push(s.contextMax);
+    }
     threads.set(group, t);
   };
   // Advisor usage joins the same rows under group `advisor`, so the price rule and `--check` cover it.
@@ -190,31 +265,43 @@ export function splitCost(dirs, { since = null } = {}) {
       for (const f of FIELDS) if (typeof slot[f] === 'number') row[f] += slot[f]; else row.incomplete = true;
     }
   };
+  // One thread's text, cut to the window, with its summary. Null when nothing of it is in the window.
+  // A file last written before the window holds no in-window line, so its mtime skips the read.
+  const load = (file) => {
+    try {
+      if (sinceMs !== null && statSync(file).mtimeMs < sinceMs) return null;
+      let text = readFileSync(file, 'utf8');
+      if (sinceMs !== null && !(text = windowText(text, sinceMs))) return null;
+      const own = new Set();
+      return { text, own, s: summarizeTranscript(text, { priorIds: claimed, ownIds: own }) };
+    } catch { return null; }
+  };
   for (const dir of dirs) {
     if (!existsSync(dir)) continue;
     for (const entry of readdirSync(dir, { withFileTypes: true })) {
       if (!entry.isFile() || !entry.name.endsWith('.jsonl')) continue;
       const file = join(dir, entry.name);
       const session = entry.name.slice(0, -'.jsonl'.length);
-      let main, mainText;
-      const own = new Set();
-      try { mainText = readFileSync(file, 'utf8'); main = summarizeTranscript(mainText, { priorIds: claimed, ownIds: own }); } catch { continue; }
-      if (since && main.lastTs && Date.parse(main.lastTs) < Date.parse(since)) continue;
-      out.files++;
-      if (main.sidechain) { take('agent:unknown', main, mainText); takeAdvisor(session, 'subagent', mainText); out.subagentThreads++; own.forEach((id) => claimed.add(id)); continue; }
-      out.sessions++;
-      take('lead', main, mainText);
-      takeAdvisor(session, 'lead', mainText);
-      own.forEach((id) => claimed.add(id));
+      const main = load(file);
+      if (!main && sinceMs === null) continue;
+      if (main) {
+        out.files++;
+        if (main.s.sidechain) { take('agent:unknown', main.s, main.text); takeAdvisor(session, 'subagent', main.text); out.subagentThreads++; main.own.forEach((id) => claimed.add(id)); continue; }
+        out.sessions++;
+        take('lead', main.s, main.text);
+        takeAdvisor(session, 'lead', main.text);
+        main.own.forEach((id) => claimed.add(id));
+      }
+      // A session's subagent threads are cut to the window on their own timestamps, so they count
+      // even when the main thread holds no in-window line.
       for (const sub of subagentFilesFor(file)) {
-        let s, text;
-        const subOwn = new Set();
-        try { text = readFileSync(sub, 'utf8'); s = summarizeTranscript(text, { priorIds: claimed, ownIds: subOwn }); } catch { continue; }
+        const thread = load(sub);
+        if (!thread) continue;
         out.files++;
         out.subagentThreads++;
-        take(`agent:${agentTypeOf(sub)}`, s, text);
-        takeAdvisor(session, 'subagent', text);
-        subOwn.forEach((id) => claimed.add(id));
+        take(`agent:${agentTypeOf(sub)}`, thread.s, thread.text);
+        takeAdvisor(session, 'subagent', thread.text);
+        thread.own.forEach((id) => claimed.add(id));
       }
     }
   }
@@ -245,9 +332,11 @@ export function splitCost(dirs, { since = null } = {}) {
   const byKind = merge(list, (row) => `${row.kind}\t${row.model}`);
   const context = [...threads].map(([group, t]) => ({
     group, threads: t.turns.length, turnsMedian: percentile(t.turns, 0.5),
-    peakMedian: percentile(t.peaks, 0.5), peakP90: percentile(t.peaks, 0.9), peakMax: Math.max(...t.peaks),
+    peakMedian: percentile(t.peaks, 0.5), peakP90: percentile(t.peaks, 0.9), peakMax: Math.max(0, ...t.peaks),
     // Threads whose peak crossed the Haiku 5.5 prompt step, the size a light-rung move must fit under.
     overStep: t.peaks.filter((p) => p > TIERED['claude-haiku-5-5'].threshold).length,
+    // Turns with an input side over OVER_TURN, and compact_boundary rows, across the group's threads.
+    over250kTurns: t.over, compactions: t.compactions,
   })).sort((a, b) => a.group.localeCompare(b.group));
   const unpriced = merge(list.filter((row) => !row.priced && row.tokens > 0), (row) => row.model)
     .map((m) => ({ model: m.model, reason: 'no price pinned', messages: m.messages, input: m.input, cacheWrite: m.cacheWrite, cacheRead: m.cacheRead, output: m.output }));
@@ -260,6 +349,31 @@ export function splitCost(dirs, { since = null } = {}) {
     advisor: { calls, leadCalls: sum('leadCalls'), subagentCalls: sum('subagentCalls'), usageAbsent: sum('usageAbsent'), sessions },
     incomplete: list.filter((row) => row.incomplete).map((row) => ({ group: row.group, model: row.model })),
     totals: { pricedUsd: round(list.reduce((n, row) => n + (row.usd ?? 0), 0)) },
+  };
+}
+
+// churn.mjs's rule for a merged PR, mirrored: a merge commit whose subject starts with this.
+// deferred(a copy of churn.mjs's private PR_MERGE_RE, upgrade path: export it from churn.mjs once
+// that file is next edited for another reason).
+const PR_MERGE_RE = /^Merge pull request #(\d+)/;
+
+// The PRs merged into HEAD of `repo` since `since` (all history when null), counted by number.
+// Local git only. Returns null when `repo` is not a readable git repository.
+export function countMergedPrs(repo, since = null) {
+  const bound = since ? [`--max-age=${Math.floor(Date.parse(since) / 1000)}`] : [];
+  try {
+    const subjects = git(['log', 'HEAD', '--merges', '--format=%s', ...bound, '--'], { cwd: repo, timeout: 300000, maxBuffer: 1 << 29 });
+    return new Set(subjects.split('\n').map((s) => PR_MERGE_RE.exec(s)?.[1]).filter(Boolean)).size;
+  } catch { return null; }
+}
+
+// Lead and total priced USD over the merged PR count. A window with no merged PR has no per-PR cost.
+export function costPerPr(rep, merged) {
+  const leadUsd = round(rep.byKind.filter((k) => k.kind === 'lead' && k.priced).reduce((n, k) => n + k.usd, 0));
+  const totalUsd = rep.totals.pricedUsd;
+  return {
+    mergedPrs: merged, leadUsd, totalUsd,
+    leadUsdPerPr: merged ? round(leadUsd / merged) : null, totalUsdPerPr: merged ? round(totalUsd / merged) : null,
   };
 }
 
@@ -278,9 +392,18 @@ function render(rep) {
   table(['Kind', 'Model', ...cols], 2, rep.byKind, (r) => [r.kind, r.model, ...tail(r)]);
   L.push('## By agent type and model', '');
   table(['Group', 'Model', ...cols], 2, rep.rows, (r) => [r.group, r.model, ...tail(r)]);
-  L.push('## Context per thread', '', 'Peak context is the largest input side a thread carried in one turn.', '');
-  table(['Group', 'Threads', 'Median turns', 'Median peak', 'P90 peak', 'Max peak', 'Over 100K'], 1, rep.context,
-    (c) => [c.group, fmt(c.threads), fmt(c.turnsMedian), fmt(c.peakMedian), fmt(c.peakP90), fmt(c.peakMax), fmt(c.overStep)]);
+  L.push('## Context per thread', '', 'Peak context is the largest input side a thread carried in one turn. Over 250K turns counts turns across the group; compactions counts its compact_boundary rows.', '');
+  table(['Group', 'Threads', 'Median turns', 'Median peak', 'P90 peak', 'Max peak', 'Over 100K', 'Over 250K turns', 'Compactions'], 1, rep.context,
+    (c) => [c.group, fmt(c.threads), fmt(c.turnsMedian), fmt(c.peakMedian), fmt(c.peakP90), fmt(c.peakMax), fmt(c.overStep), fmt(c.over250kTurns), fmt(c.compactions)]);
+  L.push('## Cost per merged PR', '');
+  const pr = rep.perPr;
+  if (!pr) L.push(rep.perPrNote, '');
+  else if (!pr.mergedPrs) L.push(`No PR merged in ${pr.repo}${rep.since ? ` since ${rep.since}` : ''}, so there is no per-PR cost.`, '');
+  else {
+    table(['Merged PRs', 'Lead USD', 'Total USD', 'Lead USD per PR', 'Total USD per PR'], 0, [pr],
+      (p) => [fmt(p.mergedPrs), usd(p.leadUsd), usd(p.totalUsd), usd(p.leadUsdPerPr), usd(p.totalUsdPerPr)]);
+    L.push(`Merges counted in ${pr.repo} (HEAD history, subject "Merge pull request #<n>"); the USD columns are priced rows only.`, '');
+  }
   L.push('## Advisor calls', '');
   const adv = rep.advisor;
   if (!adv.calls) L.push('None.', '');
@@ -303,7 +426,7 @@ function render(rep) {
 function main() {
   const { flags } = parseOrDie(process.argv.slice(2), {
     transcripts: { value: true }, all: {}, cwd: { value: true, default: process.cwd() },
-    since: { value: true }, json: {}, check: {},
+    since: { value: true }, repo: { value: true }, json: {}, check: {},
   }, USAGE);
   if (flags.since !== undefined && !Number.isFinite(Date.parse(flags.since))) {
     console.error(`x --since is not a date: ${flags.since}`);
@@ -322,6 +445,14 @@ function main() {
   if (rep.files === 0) {
     console.error('x no Claude transcripts found');
     process.exit(1);
+  }
+  rep.perPr = null;
+  if (flags.all) rep.perPrNote = 'Cost per merged PR is skipped: it needs a single project, and --all spans every project.';
+  else {
+    const repo = resolve(flags.repo ?? flags.cwd);
+    const merged = countMergedPrs(repo, rep.since);
+    if (merged === null) rep.perPrNote = `Cost per merged PR is skipped: ${repo} is not a readable git repository.`;
+    else rep.perPr = { repo, ...costPerPr(rep, merged) };
   }
   console.log(flags.json ? JSON.stringify(rep, null, 2) : render(rep));
   if (flags.check && rep.unpriced.length) process.exit(1);

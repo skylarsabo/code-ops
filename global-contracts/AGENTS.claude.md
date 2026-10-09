@@ -70,7 +70,7 @@ Hand off only to start new work, or to move to a clean session that loads update
 
 A unit too small to repay an operative's startup context stays inline, with the reason recorded.
 
-Past 300,000 tokens the code-ops dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs. Off switch: `CODE_OPS_CONTEXT_CEILING=off`. Run the assessment instead of raising or disabling the ceiling. A handoff assessment unlocks one 150,000-token band, and the next band blocks again.
+Host auto-compaction normally holds context under the 250,000-token window, so the context ceiling is a backstop. Past 300,000 tokens, compaction has not run, and the code-ops dispatch guard blocks new dispatches until `code-ops-suite:handoff` assess runs or a compaction lowers the context. Off switch: `CODE_OPS_CONTEXT_CEILING=off`. Run the assessment instead of raising or disabling the ceiling. A handoff assessment unlocks one 150,000-token band, and the next band blocks again.
 
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.
