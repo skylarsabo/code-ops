@@ -1,6 +1,6 @@
 ---
 name: tracer
-description: Read-only investigator for bug hunting. Delegate to it to trace a specific control- or data-flow path end-to-end, derive the invariants/contracts a piece of code must uphold, or locate every site of a concept. Returns a tight, evidence-cited report. Never edits, never executes.
+description: Read-only bug-hunt investigator. Delegate tracing a control- or data-flow path end-to-end, deriving the invariants a piece of code must uphold, or locating every site of a concept. Returns a tight, evidence-cited report. Never edits or executes.
 effort: high
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: local-review-gate
-description: "Use when deep review, OpSec review, or judgment evals should run locally before a PR, with exact-SHA receipts and optional GitHub status publication."
+description: "Use to run deep review, OpSec review, or judgment evals locally before a PR, with exact-SHA receipts and optional GitHub status publication."
 ---
 
 # Local review gate: review before the PR exists

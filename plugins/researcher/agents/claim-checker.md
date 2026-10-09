@@ -1,6 +1,6 @@
 ---
 name: claim-checker
-description: Adversarial claim verifier for research. Delegate a single claim, recommendation, or cited statement, and it tries to refute it against the actual code and the cited sources, then returns a tiered verdict. It is read-only, so it verifies rather than edits or implements. Use one per load-bearing claim, in parallel.
+description: Adversarial claim verifier. Delegate one claim, recommendation, or cited statement; it tries to refute it against the code and cited sources and returns a tiered verdict. Read-only. Use one per load-bearing claim, in parallel.
 tools: Read, Grep, Glob
 model: sonnet
 effort: high

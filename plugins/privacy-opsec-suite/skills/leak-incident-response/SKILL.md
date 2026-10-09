@@ -1,5 +1,5 @@
 ---
-description: "Use when an anonymity or privacy leak is suspected and you need to triage, contain, scope the blast radius, and plan remediation without making it worse."
+description: "Use when an anonymity or privacy leak is suspected: triage, contain, scope the blast radius, and plan remediation without making it worse."
 ---
 
 # Leak incident response: contain a suspected leak

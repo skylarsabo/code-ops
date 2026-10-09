@@ -1,5 +1,5 @@
 ---
-description: "Use when dependencies are outdated or carry known CVEs and you want safe, staged upgrades verified at each step. It never bulk-bumps."
+description: "Use when dependencies are outdated or carry CVEs; safe staged upgrades verified at each step, never bulk-bumped."
 ---
 
 # Dependency upgrade: safe supply-chain maintenance

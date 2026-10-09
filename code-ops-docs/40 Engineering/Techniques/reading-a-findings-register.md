@@ -36,7 +36,7 @@ ranges, so you read `--range A,B` for the entries you care about rather than the
 
 ## The schema, field by field
 
-The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:78-82`) is:
+The canonical finding schema (`plugins/code-ops-suite/CONVENTIONS.md:79-83`) is:
 
 ```
 ID · Title · Lens · Scope · Severity · Confidence · Tier (CONFIRMED|PROBABLE|SPECULATIVE) ·

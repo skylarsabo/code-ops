@@ -1,5 +1,5 @@
 ---
-description: "Use when you want high-value privacy and trust features found and specified, each gated against the anonymity model. Discovery and specification only."
+description: "Use to find and specify high-value privacy and trust features, each gated against the anonymity model. Discovery and specification only."
 ---
 
 Use the `privacy-opsec-suite-privacy-feature-design` skill for this task, following it end to end.

@@ -1,5 +1,5 @@
 ---
-description: "Use for a standard, isolated assess-only calibration run against a real-scale target repo. Ends in a sanitized trend entry and never quotes target internals."
+description: "Use for a standard isolated assess-only calibration run against a real-scale target repo; sanitized trend entry, no target internals."
 ---
 
 Use the `code-ops-suite-calibration-run` skill for this task, following it end to end.

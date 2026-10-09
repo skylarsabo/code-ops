@@ -1,5 +1,5 @@
 ---
-description: "Use when you need the keystone anonymity threat model that the other privacy audits build on."
+description: "Use for the keystone anonymity threat model the other privacy audits build on."
 ---
 
 # Anonymity threat model: how a user could be deanonymized

@@ -1,5 +1,5 @@
 ---
-description: "Use when you have one big branch you want carved into a clean, reviewable stack of small PRs, each independently green and traceless."
+description: "Use to carve one big branch into a clean, reviewable stack of small PRs, each independently green and traceless."
 ---
 
 Use the `code-ops-suite-pr-split` skill for this task, following it end to end.

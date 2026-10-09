@@ -1,6 +1,6 @@
 ---
 name: researcher-research-verify
-description: "Use to fact-check a claim, recommendation, or draft research adversarially against sources and our code before anyone acts on it. Review only; writes no code."
+description: "Use to adversarially fact-check a claim, recommendation, or draft research against sources and our code before acting. Review only; writes no code."
 ---
 
 # Research verify: the prove-it-or-drop-it claim check

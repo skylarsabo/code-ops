@@ -1,5 +1,5 @@
 ---
-description: "Use for measured, behavior-preserving improvements, not speculative refactors. For profiling-led hot-path optimization, use code-ops-suite:performance."
+description: "Use for measured, behavior-preserving improvements, not speculative refactors. Profiling-led hot-path work goes to code-ops-suite:performance."
 ---
 
 # Measured improvement: no speculative refactors

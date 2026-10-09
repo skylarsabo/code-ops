@@ -1,0 +1,4 @@
+- The Workflow fan-out section admits an opt-in from an operator-invoked skill whose own instructions call Workflow, for fan-outs of three or more independent units. Every `agent()` call names a suite agent type.
+- Skill and agent descriptions are shorter, to cut session-start context.
+- Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
+- The `verifier` agent body now carries the run-proof receipt rule for every repro, mutation, or benchmark.

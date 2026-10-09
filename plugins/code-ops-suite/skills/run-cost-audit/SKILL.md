@@ -1,5 +1,5 @@
 ---
-description: "Use to audit a finished run's cost discipline: dispatch counts, artifact sizes, and tier and effort mix. Requires its artifact folder, not a live run."
+description: "Use to audit a finished run's cost discipline (dispatch counts, artifact sizes, tier and effort mix). Requires its artifact folder."
 ---
 
 # Run cost audit: cost discipline over a completed run

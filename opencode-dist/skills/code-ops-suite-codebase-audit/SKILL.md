@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-codebase-audit
-description: "Use when you want a broad, multi-lens review of an unfamiliar or drifting codebase. It writes a ranked findings backlog and applies only safe fixes."
+description: "Use for a broad multi-lens review of an unfamiliar or drifting codebase; writes a ranked findings backlog, applies only safe fixes."
 ---
 
 # Codebase audit: broad multi-lens review
@@ -37,7 +37,7 @@ lens. Draft the orchestration plan as a concern-against-scope matrix.
 
 ## Phase 1: the adaptive review
 
-Run the loop (`CONVENTIONS §1`). Fan out the independent reviewers as `§16` directs. Each sub-agent applies the relevant lenses (`§10`) to its slice
+Run the loop (`CONVENTIONS §1`). Fan out the independent reviewers as `§16` directs. On Claude, when the operator invoked this skill, a fan-out of three or more independent units runs through the Workflow tool; otherwise dispatch with the host's tool. Each sub-agent applies the relevant lenses (`§10`) to its slice
 and returns findings in the finding schema (`§7`), classified by track (`§6`). Deepen on dense
 or risky areas. Converge and check off the clean ones. **Surface critical findings to the
 developer immediately** (`§3`). Apply confirmed NOW-SAFE fixes through the implementation loop

@@ -1,6 +1,6 @@
 ---
 name: researcher-ecosystem-watch
-description: "Use to learn what changed in our stack that needs action: dependency updates, CVEs, deprecations, and new capabilities. Schedulable, discovery only, no code."
+description: "Use to learn what changed in our stack that needs action: updates, CVEs, deprecations, new capabilities. Schedulable; discovery only."
 ---
 
 # Ecosystem watch: what changed in our stack

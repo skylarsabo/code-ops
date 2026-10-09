@@ -1,6 +1,6 @@
 ---
 name: probe
-description: Read-only shell prober for live systems and remote state across repositories. Delegate one scoped question, and it runs read-only commands such as ssh, kubectl get, describe, or logs, gh api GET calls, registry tag listings, git read commands, and file listing or hashing, then returns the commands run with trimmed output. It never runs a mutating command and never edits files. Use it instead of a general-purpose agent when a unit needs a shell probe.
+description: Read-only shell prober for live systems and remote state. Delegate one scoped question; it runs read-only commands (ssh, kubectl get/describe/logs, gh api GET, registry listings, git reads, file hashing) and returns the commands with trimmed output. Never mutates or edits. Use it instead of a general-purpose agent for a shell probe.
 tools: Bash, Read, Grep, Glob
 model: sonnet
 effort: medium

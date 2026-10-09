@@ -1,6 +1,6 @@
 ---
 name: atlas
-description: "Use to create a repo's atlas, its durable cache of codebase judgment, refresh it after code moves, or consolidate inbox notes. atlas-check sets freshness."
+description: "Use to create a repo's atlas (durable cache of codebase judgment), refresh it after code moves, or consolidate inbox notes; atlas-check sets freshness."
 ---
 
 # Atlas: the repo's durable cache of judgment

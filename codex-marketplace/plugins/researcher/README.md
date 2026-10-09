@@ -10,13 +10,13 @@ Name a workflow in Codex as `researcher:<skill>`. Every generated skill sets `po
 
 ## Skills
 
-- `ecosystem-watch` — Use to learn what changed in our stack that needs action: dependency updates, CVEs, deprecations, and new capabilities. Schedulable, discovery only, no code.
-- `library-eval` — Use to decide on adopting a library or approach, A versus B versus building it, with code-grounded fit, migration cost, and a tiered verdict. Writes no code.
-- `research-ideate` — Use for novel feature ideas grounded in our code, its domain, and opt-in web trends. Writes no code. For code-only ideas, use code-ops-suite:feature-discovery.
-- `research-improve` — Use for improvements to our existing code grounded in external best practice, not a generic checklist. Writes no code, and proposes and hands off instead.
+- `ecosystem-watch` — Use to learn what changed in our stack that needs action: updates, CVEs, deprecations, new capabilities. Schedulable; discovery only.
+- `library-eval` — Use to decide on adopting a library or approach (A vs B vs build) with code-grounded fit, migration cost, and a tiered verdict. Writes no code.
+- `research-ideate` — Use for novel feature ideas grounded in our code, domain, and opt-in web trends. Writes no code. Code-only ideas go to code-ops-suite:feature-discovery.
+- `research-improve` — Use for improvements to existing code grounded in external best practice, not a generic checklist. Writes no code; hands off.
 - `research-spike` — Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code.
-- `research-sweep` — Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates and proposes; writes no code.
-- `research-verify` — Use to fact-check a claim, recommendation, or draft research adversarially against sources and our code before anyone acts on it. Review only; writes no code.
+- `research-sweep` — Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates; writes no code.
+- `research-verify` — Use to adversarially fact-check a claim, recommendation, or draft research against sources and our code before acting. Review only; writes no code.
 
 ## Packaging notes
 

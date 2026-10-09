@@ -1,6 +1,6 @@
 ---
 name: opsec-hardening
-description: "Use when a LEAK_REGISTER.md exists and you want its leaks fixed safely, each pinned with a regression test. Requires a register as input."
+description: "Use when a LEAK_REGISTER.md exists and its leaks need safe fixes, each pinned by a regression test. Requires a register."
 ---
 
 # OpSec hardening: implement the fixes safely

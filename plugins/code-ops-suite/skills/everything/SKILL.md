@@ -1,5 +1,5 @@
 ---
-description: "Use for a checkpointed pass over installed plugins, from one plugin pipeline to the cross-plugin superset. Pick plugins and a track: assess-only, full, feature."
+description: "Use for a checkpointed pass over installed plugins, from one pipeline to the cross-plugin superset; pick plugins and a track (assess-only, full, feature)."
 ---
 
 # Everything: the full pass across the selected suites
@@ -37,7 +37,7 @@ raise or lower the check-in frequency, at Phase 0.
 Run `node ${CLAUDE_PLUGIN_ROOT}/scripts/preflight.mjs --artifact-dir <run folder>`, adding
 `--need gh` when the run will publish. A FAIL stops the run before fan-out. Prepare one exact
 context snapshot and compile a scoped bundle per planned unit. Context drift or an explicit
-compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. Dispatch an explorer with its verified
+compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. On Claude, when the operator invoked this skill, a fan-out of three or more independent units runs through the Workflow tool; otherwise dispatch with the host's tool. Dispatch an explorer with its verified
 bundle to detect the stack and size. Resolve the plugin selector against the installed plugins,
 and name every phase the run skips because its plugin is absent or unselected. Verify
 library and framework facts against the **installed versions** through the in-house docs lookup

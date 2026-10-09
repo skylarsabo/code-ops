@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-ship
-description: "Use when you want to implement one change, a feature or a one-off, end to end at high quality, shipped as a clean traceless PR."
+description: "Use to implement one change, a feature or one-off, end to end at high quality, shipped as a clean traceless PR."
 ---
 
 # Ship: implement one change end-to-end, at full rigor
@@ -29,7 +29,7 @@ treatment.
 Run `node <plugin-root>/scripts/preflight.mjs --artifact-dir <run folder>`, adding
 `--need gh` when the run will publish. A FAIL stops the run before fan-out. Confirm plugin
 availability. Prepare one exact context snapshot and compile the explorer's scoped bundle.
-Context drift or an explicit compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. Hand the
+Context drift or an explicit compiler marker stops dispatch and triggers a replan. Dispatch every fan-out as `§16` directs. On Claude, when the operator invoked this skill, a fan-out of three or more independent units runs through the Workflow tool; otherwise dispatch with the host's tool. Hand the
 verified bundle to the explorer, then run `/rigor-ground-truth` for the baseline.
 
 Size the change as a one-off or a feature. For a feature, confirm the approach before building. A

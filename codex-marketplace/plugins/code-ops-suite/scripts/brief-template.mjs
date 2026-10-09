@@ -2,7 +2,7 @@
 // Prints the brief template for one suite agent: each field on the `Brief requires:` line of
 // the agent's `## Contract` section, as one `Label:` line in contract order, ready to fill.
 //
-//   node scripts/brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>]
+//   node scripts/brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>] [--anchors <path[:line]>...]
 //                                                        (also `co brief <plugin>:<agent>`)
 //
 // WHY: the dispatch guard (hooks/dispatch-guard.mjs) denies a dispatch whose brief lacks one of
@@ -21,10 +21,18 @@
 // `(not in checkpoint)`. Carried text is quoted with `> ` so it never passes for a brief field,
 // and it is bounded so a long report cannot bloat the brief.
 //
+// --anchors <path[:line]>... appends an `Anchors:` block so the operative skips its orientation reads.
+// Each path gets the outline `skim.mjs` prints for the file as it is now (headings or symbols with
+// line numbers), headed by the path and any `:line` target the lead named. The block is quoted like
+// carried text, holds about ANCHOR_BUDGET characters (quote heads counted) with a visible truncation
+// note, and marks a missing path `(not found)` and an unreadable one with skim's reason. The list
+// ends at a flag or a `<plugin>:<agent>` argument. The outline is a hint: the operative re-validates it.
+//
 // Exit: 0 with the template on stdout; 2 when the type is not `<plugin>:<agent>` in a suite
 // plugin, the definition is missing, its Contract has no `Brief requires:` line, or the
 // --continue report cannot be read.
 
+import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -34,11 +42,13 @@ const RESOLVERS = [
   join(HERE, '..', 'hooks', 'agent-file.mjs'),
   join(HERE, '..', 'plugins', 'code-ops-suite', 'hooks', 'agent-file.mjs'),
 ];
-const USAGE = 'usage: brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>]   (for example code-ops-suite:implementer)';
+const USAGE = 'usage: brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>] [--anchors <path[:line]>...]   (for example code-ops-suite:implementer)';
 // Carried checkpoint text stays under CARRY_BUDGET characters; one line clips at LINE_CAP and the Scope at SCOPE_CAP.
 const CARRY_BUDGET = 4000;
 const LINE_CAP = 300;
 const SCOPE_CAP = 600;
+// The Anchors block stays near ANCHOR_BUDGET characters, split evenly across the named paths.
+const ANCHOR_BUDGET = 2500;
 const MISSING = '(not in checkpoint)';
 // The label words that open each part of a checkpoint. The first class that matches wins, so
 // "Not done" is remaining work and "Next action" is not done work.
@@ -146,7 +156,51 @@ function continuation(parts, reportPath) {
   };
 }
 
-const args = process.argv.slice(2);
+// One anchor as { file, target }: a trailing :N or :N-M is the lead's line target, kept as given.
+function parseAnchor(spec) {
+  const m = /^(.+?):(\d+(?:-\d+)?)$/.exec(spec);
+  return m ? { file: m[1], target: m[2] } : { file: spec, target: '' };
+}
+
+// The Anchors block lines. Each outline comes from skim.mjs run now, so it matches the file as it
+// stands at brief time; a path skim cannot read is (not found).
+function anchorBlock(specs) {
+  const skim = join(HERE, 'skim.mjs');
+  const share = Math.floor(ANCHOR_BUDGET / specs.length);
+  const out = ['Anchors:'];
+  for (const spec of specs) {
+    const { file, target } = parseAnchor(spec);
+    const head = target ? `${file} (target :${target})` : file;
+    const run = existsSync(skim) ? spawnSync(process.execPath, [skim, file, '--max', '40'], { encoding: 'utf8' }) : null;
+    if (!run || run.status !== 0) {
+      // A file that exists but cannot be outlined reports skim's own reason; a missing one reads (not found).
+      const reason = existsSync(file) ? run?.stderr.trim().replace(/^x\s+/, '').split(/\r?\n/)[0] : '';
+      out.push(`> ${head} ${run ? `(${reason || 'not found'})` : '(outline unavailable)'}`);
+      continue;
+    }
+    // The budget counts the `> ` heads and the indent, so the block stays near ANCHOR_BUDGET.
+    const outline = run.stdout.split(/\r?\n/).filter(Boolean).slice(1).map((l) => `>   ${clip(l, 120)}`);
+    out.push(`> ${head}`, ...carry(outline, share - head.length - 2).lines);
+  }
+  return out;
+}
+
+const raw = process.argv.slice(2);
+// --anchors takes every argument up to the next flag or an agent type (`<plugin>:<agent>`).
+const AGENT_TYPE = /^[A-Za-z][\w-]*:[A-Za-z][\w-]*$/;
+const anchors = [];
+const args = [];
+let anchoring = false;
+for (const arg of raw) {
+  if (arg === '--anchors') anchoring = true;
+  else if (anchoring && !arg.startsWith('-') && !AGENT_TYPE.test(arg)) anchors.push(arg);
+  else {
+    anchoring = false;
+    args.push(arg);
+  }
+}
+const anchorFlags = raw.filter((arg) => arg === '--anchors').length;
+if (anchorFlags && !anchors.length) fail(USAGE);
 if (args[0] === '--help' || args[0] === '-h') {
   console.log(USAGE);
   process.exit(0);
@@ -200,4 +254,5 @@ if (fields.includes('Tier') && routeUnit) {
     'Print them with: co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> --scope <path>',
   );
 }
+if (anchors.length) lines.push(...anchorBlock(anchors));
 console.log(lines.join('\n'));

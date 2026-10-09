@@ -167,7 +167,20 @@ const TABLE = {
   // A command: `co build-graph <check|plan> <graph.json>` validates a program's BUILD_GRAPH.json
   // (exit 1 lists every problem) and `plan` prints its dependency waves. Read-only.
   'build-graph': 'build-graph.mjs',
+  // Commands over co-run.mjs, which takes the command name as its first argument (COMMAND_CMD).
+  // `co gh <args>` runs gh and prints exit code plus capped tails; `co fetch [remote]` fetches and
+  // prints branch, ahead/behind, dirty count; `co until --every <s> --timeout <s> -- <cmd>` polls;
+  // `co each <cmd> -- <items>` prints one status line per item; `co show <ref> [paths]` is a
+  // compact git show. Each exits with the child's own nonzero code.
+  gh: 'co-run.mjs',
+  fetch: 'co-run.mjs',
+  until: 'co-run.mjs',
+  each: 'co-run.mjs',
+  show: 'co-run.mjs',
 };
+
+// A command that shares its script with others names itself as the script's first argument.
+const COMMAND_CMD = new Set(['gh', 'fetch', 'until', 'each', 'show']);
 
 // A domain named here runs this verb when the caller gives none, so `co board` lists the board.
 const DEFAULT_VERB = { board: 'list' };
@@ -266,6 +279,7 @@ const rest = argv.slice(command ? 1 : 2);
 // caller opened with a flag or supplied nothing, so an explicit subcommand always wins.
 if (sub && (rest.length === 0 || rest[0].startsWith('-'))) rest.unshift(sub);
 if (cmd) rest.unshift(cmd);
+if (command && COMMAND_CMD.has(domain)) rest.unshift(domain);
 
 // What the script would have seen if the caller had run it directly. Scripts that detect being
 // the entry point compare argv[1] against their own module URL, so it must be the resolved path.

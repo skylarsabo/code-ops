@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Use when a long run needs a continue, compact, or transfer decision. A transfer captures verifiable state as HANDOFF.md; resume re-verifies every claim."
+description: "Use when a long run needs a continue, compact, or transfer decision. Transfer writes verifiable state to HANDOFF.md; resume re-verifies every claim."
 ---
 
 # Handoff: state a fresh session can verify, not instructions to trust

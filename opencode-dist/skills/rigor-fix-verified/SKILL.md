@@ -1,6 +1,6 @@
 ---
 name: rigor-fix-verified
-description: "Use when CONFIRMED bugs exist and you want them fixed at root cause with proof. Requires CONFIRMED findings as input."
+description: "Use when CONFIRMED bugs exist and need root-cause fixes with proof. Requires CONFIRMED findings."
 ---
 
 # Verified fix: fix the cause, prove it, guard the class

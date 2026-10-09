@@ -1,6 +1,6 @@
 ---
 name: privacy-opsec-suite-metadata-leak-audit
-description: "Use to find PII or identifiers leaking in logs, telemetry, errors, headers, or file metadata. Timing and size side channels go to traffic-analysis-resistance."
+description: "Use to find PII or identifiers leaking in logs, telemetry, errors, headers, or file metadata. Timing and size go to traffic-analysis-resistance."
 ---
 
 # Metadata leak audit: minimize what leaks

@@ -1,0 +1,2 @@
+- Skill and agent descriptions are shorter, to cut session-start context.
+- Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.

@@ -1,5 +1,5 @@
 ---
-description: "Use when a repo needs its Obsidian docs vault created, an existing docs tree migrated into the standard layout, or an existing vault checked for conformance."
+description: "Use to create a repo's Obsidian docs vault, migrate a docs tree into the standard layout, or check a vault for conformance."
 ---
 
 Use the `code-ops-suite-vault` skill for this task, following it end to end.

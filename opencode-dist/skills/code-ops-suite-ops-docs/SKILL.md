@@ -1,6 +1,6 @@
 ---
 name: code-ops-suite-ops-docs
-description: "Use when you need an operational runbook for a codebase, written for the senior engineer who has to operate it or be on call for it."
+description: "Use for an operational runbook for the senior engineer who operates or is on call for the codebase."
 ---
 
 # Ops-docs: the operator's runbook

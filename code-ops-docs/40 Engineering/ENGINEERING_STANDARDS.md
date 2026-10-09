@@ -39,13 +39,13 @@ Use `node scripts/benchmark-command.mjs --runs 7 --warmup 1 -- <executable> [arg
 
 Extract shared work when it removes measured duplication or closes behavioral drift. Keep public flow legible and reject abstractions that only move complexity. Performance work never weakens a quality gate, removes an eval case, or broadens agent context to save orchestration time.
 
-The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-33`.
+The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-35`.
 
 The [code standard](Techniques/code-standard.md) owns the general rule: efficient by design, optimized only by measurement.
 
 ## Size discipline
 
-The objective is ordered. Correctness and the safety floor come first, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines decides only between candidates that tie on the first four. Evidence: `plugins/code-ops-suite/CONVENTIONS.md:148`.
+The objective is ordered. Correctness and the safety floor come first, then module boundaries, then measured performance on hot paths, then readability, then size. Fewer lines decides only between candidates that tie on the first four. Evidence: `plugins/code-ops-suite/CONVENTIONS.md:149`.
 
 Climb the ladder before writing code. Ask whether the code needs to exist, whether it exists here already, whether the standard library or an installed dependency does it, and whether it fits inside the owning module. Extract only on evidence: a second caller, a unit that needs its own test, or a file past the repository's own size norm. Mark a deliberate simplification with a `deferred(<ceiling>, <upgrade path>)` comment.
 

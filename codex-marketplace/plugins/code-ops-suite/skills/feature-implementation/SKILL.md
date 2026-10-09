@@ -1,6 +1,6 @@
 ---
 name: feature-implementation
-description: "Use when feature specs already exist and you want them built incrementally. It requires specs as input."
+description: "Use when feature specs exist and you want them built incrementally. Requires specs as input."
 ---
 
 # Feature implementation: build the specified features
