@@ -76,6 +76,13 @@ esac
 # manifest check reads the index with --index, so it hashes the bytes the commit records.
 run_freshness_checks() {
   manifest_path="$(git ls-files -- '*DOCS_MANIFEST.json' | head -n 1)"
+  # Under "digestStore": "files" the digests are files in Digests beside the manifest. A JSON-mode
+  # hub has no such directory, and a pathspec that matches nothing makes git add fail.
+  digests_dir=''
+  if [ -n "$manifest_path" ]; then
+    digests_candidate="$(dirname "$manifest_path")/Digests"
+    [ -z "$(git ls-files -co -- "$digests_candidate")" ] || digests_dir="$digests_candidate"
+  fi
   atlas_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate 2>&1)" && atlas_ok=1 || atlas_ok=0
   manifest_out="$(unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs check --index 2>&1)" && manifest_ok=1 || manifest_ok=0
 }
@@ -99,11 +106,12 @@ restamp_atlas_content() {
   [ "$autofix" -eq 1 ] || return 1
   [ -n "$manifest_path" ] || return 1
   [ "$(printf '%s\n' "$manifest_out" | sed -n 's/^  - //p')" = 'atlas content digest is stale' ] || return 1
-  git diff --quiet -- "$manifest_path" || return 1
+  # status, not diff: diff misses untracked digest files. A second-column mark is an unstaged change.
+  if git status --porcelain -- "$manifest_path" ${digests_dir:+"$digests_dir"} | grep -q '^.[^ ]'; then return 1; fi
   (unset GIT_DIR GIT_WORK_TREE; node scripts/atlas-check.mjs check --atlas "$atlas_dir" --gate --claims-gate) >/dev/null 2>&1 || return 1
   snapshot_staged_tree
   (unset GIT_DIR GIT_WORK_TREE; node scripts/docs-manifest.mjs sync --index --only atlas) >/dev/null 2>&1 || return 1
-  retry_on_index_lock git add -- "$manifest_path"
+  retry_on_index_lock git add -A -- "$manifest_path" ${digests_dir:+"$digests_dir"}
 }
 
 # Check the staged result. Apart from the atlas content restamp above, these checks never
@@ -148,7 +156,7 @@ check_derived_freshness() {
     fi
     echo "  2. git add \"$atlas_dir\""
     echo "  3. node scripts/docs-manifest.mjs sync --index"
-    echo "  4. git add \"${manifest_path:-code-ops-docs/98 System/DOCS_MANIFEST.json}\""
+    echo "  4. git add -A \"${manifest_path:-code-ops-docs/98 System/DOCS_MANIFEST.json}\"${digests_dir:+ \"$digests_dir\"}"
     echo "  5. Run git commit again."
     echo "Sync with --index so the digests hash the staged bytes, which is what CI checks."
     if [ -n "$manifest_path" ] && git show ":$manifest_path" 2>/dev/null | grep -q '"regenerated"'; then

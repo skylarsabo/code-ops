@@ -1,6 +1,7 @@
 {
   "version": 2,
   "hub": "code-ops-docs",
+  "digestStore": "files",
   "runs": {
     "tracking": "ignored"
   },
@@ -16,9 +17,7 @@
         "CLAUDE.md",
         "plugins/**",
         "scripts/**"
-      ],
-      "sourceDigest": "355599229411ad43ff7e6599c1a13edc5fdfb4f6f029a398c634f0da6e0a5ecd",
-      "contentDigest": "dac95ba9d7aee22a4d85ebca1d32311aac240b32937136bd2422dfecec6d0d31"
+      ]
     },
     {
       "id": "architecture",
@@ -28,9 +27,7 @@
         "plugins/**",
         "scripts/**",
         ".claude-plugin/**"
-      ],
-      "sourceDigest": "2f3000c9671dc2011d521543ca0d97037c266a4908138d6e2588c309eed784b3",
-      "contentDigest": "55efadf7e83642480b07527c24e716597635a4da7257ee23c401c15a3854daee"
+      ]
     },
     {
       "id": "contracts",
@@ -40,9 +37,7 @@
         "plugins/**",
         "scripts/**",
         "evals/**"
-      ],
-      "sourceDigest": "dc0d6f792951ac55443c13316fb31186ad51ca35c1ff44a18e12d0296aa839ab",
-      "contentDigest": "40786e50ab57ee61e4e0a6efb4154ae63d3c4211c915cc1d0d76a79e6c553ff6"
+      ]
     },
     {
       "id": "data-model",
@@ -52,9 +47,7 @@
         "plugins/**",
         "scripts/**",
         "evals/**"
-      ],
-      "sourceDigest": "dc0d6f792951ac55443c13316fb31186ad51ca35c1ff44a18e12d0296aa839ab",
-      "contentDigest": "5b93b347eab3df8aa19db36c25b82d62d942ef9a2df67e1373d4109c59592b31"
+      ]
     },
     {
       "id": "engineering-standards",
@@ -73,9 +66,7 @@
         "scripts/context-audit.mjs",
         "scripts/context-query.mjs",
         "scripts/digest.mjs"
-      ],
-      "sourceDigest": "372094fee55c522b335481f1473763ab693697427c5c0c045b01e427075f1021",
-      "contentDigest": "9b2a53c8df651fcce84d63f3c0f94e1b2a31c6bec9d12a098ad70cd8e77e01dd"
+      ]
     },
     {
       "id": "handbook",
@@ -85,9 +76,7 @@
         "plugins/**",
         "scripts/**",
         ".github/workflows/**"
-      ],
-      "sourceDigest": "fa19b71b45c16a07b4bd2219dc30f2dab4f82baf6e43114955da845588f2ec2c",
-      "contentDigest": "2880da6eaf7aaf636a0d56ec924916d37bad539dcf6d1ab77002cb3c11cb7915"
+      ]
     },
     {
       "id": "techniques",
@@ -97,9 +86,7 @@
         "plugins/**",
         "scripts/**",
         "evals/**"
-      ],
-      "sourceDigest": "dc0d6f792951ac55443c13316fb31186ad51ca35c1ff44a18e12d0296aa839ab",
-      "contentDigest": "6da57dcd89d5cdd4d14a78839dd13447fec1585ebd1670cd099fc0c106fae0ee"
+      ]
     },
     {
       "id": "api-reference",
@@ -107,9 +94,7 @@
       "status": "current",
       "sources": [
         "plugins/*/skills/**"
-      ],
-      "sourceDigest": "f6689e8d650635a70ccecba4c7608689a27deb4ca3a9c9b38c87ccae95a687ff",
-      "contentDigest": "edc1a26ff0dbe844b51f50f41120d174254be3eef91f08454998cc5b4b1cfe81"
+      ]
     },
     {
       "id": "ci-delivery",
@@ -118,9 +103,7 @@
       "sources": [
         ".github/workflows/**",
         "scripts/**"
-      ],
-      "sourceDigest": "b577a8c230a88fe4c950ae0dd13a780acb82dc542c4d7578896f2fd47045d248",
-      "contentDigest": "825ead41d213ce3081f38533ea3e10d8200d45d13afb03613fc665d11c81e24e"
+      ]
     },
     {
       "id": "infrastructure",
@@ -130,9 +113,7 @@
         ".github/**",
         ".claude-plugin/**",
         "scripts/build-*.mjs"
-      ],
-      "sourceDigest": "7c1e77938c5dc9c8e1720b2d450c14f3d01717770ac1b7eff085bd1e74a4d9f1",
-      "contentDigest": "98e72cc6e09af108df3ca41c72fb45ff6f5ceb170eedb536c6fb6dd330a30f45"
+      ]
     },
     {
       "id": "observability",
@@ -141,9 +122,7 @@
       "sources": [
         "scripts/**",
         ".github/workflows/**"
-      ],
-      "sourceDigest": "b577a8c230a88fe4c950ae0dd13a780acb82dc542c4d7578896f2fd47045d248",
-      "contentDigest": "8097d205c6035f5fb270cd1c2bd6cdf5e549599f5da3cfebd149536a18df69e8"
+      ]
     },
     {
       "id": "performance",
@@ -156,9 +135,7 @@
         "evals/atlas-check/**",
         "evals/record-collections/**",
         ".github/workflows/validate.yml"
-      ],
-      "sourceDigest": "6457d72f9ea8827e48f7b050bd9feaed291475d72c19f4cde506d1adec1a3e72",
-      "contentDigest": "853aaaee03be492e082f8f1383ab5a066a24df95158258283d14a9ab43a49f74"
+      ]
     },
     {
       "id": "measurements",
@@ -169,9 +146,7 @@
         "scripts/context-audit.mjs",
         "plugins/code-ops-suite/hooks/session-receipt.mjs",
         "evals/context-audit/**"
-      ],
-      "sourceDigest": "456998b8cc062dcc36aca73a6623d628f36ebbde494dd8f293eba6c95ddb83d8",
-      "contentDigest": "c78b9324ebf7bf0e463c0e0a76b60b7bb4812623ae04f6e9ce86199208b143b0"
+      ]
     },
     {
       "id": "design-system",
@@ -181,9 +156,7 @@
       "sources": [
         "plugins/**",
         "scripts/**"
-      ],
-      "sourceDigest": "2ec083a78c5970bbdffa3201393065545624c8051ede9d49a1c7036d301d5f90",
-      "contentDigest": "54e4207ea22a12859e30b92dd1b5e42f62f53cec642ba24dea3e503607f9288b"
+      ]
     },
     {
       "id": "guides",
@@ -192,9 +165,7 @@
       "sources": [
         "plugins/**",
         "scripts/**"
-      ],
-      "sourceDigest": "2ec083a78c5970bbdffa3201393065545624c8051ede9d49a1c7036d301d5f90",
-      "contentDigest": "28060eab6bab3137fcc1864753ce0eba280dfa8630a0dc1de3191f8183d02bc0"
+      ]
     },
     {
       "id": "atlas",
@@ -202,9 +173,7 @@
       "status": "current",
       "sources": [
         "**"
-      ],
-      "sourceDigest": "8fe914800994908316d5086abc35ce7f66ec8fc2f936f13ba1a8594bc903158e",
-      "contentDigest": "7c0cb25ab5c13fff3ef6767535e830ff78ec760828dcad14e3f116969e32abf2"
+      ]
     }
   ]
 }

@@ -623,6 +623,219 @@ try {
   check('mutant: a widened strip fails the scope and slug cases', widened.synced && !widened.scopeCaught && !widened.slugCaught, JSON.stringify(widened));
   const everything = atlasOutcomes('all', realScript.replace('return Buffer.from(JSON.stringify({ ...atlas, sections }));', 'return Buffer.from("");'));
   check('mutant: ignoring the whole manifest fails the scope case', everything.synced && !everything.scopeCaught, JSON.stringify(everything));
+
+  // Digest file store (`"digestStore": "files"`): each domain digest is its own file under
+  // `<hub>/98 System/Digests/`, named `<id>.<source|content>.<first 16 hex of the digest>`. The fixture starts in JSON
+  // mode so the unchanged path and `migrate` are covered, then every case runs on a copy of the
+  // migrated base.
+  const ident = ['-c', 'user.email=eval@example.com', '-c', 'user.name=Eval'];
+  const fixtureTool = (dir) => (args) => {
+    const r = spawnSync(process.execPath, [join(dir, 'scripts', 'docs-manifest.mjs'), ...args, '--root', dir], { cwd: dir, encoding: 'utf8' });
+    return { status: r.status, out: r.stdout, err: r.stderr, all: `${r.stdout}${r.stderr}` };
+  };
+  const commitIn = (dir, message) => { git(['add', '-A'], dir); git([...ident, 'commit', '-qm', message], dir); return git(['rev-parse', 'HEAD'], dir).trim(); };
+  const digestDirOf = (dir) => join(dir, 'project-docs', '98 System', 'Digests');
+  const digestNames = (dir) => (existsSync(digestDirOf(dir)) ? readdirSync(digestDirOf(dir)).sort() : []);
+  const manifestOf = (dir) => join(dir, 'project-docs', '98 System', 'DOCS_MANIFEST.json');
+  const staleOf = (tool) => [...tool(['check']).all.matchAll(/- ([a-z-]+) (?:source|content) digest is stale/g)].map((m) => m[1]).filter((id, i, all) => all.indexOf(id) === i).sort().join();
+  const hex = (char) => char.repeat(64);
+  const short = (digest) => digest.slice(0, 16);
+
+  const fmJson = join(work, 'fm-json');
+  for (const sub of ['scripts', 'src/a', 'src/b', 'project-docs/98 System', 'project-docs/40 Engineering']) mkdirSync(join(fmJson, sub), { recursive: true });
+  for (const file of ['docs-manifest.mjs', 'context-index-lib.mjs', 'record-lib.mjs']) cpSync(join(ROOT, 'scripts', file), join(fmJson, 'scripts', file));
+  writeFileSync(join(fmJson, 'src', 'a', 'x.txt'), 'a0\n');
+  writeFileSync(join(fmJson, 'src', 'b', 'x.txt'), 'b0\n');
+  writeFileSync(join(fmJson, 'project-docs', 'Standard.md'), '---\nstandard-version: 4\n---\n\n# Standard\n');
+  for (const id of required) writeFileSync(join(fmJson, 'project-docs', '40 Engineering', `${id}.md`), `# ${id}\n`);
+  writeFileSync(manifestOf(fmJson), `${JSON.stringify({
+    version: 2, hub: 'project-docs', runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [],
+    domains: required.map((id) => ({ id, path: `40 Engineering/${id}.md`, status: 'current', sources: sourcesOf[id] || ['scripts/**'], sourceDigest: '', contentDigest: '' })),
+  }, null, 2)}\n`);
+  git(['init', '--quiet', '-b', 'main'], fmJson);
+  const jsonTool = fixtureTool(fmJson);
+  r = jsonTool(['sync']);
+  const jsonManifest = JSON.parse(readFileSync(manifestOf(fmJson), 'utf8'));
+  check('files store: JSON mode is unchanged (digests in the manifest, no Digests folder, no digestStore key)', r.status === 0
+    && jsonTool(['check']).status === 0 && digestNames(fmJson).length === 0 && !('digestStore' in jsonManifest)
+    && jsonManifest.domains.every((d) => /^[0-9a-f]{64}$/.test(d.sourceDigest) && /^[0-9a-f]{64}$/.test(d.contentDigest)), r.all);
+  const jsonBase = commitIn(fmJson, 'json base');
+  writeFileSync(join(fmJson, 'src', 'a', 'x.txt'), 'a-stale\n');
+  const staleJson = readFileSync(manifestOf(fmJson), 'utf8');
+  r = jsonTool(['migrate']);
+  check('files store: migrate refuses a stale manifest and writes nothing', r.status === 1 && readFileSync(manifestOf(fmJson), 'utf8') === staleJson && digestNames(fmJson).length === 0, r.all);
+  git(['checkout', '--', 'src'], fmJson);
+  r = jsonTool(['migrate', '--index']);
+  check('files store: migrate takes no flag but --root', r.status === 2, r.all);
+  r = jsonTool(['migrate']);
+  const migrated = JSON.parse(readFileSync(manifestOf(fmJson), 'utf8'));
+  check('files store: migrate sets the key, strips the digests, and writes 22 files', r.status === 0 && migrated.digestStore === 'files'
+    && migrated.domains.every((d) => !('sourceDigest' in d) && !('contentDigest' in d)) && digestNames(fmJson).length === 22, r.all);
+  check('files store: JSON-mode and files-mode check give the same verdict on the migration', jsonTool(['check']).status === 0, jsonTool(['check']).all);
+  check('files store: migrate refuses a manifest that already uses the store', jsonTool(['migrate']).status === 1, jsonTool(['migrate']).all);
+  check('files store: JSON-mode manifest and digest files agree on the digest', (() => {
+    const old = JSON.parse(git(['show', `${jsonBase}:project-docs/98 System/DOCS_MANIFEST.json`], fmJson));
+    return old.domains.every((d) => digestNames(fmJson).includes(`${d.id}.source.${short(d.sourceDigest)}`) && digestNames(fmJson).includes(`${d.id}.content.${short(d.contentDigest)}`));
+  })(), digestNames(fmJson).join());
+  const fmBase = commitIn(fmJson, 'files base');
+  const scenario = (name) => {
+    const dir = join(work, `fm-${name}`);
+    cpSync(fmJson, dir, { recursive: true });
+    return { dir, tool: fixtureTool(dir) };
+  };
+  const manifestBytes = (dir) => readFileSync(manifestOf(dir), 'utf8');
+
+  {
+    const { dir, tool } = scenario('drift');
+    const json = manifestBytes(dir);
+    writeFileSync(join(dir, 'src', 'a', 'x.txt'), 'a1\n');
+    check('files store: a source edit makes check fail with the stale text', tool(['check']).status === 1 && staleOf(tool) === 'architecture,atlas', staleOf(tool));
+    r = tool(['sync']);
+    check('files store: sync restamps the drifted domains and leaves the manifest bytes alone', r.status === 0 && tool(['check']).status === 0
+      && manifestBytes(dir) === json && digestNames(dir).length === 22, r.all);
+    const names = digestNames(dir);
+    r = tool(['sync', '--all']);
+    check('files store: sync --all on a fresh store changes nothing', r.status === 0 && digestNames(dir).join() === names.join() && manifestBytes(dir) === json, r.all);
+    r = tool(['sync', '--only', 'atlas']);
+    check('files store: sync --only works', r.status === 0, r.all);
+  }
+  {
+    const { dir, tool } = scenario('two');
+    const extra = join(digestDirOf(dir), `architecture.source.${short(hex('f'))}`);
+    writeFileSync(extra, `${hex('f')}\n`);
+    r = tool(['check']);
+    check('files store: two files for one domain and kind fail check as stale', r.status === 1 && staleOf(tool) === 'architecture'
+      && r.all.includes('architecture source digest is stale'), r.all);
+    r = tool(['sync']);
+    check('files store: sync resolves a duplicate and leaves one file', r.status === 0 && tool(['check']).status === 0 && !existsSync(extra)
+      && digestNames(dir).filter((n) => n.startsWith('architecture.source.')).length === 1, r.all);
+  }
+  {
+    const { dir, tool } = scenario('missing');
+    const doomed = digestNames(dir).find((n) => n.startsWith('contracts.content.'));
+    rmSync(join(digestDirOf(dir), doomed));
+    r = tool(['check']);
+    check('files store: a missing digest file is stale (also while git still lists it)', r.status === 1 && r.all.includes('contracts content digest is stale'), r.all);
+    r = tool(['sync']);
+    check('files store: sync writes the missing file back', r.status === 0 && digestNames(dir).includes(doomed) && tool(['check']).status === 0, r.all);
+  }
+  for (const [label, mutate, fragment] of [
+    ['a malformed name', (dir) => writeFileSync(join(digestDirOf(dir), 'architecture.source.xyz'), 'x\n'), 'malformed digest file name'],
+    ['an uppercase digest name', (dir) => writeFileSync(join(digestDirOf(dir), `architecture.source.${short(hex('A'))}`), `${hex('A')}\n`), 'malformed digest file name'],
+    ['a file in a subfolder', (dir) => { mkdirSync(join(digestDirOf(dir), 'sub'), { recursive: true }); writeFileSync(join(digestDirOf(dir), 'sub', 'x'), 'x\n'); }, 'malformed digest file name'],
+    ['an orphan file', (dir) => writeFileSync(join(digestDirOf(dir), `nope.source.${short(hex('c'))}`), `${hex('c')}\n`), 'digest file for unknown domain nope'],
+    ['content whose prefix differs from the name', (dir) => {
+      const name = digestNames(dir).find((n) => n.startsWith('guides.source.'));
+      writeFileSync(join(digestDirOf(dir), name), `${hex('e')}\n`);
+    }, 'digest file content is not the 64-hex digest its name prefixes'],
+    ['content shorter than 64 hex', (dir) => {
+      const name = digestNames(dir).find((n) => n.startsWith('guides.source.'));
+      writeFileSync(join(digestDirOf(dir), name), `${name.split('.')[2]}\n`);
+    }, 'digest file content is not the 64-hex digest its name prefixes'],
+    ['a full 64-hex file name', (dir) => writeFileSync(join(digestDirOf(dir), `architecture.source.${hex('f')}`), `${hex('f')}\n`), 'malformed digest file name'],
+  ]) {
+    const { dir, tool } = scenario(`bad-${label.replace(/\W+/g, '-')}`);
+    mutate(dir);
+    const before = digestNames(dir).join();
+    r = tool(['check']);
+    const refused = tool(['sync']);
+    check(`files store: ${label} is a structural error for check`, r.status === 1 && r.all.includes(fragment), r.all);
+    check(`files store: sync refuses ${label}`, refused.status === 1 && refused.all.includes('documentation manifest invalid') && digestNames(dir).join() === before, refused.all);
+  }
+  {
+    // A 64-bit prefix collision: a file with the right name and a valid-looking but different digest.
+    // It parses, yet differs from the computed digest, so check fails closed and sync repairs it.
+    const { dir, tool } = scenario('collision');
+    const name = digestNames(dir).find((n) => n.startsWith('guides.source.'));
+    const genuine = readFileSync(join(digestDirOf(dir), name), 'utf8');
+    writeFileSync(join(digestDirOf(dir), name), `${name.split('.')[2]}${'0'.repeat(48)}
+`);
+    r = tool(['check']);
+    check('files store: a same-prefix file with a different digest fails closed as stale', r.status === 1 && staleOf(tool) === 'guides' && r.all.includes('guides source digest is stale'), r.all);
+    r = tool(['sync']);
+    check('files store: sync replaces the same-prefix forgery with the genuine digest', r.status === 0 && tool(['check']).status === 0 && readFileSync(join(digestDirOf(dir), name), 'utf8') === genuine, r.all);
+  }
+  {
+    const { dir, tool } = scenario('leftover');
+    const leftover = JSON.parse(manifestBytes(dir));
+    leftover.domains[0].sourceDigest = hex('1');
+    writeFileSync(manifestOf(dir), `${JSON.stringify(leftover, null, 2)}\n`);
+    r = tool(['check']);
+    const refused = tool(['sync']);
+    check('files store: a digest key left on a domain is a structural error', r.status === 1 && r.all.includes('must not carry sourceDigest'), r.all);
+    check('files store: sync refuses a domain that still carries a digest key', refused.status === 1 && refused.all.includes('documentation manifest invalid'), refused.all);
+    leftover.digestStore = 'json'; delete leftover.domains[0].sourceDigest;
+    writeFileSync(manifestOf(dir), `${JSON.stringify(leftover, null, 2)}\n`);
+    check('files store: digestStore accepts only "files"', tool(['check']).all.includes('digestStore must be "files"'), tool(['check']).all);
+    const v1 = JSON.parse(manifestBytes(dir)); v1.digestStore = 'files'; v1.version = 1;
+    delete v1.runs; delete v1.recordCollections; delete v1.legacyPaths;
+    writeFileSync(manifestOf(dir), `${JSON.stringify(v1, null, 2)}\n`);
+    check('files store: version 1 does not take the key', tool(['check']).all.includes('manifest has unknown key digestStore'), tool(['check']).all);
+  }
+  {
+    // --index: the file deleted on disk but still staged counts as present, and a staged deletion counts as missing.
+    const { dir, tool } = scenario('index');
+    const victim = digestNames(dir).find((n) => n.startsWith('observability.source.'));
+    rmSync(join(digestDirOf(dir), victim));
+    check('files store: an unstaged deletion fails the working-tree check', tool(['check']).status === 1 && staleOf(tool) === 'observability', staleOf(tool));
+    check('files store: --index still sees the unstaged deletion as present', tool(['check', '--index']).status === 0, tool(['check', '--index']).all);
+    git(['rm', '--cached', '-q', '--', `project-docs/98 System/Digests/${victim}`], dir);
+    r = tool(['check', '--index']);
+    check('files store: --index counts a staged deletion as missing', r.status === 1 && r.all.includes('observability source digest is stale'), r.all);
+    r = tool(['sync', '--index']);
+    check('files store: sync --index restores the staged deletion on disk', r.status === 0 && digestNames(dir).includes(victim), r.all);
+    git(['add', '-A'], dir);
+    check('files store: --index passes once the file is staged again', tool(['check', '--index']).status === 0, tool(['check', '--index']).all);
+  }
+  {
+    // --attested: the same shape as the JSON-mode case above, with the store holding the digests.
+    const { dir, tool } = scenario('attested');
+    git(['checkout', '-q', '-b', 's1'], dir);
+    writeFileSync(join(dir, 'src', 'a', 'x.txt'), 'a1\n');
+    tool(['sync']);
+    const one = commitIn(dir, 'side one');
+    git(['checkout', '-q', '-b', 's2', fmBase], dir);
+    writeFileSync(join(dir, 'src', 'b', 'x.txt'), 'b2\n');
+    tool(['sync', '--only', 'atlas']);
+    const two = commitIn(dir, 'side two');
+    git(['checkout', '-q', '-b', 'merged'], dir);
+    git(['checkout', one, '--', 'src/a/x.txt'], dir);
+    commitIn(dir, 'combined trees, digest files from side two');
+    check('files store: the combined tree is stale for architecture, atlas and contracts', staleOf(tool) === 'architecture,atlas,contracts', staleOf(tool));
+    r = tool(['sync', '--attested', `${two},${one}`]);
+    check('files store: --attested restamps the domains fresh at both revs and names the rest', r.status === 0
+      && r.out.includes('left stale, not attested') && r.out.includes('contracts') && staleOf(tool) === 'contracts', r.all);
+    git(['checkout', '--', 'project-docs'], dir); git(['clean', '-fdq', '--', 'project-docs'], dir);
+    r = tool(['sync', '--attested', one]);
+    check('files store: --attested with one rev attests contracts, which was fresh there', r.status === 0 && staleOf(tool) === '', r.all);
+    git(['checkout', '--', 'project-docs'], dir); git(['clean', '-fdq', '--', 'project-docs'], dir);
+    git(['checkout', '-q', '-b', 'dup', one], dir);
+    writeFileSync(join(digestDirOf(dir), `architecture.source.${hex('f')}`), `${hex('f')}\n`);
+    const duplicated = commitIn(dir, 'ambiguous architecture');
+    git(['checkout', '-q', 'merged'], dir);
+    r = tool(['sync', '--attested', duplicated]);
+    check('files store: a rev with two files for the domain does not attest it', r.status === 0 && r.out.includes('left stale') && r.out.includes('architecture'), r.all);
+  }
+  {
+    // Two branches restamp the same domain and git merges the digest files without a conflict.
+    const { dir, tool } = scenario('merge');
+    git(['checkout', '-q', '-b', 'b1'], dir);
+    writeFileSync(join(dir, 'src', 'a', 'x.txt'), 'a-left\n');
+    tool(['sync']);
+    commitIn(dir, 'left');
+    git(['checkout', '-q', '-b', 'b2', fmBase], dir);
+    writeFileSync(join(dir, 'src', 'a', 'y.txt'), 'a-right\n');
+    tool(['sync']);
+    commitIn(dir, 'right');
+    const tree = spawnSync('git', ['merge-tree', '--write-tree', 'b1', 'b2'], { cwd: dir, encoding: 'utf8' });
+    check('files store: merge-tree of two branches that restamp one domain exits 0', tree.status === 0, `${tree.stdout}${tree.stderr}`);
+    git(['checkout', '-q', 'b1'], dir);
+    const merge = spawnSync('git', [...ident, 'merge', '--no-edit', 'b2'], { cwd: dir, encoding: 'utf8' });
+    check('files store: the real merge exits 0', merge.status === 0, `${merge.stdout}${merge.stderr}`);
+    check('files store: the merged tree fails check (two files per restamped domain)', tool(['check']).status === 1 && staleOf(tool) === 'architecture,atlas', staleOf(tool));
+    r = tool(['sync']);
+    check('files store: sync resolves the merged tree', r.status === 0 && tool(['check']).status === 0, r.all);
+  }
 } finally { rmSync(work, { recursive: true, force: true }); }
 if (failures.length) { console.error(`\n${failures.join('\n')}`); process.exit(1); }
 console.log('\ndocs-manifest eval passed');

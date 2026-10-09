@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
+      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -371,7 +371,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "972d758ef3c5b6bc91aea703cf1a180f2d8b0570d0bb9422379b03b10e179572"
+      "verifiedDigest": "65000ea3026544d1abdcdf3d4a14d6cdf3f0b09dde782e5af493bf627ec76ec0"
     },
     {
       "slug": "gate-scripts",
@@ -380,21 +380,21 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "3085035b4cb3d9fb57d9370ec66b4885740744e7",
+      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 112,
+          "line": 123,
           "anchor": "function indexSnapshot(root) {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 377,
+          "line": 434,
           "anchor": "export function runRetentionTier(path, mtimeMs, nowMs = Date.now()) {"
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 146,
+          "line": 157,
           "anchor": "const ATLAS_STAMP_FIELDS = new Set(['verifiedAt', 'verifiedDigest', 'claims']);"
         },
         {
@@ -449,7 +449,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 176,
+          "line": 224,
           "anchor": "// Manifest v3 profile blocks. This function validates their shape. Only"
         },
         {
@@ -474,7 +474,7 @@
         },
         {
           "file": "scripts/docs-manifest.mjs",
-          "line": 312,
+          "line": 366,
           "anchor": ".filter((collection) => collection && typeof collection === 'object' && !Array.i"
         },
         {
@@ -1003,7 +1003,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "2d1c7299d32039672cf2a3939613c85e13ed55a318f8ee789b40b93e2709a38b"
+      "verifiedDigest": "12eb2ac67bf1159c33a492526e76fd97d1dccce1b1226eb43e843b85369c10b1"
     },
     {
       "slug": "evals-and-calibration",
@@ -1011,8 +1011,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
-      "verifiedDigest": "4e8d979021e5765a8566870f5efb916b8ee833f26deea3ac23d8ce056a074640",
+      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
+      "verifiedDigest": "010793fa100718b853450eee05af1df1985b5c4e69269aa17673e50e7f6c43ca",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1076,12 +1076,12 @@
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 135,
+          "line": 144,
           "anchor": "// The hook scenarios (S3, S4, S6, S7, S9) run the real hooks. This repository h"
         },
         {
           "file": "evals/merge-driver/run.mjs",
-          "line": 668,
+          "line": 726,
           "anchor": "// 14. Mutants for the hooks. Each broken hook must fail the scenario that guard"
         },
         {
@@ -1364,7 +1364,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
+      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1477,7 +1477,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "3e1607ac6d74ea273626302edd72f7d2ad694ec6cff9fd9ce2b140b859646882"
+      "verifiedDigest": "7ba5f2c48d97ae0439dcab667b7ed91eecd7c6cd7ec5470d08e03ed6d979341a"
     },
     {
       "slug": "ci-workflows",
@@ -1584,21 +1584,21 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "53dc60824231c8e18733424f3e240038f9cc2136",
+      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
-          "line": 66,
+          "line": 68,
           "anchor": "The register holds rules, not evidence. Four clauses bind it:"
         },
         {
           "file": "code-ops-docs/Standard.md",
-          "line": 73,
+          "line": 75,
           "anchor": "record carries a key, and other record kinds do not. An amendment carries the ke"
         },
         {
           "file": "code-ops-docs/Standard.md",
-          "line": 121,
+          "line": 123,
           "anchor": "curation event. Every record keeps its bytes and its path relative to the root."
         },
         {
@@ -1656,7 +1656,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "8762f054854760c18b0370add3016331933ce9a9c355a998063e7ddff4b7ad0c"
+      "verifiedDigest": "724a14dd4ba417ba03214bfc26c47ef605e80f958ca044f11b890b427ca1e218"
     },
     {
       "slug": "root-contracts",

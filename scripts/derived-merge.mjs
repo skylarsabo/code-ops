@@ -400,10 +400,20 @@ function replaceHead(root, tree, parents, reflog) {
 function attestedRestamp(root, revs) {
   const group = GROUPS.find((candidate) => candidate.id === 'docs-manifest');
   if (!groupRunnable(group)) return { skip: 'docs-manifest.mjs is not installed here' };
-  const paths = git(['ls-files', '-z', '--', '*DOCS_MANIFEST.json'], { cwd: root }).out.split('\0').filter((path) => path && group.match(path));
-  if (!paths.length) return { skip: '' };
+  const manifests = git(['ls-files', '-z', '--', '*DOCS_MANIFEST.json'], { cwd: root }).out.split('\0').filter((path) => path && group.match(path));
+  if (!manifests.length) return { skip: '' };
+  // Under "digestStore": "files" the digests are the files in the Digests directory beside the
+  // manifest, so the restamp's additions and deletions travel with it. A JSON-mode hub has no such
+  // directory, and a pathspec that matches nothing would fail the restore.
+  const digestDirs = manifests.map((path) => `${path.includes('/') ? dirname(path) : '.'}/Digests`.replace(/^\.\//, ''))
+    .filter((dir) => git(['ls-files', '-co', '--', dir], { cwd: root }).out);
+  const paths = [...manifests, ...digestDirs];
   if (git(['ls-files', '-u'], { cwd: root }).out) return { skip: 'the index has unmerged paths' };
-  if (git(['diff', '--quiet', '--', ...paths], { cwd: root }).status !== 0) return { skip: `${paths[0]} has unstaged edits`, dirty: true };
+  // diff alone misses untracked digest files, so list those too. git() trims its output, so a
+  // porcelain status line would lose its leading column.
+  const unstaged = git(['diff', '--quiet', '--', ...paths], { cwd: root }).status !== 0
+    || git(['ls-files', '--others', '--exclude-standard', '--', ...paths], { cwd: root }).out !== '';
+  if (unstaged) return { skip: `${paths[0]} has unstaged edits`, dirty: true };
   const ctx = { parents: revs, notes: [] };
   return { paths, ctx, why: runTools(group, root, ctx) };
 }

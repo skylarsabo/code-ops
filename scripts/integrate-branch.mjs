@@ -32,7 +32,7 @@
 //      judgment item - this script prints the section and the stamp command and never stamps it;
 //      only a human (or an agent that has actually re-verified the prose) should run that. After the
 //      stamps it also prints the follow-up: git add the atlas folder, docs-manifest.mjs sync --index,
-//      then git add the manifest.
+//      then git add the manifest (and its Digests directory under "digestStore": "files").
 //   5. Gates: the structural chain from CLAUDE.md "Before declaring any change done" always runs,
 //      plus every applicable step from the required structural-lint job of
 //      .github/workflows/validate.yml and the shard jobs its `needs:` lists - applicable meaning its `run:` text names a changed path,
@@ -366,7 +366,7 @@ function runAtlasStep(log) {
   // A stamp edits the atlas folder, which the manifest hashes as the atlas content. Name the follow-up,
   // since a stamp after the sync leaves that digest stale. The pre-commit hook restamps it only when
   // nothing else is stale.
-  if (stale.length) judgmentItems.push(`after stamping: git add "${ATLAS_DIR}", then node scripts/docs-manifest.mjs sync --index, then git add the manifest`);
+  if (stale.length) judgmentItems.push(`after stamping: git add "${ATLAS_DIR}", then node scripts/docs-manifest.mjs sync --index, then git add the manifest and, under "digestStore": "files", the Digests directory beside it`);
   return { ok: r.ok !== false, judgmentItems, stale };
 }
 
