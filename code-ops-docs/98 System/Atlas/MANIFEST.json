@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -374,7 +374,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "19125dffb0dd6ac2580d24a2a616341bc64a5059e1d0a0cd5e92f36d2fb7e94a"
+      "verifiedDigest": "13005bf555e7bf5be8235b1e6585db7fa9b8d67e6109ec505641c8b88a920842"
     },
     {
       "slug": "gate-scripts",
@@ -383,7 +383,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -801,7 +801,7 @@
         },
         {
           "file": "scripts/digest-lib.mjs",
-          "line": 827,
+          "line": 872,
           "anchor": "export function digestToolResponse(toolName, toolResponse, ctx = {}) {"
         },
         {
@@ -1010,7 +1010,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "4131f635ba2c5da918be76787149a51d2c38c6fa339b0bd538d52eff911f5ba4"
+      "verifiedDigest": "1d84874aa605b2160f8a7d0ff5fff5770670a43f6dbf15ebb9d6c212952a10e6"
     },
     {
       "slug": "evals-and-calibration",
@@ -1376,7 +1376,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1488,7 +1488,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "fb68ad9dd0be11bfa2fc0f058a6c268c5e3cfc784db80dd42b2ac0c5319dda2a"
+      "verifiedDigest": "1b95f667800cd5feb4e3df684c75eaab48234627decbb9bd6e418779914c6c3d"
     },
     {
       "slug": "ci-workflows",
@@ -1595,7 +1595,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedAt": "5fd68235bc2dcde9d1dff39bc2f194d4ef8799d6",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1667,7 +1667,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "878aebb68102f2b8ee5e58e3fcfe67ef903e475969a3ac1fc09d4f5e4938de7e"
+      "verifiedDigest": "f07cb311ff78f4d6738800992c7b5c28bcac6361075c9a087a1ba3023ab920c3"
     },
     {
       "slug": "root-contracts",

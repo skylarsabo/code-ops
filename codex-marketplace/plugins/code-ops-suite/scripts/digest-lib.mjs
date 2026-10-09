@@ -690,8 +690,12 @@ export function digestText(raw, opts = {}) {
 
 // Same rule as transcript-lib.projectSlug: every non-alphanumeric byte becomes a dash, so one
 // checkout's raw outputs never mix with another's.
-const projectSlug = (cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
+const projectSlug = (/** @type {string} */ cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
 
+/**
+ * @param {{ store?: string }} o
+ * @param {string} startDir
+ */
 export function storeDir(o, startDir) {
   if (o.store) return resolve(o.store);
   if (process.env.CODE_OPS_DIGEST_DIR) return resolve(process.env.CODE_OPS_DIGEST_DIR);
@@ -704,6 +708,11 @@ export const storeOff = (env = process.env) => /^(off|0|false)$/i.test(env.CODE_
 
 // Returns the plan, or null when the write fails. Never throws: an unwritable store loses the
 // recovery hints, not the run.
+/** @typedef {{ dir: string, path: string, sha256: string }} StorePlan */
+/**
+ * @param {StorePlan | null} plan
+ * @param {string} body
+ */
 export function writeStore(plan, body) {
   if (plan === null) return null;
   try {
@@ -713,6 +722,10 @@ export function writeStore(plan, body) {
   } catch { return null; }
 }
 
+/**
+ * @param {string} dir
+ * @param {object} row
+ */
 export function appendReceipt(dir, row) {
   try {
     mkdirSync(dir, { recursive: true });
@@ -723,8 +736,8 @@ export function appendReceipt(dir, row) {
 // ------------------------------------------------------------------ post-output digest
 
 const SEP = '----- stderr -----';
-const switchOff = (v) => /^(off|0|false)$/i.test(v ?? '');
-const switchOn = (v) => /^(1|on|true|yes)$/i.test(v ?? '');
+const switchOff = (/** @type {string | undefined} */ v) => /^(off|0|false)$/i.test(v ?? '');
+const switchOn = (/** @type {string | undefined} */ v) => /^(1|on|true|yes)$/i.test(v ?? '');
 // The CLI trailer ends every digested output: "[exit N · shape · A lines → B · raw P · sha256:H]".
 // A stream that ends with one went through the PreToolUse rewrite already, and a second pass
 // would only digest a digest.
@@ -738,12 +751,19 @@ const READ_TAIL = 40;
 const THRESHOLD_LEAD = ['CODE_OPS_DIGEST_POST_LEAD', 4000];
 const THRESHOLD_SUBAGENT = ['CODE_OPS_DIGEST_POST_SUBAGENT', 8000];
 
-const sha = (text) => createHash('sha256').update(text).digest('hex');
-const lineCount = (t) => (t === '' ? 0 : t.split('\n').length - (t.endsWith('\n') ? 1 : 0));
+const sha = (/** @type {string} */ text) => createHash('sha256').update(text).digest('hex');
+const lineCount = (/** @type {string} */ t) => (t === '' ? 0 : t.split('\n').length - (t.endsWith('\n') ? 1 : 0));
+
+/** @typedef {{ agentId?: string, cwd?: string, store?: string, command?: string, env?: Env, now?: Date }} PostCtx */
+/** @typedef {Record<string, string | undefined>} Env */
 
 // A subagent thread carries agent_id on every hook input; the lead thread carries none.
+/**
+ * @param {PostCtx} ctx
+ * @param {Env} env
+ */
 function threshold(ctx, env) {
-  const [name, dflt] = ctx.agentId ? THRESHOLD_SUBAGENT : THRESHOLD_LEAD;
+  const [name, dflt] = /** @type {[string, number]} */ (ctx.agentId ? THRESHOLD_SUBAGENT : THRESHOLD_LEAD);
   const set = env[name] !== undefined && env[name] !== '';
   const v = Number(env[name]);
   return set && Number.isFinite(v) && v >= 0 ? v : dflt;
@@ -751,6 +771,13 @@ function threshold(ctx, env) {
 
 // The raw file's location, or null when the store is off. Written later, once the digest has
 // proven it is smaller.
+/**
+ * @param {string} body
+ * @param {PostCtx} ctx
+ * @param {Env} env
+ * @param {Date} now
+ * @returns {StorePlan | null}
+ */
 function planStore(body, ctx, env, now) {
   if (storeOff(env)) return null;
   const ts = now.toISOString();
@@ -759,10 +786,22 @@ function planStore(body, ctx, env, now) {
   return { dir, path: join(dir, ts.slice(0, 10), `${ts.slice(11, 19).replace(/:/g, '')}-${hash.slice(0, 8)}.txt`), sha256: hash };
 }
 
+/**
+ * @param {StorePlan} stored
+ * @param {PostCtx} ctx
+ * @param {Date} now
+ * @param {object} row
+ */
 function receipt(stored, ctx, now, row) {
   appendReceipt(stored.dir, { v: 1, ts: now.toISOString(), cwd: ctx.cwd ?? process.cwd(), exit: null, ...row, sha256: stored.sha256, raw: stored.path, source: 'post' });
 }
 
+/**
+ * @param {any} r
+ * @param {PostCtx} ctx
+ * @param {Env} env
+ * @param {Date} now
+ */
 function digestBash(r, ctx, env, now) {
   const { stdout, stderr } = r;
   if (TRAILER_END_RE.test(stdout) || TRAILER_END_RE.test(stderr)) return null;
@@ -772,7 +811,7 @@ function digestBash(r, ctx, env, now) {
   const offset = hasErr ? lineCount(stdout) + 1 : 0; // stderr sits after stdout and the separator in the raw file
   const plan = planStore(body, ctx, env, now);
   const hash = plan ? plan.sha256 : sha(body);
-  const build = (rawPath) => {
+  const build = (/** @type {string | null} */ rawPath) => {
     const opts = { ...POST, shape, rawPath, cwd: ctx.cwd ?? process.cwd() };
     const dOut = digestText(stdout, opts);
     const dErr = hasErr ? digestText(stderr, { ...opts, offset }) : null;
@@ -796,6 +835,12 @@ function digestBash(r, ctx, env, now) {
 
 // Read keeps its tool_response shape exactly (`{ type, file: { filePath, content, numLines,
 // startLine, totalLines } }`): only file.content changes, and the counts keep describing the file.
+/**
+ * @param {any} r
+ * @param {PostCtx} ctx
+ * @param {Env} env
+ * @param {Date} now
+ */
 function digestRead(r, ctx, env, now) {
   const content = r.file.content;
   if (ELISION_RE.test(content)) return null;
@@ -804,10 +849,10 @@ function digestRead(r, ctx, env, now) {
   if (total <= READ_HEAD + READ_TAIL + 1) return null;
   const plan = planStore(content, ctx, env, now);
   const count = total - READ_HEAD - READ_TAIL;
-  const hint = (path) => (path
+  const hint = (/** @type {string | null} */ path) => (path
     ? `[elided ${count} lines: sed -n '${READ_HEAD + 1},${total - READ_TAIL}p' ${path}]`
     : `[elided ${count} lines, not stored: read the file again with offset and limit]`);
-  const rebuilt = (path) => [...lines.slice(0, READ_HEAD), hint(path), ...lines.slice(total - READ_TAIL)].join('\n');
+  const rebuilt = (/** @type {string | null} */ path) => [...lines.slice(0, READ_HEAD), hint(path), ...lines.slice(total - READ_TAIL)].join('\n');
   let next = rebuilt(plan ? plan.path : null);
   if (next.length >= content.length) return null;
   const stored = writeStore(plan, content);
@@ -822,7 +867,7 @@ function digestRead(r, ctx, env, now) {
  * null when the output should reach the model as it is. Never throws.
  * @param {string} toolName
  * @param {any} toolResponse
- * @param {{ agentId?: string, cwd?: string, store?: string, command?: string, env?: Record<string, string | undefined>, now?: Date }} [ctx]
+ * @param {PostCtx} [ctx]
  */
 export function digestToolResponse(toolName, toolResponse, ctx = {}) {
   try {

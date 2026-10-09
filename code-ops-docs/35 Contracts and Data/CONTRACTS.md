@@ -700,7 +700,7 @@ replacement keeps every key of the original `tool_response`: a `Bash` result cha
 and `stderr`, and a `Read` result changes only `file.content`, so `numLines`, `startLine`, and
 `totalLines` keep describing the file. Evidence: `plugins/code-ops-suite/hooks/digest-post.mjs:29-39`,
 `scripts/digest-lib.mjs:766-796`, `scripts/digest-lib.mjs:799-815`, and
-`scripts/digest-lib.mjs:827-846`.
+`scripts/digest-lib.mjs:872-892`.
 
 The hook prints nothing, and the model sees the raw result, in these cases:
 
@@ -722,7 +722,7 @@ A `Read` result is digested only behind `CODE_OPS_DIGEST_READ` set to `1`, `on`,
 It keeps the first 40 and last 40 lines and replaces the middle with `[elided N lines: sed -n 'A,Bp'
 <raw path>]`. A file of 81 lines or fewer passes. Evidence: `scripts/digest-lib.mjs:729-748`,
 `scripts/digest-lib.mjs:766-768`, `scripts/digest-lib.mjs:799-815`, and
-`scripts/digest-lib.mjs:827-846`.
+`scripts/digest-lib.mjs:872-892`.
 
 The hook keeps the raw output. It writes the full text to the digest store at the path the
 digest names, in the store, receipt, and slug rules of the Output digest section, and appends
