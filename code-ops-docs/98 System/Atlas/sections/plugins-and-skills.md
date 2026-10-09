@@ -38,7 +38,7 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The canonical package registers fifteen hook commands across nine events (plugins/code-ops-suite/hooks/hooks.json:85). `handoff-card.mjs` runs
+The canonical package registers sixteen hook commands across nine events (plugins/code-ops-suite/hooks/hooks.json:85). `handoff-card.mjs` runs
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and asks the lead to
 checkpoint at each 150,000-token band; it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:2,
@@ -99,6 +99,8 @@ that doctrine. OpenCode uses its native compaction port.
 `local-review-gate` is opt-in. `ship` and `pr-split` run the deterministic chain and the lead's diff read on every change and start the model gates only on an operator yes recorded at the checkpoint; the conventions carry the rule as a safety rail. `ship` syncs before the push: fetch, rebase onto the upstream base, then push, with one more round after a non-fast-forward rejection. A second rejection or a rebase conflict stops the ship, it never force-pushes, and a rebase that moves HEAD re-runs the gates before the push (plugins/code-ops-suite/skills/ship/SKILL.md:102, plugins/code-ops-suite/skills/ship/SKILL.md:106).
 
 `distill` has two modes. Program mode rewrites one program ledger into its finish line, at most 12 active items, live decisions with dispositions, and a backlog, and it moves every removed line verbatim to the archive or the backlog. Vault mode back-fills a docs vault through eight phases, and phase 6 is program mode. Phase 8 installs a baseline that a gate holds the tree to, and a maintain pass then works down the baseline and the triage queue within a budget (plugins/code-ops-suite/skills/distill/SKILL.md:7, plugins/code-ops-suite/skills/distill/SKILL.md:24).
+
+`digest-post.mjs` runs at `PostToolUse` for `Bash` and `Read` and replaces an oversize result with its digest through `updatedToolOutput`, keeping the raw output in the digest store (plugins/code-ops-suite/hooks/digest-post.mjs:1). The Codex and OpenCode builds omit it.
 
 `digest-rewrite.mjs` is on by default and off per user or repository. It runs as a second
 `PreToolUse` stage behind the traceless gate and rewrites an allowlisted simple command through

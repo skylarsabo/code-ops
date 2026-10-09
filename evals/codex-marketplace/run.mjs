@@ -165,6 +165,14 @@ for (const event of ['PreToolUse', 'PostToolUse']) {
 const sessionEndTimeouts = (hookManifest.hooks?.SessionEnd ?? []).flatMap((group) => group.hooks ?? []).map((entry) => entry.timeout);
 expect(sessionEndTimeouts.length > 0 && sessionEndTimeouts.every((timeout) => timeout <= 3), `Codex SessionEnd timeout exceeds the desktop ceiling: ${sessionEndTimeouts.join(', ')}`);
 
+// digest-post.mjs rewrites tool results, which Codex hooks cannot honor, so the package ships neither
+// the script nor its hook command (CODEX_EXCLUDED_HOOKS in build-codex-marketplace.mjs).
+const codexHookFiles = readdirSync(join(pluginsDir, 'code-ops-suite', 'hooks'));
+const codexHookText = JSON.stringify(hookManifest);
+expect(!codexHookFiles.includes('digest-post.mjs'), 'the Codex package ships hooks/digest-post.mjs, which the build must exclude');
+expect(!codexHookText.includes('digest-post'), 'the Codex hooks.json carries a digest-post command, which the build must exclude');
+expect(codexHookFiles.includes('enforce-traceless.mjs') && codexHookText.includes('enforce-traceless'), 'the Codex exclusion check no longer sees the hooks it should keep');
+
 const routingCard = read(join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs'));
 expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routingCard), 'routing card retains Claude slash-command syntax');
 expect(routingCard.includes('code-ops-suite:debug'), 'routing card does not name the Codex workflow syntax');

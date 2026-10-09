@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -38,7 +38,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/hooks.json",
           "line": 85,
-          "anchor": "\"PostCompact\": ["
+          "anchor": "\"hooks\": ["
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -58,7 +58,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 187,
-          "anchor": "// the field, not a captured payload). Codex's dispatch tool name is UNVERIFIED,"
+          "anchor": "// shared with the handoff card)."
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -103,32 +103,32 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 460,
-          "anchor": "handoffs awaiting resume (this session is new work unless the operator resumes o"
+          "anchor": "lines.push(...recallLine(sessionId, payload?.transcript_path));"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 447,
-          "anchor": "lines.push(...gitLine(cwd));"
+          "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 240,
-          "anchor": "// FAIL-OPEN on host input and absent binding evidence. A present but malformed"
+          "anchor": "// counter is attempted PreToolUse calls, including a call the hook denies. It i"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 249,
-          "anchor": "import { fileURLToPath, pathToFileURL } from 'node:url';"
+          "anchor": "// controller binding instead fails closed for that id: it must never silently g"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1031,
-          "anchor": "// call (a wide-surface reason excuses it); a literal effort above high never pa"
+          "anchor": "const stop = s[i + 1] === '/' ? s.indexOf('\\n', i) : s.indexOf('*/', i + 2) + 1;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1014,
-          "anchor": "// an internal error adds nothing."
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -138,22 +138,21 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 867,
-          "anchor": "// input is missing or unreadable (fail open)."
+          "anchor": "try { recordAssessment(await assessmentRoot(process.cwd()), sessionId, band); }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1382,
-          "anchor": "${skeleton.join('\\n')}\\n${prose}"
+          "line": 1382
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1196,
-          "anchor": "// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a"
+          "anchor": "routeUnit: route.routeUnit, surfaceOfScope: route.surfaceOfScope, rungRank: rout"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1340,
-          "anchor": "} else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'str"
+          "anchor": "+ 'A Route override line does not clear a surface mismatch.');"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
@@ -163,7 +162,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 528,
-          "anchor": "let legacy = null;"
+          "anchor": "}"
         },
         {
           "file": "scripts/collision-lib.mjs",
@@ -172,8 +171,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 538,
-          "anchor": "// eval fires every row, so a reworded message that no longer matches fails ther"
+          "line": 538
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
@@ -203,7 +201,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 227,
-          "anchor": "const agent_id = payload.agent_id || payload.subagentId;"
+          "anchor": "requestedTier,"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -253,7 +251,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1325,
-          "anchor": "if (spawn) {"
+          "anchor": "Effort: ${effort} is below the ${runEffort} that ${source}. Pass effort: \"${effo"
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -283,7 +281,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/hooks.json",
           "line": 79,
-          "anchor": "\"command\": \"node \\\"${CLAUDE_PLUGIN_ROOT}/hooks/compact-snapshot.mjs\\\"\","
+          "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/recall-spawn.mjs",
@@ -303,22 +301,22 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 392,
-          "anchor": "function recallLine(sessionId, transcriptPath) {"
+          "anchor": "// One line telling a compacted session it can recover exact earlier detail from"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 443,
-          "anchor": "compaction resume: this session is ${record.name}, run folder ${record.runDir};"
+          "anchor": "} else {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 291,
-          "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
+          "anchor": "const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 306,
-          "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
+          "anchor": "Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed inp"
         },
         {
           "file": "plugins/code-ops-suite/skills/ship/SKILL.md",
@@ -339,6 +337,11 @@
           "file": "plugins/code-ops-suite/skills/distill/SKILL.md",
           "line": 24,
           "anchor": ") is the eight-phase backfill of a whole docs vault, then a maintain"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/digest-post.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
         },
         {
           "file": "plugins/code-ops-suite/CONVENTIONS.md",
@@ -371,7 +374,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "65000ea3026544d1abdcdf3d4a14d6cdf3f0b09dde782e5af493bf627ec76ec0"
+      "verifiedDigest": "19125dffb0dd6ac2580d24a2a616341bc64a5059e1d0a0cd5e92f36d2fb7e94a"
     },
     {
       "slug": "gate-scripts",
@@ -380,7 +383,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -690,22 +693,21 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 317,
-          "anchor": "// Launches with no report, newest first, with the sources read. With"
+          "anchor": "const file = ledgerFile(stateDir, sessionId);"
         },
         {
           "file": "scripts/agent-ledger.mjs",
-          "line": 181,
-          "anchor": "function routingOf(input, agentType, agentsDir) {"
+          "line": 181
         },
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 380,
-          "anchor": "export function attemptOf(rows, unit) {"
+          "anchor": "if (row.status !== 'dispatched' || !row.background || !row.agent_id || settled.h"
         },
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 402,
-          "anchor": "export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge"
+          "anchor": "return { agents, sources, unknown: unknown || null };"
         },
         {
           "file": "scripts/agent-ledger.mjs",
@@ -715,7 +717,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 340,
-          "anchor": "async function routingLine(sessionId) {"
+          "anchor": "}"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -735,37 +737,37 @@
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 32,
-          "anchor": "// through the redaction scanner (scan-redaction.mjs) before it is written, and"
+          "anchor": ", the header says so, the Missing: line reads"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 107,
-          "anchor": "export const redactBlocks = (text) => text.replace(PEM_BLOCK, '<REDACTED:secret-"
+          "anchor": "}"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 34,
-          "anchor": "says that path is ignored; otherwise it goes to the home state"
+          "anchor": "not recorded; an inferred run folder's grants are not"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 318,
-          "anchor": "const run = spawnSync('git', ['check-ignore', '-q', '--', path], { cwd: dirname("
+          "anchor": "}"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 83,
-          "anchor": "export const CARRIED_FIELDS = ["
+          "anchor": "const LOG_BYTES = 1_048_576;"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 273,
-          "anchor": "if (render().text.length > BUDGET.total) while (state.grantShown > 1 && render()"
+          "anchor": "return Boolean(last);"
         },
         {
           "file": "scripts/compact-snapshot.mjs",
           "line": 417,
-          "anchor": "export function snapshotState(header, boundaries, lastAt) {"
+          "anchor": "else if (hit[1] === 'Next') out.next = value;"
         },
         {
           "file": "scripts/vendored-manifest.mjs",
@@ -775,7 +777,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 221,
-          "anchor": "const report_path = reportPathOf(input.prompt);"
+          "anchor": "const appliedModel = typeof input.model === 'string' && input.model.trim() ? inp"
         },
         {
           "file": "scripts/handoff-state.mjs",
@@ -796,6 +798,11 @@
           "file": "scripts/transcript-lib.mjs",
           "line": 816,
           "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
+        },
+        {
+          "file": "scripts/digest-lib.mjs",
+          "line": 827,
+          "anchor": "export function digestToolResponse(toolName, toolResponse, ctx = {}) {"
         },
         {
           "file": "scripts/co.mjs",
@@ -1003,7 +1010,7 @@
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
         }
       ],
-      "verifiedDigest": "12eb2ac67bf1159c33a492526e76fd97d1dccce1b1226eb43e843b85369c10b1"
+      "verifiedDigest": "4131f635ba2c5da918be76787149a51d2c38c6fa339b0bd538d52eff911f5ba4"
     },
     {
       "slug": "evals-and-calibration",
@@ -1011,8 +1018,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
-      "verifiedDigest": "010793fa100718b853450eee05af1df1985b5c4e69269aa17673e50e7f6c43ca",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedDigest": "7dfa99c25abb03ec20b080f4617661155435b02d712209c12bb69b469abd31f3",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1067,7 +1074,7 @@
         {
           "file": "evals/codex-marketplace/run.mjs",
           "line": 182,
-          "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
+          "anchor": "// reach the package. Only lines naming a host-specific token may differ from th"
         },
         {
           "file": "evals/opencode-dist/run.mjs",
@@ -1177,7 +1184,7 @@
         {
           "file": "scripts/agent-ledger.mjs",
           "line": 478,
-          "anchor": "export function captureOn({ stateDir = ledgerDir(), env = process.env } = {}) {"
+          "anchor": "let agent_type = launch?.agent_type ?? '';"
         },
         {
           "file": "evals/agent-ledger/run.mjs",
@@ -1188,6 +1195,11 @@
           "file": "evals/co-facade/run.mjs",
           "line": 123,
           "anchor": "const COMMANDS = ['brief', 'burndown', 'churn', 'route', 'snapshot', 'recall'];"
+        },
+        {
+          "file": "evals/digest-post/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -1232,7 +1244,7 @@
         {
           "file": "evals/dispatch-guard/run.mjs",
           "line": 872,
-          "anchor": "expect(/about 10,000 tokens past the 500,000-token context ceiling/.test(reasonO"
+          "anchor": "the handoff skill call itself must be silent, got ${JSON.stringify(r.stdout)}"
         },
         {
           "file": "evals/handoff-state/run.mjs",
@@ -1364,12 +1376,11 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 586,
-          "anchor": "// Skills cite vendored execution specs under reference/, so they carry CONVENTI"
+          "line": 586
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
@@ -1414,17 +1425,17 @@
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 291,
-          "anchor": "${counts.words} operator words, ${counts.running} running, ${counts.items} items"
+          "anchor": "const shown = snap.path ? (() => { const rel = relative(cwd, snap.path); return"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 306,
-          "anchor": "active ${open.length}/12${last}${counts && open.length > counts.items ? ' GROWIN"
+          "anchor": "Snapshot partial: missing ${clean(snap.header.missing.join(', ') || 'unnamed inp"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
           "line": 296,
-          "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
+          "anchor": "} else if (snap.state === 'stale') {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
@@ -1449,7 +1460,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 528,
-          "anchor": "let legacy = null;"
+          "anchor": "}"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -1477,7 +1488,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "7ba5f2c48d97ae0439dcab667b7ed91eecd7c6cd7ec5470d08e03ed6d979341a"
+      "verifiedDigest": "fb68ad9dd0be11bfa2fc0f058a6c268c5e3cfc784db80dd42b2ac0c5319dda2a"
     },
     {
       "slug": "ci-workflows",
@@ -1485,8 +1496,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "77e74419cf6e0d9288335eea4e0bcbb9ed1b9cd2",
-      "verifiedDigest": "22c9384297db991895bed5707946331035614b3883f76cb973805571e0ec4cde",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
+      "verifiedDigest": "4094e6d68242d0a59466bc5acaca56823be8c18d82f3d5ca490f699f20b38a47",
       "claims": [
         {
           "file": "github/workflows/validate.yml",
@@ -1584,7 +1595,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "047342c4822a697550a7afa20cd5226a653f0cbf",
+      "verifiedAt": "af9fb777320a0a18f1ad4469e915ae403661cc54",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1656,7 +1667,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "724a14dd4ba417ba03214bfc26c47ef605e80f958ca044f11b890b427ca1e218"
+      "verifiedDigest": "878aebb68102f2b8ee5e58e3fcfe67ef903e475969a3ac1fc09d4f5e4938de7e"
     },
     {
       "slug": "root-contracts",

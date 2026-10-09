@@ -364,10 +364,15 @@ const HOOK_PURPOSES = new Map([
   ['dispatch-guard.mjs', 'holds a subagent to its brief’s round budget, denies a wide-surface dispatch that names no reason, denies a suite-agent dispatch whose brief lacks a field the agent’s contract requires, gates new dispatches past the context ceiling until a handoff assessment, and flags a dispatch that overrides a declared tier'],
 ]);
 
+// WHY: Codex support for hookSpecificOutput.updatedToolOutput is unproven, so the Codex build omits the digest hook.
+const CODEX_EXCLUDED_HOOKS = new Set(['digest-post.mjs']);
+const isExcludedHook = (hook) => CODEX_EXCLUDED_HOOKS.has(hook.command?.match(/hooks\/([\w.-]+\.mjs)/)?.[1]);
+
 function bundledHooks(pluginName) {
   const manifest = JSON.parse(readText(sourcePath(pluginName, 'hooks', 'hooks.json')));
   return Object.entries(manifest.hooks ?? {}).flatMap(([event, groups]) => groups
     .flatMap((group) => group.hooks ?? [])
+    .filter((hook) => !isExcludedHook(hook))
     .map((hook) => {
       const script = hook.command?.match(/hooks\/([\w.-]+\.mjs)/)?.[1];
       const purpose = HOOK_PURPOSES.get(script);
@@ -442,6 +447,9 @@ function transformCodexHook(contents, file) {
   const rewritten = portableRuntimeText(contents.replaceAll(ROOT_TOKEN, CODEX_ROOT_TOKEN), file);
   if (file.split(/[\\/]/).at(-1) !== 'hooks.json') return rewritten;
   const manifest = JSON.parse(rewritten);
+  for (const [event, groups] of Object.entries(manifest.hooks ?? {})) {
+    manifest.hooks[event] = groups.filter((group) => !(group.hooks ?? []).some(isExcludedHook));
+  }
   // Codex tool names are not Claude's Bash/Edit vocabulary. Run the lightweight adapters
   // for every pre/post tool event and let each script filter the normalized payload.
   for (const event of ['PreToolUse', 'PostToolUse']) {
@@ -543,8 +551,9 @@ function buildExpectedFiles() {
     if (out.has(key)) throw new Error(`renderer produced duplicate path ${key}`);
     out.set(key, contents);
   };
-  const addSourceTree = (sourceDir, targetDir, transform = (text) => text) => {
+  const addSourceTree = (sourceDir, targetDir, transform = (text) => text, keep = () => true) => {
     for (const file of walkFiles(sourceDir)) {
+      if (!keep(file)) continue;
       const rel = toPosix(relative(sourceDir, file));
       add(`${targetDir}/${rel}`, transform(readText(file), file));
     }
@@ -594,7 +603,7 @@ function buildExpectedFiles() {
 
     const sourceHooks = sourcePath(spec.name, 'hooks');
     if (existsSync(sourceHooks)) {
-      addSourceTree(sourceHooks, `${base}/hooks`, transformCodexHook);
+      addSourceTree(sourceHooks, `${base}/hooks`, transformCodexHook, (file) => !CODEX_EXCLUDED_HOOKS.has(file.split(/[\\/]/).at(-1)));
     }
     if (spec.mcp) add(`${base}/.mcp.json`, JSON.stringify(createMcpConfig(sourceManifest), null, 2) + '\n');
   }

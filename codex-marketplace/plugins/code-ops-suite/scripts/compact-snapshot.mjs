@@ -26,6 +26,15 @@
 // characters (at least one) and one line counts the older ones in RUN_LOG.md. The parsing lives in conversationOf() (transcript-lib.mjs); running agents come live from the
 // agent ledger, so a snapshot cannot show a stale agent state.
 //
+// NO RUN FOLDER. With none resolved, the Decisions and Authority grants sections say `not recorded (no
+// run folder resolved); do not assume none`, never `none`. Before that gap stands, inferRunFolder() may
+// pick the newest unowned run folder the session's time window touches; every section read from it is
+// headed `inferred, unverified`, the header says so, the Missing: line reads `run folder (inferred,
+// unverified)`, and the file goes to the home directory. Its grants may belong to another session, so
+// they are never carried: the section says `not recorded; an inferred run folder's grants are not
+// authority`. CODE_OPS_SNAPSHOT_RUN_FALLBACK=off|0|false disables the guess. Grants never come from
+// transcript text.
+//
 // SAFETY. (1) The write is a temporary file renamed over the target. (2) The header records the
 // `compact_boundary` count of the transcript, which the card compares to its own count. (3) A
 // missing transcript, run folder, TASKS.md, or ledger is named in a `partial` status. (4) Text passes
@@ -41,7 +50,7 @@
 // Exit: 0 = written; 1 = the write failed; 2 = usage error.
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readdirSync, readFileSync, realpathSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -58,6 +67,7 @@ const WORD_CUT = 600;
 const WORD_HEAD = 400;
 const WORD_TAIL = 150;
 const STUB_CUT = 80;
+const WORD_KEEP = 3; // newest prompts the words elision never drops
 const ITEM_MAX = 16;
 const ITEM_STEPS = [240, 160, 120, 80, 60];
 const DESC_STEPS = [80, 40, 20, 0];
@@ -169,8 +179,12 @@ function threadsOf(peerMessages, outbound) {
 // `partial` status. `runLog` is readRunLog() output (a missing RUN_LOG.md reads as no tagged lines)
 // and `runFolder` the run folder path the header names. `mask(texts)` returns one masked string or
 // null per text, or throws.
-export function buildSnapshot({ conversation = null, running = null, items = null, runLog = null, runFolder = '', now = Date.now(), sessionId = '', mask = maskTexts, missing = [] } = {}) {
+export function buildSnapshot({ conversation = null, running = null, items = null, runLog = null, runFolder = '', now = Date.now(), sessionId = '', mask = maskTexts, missing = [], inferred = false } = {}) {
   const gaps = [...missing];
+  // No run folder at all: decisions and grants were never read, so "none" would be a false statement.
+  const noRun = gaps.includes('run folder');
+  const origin = inferred ? ', inferred, unverified' : '';
+  const unrecorded = (label) => [`${label}: not recorded (no run folder resolved); do not assume none`];
   if (!conversation) gaps.push('transcript');
   if (!running) gaps.push('agent ledger');
   if (!items && !gaps.includes('run folder')) gaps.push('TASKS.md');
@@ -190,7 +204,8 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
   const log = runLog ?? { decisions: [], grants: [], flight: [], next: null };
   const tagged = (list) => list.map((text) => ({ text }));
   const decisions = tagged(log.decisions.slice(-DECISION_MAX));
-  const grants = tagged(log.grants);
+  // An inferred folder is a guess that may belong to another session, so its grants are never carried.
+  const grants = tagged(inferred ? [] : log.grants);
   const flight = tagged(log.flight.slice(-FLIGHT_MAX));
   const nextLine = tagged(log.next ? [log.next] : []);
 
@@ -205,40 +220,58 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
   itemLines.forEach((i) => { i.body = masked[at++]; });
   [decisions, grants, flight, nextLine].forEach((list) => list.forEach((e) => { e.body = masked[at++]; }));
 
-  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length, decisionCut: DECISION_STEPS[0], decisionShown: decisions.length, flightCut: FLIGHT_STEPS[0], flightShown: flight.length, grantShown: grants.length };
+  const state = { itemCut: ITEM_STEPS[0], descCut: DESC_STEPS[0], quietShown: quiet.length, decisionCut: DECISION_STEPS[0], decisionShown: decisions.length, flightCut: FLIGHT_STEPS[0], flightShown: flight.length, grantShown: grants.length, wordsDropped: 0 };
+  // Index of the third-newest prompt: entries before it may be dropped, the newest WORD_KEEP prompts stay.
+  const promptAt = words.flatMap((e, i) => (e.kind === 'prompt' ? [i] : []));
+  const keepFrom = promptAt.length > WORD_KEEP ? promptAt[promptAt.length - WORD_KEEP] : 0;
   // A grant or the next command is capped at the source, never by the truncation passes.
   const capped = (body) => (body.length <= TAG_CAP ? body : `${body.slice(0, 450)} [${body.length - 550} chars omitted, RUN_LOG.md] ${body.slice(-100)}`);
   const tagLine = (e, cut) => `- ${e.body === null ? WITHHELD : cut ? cutTo(e.body, cut) : capped(e.body)}`;
   const section = (title, lines) => `## ${title}\n${lines.length ? lines.join('\n') : 'none'}\n`;
   const sections = () => ({
-    words: section(`Operator words (${words.length}, oldest first)`, words.map((w) => {
+    words: section(`Operator words (${words.length}, oldest first)`, [...(state.wordsDropped ? [`- ${state.wordsDropped} older prompts and answers dropped, in the transcript`] : []), ...words.slice(state.wordsDropped).map((w) => {
       const head = `- L${w.line} ${w.kind}${w.at === null ? '' : ` ${formatAge(now - w.at)}`}`;
       if (w.body === null) return `${head}: ${WITHHELD}`;
       if (w.stub) return `${head}: ${cutTo(w.body, STUB_CUT)} [stub, transcript line ${w.line}]`;
       if (w.body.length <= WORD_CUT) return `${head}: ${w.body}`;
       return `${head}: ${w.body.slice(0, WORD_HEAD)} [${w.body.length - WORD_HEAD - WORD_TAIL} chars omitted, transcript line ${w.line}] ${w.body.slice(-WORD_TAIL)}`;
-    })),
+    })]),
     work: section(`Running work (${work.length})`, work.map((w) => {
       const desc = w.body && state.descCut ? cutTo(w.body, state.descCut) : '';
       return `- ${w.kind} ${w.id} ${w.type || '-'} ${w.age}${w.report ? ` report: ${w.report}` : ''}${desc ? ` - ${desc}` : ''}`;
     })),
-    items: section(`Active items (${itemLines.length} of ${items?.total ?? 0} shown, TASKS.md)`, itemLines.map((i) =>
+    items: section(`Active items (${itemLines.length} of ${items?.total ?? 0} shown, TASKS.md${origin})`, itemLines.map((i) =>
       `- ${i.body === null ? `${WITHHELD} (TASKS.md line ${i.n})` : cutTo(i.body, state.itemCut)}`)),
     peers: section(`Peers (${owed.length} reply-owed, ${quiet.length} quiet)`, [
       ...owed.map((t) => `- REPLY OWED ${t.name || '-'} ${t.session || '-'}${t.at === null ? '' : ` ${formatAge(now - t.at)}`}: ${t.body === null ? `${WITHHELD} (transcript line ${t.line})` : cutTo(t.body, PEER_CUT)}`),
       ...quiet.slice(0, state.quietShown).map((t) => `- quiet ${t.name || '-'} ${t.session || '-'}`),
       ...(state.quietShown < quiet.length ? [`- (${quiet.length - state.quietShown} more quiet not shown)`] : []),
     ]),
-    decisions: section(`Decisions (${state.decisionShown} of ${log.decisions.length} shown, RUN_LOG.md)`, decisions.slice(decisions.length - state.decisionShown).map((d) => tagLine(d, state.decisionCut))),
-    grants: section(`Authority grants (${state.grantShown < grants.length ? `${state.grantShown} of ${grants.length} shown` : grants.length}, verbatim, RUN_LOG.md)`, [
+    decisions: section(noRun ? 'Decisions (not recorded, RUN_LOG.md)' : `Decisions (${state.decisionShown} of ${log.decisions.length} shown, RUN_LOG.md${origin})`, noRun ? unrecorded('Decisions') : decisions.slice(decisions.length - state.decisionShown).map((d) => tagLine(d, state.decisionCut))),
+    grants: section(noRun ? 'Authority grants (not recorded, RUN_LOG.md)' : inferred ? 'Authority grants (not recorded, inferred run folder)' : `Authority grants (${state.grantShown < grants.length ? `${state.grantShown} of ${grants.length} shown` : grants.length}, verbatim, RUN_LOG.md)`, noRun ? unrecorded('Grants') : inferred ? ["Grants: not recorded; an inferred run folder's grants are not authority"] : [
       ...(state.grantShown < grants.length ? [`- ${grants.length - state.grantShown} older grant${grants.length - state.grantShown === 1 ? '' : 's'} in RUN_LOG.md`] : []),
       ...grants.slice(grants.length - state.grantShown).map((g) => tagLine(g, 0)),
     ]),
-    flight: section(`In flight (${state.flightShown} of ${log.flight.length} shown, RUN_LOG.md)`, flight.slice(flight.length - state.flightShown).map((f) => tagLine(f, state.flightCut))),
-    next: section('Next command (latest Next: line, RUN_LOG.md)', nextLine.map((n) => tagLine(n, 0))),
+    flight: section(`In flight (${state.flightShown} of ${log.flight.length} shown, RUN_LOG.md${origin})`, flight.slice(flight.length - state.flightShown).map((f) => tagLine(f, state.flightCut))),
+    next: section(`Next command (latest Next: line, RUN_LOG.md${origin})`, nextLine.map((n) => tagLine(n, 0))),
   });
   const reducers = {
-    words: () => { const w = words.find((e) => e.kind === 'prompt' && e.body !== null && e.body.length > STUB_CUT && !e.stub); if (w) w.stub = true; return Boolean(w); },
+    // Order: stub prompts oldest first; once all are stubbed, drop the oldest entries one at a time down
+    // to the newest WORD_KEEP prompts, which return to verbatim; stub those only as a last resort.
+    // Dropped entries show as one count line, so grants are the only cut left to reach.
+    words: () => {
+      const stubbable = (e) => e.kind === 'prompt' && e.body !== null && e.body.length > STUB_CUT && !e.stub;
+      const w = words.slice(state.wordsDropped, state.wordsDropped ? keepFrom : words.length).find(stubbable);
+      if (w) { w.stub = true; return true; }
+      if (state.wordsDropped < keepFrom) {
+        state.wordsDropped++;
+        words.slice(keepFrom).forEach((e) => { e.stub = false; });
+        return true;
+      }
+      const last = words.slice(state.wordsDropped).find(stubbable);
+      if (last) last.stub = true;
+      return Boolean(last);
+    },
     items: () => { const next = ITEM_STEPS.find((c) => c < state.itemCut); if (next !== undefined) state.itemCut = next; return next !== undefined; },
     peers: () => { if (state.quietShown <= 0) return false; state.quietShown--; return true; },
     work: () => { const next = DESC_STEPS.find((c) => c < state.descCut); if (next !== undefined) state.descCut = next; return next !== undefined; },
@@ -258,7 +291,7 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
   const counts = { words: words.length, running: work.length, items: items?.total ?? 0, peers: owed.length, decisions: log.decisions.length, grants: grants.length, flight: log.flight.length };
   const render = () => {
     const parts = sections();
-    const header = ['# Compact snapshot', `Written: ${new Date(now).toISOString()}`, `Session: ${sessionId || 'unknown'}`, `Run: ${runFolder || 'unknown'}`, `Boundaries: ${convo.boundaries}`,
+    const header = ['# Compact snapshot', `Written: ${new Date(now).toISOString()}`, `Session: ${sessionId || 'unknown'}`, `Run: ${runFolder ? `${runFolder}${origin ? ' (inferred, unverified)' : ''}` : 'unknown'}`, `Boundaries: ${convo.boundaries}`,
       `Status: ${gaps.length ? 'partial' : 'complete'}`, ...(gaps.length ? [`Missing: ${gaps.join(', ')}`] : []),
       `Counts: operator words ${counts.words}, running work ${counts.running}, active items ${counts.items}, reply-owed peers ${counts.peers}, decisions ${counts.decisions}, grants ${counts.grants}, in flight ${counts.flight}`].join('\n');
     return { parts, text: `${header}\n\n${Object.values(parts).join('\n')}` };
@@ -280,8 +313,15 @@ export function buildSnapshot({ conversation = null, running = null, items = nul
 // directory's `80 Runs/` and each `*-docs` hub's, newest folder name first, at most RUN_SCAN folders.
 export function findRunFolder(cwd, sessionId) {
   if (!sessionId) return null;
+  for (const { dir, session } of runCandidates(cwd)) if (session?.sessionId === sessionId || session?.hostSessionId === sessionId) return dir;
+  return null;
+}
+
+// The newest-first run folders (at most RUN_SCAN) with each one's parsed SESSION.json, or null when
+// it has none readable.
+function runCandidates(cwd) {
   let entries;
-  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return null; }
+  try { entries = readdirSync(cwd, { withFileTypes: true }); } catch { return []; }
   const hubs = [cwd, ...entries.filter((e) => e.isDirectory() && e.name.endsWith('-docs')).map((e) => join(cwd, e.name))];
   const folders = [];
   for (const hub of hubs) {
@@ -289,11 +329,26 @@ export function findRunFolder(cwd, sessionId) {
     try { for (const f of readdirSync(runs, { withFileTypes: true })) if (f.isDirectory()) folders.push({ dir: join(runs, f.name), name: f.name }); } catch { /* no runs here */ }
   }
   folders.sort((a, b) => (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
-  for (const { dir } of folders.slice(0, RUN_SCAN)) {
-    try {
-      const session = JSON.parse(readFileSync(join(dir, 'SESSION.json'), 'utf8'));
-      if (session?.sessionId === sessionId || session?.hostSessionId === sessionId) return dir;
-    } catch { /* no readable SESSION.json */ }
+  return folders.slice(0, RUN_SCAN).map(({ dir }) => {
+    let session = null;
+    try { session = JSON.parse(readFileSync(join(dir, 'SESSION.json'), 'utf8')); } catch { /* no readable SESSION.json */ }
+    return { dir, session };
+  });
+}
+
+// The fallback for a session no SESSION.json names: the newest run folder (by name) that another
+// session does not own and that the session's own time window touches, through its SESSION.json
+// `createdAt` or the mtime of the folder, its RUN_LOG.md, or its TASKS.md. The window runs from the
+// first transcript timestamp to `now`; with no timestamp there is no window and no folder. The result
+// is a guess: the caller labels everything read from it inferred and unverified. Grants and decisions
+// come only from that folder's RUN_LOG.md, never from transcript text.
+export function inferRunFolder(cwd, sessionId, since, now = Date.now()) {
+  if (!Number.isFinite(since)) return null;
+  const inside = (t) => Number.isFinite(t) && t >= since && t <= now;
+  const mtime = (path) => { try { return statSync(path).mtimeMs; } catch { return NaN; } };
+  for (const { dir, session } of runCandidates(cwd)) {
+    if ((session?.sessionId && session.sessionId !== sessionId) || (session?.hostSessionId && session.hostSessionId !== sessionId)) continue;
+    if ([Date.parse(session?.createdAt), mtime(dir), mtime(join(dir, 'RUN_LOG.md')), mtime(join(dir, 'TASKS.md'))].some(inside)) return dir;
   }
   return null;
 }
@@ -374,15 +429,23 @@ function runLabel(cwd, run) {
 }
 
 // Reads the inputs, builds, and writes. Every input that cannot be read is named in the status.
-export function createSnapshot({ sessionId = '', transcriptPath, runDir, cwd = process.cwd(), home = stateHome(), now = Date.now(), mask = maskTexts, isIgnored = gitIgnored } = {}) {
+export function createSnapshot({ sessionId = '', transcriptPath, runDir, cwd = process.cwd(), home = stateHome(), now = Date.now(), mask = maskTexts, isIgnored = gitIgnored, fallback = !/^(off|0|false)$/i.test(process.env.CODE_OPS_SNAPSHOT_RUN_FALLBACK ?? '') } = {}) {
   const transcript = transcriptPath ?? (sessionId ? join(defaultTranscriptDir(cwd), `${sessionId}.jsonl`) : null);
   let conversation = null;
   try { if (transcript) conversation = conversationOf(readFileSync(transcript, 'utf8')); } catch { /* a missing transcript is partial */ }
-  const run = runDir ? resolve(runDir) : findRunFolder(cwd, sessionId);
+  let run = runDir ? resolve(runDir) : findRunFolder(cwd, sessionId);
+  // A guess is read and labelled but never written into: the card looks for the file where it
+  // would look for a known folder, so an inferred one sends the file to the home directory.
+  let inferred = false;
+  if (!run && fallback && sessionId) {
+    const since = Math.min(...[conversation?.operatorWords, conversation?.answers, conversation?.peerMessages].flatMap((l) => l ?? []).map((e) => e.at).filter(Number.isFinite));
+    run = inferRunFolder(cwd, sessionId, since, now);
+    inferred = Boolean(run);
+  }
   let running = null;
   try { running = pendingReport({ sessionId: sessionId || undefined, cwd: sessionId ? undefined : cwd, runDir: run ?? undefined }).agents; } catch { /* the ledger is named missing */ }
-  const built = buildSnapshot({ conversation, running, items: run ? readItems(run) : null, runLog: run ? readRunLog(run) : null, runFolder: run ? runLabel(cwd, run) : '', now, sessionId, mask, missing: run ? [] : ['run folder'] });
-  return { ...built, ...writeSnapshot(built.text, { runDir: run ?? undefined, cwd, sessionId, home, isIgnored }) };
+  const built = buildSnapshot({ conversation, running, items: run ? readItems(run) : null, runLog: run ? readRunLog(run) : null, runFolder: run ? runLabel(cwd, run) : '', now, sessionId, mask, inferred, missing: inferred ? ['run folder (inferred, unverified)'] : run ? [] : ['run folder'] });
+  return { ...built, ...writeSnapshot(built.text, { runDir: inferred ? undefined : run ?? undefined, cwd, sessionId, home, isIgnored }) };
 }
 
 // The card's read side: the header of a written snapshot, or null when it is not one.
@@ -399,7 +462,7 @@ export function readSnapshotHeader(text) {
     run: field('Run') ?? '',
     boundaries: Number(field('Boundaries')),
     status: field('Status') ?? '',
-    missing: (field('Missing') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    missing: (field('Missing') ?? '').split(/,(?![^(]*\))/).map((s) => s.trim()).filter(Boolean),
     counts: counts ? { words: Number(counts[1]), running: Number(counts[2]), items: Number(counts[3]), peers: Number(counts[4]), decisions: tail(5), grants: tail(6), flight: tail(7) } : null,
   };
 }

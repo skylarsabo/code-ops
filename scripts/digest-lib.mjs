@@ -1,6 +1,7 @@
 // @ts-check
-// Shape detectors and compression stages behind scripts/digest.mjs — pure functions, no I/O,
-// so the regression eval (evals/digest/run.mjs) can call them directly on a corpus file.
+// Shape detectors and compression stages behind scripts/digest.mjs — pure functions, so the
+// regression eval (evals/digest/run.mjs) can call them directly on a corpus file. Only the receipt
+// store helpers and digestToolResponse (the post-output path) touch the disk.
 //
 // WHY: the measured baseline (code-ops-docs/55 Operations/MEASUREMENTS.md) puts tool results at
 // 77.6% of all context characters, with Bash second behind Read. Most of those bytes are shaped:
@@ -19,6 +20,11 @@
 // `[elided N lines: sed -n 'A,Bp' <raw path>]` with real numbers, and every raw line ends up in
 // exactly one of three sets: kept, folded (a duplicate collapsed into its representative), or
 // inside one elision range. The eval checks that partition.
+
+import { mkdirSync, writeFileSync, appendFileSync } from 'node:fs';
+import { join, resolve, dirname } from 'node:path';
+import { homedir } from 'node:os';
+import { createHash } from 'node:crypto';
 
 // ------------------------------------------------------------------ types
 
@@ -678,4 +684,164 @@ export function digestText(raw, opts = {}) {
     folded: ctx.folded.slice().sort((a, b) => a - b),
     errorCount,
   };
+}
+
+// ------------------------------------------------------------------ receipt store
+
+// Same rule as transcript-lib.projectSlug: every non-alphanumeric byte becomes a dash, so one
+// checkout's raw outputs never mix with another's.
+const projectSlug = (cwd) => String(cwd).replace(/[^A-Za-z0-9]/g, '-');
+
+export function storeDir(o, startDir) {
+  if (o.store) return resolve(o.store);
+  if (process.env.CODE_OPS_DIGEST_DIR) return resolve(process.env.CODE_OPS_DIGEST_DIR);
+  return join(homedir(), '.claude', 'code-ops', 'digest', projectSlug(startDir));
+}
+
+// CODE_OPS_DIGEST_STORE=off binds the writer itself, the way CODE_OPS_RECEIPTS=off binds the
+// receipt hook, so a direct digest call under that switch stores nothing either.
+export const storeOff = (env = process.env) => /^(off|0|false)$/i.test(env.CODE_OPS_DIGEST_STORE ?? '');
+
+// Returns the plan, or null when the write fails. Never throws: an unwritable store loses the
+// recovery hints, not the run.
+export function writeStore(plan, body) {
+  if (plan === null) return null;
+  try {
+    mkdirSync(dirname(plan.path), { recursive: true });
+    writeFileSync(plan.path, body);
+    return plan;
+  } catch { return null; }
+}
+
+export function appendReceipt(dir, row) {
+  try {
+    mkdirSync(dir, { recursive: true });
+    appendFileSync(join(dir, 'DIGEST_RECEIPTS.jsonl'), `${JSON.stringify(row)}\n`);
+  } catch { /* fail open: the digest is still correct without its ledger row */ }
+}
+
+// ------------------------------------------------------------------ post-output digest
+
+const SEP = '----- stderr -----';
+const switchOff = (v) => /^(off|0|false)$/i.test(v ?? '');
+const switchOn = (v) => /^(1|on|true|yes)$/i.test(v ?? '');
+// The CLI trailer ends every digested output: "[exit N · shape · A lines → B · raw P · sha256:H]".
+// A stream that ends with one went through the PreToolUse rewrite already, and a second pass
+// would only digest a digest.
+const TRAILER_END_RE = /\[exit [^\]\n]* · sha256:[0-9a-f]{12}\]\s*$/;
+const ELISION_RE = /^\[elided \d+ lines/m;
+// Tighter than the CLI defaults: the threshold already says the output is large, and a
+// 4000-character result of 50 lines must still shrink.
+const POST = { cap: 60, head: 15, tail: 30, line: 300 };
+const READ_HEAD = 40;
+const READ_TAIL = 40;
+const THRESHOLD_LEAD = ['CODE_OPS_DIGEST_POST_LEAD', 4000];
+const THRESHOLD_SUBAGENT = ['CODE_OPS_DIGEST_POST_SUBAGENT', 8000];
+
+const sha = (text) => createHash('sha256').update(text).digest('hex');
+const lineCount = (t) => (t === '' ? 0 : t.split('\n').length - (t.endsWith('\n') ? 1 : 0));
+
+// A subagent thread carries agent_id on every hook input; the lead thread carries none.
+function threshold(ctx, env) {
+  const [name, dflt] = ctx.agentId ? THRESHOLD_SUBAGENT : THRESHOLD_LEAD;
+  const set = env[name] !== undefined && env[name] !== '';
+  const v = Number(env[name]);
+  return set && Number.isFinite(v) && v >= 0 ? v : dflt;
+}
+
+// The raw file's location, or null when the store is off. Written later, once the digest has
+// proven it is smaller.
+function planStore(body, ctx, env, now) {
+  if (storeOff(env)) return null;
+  const ts = now.toISOString();
+  const hash = sha(body);
+  const dir = storeDir({ store: ctx.store }, ctx.cwd ?? process.cwd());
+  return { dir, path: join(dir, ts.slice(0, 10), `${ts.slice(11, 19).replace(/:/g, '')}-${hash.slice(0, 8)}.txt`), sha256: hash };
+}
+
+function receipt(stored, ctx, now, row) {
+  appendReceipt(stored.dir, { v: 1, ts: now.toISOString(), cwd: ctx.cwd ?? process.cwd(), exit: null, ...row, sha256: stored.sha256, raw: stored.path, source: 'post' });
+}
+
+function digestBash(r, ctx, env, now) {
+  const { stdout, stderr } = r;
+  if (TRAILER_END_RE.test(stdout) || TRAILER_END_RE.test(stderr)) return null;
+  const hasErr = stderr !== '';
+  const body = hasErr ? `${stdout}${stdout.endsWith('\n') || stdout === '' ? '' : '\n'}${SEP}\n${stderr}` : stdout;
+  const shape = detectShape(stdout, stderr, []);
+  const offset = hasErr ? lineCount(stdout) + 1 : 0; // stderr sits after stdout and the separator in the raw file
+  const plan = planStore(body, ctx, env, now);
+  const hash = plan ? plan.sha256 : sha(body);
+  const build = (rawPath) => {
+    const opts = { ...POST, shape, rawPath, cwd: ctx.cwd ?? process.cwd() };
+    const dOut = digestText(stdout, opts);
+    const dErr = hasErr ? digestText(stderr, { ...opts, offset }) : null;
+    const outText = dOut.text.replace(/\n$/, '');
+    const linesIn = dOut.linesIn + (dErr ? dErr.linesIn + 1 : 0);
+    const linesOut = lineCount(outText) + (dErr ? lineCount(dErr.text) + 1 : 0) + 1; // + the trailer
+    const rawLabel = rawPath ?? (storeOff(env) ? '- (store off, elided lines not recoverable)' : '-');
+    const trailer = `[exit - · ${shape} · ${linesIn} lines → ${linesOut} · raw ${rawLabel} · sha256:${hash.slice(0, 12)}]`;
+    const newOut = `${outText === '' ? '' : `${outText}\n`}${trailer}`;
+    const newErr = dErr ? dErr.text : '';
+    return { newOut, newErr, linesIn, linesOut, size: newOut.length + newErr.length };
+  };
+  let d = build(plan ? plan.path : null);
+  // A digest that is not smaller than the raw bytes buys nothing.
+  if (d.size >= stdout.length + stderr.length) return null;
+  const stored = writeStore(plan, body);
+  if (plan && !stored) d = build(null); // without the raw file the hints must not name it
+  if (stored) receipt(stored, ctx, now, { argv: ctx.command ? [String(ctx.command)] : [], shape, bytesIn: body.length, bytesOut: d.size, linesIn: d.linesIn, linesOut: d.linesOut });
+  return { ...r, stdout: d.newOut, stderr: d.newErr };
+}
+
+// Read keeps its tool_response shape exactly (`{ type, file: { filePath, content, numLines,
+// startLine, totalLines } }`): only file.content changes, and the counts keep describing the file.
+function digestRead(r, ctx, env, now) {
+  const content = r.file.content;
+  if (ELISION_RE.test(content)) return null;
+  const lines = content.split('\n');
+  const total = lines.length;
+  if (total <= READ_HEAD + READ_TAIL + 1) return null;
+  const plan = planStore(content, ctx, env, now);
+  const count = total - READ_HEAD - READ_TAIL;
+  const hint = (path) => (path
+    ? `[elided ${count} lines: sed -n '${READ_HEAD + 1},${total - READ_TAIL}p' ${path}]`
+    : `[elided ${count} lines, not stored: read the file again with offset and limit]`);
+  const rebuilt = (path) => [...lines.slice(0, READ_HEAD), hint(path), ...lines.slice(total - READ_TAIL)].join('\n');
+  let next = rebuilt(plan ? plan.path : null);
+  if (next.length >= content.length) return null;
+  const stored = writeStore(plan, content);
+  if (plan && !stored) next = rebuilt(null);
+  if (stored) receipt(stored, ctx, now, { argv: ['Read', String(r.file.filePath ?? '')], shape: 'read', bytesIn: content.length, bytesOut: next.length, linesIn: total, linesOut: READ_HEAD + READ_TAIL + 1 });
+  return { ...r, file: { ...r.file, content: next } };
+}
+
+/**
+ * Post-output digest for one tool response. Returns a replacement with every key of
+ * `toolResponse` preserved (Bash: only stdout and stderr change; Read: only file.content), or
+ * null when the output should reach the model as it is. Never throws.
+ * @param {string} toolName
+ * @param {any} toolResponse
+ * @param {{ agentId?: string, cwd?: string, store?: string, command?: string, env?: Record<string, string | undefined>, now?: Date }} [ctx]
+ */
+export function digestToolResponse(toolName, toolResponse, ctx = {}) {
+  try {
+    const env = ctx.env ?? process.env;
+    if (switchOff(env.CODE_OPS_DIGEST) || switchOff(env.CODE_OPS_DIGEST_POST)) return null;
+    const r = toolResponse;
+    if (!r || typeof r !== 'object' || Array.isArray(r)) return null;
+    const now = ctx.now ?? new Date();
+    const name = String(toolName ?? '').toLowerCase();
+    if (name === 'bash') {
+      if (r.interrupted === true || r.isImage === true || r.persistedOutputPath) return null;
+      if (typeof r.stdout !== 'string' || typeof r.stderr !== 'string') return null;
+      if (r.stdout.length + r.stderr.length < threshold(ctx, env)) return null;
+      return digestBash(r, ctx, env, now);
+    }
+    if (name === 'read' && switchOn(env.CODE_OPS_DIGEST_READ)) {
+      if (typeof r.file?.content !== 'string' || r.file.content.length < threshold(ctx, env)) return null;
+      return digestRead(r, ctx, env, now);
+    }
+    return null;
+  } catch { return null; }
 }

@@ -39,8 +39,11 @@ A commit that stages any file under `code-ops-docs/98 System/Atlas` now runs the
 
 ## Host hook switches
 
-The code-ops-suite package registers fourteen commands across eight events in
-`plugins/code-ops-suite/hooks/hooks.json`. Twelve distinct scripts serve them. Every one is on by default where the host exposes
+The code-ops-suite package registers sixteen commands across nine events in
+`plugins/code-ops-suite/hooks/hooks.json`. Thirteen distinct scripts serve them. The `PostToolUse`
+output digest, `digest-post.mjs`, replaces a long `Bash` result (and a `Read` result, opt-in) with
+its digest on Claude Code. Grok Build registers it from the canonical package, and its acceptance
+is UNVERIFIED. The Codex and OpenCode builds omit it. Every one is on by default where the host exposes
 the required event contract. The traceless guard blocks a publishing command when it detects a
 trace or a branch name with an AI-tool prefix or a generated token, and fails open on
 infrastructure errors. The dispatch guard can deny a subagent call at
@@ -66,6 +69,13 @@ Rendered hosts use their documented process environment:
 | Variable | Value that turns it off | What it governs |
 | --- | --- | --- |
 | `CODE_OPS_DIGEST` | `off`, `0`, or `false` | the `PreToolUse` output digest, `digest-rewrite.mjs` |
+| `CODE_OPS_DIGEST_POST` | `off`, `0`, or `false` | the `PostToolUse` output replacement, `digest-post.mjs`; `CODE_OPS_DIGEST=off` also silences it. On by default |
+| `CODE_OPS_DIGEST_POST_LEAD` | not an off switch | the character threshold under which `digest-post.mjs` leaves a lead-thread result raw; default 4000; an unset, empty, negative, or non-numeric value keeps the default |
+| `CODE_OPS_DIGEST_POST_SUBAGENT` | not an off switch | the same threshold for a subagent thread (a payload with `agent_id`); default 8000, same parsing |
+| `CODE_OPS_DIGEST_READ` | off unless `1`, `on`, `true`, or `yes` | the `Read` path of `digest-post.mjs`, which keeps the first and last 40 lines of a result over the threshold |
+| `CODE_OPS_WORKFLOW_ARGS` | not an off switch; `first` restores the earlier reading | where the dispatch guard reads a `Workflow` `agent()` call's options: the second argument by default, the first argument only under `first` |
+| `CODE_OPS_REDISPATCH_NOTE` | `off`, `0`, or `false` | the advisory redispatch note inside `dispatch-guard.mjs` (behaviour 8); `CODE_OPS_DISPATCH_GUARD=off` also silences it |
+| `CODE_OPS_SNAPSHOT_RUN_FALLBACK` | `off`, `0`, or `false` | the inferred run folder fallback in `compact-snapshot.mjs`; with it off, a session no `SESSION.json` names gets the `not recorded` gap lines |
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
 | `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
@@ -163,6 +173,10 @@ contract. Evidence: `plugins/code-ops-suite/hooks/hooks.json`,
 
 ## What the local stores hold
 
+Leaving `digest-post.mjs` on persists the complete raw output of every digested `Bash` result (and
+every digested `Read` result under `CODE_OPS_DIGEST_READ`) to the same store, with a receipt row
+marked `source` `post`. `CODE_OPS_DIGEST_STORE=off` stops both writes.
+
 Leaving `digest-rewrite.mjs` on persists the complete raw output of every rewritten command, in
 plain text, under `<host home>/code-ops/digest/<slug of the repository>/`, with a receipt row that
 records the command's arguments as written. Nothing purges that store. Delete the directory to
@@ -245,6 +259,7 @@ byte-identical packaging.
 | Skills and scripts | Native | Native package | Rendered | Rendered |
 | Operative floors | Native agent metadata | Preflight with collapsed model ladder | `model-floors.json` plus role brief | `chat.params` gate plus preflight carrier |
 | Publishing gate | `PreToolUse` | Canonical command hook | Payload-adapted hook | `tool.execute.before` port |
+| Post-output digest | Native `PostToolUse` `updatedToolOutput` for `Bash` (live smoke 2026-10-08); `Read` opt-in and UNVERIFIED live | Registered from the canonical package; Grok acceptance of `updatedToolOutput` is UNVERIFIED | Omitted: `updatedToolOutput` support is unproven, so the Codex build drops the script and its group | Not ported: no `PostToolUse` output replacement |
 | Digest and index | Native hooks | `updatedInput` digest and `PostToolUse` index side effect | Payload-adapted hooks | Mutable tool arguments and `file.edited` port |
 | Routing and compaction | Session context and `source=compact` restore with the open `TASKS.md` lines | Instruction files carry the compact rule; PostToolUse names the newest compaction segment; passive stdout unavailable | Projected session context and restore | System-transform and compaction ports |
 | Compact snapshot | Native `PreCompact` hook writes `COMPACT_SNAPSHOT.md`; the `source=compact` card reads it | `PreCompact` and `PostCompact` write `COMPACT_SNAPSHOT.md`. The 2026-10-01 capture shows Grok sends the snake-case `session_id` and `transcript_path` the hook reads. No Grok compaction marker is known, so the boundary count stays 0. The next PostToolUse names the newest `compaction/segment_*.md`. Passive stdout is ignored | Projected hook; dropped: `PreCompact` did not fire on compaction in the 2026-10-01 capture, so the handoff card tells Codex to run `co snapshot` | No `PreCompact` port and no snapshot writer; the compacting hook pushes the open `TASKS.md` lines, pending dispatch rows, and the snapshot path or a `co snapshot` line |
