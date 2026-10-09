@@ -51,8 +51,9 @@ higher only for unresolved critical judgments.
 A dispatch costs its resident context on every turn. Use the narrowest restricted agent that
 fits the unit. Name a round budget and a report cap in every brief.
 
-At the round budget, checkpoint to the report path and continue in a fresh operative.
-Do not fork or resume its context.
+At the round budget, an operative checkpoints to the report path and finishes if it can before
+the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
+its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
 
 At 150,000 tokens of context the lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`.
 

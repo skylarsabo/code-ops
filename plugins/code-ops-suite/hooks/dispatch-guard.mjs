@@ -138,7 +138,12 @@
 //
 // The warning asks for a written checkpoint (done items, each dirty path marked complete or
 // partial, the exact next edit, gates run) before the stop, and the stop asks for it in the final
-// report, so a runaway still stops but never leaves unrecorded half-applied work. The default
+// report, so a runaway still stops but never leaves unrecorded half-applied work. An unbound
+// warning tells the operative to write the checkpoint now, then finish the unit if it can before
+// the hard stop, and otherwise to reach a consistent state and return. It once said "Then return",
+// operatives read that as the stop, and warned operatives returned a median of 1 call after the
+// warning, leaving half the allowance unused (MEASUREMENTS.md, "Round budget stops, 2026-10-08").
+// The controller-bound warning keeps "return": its allowance is two calls. The default
 // stays role-blind: the audits above measure overruns, not a per-role need for more rounds, and
 // the brief's own Round budget line already binds a larger budget for one unit. `register --budget`
 // binds one only inside the unregistered stop, and says so on stderr when it caps. MAX_BRIEF_BUDGET is 120: the largest measured spend is the reviewers' mean of about 90
@@ -700,10 +705,15 @@ function guardSubagent(payload, fallbackBudget, hardStop, readBrief) {
       + `Dispatch guard: ${used} tool rounds used against ${bound ? 'a controller-bound' : briefBound ? 'a brief-bound' : 'a'} ${budget}-round budget`
       + (bound && binding.budget > budget ? ` (registered ${binding.budget}, capped by the ${fallbackBudget}-round default's stop)` : '')
       + (hardStop ? `; the hard stop denies every tool call from call ${stopAt}. ` : '. ')
-      + 'Start no new edit. Finish or revert the partial edit to reach a consistent state, then write a '
-      + `checkpoint to the brief's Report path (or the run folder): ${CHECKPOINT}. `
-      + (bound ? 'Then request a controller replan and return, ' : 'Then return, ')
-      + 'so the lead continues this unit in a fresh operative from the checkpoint.'
+      + (bound
+        ? 'Start no new edit. Finish or revert the partial edit to reach a consistent state, then write a '
+          + `checkpoint to the brief's Report path (or the run folder): ${CHECKPOINT}. `
+          + 'Then request a controller replan and return, '
+          + 'so the lead continues this unit in a fresh operative from the checkpoint.'
+        : `Write a checkpoint to the brief's Report path (or the run folder) now: ${CHECKPOINT}. `
+          + `If the unit ${hardStop ? `can finish before call ${stopAt}` : 'is close to done'}, finish it and keep the checkpoint current. `
+          + 'Otherwise start no new edit, finish or revert the partial edit to reach a consistent state, and return, '
+          + 'so the lead continues this unit in a fresh operative from the checkpoint.')
       + (bound || briefBound ? '' : ' If your brief names a larger budget, continue instead and keep the checkpoint current.'),
   } });
 }

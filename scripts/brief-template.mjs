@@ -6,7 +6,8 @@
 //
 // WHY: the dispatch guard (hooks/dispatch-guard.mjs) denies a dispatch whose brief lacks one of
 // those fields, and its denial lists only the missing labels in this same form. This prints the
-// whole set before the first dispatch. The fields are read as the guard's requiredFields reads
+// whole set before the first dispatch. The Round budget line comes prefilled with the agent's
+// measured default (route-unit.mjs defaultRoundBudget). The fields are read as the guard's requiredFields reads
 // them, and the agent file resolves through hooks/agent-file.mjs, the resolver both hooks
 // share: beside this script in a code-ops-suite copy, or under plugins/code-ops-suite/ in the
 // repository checkout. A plugin copy without that resolver reports it, never guesses.
@@ -51,11 +52,17 @@ const line = /^Brief requires:[ \t]*(.+)$/m.exec(section)?.[1] ?? '';
 const fields = line.split(',').map((field) => field.trim()).filter(Boolean);
 if (!fields.length) fail(`brief-template: ${type} declares no Brief requires line in its Contract`);
 
-const lines = fields.map((field) => `${field}:`);
+// route-unit.mjs sits beside this script in a plugin copy and in the checkout. A copy without it
+// keeps the bare Round budget label; only the Tier lines below need it.
+const routeUnit = existsSync(join(HERE, 'route-unit.mjs'))
+  && (fields.includes('Tier') || fields.includes('Round budget'))
+  ? await import(pathToFileURL(join(HERE, 'route-unit.mjs')).href)
+  : null;
+const lines = fields.map((field) => (field === 'Round budget' && routeUnit ? `${field}: ${routeUnit.defaultRoundBudget(type)}` : `${field}:`));
 // An agent that requires Tier also gets the values those lines take and the command that prints them,
 // preceded by the optional Size line, whose sizes and default budgets route-unit.mjs owns.
-if (fields.includes('Tier')) {
-  const { SIZE_ROUND_BUDGET, UNIT_SIZES } = await import(pathToFileURL(join(HERE, 'route-unit.mjs')).href);
+if (fields.includes('Tier') && routeUnit) {
+  const { SIZE_ROUND_BUDGET, UNIT_SIZES } = routeUnit;
   lines.push(
     `Size takes ${UNIT_SIZES.join('|')} and is optional; add a \`Size:\` line only to record the unit's size. Default Round budget by size: ${UNIT_SIZES.map((size) => `${size}=${SIZE_ROUND_BUDGET[size]}`).join(', ')}.`,
     'Tier takes light|mid|strong|premium|frontier; Effort takes low|medium|high; Route basis takes `<kind>; surface=<s>; ambiguity=<a>; reversible=<yes|no>`; add `Route override: <reason>` only to depart from the route.',

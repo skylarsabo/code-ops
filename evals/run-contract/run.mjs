@@ -5,7 +5,7 @@ import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { PROVIDER_TIERS } from '../../scripts/model-tiers.mjs';
-import { CONTRACT_KINDS, CONTRACT_KIND_OF, DEFAULT_ROUND_BUDGET, KINDS as ROUTE_KINDS, SIZE_MEDIAN_ROUNDS, SIZE_ROUND_BUDGET, UNIT_SIZES, budgetAdvisory } from '../../scripts/route-unit.mjs';
+import { AGENT_ROUND_BUDGET, CONTRACT_KINDS, CONTRACT_KIND_OF, DEFAULT_ROUND_BUDGET, KINDS as ROUTE_KINDS, SIZE_MEDIAN_ROUNDS, SIZE_ROUND_BUDGET, UNIT_SIZES, budgetAdvisory, defaultRoundBudget } from '../../scripts/route-unit.mjs';
 import { tally, withDetail } from '../harness.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url)); const REPO = resolve(HERE, '..', '..'); const SCRIPT = join(REPO, 'scripts', 'run-contract.mjs'); const HEAD = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: REPO, encoding: 'utf8' }).trim();
@@ -125,6 +125,11 @@ try {
   const sized = (size, roundBudget) => { const value = taskBased(); value.units[0] = { ...value.units[0], size, roundBudget }; return value; };
   const fixtureMedian = { S: 20, M: 40, L: 80 };
   check('every size defaults to the dispatch guard round budget until a median is measured', UNIT_SIZES.join() === 'S,M,L' && UNIT_SIZES.every((size) => SIZE_ROUND_BUDGET[size] === DEFAULT_ROUND_BUDGET && (SIZE_MEDIAN_ROUNDS[size] === null || Number.isInteger(SIZE_MEDIAN_ROUNDS[size]))) && new RegExp(`const DEFAULT_BUDGET = ${DEFAULT_ROUND_BUDGET};`).test(readFileSync(join(REPO, 'plugins', 'code-ops-suite', 'hooks', 'dispatch-guard.mjs'), 'utf8')), JSON.stringify({ SIZE_ROUND_BUDGET, SIZE_MEDIAN_ROUNDS }));
+  // Each agent's default Round budget stays inside the dispatch guard's cap (MAX_BRIEF_BUDGET, 120)
+  // and names an agent definition that exists; an unlisted type falls back to the 40-round default.
+  check('every AGENT_ROUND_BUDGET value is an integer from 1 to 120', Object.values(AGENT_ROUND_BUDGET).every((n) => Number.isInteger(n) && n >= 1 && n <= 120), JSON.stringify(AGENT_ROUND_BUDGET));
+  check('every AGENT_ROUND_BUDGET key names an existing agent definition', Object.keys(AGENT_ROUND_BUDGET).every((key) => { const [plugin, agent] = key.split(':'); return existsSync(join(REPO, 'plugins', plugin, 'agents', `${agent}.md`)); }), Object.keys(AGENT_ROUND_BUDGET).join());
+  check('defaultRoundBudget falls back to the default for an unknown or inherited type', defaultRoundBudget('x:unknown') === DEFAULT_ROUND_BUDGET && defaultRoundBudget('toString') === DEFAULT_ROUND_BUDGET && defaultRoundBudget('code-ops-suite:implementer') === 60, String(defaultRoundBudget('toString')));
   const mutantScripts = join(root, 'scripts-median'); cpSync(join(REPO, 'scripts'), mutantScripts, { recursive: true });
   const mutantRoute = join(mutantScripts, 'route-unit.mjs'); const routeSource = readFileSync(mutantRoute, 'utf8'); const nullMedian = '[size, null]));\n\n// The advisory text';
   check('the median patch finds its anchor in route-unit.mjs', routeSource.includes(nullMedian), 'SIZE_MEDIAN_ROUNDS anchor moved');

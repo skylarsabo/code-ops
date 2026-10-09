@@ -63,6 +63,24 @@ export function budgetAdvisory(size, budget, medians = SIZE_MEDIAN_ROUNDS) {
     : null;
 }
 
+// The default Round budget per suite agent, about the measured p90 of its tool calls, so a lead
+// stops giving every brief 40 (MEASUREMENTS.md, "Round budget stops, 2026-10-08"). An agent not
+// listed here keeps the dispatch guard's 40-round fallback.
+export const AGENT_ROUND_BUDGET = Object.freeze({
+  'code-ops-suite:implementer': 60,
+  'code-ops-suite:explorer': 40,
+  'code-ops-suite:reviewer': 40,
+  'rigor:tracer': 40,
+  'rigor:verifier': 35,
+  'code-ops-suite:mech': 30,
+  'code-ops-suite:web-researcher': 30,
+  'code-ops-suite:probe': 25,
+  'code-ops-suite:mech-review': 15,
+});
+export function defaultRoundBudget(type) {
+  return Object.hasOwn(AGENT_ROUND_BUDGET, type) ? AGENT_ROUND_BUDGET[type] : DEFAULT_ROUND_BUDGET;
+}
+
 export const AMBIGUITIES = ['low', 'medium', 'high'];
 export const SURFACES = ['none', 'security', 'egress', 'migration', 'public-contract', 'gate-script'];
 // Dispatch rungs, weakest first. `premium` sits between strong and frontier for routing, but it
