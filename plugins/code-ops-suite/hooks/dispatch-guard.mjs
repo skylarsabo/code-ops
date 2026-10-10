@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// SEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// NINE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -154,6 +154,17 @@
 //      so a repeat only counts once the ledger writes the hash. A failed prior row earns no note
 //      and routes through `attemptOf` as before. It reuses the routing check's ledger read.
 //      Its off switch is `CODE_OPS_REDISPATCH_NOTE`, taking `off`, `0`, or `false`.
+//   9. ANCHORS NOTE (advisory only), on the lead's own Agent, Task, and spawn dispatch of
+//      `code-ops-suite:implementer` whose brief `Route basis` kind is `execution` and that carries no
+//      `Anchors:` line. The note names `co brief code-ops-suite:implementer --anchors <path[:line]>...`
+//      so the operative skips its orientation reads. An `Anchors:` line, including
+//      `Anchors: none (<reason>)`, silences it. It never denies and reads no library. A Workflow
+//      `agent()` call to the implementer is checked the same way on its prompt argument when that
+//      is a string literal, a template literal, or a `+` concatenation of those; a Route basis
+//      kind other than `execution` or an `Anchors:` line silences it. A prompt the scan cannot
+//      read (a variable, a call) earns a note that the brief could not be checked. One note
+//      per Workflow lists the affected call indexes. With `CODE_OPS_WORKFLOW_ARGS=first` the
+//      prompt is not read and the check is skipped.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -585,6 +596,7 @@ const GATES = [
   ['subagent-git', /Subagent git guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
   ['redispatch-note', /Redispatch note:/, []],
+  ['anchors-note', /Anchors note:/, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
@@ -1045,9 +1057,30 @@ function skipArgument(s, i) {
   return -1;
 }
 
+// The text of a prompt argument that spans `from` up to `end`: one string or template literal, or `+`
+// concatenated ones, with simple escapes decoded and template `${}` holes kept as written. Null for
+// anything else (a variable, a call), so the caller reports it as unreadable.
+function readPrompt(s, from, end) {
+  let text = '';
+  let i = from;
+  for (;;) {
+    while (/\s/.test(s[i] ?? '')) i++;
+    if (!QUOTE.test(s[i] ?? '')) return null;
+    const next = readString(s, i, end);
+    if (next < 0) return null;
+    text += s.slice(i + 1, next - 1).replace(/\\(.)/gs, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
+    i = next;
+    while (/\s/.test(s[i] ?? '')) i++;
+    if (i >= end) return text;
+    if (s[i] !== '+') return null;
+    i++;
+  }
+}
+
 // Each `agent(` call of a Workflow script as its options (null when they cannot be read), or null when
 // the script does not parse. The options are the second argument when it is an object literal, else
-// the first argument when that is an inline object.
+// the first argument when that is an inline object. In second-argument mode each readable call also
+// carries `prompt`, the first argument's text or null when the scan cannot read it.
 function workflowCalls(script) {
   const second = workflowArgsMode() === 'second';
   const calls = [];
@@ -1058,8 +1091,10 @@ function workflowCalls(script) {
     while (/\s/.test(script[i] ?? '')) i++;
     const first = i;
     let open = script[first] === '{' ? first : -1;
+    let prompt;
     if (second) {
       const comma = skipArgument(script, first);
+      prompt = comma >= 0 ? readPrompt(script, first, comma) : null;
       if (comma >= 0 && script[comma] === ',') {
         let j = comma + 1;
         while (/\s/.test(script[j] ?? '')) j++;
@@ -1069,6 +1104,7 @@ function workflowCalls(script) {
     if (open < 0) { calls.push(null); continue; }
     const options = readOptions(script, open);
     if (!options) return null;
+    options.prompt = prompt;
     calls.push(options);
     AGENT_CALL.lastIndex = options.end;
   }
@@ -1120,6 +1156,8 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
   let unreadable = 0;
   let nonLiteral = 0;
   let noEffort = 0;
+  const noAnchors = [];
+  const unreadableBriefs = [];
   // A literal model is judged against its literal agentType's floor, which needs the rung table.
   const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string') ? await getRoutingLibs() : null;
   calls.forEach((call, index) => {
@@ -1137,6 +1175,13 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
       const floor = libs.rungOf(agentFrontmatter(literalType.trim())?.model);
       const rung = libs.rungOf(model.trim());
       if (floor && rung && libs.floorRank[rung] < libs.floorRank[floor]) belowFloor.push({ call: index + 1, model: model.trim(), rung, type: literalType.trim(), floor });
+    }
+    if (literalType?.trim() === 'code-ops-suite:implementer' && call.prompt !== undefined) {
+      if (call.prompt === null) unreadableBriefs.push(index + 1);
+      else {
+        const basis = briefValue(call.prompt, 'Route basis');
+        if ((basis === null || parseRouteBasis(basis).kind === 'execution') && !briefHas(call.prompt, 'Anchors')) noAnchors.push(index + 1);
+      }
     }
     if (!keys.has('agentType')) {
       if (spread) unreadable++; else failed.push(index + 1);
@@ -1177,7 +1222,20 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     advisories.push(`${nonLiteral} of ${calls.length} Workflow agent() calls pass a model or effort that is not a literal string, `
       + 'so the guard cannot check it against the agent floor or the effort ceiling; confirm the value.');
   }
+  workflowAnchorsNote(calls.length, noAnchors, unreadableBriefs, advisories);
   reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, advisories);
+}
+
+// Behaviour 9 for a Workflow: one note naming the implementer calls whose prompt has no `Anchors:` line,
+// and those whose prompt the scan cannot read. It lists up to ten indexes of each and never denies.
+function workflowAnchorsNote(total, missing, unread, advisories) {
+  if (!missing.length && !unread.length) return;
+  const list = (calls) => `${calls.slice(0, 10).join(', ')}${calls.length > 10 ? ', ...' : ''}`;
+  const parts = [];
+  if (missing.length) parts.push(`${missing.length} of ${total} Workflow agent() calls to code-ops-suite:implementer have an execution brief with no Anchors block (call ${list(missing)})`);
+  if (unread.length) parts.push(`${unread.length} pass a prompt the guard cannot read, so its anchors could not be checked (call ${list(unread)})`);
+  advisories.push(`Anchors note: ${parts.join('; ')}. Run \`co brief code-ops-suite:implementer --anchors <path[:line]>...\` `
+    + 'with the files the unit will edit, so the operative skips its orientation reads, or add "Anchors: none (<reason>)".');
 }
 
 // The routing libraries, loaded once and only for a routed dispatch or a Workflow model. Null when
@@ -1245,6 +1303,16 @@ async function redispatchNote(input, prompt, sessionId, advisories) {
       && r.report_path && done.has(r.agent_id));
     if (prior) advisories.push(`Redispatch note: an earlier dispatch with this description and Scope finished and left ${prior.report_path}; a retry should cite that report instead of repeating the work.`);
   } catch { /* fail open */ }
+}
+
+// Behaviour 9. An execution brief for the implementer with no `Anchors:` line earns one note. Pure
+// string work: the kind is the first part of the `Route basis` line, as parseRouteBasis reads it.
+function anchorsNote(prompt, advisories) {
+  const basis = briefValue(prompt, 'Route basis');
+  if (basis === null || parseRouteBasis(basis).kind !== 'execution' || briefHas(prompt, 'Anchors')) return;
+  advisories.push('Anchors note: this execution brief has no Anchors block. Run `co brief code-ops-suite:implementer --anchors '
+    + '<path[:line]>...` with the files the unit will edit, so the operative skips its orientation reads, '
+    + 'or add "Anchors: none (<reason>)".');
 }
 
 // Frontier dispatches in ledger rows: `dispatched` rows that asked for frontier or applied a frontier
@@ -1414,6 +1482,7 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
     denials.push(`The Agent call passes effort "${input.effort.trim()}"; pass low, medium, or high, because effort is at most high.`);
   }
   if (tool === 'Agent' || tool === 'Task' || spawn) await redispatchNote(input, prompt, sessionId, advisories);
+  if ((tool === 'Agent' || tool === 'Task' || spawn) && type === 'code-ops-suite:implementer') anchorsNote(prompt, advisories);
   if (missing.length) {
     denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
       + 'add each as a "Label:" line or a heading. The missing lines open this denial, ready to fill; '

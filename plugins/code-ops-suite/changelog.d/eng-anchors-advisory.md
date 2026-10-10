@@ -1,0 +1,2 @@
+- The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
+- Workflow `agent()` calls to the `implementer` get the same anchors advisory: a literal or template prompt without `Anchors:` is named by call index, and a prompt the hook cannot read is reported as unchecked.

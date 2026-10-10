@@ -1451,6 +1451,21 @@ and the dispatch-guard eval pins their parity. `CODE_OPS_REDISPATCH_NOTE` set to
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:146-181`, and
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:226`.
 
+The anchors note is a ninth behavior and is advisory only. On the lead's own `Agent`, `Task`, or spawn
+dispatch of `code-ops-suite:implementer` whose `Route basis` kind is `execution`, the hook adds one
+note when the brief has no `Anchors:` line. The note names `co brief code-ops-suite:implementer
+--anchors <path[:line]>...`, which prints the `Anchors:` block, so the operative skips its
+orientation reads. Any `Anchors:` line silences it, `Anchors: none (<reason>)` included. Another agent
+type, another kind, and `CODE_OPS_DISPATCH_GUARD=off` also stay silent. A Workflow `agent()` call to
+the implementer is checked on its prompt argument when that is a string literal, a template literal
+(holes kept as written), or a `+` concatenation of those. A `Route basis` kind other than `execution`
+or an `Anchors:` line silences it, and a prompt with no `Route basis` line is checked. A prompt the
+scan cannot read (a variable, a function call) earns a note that its anchors could not be checked.
+One note per Workflow lists the affected call indexes, up to ten of each kind. With
+`CODE_OPS_WORKFLOW_ARGS=first` the prompt is not read and the check is skipped. The gate id is
+`anchors-note`. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`anchorsNote`) and
+`evals/dispatch-guard/run.mjs`.
+
 Every output that denies or advises appends one decision row to `guard-decisions.jsonl`. The file
 sits beside the session-receipt ledger: in the directory of `CODE_OPS_RECEIPTS` when it names a
 path, else in `~/.claude/code-ops/`. A row is one JSON line holding ids and counts only, never

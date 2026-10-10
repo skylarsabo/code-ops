@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -57,7 +57,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 187,
+          "line": 198,
           "anchor": "// shared with the handoff card)."
         },
         {
@@ -112,47 +112,47 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 240,
+          "line": 251,
           "anchor": "// counter is attempted PreToolUse calls, including a call the hook denies. It i"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 249,
+          "line": 260,
           "anchor": "// controller binding instead fails closed for that id: it must never silently g"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1031,
+          "line": 1043,
           "anchor": "if (c === '/' && (s[i + 1] === '/' || s[i + 1] === '*')) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1014,
+          "line": 1026,
           "anchor": "return null;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
-          "anchor": "// SEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comma"
+          "anchor": "// NINE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 867,
+          "line": 879,
           "anchor": "try { recordAssessment(await assessmentRoot(process.cwd()), sessionId, band); }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1382,
+          "line": 1450,
           "anchor": "}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1196,
+          "line": 1254,
           "anchor": "routingLibs = {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1340,
+          "line": 1408,
           "anchor": "Route basis says surface=${basis.surface} but the Scope paths derive surface=${d"
         },
         {
@@ -162,7 +162,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 528,
+          "line": 539,
           "anchor": "}"
         },
         {
@@ -172,7 +172,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 538
+          "line": 549
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
@@ -183,6 +183,11 @@
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 133,
           "anchor": "//      for a shell tool (the shell names behaviour 5 lists, plus PowerShell). A"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 1310,
+          "anchor": "function anchorsNote(prompt, advisories) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -251,7 +256,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1325,
+          "line": 1393,
           "anchor": "} else if (asked < given) {"
         },
         {
@@ -390,7 +395,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "b0f10f8a5256a5c6751c932d6dd14561d4261c3c1326d7f5d414cd3361e774c3"
+      "verifiedDigest": "dc8262e7ba0ea32bac91abbd0a7ccf4de623cce7aac0238f798ba6201eb9332e"
     },
     {
       "slug": "gate-scripts",
@@ -1049,8 +1054,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
-      "verifiedDigest": "b22f91dcea9465dd60ccb8c69023259b142abd19ae1b6d9b84dfd2b61bd0283e",
+      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
+      "verifiedDigest": "ad54245b2734ce0d4b7bb8bc21c8d1d7f31f1cf441b44e7ac9486005061e2fb0",
       "claims": [
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
@@ -1269,7 +1274,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 872,
+          "line": 876,
           "anchor": "the handoff skill call itself must be silent, got ${JSON.stringify(r.stdout)}"
         },
         {
@@ -1402,7 +1407,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1485,8 +1490,8 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 528,
-          "anchor": "}"
+          "line": 538,
+          "anchor": "return line.split(',').map((field) => field.trim()).filter(Boolean);"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -1514,7 +1519,7 @@
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
         }
       ],
-      "verifiedDigest": "ecd6a57611464b6999545f748da2400218f2ebf4739fa7db7bc6d07ba2a7470a"
+      "verifiedDigest": "d654021c400e336e3bd77e9f1602d34a220a5af64727eec5d05a21452aa1a9b1"
     },
     {
       "slug": "ci-workflows",
@@ -1637,7 +1642,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1709,7 +1714,7 @@
           "anchor": "invoked: handoffInvoked(mainText),"
         }
       ],
-      "verifiedDigest": "b52b18cfcab8766592759acd98a24b5c3513dd96be935f99a8862f9b4f25b564"
+      "verifiedDigest": "adb56b6ba7cfa90d95cc2f47c87b4b2c462ef3fd32dd0514f5f22b4cc787c767"
     },
     {
       "slug": "root-contracts",
