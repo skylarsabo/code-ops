@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -52,7 +52,7 @@
         },
         {
           "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
-          "line": 791,
+          "line": 860,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
@@ -395,7 +395,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "dc8262e7ba0ea32bac91abbd0a7ccf4de623cce7aac0238f798ba6201eb9332e"
+      "verifiedDigest": "3656dece77b87672fc2f5d3df8ce036cae3beecf0f74e27e82e7fd7817302161"
     },
     {
       "slug": "gate-scripts",
@@ -404,7 +404,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -643,7 +643,7 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 955,
+          "line": 1024,
           "anchor": "if (o.type === 'compacted') return null;"
         },
         {
@@ -822,12 +822,12 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 791,
+          "line": 860,
           "anchor": "export function stateRoot(cwd) {"
         },
         {
           "file": "scripts/transcript-lib.mjs",
-          "line": 816,
+          "line": 885,
           "anchor": "export function sessionRecordPath(cwd, sessionId, home = homedir()) {"
         },
         {
@@ -892,8 +892,8 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 919,
-          "anchor": "function pickPremiumModel(strong, catalog, profile = {}) {"
+          "line": 925,
+          "anchor": "// Disabled or stale bindings require a reload. It runs for every dispatch call,"
         },
         {
           "file": "scripts/route-unit.mjs",
@@ -907,8 +907,18 @@
         },
         {
           "file": "scripts/atlas-check.mjs",
-          "line": 308,
-          "anchor": "let fenced = false;"
+          "line": 362,
+          "anchor": "function classifyClaims(root, sections) {"
+        },
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 377,
+          "anchor": "out = execFileSync(process.execPath, [script, registerPath, '--root', root, '--r"
+        },
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 393,
+          "anchor": "// A stamped directory path is exact evidence, so a missing file cannot become F"
         },
         {
           "file": "scripts/symbol-lib.mjs",
@@ -921,13 +931,18 @@
           "anchor": "import { calls, definitions, imports, isCodeExt } from './symbol-lib.mjs';"
         },
         {
-          "file": "scripts/estimate-run-cost.mjs",
-          "line": 242,
-          "anchor": "for (const [field, key] of [['inputTokens', 'input'], ['cacheReadInputTokens', '"
+          "file": "scripts/runtime-lib.mjs",
+          "line": 331,
+          "anchor": "export function reduceRuntimeAttribution(events) {"
+        },
+        {
+          "file": "scripts/runtime-lib.mjs",
+          "line": 364,
+          "anchor": "export function runtimeUsage(attribution, identity = 'model') {"
         },
         {
           "file": "scripts/estimate-run-cost.mjs",
-          "line": 361,
+          "line": 398,
           "anchor": "const keys = ['input', 'cacheRead', 'cacheWrite', 'output'];"
         },
         {
@@ -1044,9 +1059,44 @@
           "file": "scripts/check-plugin-bump.mjs",
           "line": 89,
           "anchor": "const FRAGMENT_PATH_RE = /^plugins\\/([^/]+)\\/changelog\\.d\\/[^/]+\\.md$/;"
+        },
+        {
+          "file": "scripts/opencode-lifecycle.js",
+          "line": 656,
+          "anchor": "// The CLI sorts model IDs, so its order cannot resolve desktop ties."
+        },
+        {
+          "file": "scripts/opencode-lifecycle.js",
+          "line": 873,
+          "anchor": "const group = JSON.stringify([id.slice(0, id.indexOf('/')), info.family ?? null]"
+        },
+        {
+          "file": "scripts/opencode-lifecycle.js",
+          "line": 927,
+          "anchor": "async function assertDispatchModel({ agent, bound, lead, live, switches, profile"
+        },
+        {
+          "file": "scripts/run-runtime.mjs",
+          "line": 109,
+          "anchor": "function loadCurrent(root, contractArgument) {"
+        },
+        {
+          "file": "scripts/run-runtime.mjs",
+          "line": 215,
+          "anchor": "function buildReferences(root, current, f) {"
+        },
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 268,
+          "anchor": "function atlasRefs(prose, root) {"
+        },
+        {
+          "file": "scripts/atlas-check.mjs",
+          "line": 397,
+          "anchor": "statuses.set(item.id, { status: 'GONE', note:"
         }
       ],
-      "verifiedDigest": "ef4a41f2170172d5794dc07de7a6f1d9a7cfba827a8494dc6a53c0205e57ba19"
+      "verifiedDigest": "8244c6653e8fd933d18efe25f17f863dd0cbefea36f179cd80f8f2e97214ad2f"
     },
     {
       "slug": "evals-and-calibration",
@@ -1054,9 +1104,29 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
-      "verifiedDigest": "ad54245b2734ce0d4b7bb8bc21c8d1d7f31f1cf441b44e7ac9486005061e2fb0",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
+      "verifiedDigest": "5079502a8a62c3b7210a6c4f3ff68fc0859f9e5b530354393b4ecf16e0fed94f",
       "claims": [
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 320,
+          "anchor": "// Configuration, discovery and execution are separate boundaries. A launch-time"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 402,
+          "anchor": "{ name: 'desktop bootstrap never recursively queries provider initialization', o"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 405,
+          "anchor": "{ name: 'desktop live tie retains first insertion at final execution', options:"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 448,
+          "anchor": "const groups = {"
+        },
         {
           "file": "evals/distill-program/ANSWER_KEY.json",
           "line": 2,
@@ -1104,7 +1174,7 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 272,
+          "line": 269,
           "anchor": "expect(verdicts.boarded === true, 'OpenCode runtime plugin did not record the ed"
         },
         {
@@ -1114,7 +1184,7 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 298,
+          "line": 295,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -1133,29 +1203,49 @@
           "anchor": "const hookCommands = preCommit.split('\\n').filter((line) => !/^\\s*(#|echo\\b)/.te"
         },
         {
+          "file": "evals/context-audit/run.mjs",
+          "line": 331,
+          "anchor": "const storedTurn = (turnNumber, usage, endedAt = '1970-01-01T00:16:42.000Z') =>"
+        },
+        {
+          "file": "evals/run-runtime/run.mjs",
+          "line": 441,
+          "anchor": "const customResultPath = join(runDir, 'CUSTOM_RESULT.json');"
+        },
+        {
+          "file": "evals/estimate-run-cost/run.mjs",
+          "line": 277,
+          "anchor": "const seedBound = (id, recordIds = ['c'.repeat(64)]) => {"
+        },
+        {
           "file": "scripts/judgment-evals.mjs",
           "line": 156,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 453,
-          "anchor": "expect(await afterText('read', { filePath: OLD }, { callID: 'h8' }) === 'tool ou"
+          "line": 590,
+          "anchor": "expect(pushed.includes('D-001 implementer@gpt-6-sol: build unit 1 -> report-1.md"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 438,
-          "anchor": "await before('read', { filePath: OLD }, 'hublead', 'h6');"
+          "line": 595,
+          "anchor": "const withSnapshot = await compact(compactHooks, 'cc-1');"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 138,
-          "anchor": "${c.name}: still passes with the ladder filter removed (${JSON.stringify(bound(m"
+          "line": 140,
+          "anchor": "if (c.name.startsWith('with no switch')) continue;"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
-          "line": 310,
-          "anchor": "${c.name}: still denied with assertDispatchModel removed (${String(mutant.denied"
+          "line": 311,
+          "anchor": "expect(c.deny ? real.denied?.startsWith('Dispatch guard:') : real.denied === nul"
+        },
+        {
+          "file": "evals/opencode-enabled-models/run.mjs",
+          "line": 372,
+          "anchor": "} catch (error) { denied = String(error.message); }"
         },
         {
           "file": "evals/peer-guard/run.mjs",
@@ -1206,6 +1296,11 @@
           "file": "evals/change-feed/run.mjs",
           "line": 2,
           "anchor": "// Regression eval for the change feed (scripts/change-feed.mjs, C3 of the progr"
+        },
+        {
+          "file": "evals/bench-hooks/run.mjs",
+          "line": 2,
+          "anchor": "// Smoke eval for scripts/bench-hooks.mjs. It pins the contract that makes the b"
         },
         {
           "file": "evals/record-collections/harness.mjs",
@@ -1374,13 +1469,13 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 495,
-          "anchor": "const carriedTags = CARRIED_FIELDS.filter((entry) => entry.tag).map((entry) => e"
+          "line": 605,
+          "anchor": "const tagLines = tagged.split('\\n');"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 185,
-          "anchor": "const effTurn = { parts: [{ type: 'text', text: 'continue' }] };"
+          "line": 285,
+          "anchor": "gate = await dispatch(hooks, 'grok-lead');"
         },
         {
           "file": "evals/distill-check/run.mjs",
@@ -1396,6 +1491,20 @@
           "file": "evals/route-judgment/run.mjs",
           "line": 67,
           "anchor": "const routed = routeUnit({ ...basis, surface: surfaceOfScope(scope) });"
+        },
+        {
+          "file": "evals/opencode-lifecycle/run.mjs",
+          "line": 337
+        },
+        {
+          "file": "evals/run-runtime/run.mjs",
+          "line": 640,
+          "anchor": "writeFileSync(runtimePath, goodChain.trimEnd());"
+        },
+        {
+          "file": "evals/atlas-check/run.mjs",
+          "line": 662,
+          "anchor": "// Whole dot-led and spaced paths must win over plausible suffix decoys."
         }
       ]
     },
@@ -1407,7 +1516,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1517,9 +1626,19 @@
           "file": "opencode-dist/plugins/code-ops-lifecycle.js",
           "line": 88,
           "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
+        },
+        {
+          "file": "scripts/build-opencode-dist.mjs",
+          "line": 548,
+          "anchor": "— a starter chooser profile with prices and cost gates. Copy it to \\"
+        },
+        {
+          "file": "scripts/opencode-cost-report.mjs",
+          "line": 42,
+          "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "d654021c400e336e3bd77e9f1602d34a220a5af64727eec5d05a21452aa1a9b1"
+      "verifiedDigest": "f894d1c7fa1b83fba99acc94eabcf73cce4b0f33eb35a935a8372a32146f482c"
     },
     {
       "slug": "ci-workflows",
@@ -1527,76 +1646,73 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "2f6289d8092d1385cde1bb24c9d4b1a1d65af925",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
       "verifiedDigest": "d1b084d741347438fb09dd7206acd16d9fe103cce0d10bcf9f2b904199f72017",
       "claims": [
         {
-          "file": "github/workflows/validate.yml",
-          "line": 89
+          "file": ".github/workflows/validate.yml",
+          "line": 89,
+          "anchor": "node scripts/branch-name.mjs check \"$HEAD_REF\""
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 94
+          "file": ".github/workflows/validate.yml",
+          "line": 94,
+          "anchor": "- name: Direction gap link (advisory)"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 232
+          "file": ".github/workflows/validate.yml",
+          "line": 232,
+          "anchor": "run: node evals/direction-alignment/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 629
+          "file": ".github/workflows/validate.yml",
+          "line": 651,
+          "anchor": "run: node evals/direction-alignment/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 382
+          "file": ".github/workflows/validate.yml",
+          "line": 379,
+          "anchor": "run: node evals/brief-template/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 718
+          "file": ".github/workflows/validate.yml",
+          "line": 715,
+          "anchor": "run: node evals/brief-template/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 378
+          "file": ".github/workflows/validate.yml",
+          "line": 253,
+          "anchor": "run: node evals/opencode-enabled-models/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 711
+          "file": ".github/workflows/validate.yml",
+          "line": 763,
+          "anchor": "run: node evals/opencode-enabled-models/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 136
+          "file": ".github/workflows/validate.yml",
+          "line": 297,
+          "anchor": "run: node evals/collision/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 592
+          "file": ".github/workflows/validate.yml",
+          "line": 630,
+          "anchor": "run: node evals/peer-surfaces/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 231
+          "file": ".github/workflows/validate.yml",
+          "line": 465,
+          "anchor": "host-evals-macos:"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 692
+          "file": ".github/workflows/validate.yml",
+          "line": 180,
+          "anchor": "run: node scripts/ci-budget.mjs check"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 278
-        },
-        {
-          "file": "github/workflows/validate.yml",
-          "line": 583
-        },
-        {
-          "file": "github/workflows/validate.yml",
-          "line": 453
-        },
-        {
-          "file": "github/workflows/validate.yml",
-          "line": 163
-        },
-        {
-          "file": "github/workflows/validate.yml",
-          "line": 166
+          "file": ".github/workflows/validate.yml",
+          "line": 183,
+          "anchor": "run: node evals/ci-budget/run.mjs"
         },
         {
           "file": "scripts/ci-budget.mjs",
@@ -1604,20 +1720,24 @@
           "anchor": "process.exit(strict && findings.length ? 1 : 0);"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 59
+          "file": ".github/workflows/validate.yml",
+          "line": 59,
+          "anchor": "- name: Distill no-loss regression eval"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 470
+          "file": ".github/workflows/validate.yml",
+          "line": 517,
+          "anchor": "run: node evals/distill-check/run.mjs"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 62
+          "file": ".github/workflows/validate.yml",
+          "line": 62,
+          "anchor": "- name: Distill vault-mode state regression eval"
         },
         {
-          "file": "github/workflows/validate.yml",
-          "line": 501
+          "file": ".github/workflows/validate.yml",
+          "line": 548,
+          "anchor": "run: node evals/distill-vault/run.mjs"
         }
       ]
     },
@@ -1642,7 +1762,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5da8f5e28227d4e8b44bcd897e7a607d988c094f",
+      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1685,36 +1805,47 @@
           "anchor": "// host displayed it or a boundary was available."
         },
         {
-          "file": "Platform/INFRASTRUCTURE.md",
-          "line": 40
+          "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
+          "line": 40,
+          "anchor": "## Host hook switches"
         },
         {
-          "file": "Data/CONTRACTS.md",
-          "line": 259
+          "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
+          "line": 306,
+          "anchor": "before the host compacts,"
         },
         {
-          "file": "Data/CONTRACTS.md",
-          "line": 327
+          "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
+          "line": 398,
+          "anchor": "Snapshot fresh (<words> operator words, <running> running, <items> items, <peers"
         },
         {
-          "file": "Data/CONTRACTS.md",
-          "line": 775
+          "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
+          "line": 969,
+          "anchor": "so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md cu"
         },
         {
-          "file": "Data/CONTRACTS.md",
-          "line": 944
+          "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
+          "line": 1137,
+          "anchor": "- Running work (snapshot): ..."
         },
         {
-          "file": "Platform/INFRASTRUCTURE.md",
-          "line": 74
+          "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
+          "line": 88,
+          "anchor": ", and the snapshot warning and seeding in"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
           "line": 167,
           "anchor": "invoked: handoffInvoked(mainText),"
+        },
+        {
+          "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
+          "line": 251,
+          "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "adb56b6ba7cfa90d95cc2f47c87b4b2c462ef3fd32dd0514f5f22b4cc787c767"
+      "verifiedDigest": "d08cefee06d0fd96258008022539c05ad2cd7316c9b1342c7e43184d3e067c36"
     },
     {
       "slug": "root-contracts",

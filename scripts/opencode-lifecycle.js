@@ -13,8 +13,8 @@
 // system.transform, tool.execute, session.idle, tool.definition, and config.
 // It ships in the generated distribution. It is not a claim that OpenCode has the
 // Claude hook events. Fail-open on every path except a bound dispatch-guard stop,
-// an unassessed dispatch past the context ceiling, a non-suite Task dispatch, or an edit under a
-// removed legacy path.
+// an unassessed dispatch past the context ceiling, a non-suite Task dispatch, an unauthorized
+// model selection, or an edit under a removed legacy path.
 
 import {
   appendFileSync,
@@ -477,6 +477,19 @@ function sessionCost(row) {
   return usd;
 }
 
+function usageByModel(row) {
+  const groups = new Map();
+  for (const message of row.messages.values()) {
+    const model = message.model ?? null;
+    if (!groups.has(model)) groups.set(model, { model, turns: 0, costUsd: 0, tokens: emptyUsage() });
+    const group = groups.get(model);
+    group.turns += 1;
+    group.costUsd += message.cost;
+    addUsage(group.tokens, message.tokens);
+  }
+  return [...groups.values()].map((group) => ({ ...group, tokens: stripUsage(group.tokens) }));
+}
+
 function peakContext(row) {
   let peak = 0;
   for (const m of row.messages.values()) peak = Math.max(peak, contextSize(m.tokens) ?? 0);
@@ -538,7 +551,9 @@ function suiteAgent(name) {
 
 function parseChooserLine(line) {
   const text = String(line).trim();
-  if (!/^[a-z0-9._-]+\/[a-z0-9._-]+$/i.test(text)) return null;
+  // Host model IDs are strings, including nested names and qualifiers such as
+  // ':free'. Validate the provider delimiter without narrowing model grammar.
+  if (!/^[a-z0-9._-]+\/[^\s\x00-\x1f]+$/i.test(text)) return null;
   return text;
 }
 
@@ -611,12 +626,12 @@ const ASK_TIMEOUT_MS = 8000;
 // (probed on opencode 1.17.15). A failure returns no ids and the reason, which the
 // caller shows; it never throws. CODE_OPS_CHOOSER_CHILD stops a host without `--pure`
 // from asking again out of the child.
-function askHostModels(directory) {
+function askHostModels(directory, verbose = false) {
   if (process.env.CODE_OPS_CHOOSER_CHILD) return Promise.resolve({ ids: [], reason: 'this process is the model-list child' });
   const cmd = hostCommand();
   if (!cmd) return Promise.resolve({ ids: [], reason: 'no OpenCode binary to ask; set CODE_OPS_OPENCODE_CMD' });
   return new Promise((resolve) => {
-    execFile(cmd[0], [...cmd.slice(1), 'models', '--pure'], {
+    execFile(cmd[0], [...cmd.slice(1), 'models', '--pure', ...(verbose ? ['--verbose'] : [])], {
       cwd: directory,
       timeout: ASK_TIMEOUT_MS,
       maxBuffer: 4_000_000,
@@ -624,8 +639,26 @@ function askHostModels(directory) {
       env: { ...process.env, CODE_OPS_CHOOSER_CHILD: '1' },
     }, (error, stdout) => {
       if (error) return resolve({ ids: [], reason: `opencode models failed (${error.killed ? 'timed out' : `exit ${error.code ?? 'unknown'}`})` });
-      const ids = [...new Set(String(stdout).split(/\r?\n/).map(parseChooserLine).filter(Boolean))].sort();
-      resolve({ ids, reason: ids.length ? null : 'opencode models listed nothing' });
+      const lines = String(stdout).split(/\r?\n/);
+      if (!verbose) {
+        const ids = [...new Set(lines.map(parseChooserLine).filter(Boolean))].sort();
+        return resolve({ ids, reason: ids.length ? null : 'opencode models listed nothing' });
+      }
+      const metadata = {};
+      try {
+        for (let i = 0; i < lines.length; i++) {
+          const id = parseChooserLine(lines[i]);
+          if (!id) continue;
+          const json = [];
+          do { json.push(lines[++i]); } while (i < lines.length && lines[i] !== '}' && lines[i] !== '{}');
+          const info = JSON.parse(json.join('\n'));
+          if (!info || typeof info !== 'object' || Array.isArray(info)) throw new Error('invalid model metadata');
+          // The CLI sorts model IDs, so its order cannot resolve desktop ties.
+          metadata[id] = { family: info.family, releaseDate: info.release_date, orderKnown: false };
+        }
+        const ids = Object.keys(metadata).sort();
+        resolve({ ids, metadata, reason: ids.length ? null : 'opencode models listed nothing' });
+      } catch { resolve({ ids: [], reason: 'opencode models metadata is malformed' }); }
     });
   });
 }
@@ -636,22 +669,23 @@ async function refreshChooserCache(client) {
   if (typeof client?.config?.providers !== 'function') return null;
   const limit = new Promise((resolve) => { setTimeout(resolve, 5000, null).unref?.(); });
   const res = await Promise.race([client.config.providers(), limit]);
+  if (res?.error) return null;
   const providers = res?.data?.providers ?? res?.providers;
   if (!Array.isArray(providers)) return null;
   const ids = providers
     .flatMap((p) => Object.keys(p?.models ?? {}).map((model) => parseChooserLine(`${p?.id}/${model}`)))
-    .filter(Boolean)
-    .sort();
-  if (!ids.length) return null;
-  const changed = JSON.stringify(ids) !== JSON.stringify(readChooserCache().slice().sort());
+    .filter(Boolean);
+  const changed = JSON.stringify(ids) !== JSON.stringify(readChooserCache());
   if (changed) writeChooserCache(ids);
   const variants = {};
+  const metadata = {};
   for (const p of providers) {
     for (const [model, info] of Object.entries(p?.models ?? {})) {
+      metadata[`${p.id}/${model}`] = { family: info?.family, releaseDate: info?.release_date };
       if (info?.variants && Object.keys(info.variants).length) variants[`${p.id}/${model}`] = info.variants;
     }
   }
-  return { ids, changed, variants };
+  return { ids, changed, variants, metadata };
 }
 
 // The operator's model profile: measured quality, cost, and speed per model id,
@@ -669,7 +703,7 @@ function readProfile() {
 }
 
 const bareId = (fullId) => {
-  const id = String(fullId).toLowerCase();
+  const id = String(fullId);
   return id.includes('/') ? id.slice(id.indexOf('/') + 1) : id;
 };
 
@@ -698,18 +732,16 @@ function gateTier(fullId) {
       for (const [id, tier] of Object.entries(bySpecialist)) byId[id] ??= tier;
       const prices = /const MODEL_PRICES = (\{[\s\S]*?\n\});/.exec(text);
       gateTable = { known, byId, prices: prices ? JSON.parse(prices[1]) : {} };
-    } catch { /* fall back to the family classifier */ }
+    } catch { /* an unavailable verified table cannot qualify a model */ }
   }
-  const id = String(fullId).toLowerCase();
+  const id = String(fullId);
   const provider = id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
   const verified = gateTable?.known?.[provider]?.[bareId(id)] ?? gateTable?.byId?.[bareId(id)];
   if (verified) return verified;
-  // A loaded floor table is the gate. A family guess would bind a model the gate rejects.
-  if (gateTable) return null;
-  return familyTier(id);
+  return null;
 }
 
-const profileRow = (fullId, profile) => profile?.models?.[String(fullId).toLowerCase()] ?? profile?.models?.[bareId(fullId)];
+const profileRow = (fullId, profile) => profile?.models?.[String(fullId)] ?? profile?.models?.[bareId(fullId)];
 
 function indexTier(index) {
   if (index >= 43) return 'frontier';
@@ -722,11 +754,9 @@ function indexTier(index) {
 // tier, so every binding the ladder makes is one the floor gate accepts.
 function classifyChooserModel(fullId, profile = {}) {
   const gate = gateTier(fullId);
-  // The operator may place a model the gate recognizes on any rung. The gate
-  // still enforces every agent floor on its own, and a model the gate does not
-  // recognize stays unbound whatever the profile says.
+  // Profile measurements can lower a verified rung, never raise its quality.
   const forced = profileRow(fullId, profile)?.tier;
-  if (gate && TIER_RANK[forced] !== undefined) return forced;
+  if (gate && TIER_RANK[forced] !== undefined) return TIER_RANK[forced] < TIER_RANK[gate] ? forced : gate;
   const index = Number(profileRow(fullId, profile)?.index);
   if (!gate || !Number.isFinite(index)) return gate;
   const measured = indexTier(index);
@@ -753,99 +783,172 @@ function valueScore(row, profile) {
 
 // The operator's enabled list, or null when the profile has none.
 function allowList(profile) {
-  if (!Array.isArray(profile?.enabled) || !profile.enabled.length) return null;
-  const allow = new Set(profile.enabled.map((id) => String(id).toLowerCase()));
-  return (id) => allow.has(id.toLowerCase()) || allow.has(bareId(id));
+  if (!Array.isArray(profile?.enabled)) return null;
+  const allow = new Set(profile.enabled.map(String));
+  return (id) => allow.has(id) || allow.has(bareId(id));
 }
 
-// Enabled means: on the operator's list when the profile has one, and never a
-// model the desktop app's Models settings hide. A list that names nothing this
-// host offers enables nothing, so a model the operator disabled is never bound.
-function enabledModels(catalog, profile) {
-  let ids = catalog;
-  const allowed = allowList(profile);
-  if (allowed) ids = ids.filter(allowed);
+// An explicit path or an existing supported desktop store makes visibility apply.
+// A configured missing or malformed store is an unavailable policy, not a console.
+function desktopModelStorePath() {
+  const explicit = process.env.CODE_OPS_DESKTOP_STORE?.trim();
+  const home = homedir();
+  return explicit || [
+    ...(process.env.XDG_STATE_HOME ? [join(process.env.XDG_STATE_HOME, 'opencode.global.dat')] : []),
+    join(home, 'Library', 'Application Support', 'ai.opencode.desktop', 'opencode.global.dat'),
+    join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'ai.opencode.desktop', 'opencode.global.dat'),
+    join(process.env.XDG_CONFIG_HOME || join(home, '.config'), 'ai.opencode.desktop', 'opencode.global.dat'),
+    join(home, '.config', 'opencode', 'opencode.global.dat'),
+  ].find((path) => existsSync(path));
+}
+
+function desktopModelStore(store = desktopModelStorePath()) {
+  if (!store) return undefined;
   try {
-    const home = homedir();
-    const stores = process.env.CODE_OPS_DESKTOP_STORE?.trim()
-      ? [process.env.CODE_OPS_DESKTOP_STORE.trim()]
-      : [
-        join(home, 'Library', 'Application Support', 'ai.opencode.desktop', 'opencode.global.dat'),
-        join(process.env.APPDATA || join(home, 'AppData', 'Roaming'), 'ai.opencode.desktop', 'opencode.global.dat'),
-        join(home, '.config', 'opencode', 'opencode.global.dat'),
-      ];
-    const store = stores.find((path) => existsSync(path));
-    if (!store) return ids;
-    let model = JSON.parse(readFileSync(store, 'utf8')).model;
+    const data = JSON.parse(readFileSync(store, 'utf8'));
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+    let model = data.model;
     if (typeof model === 'string') model = JSON.parse(model);
-    const hidden = new Set((model?.user ?? [])
-      .filter((row) => row?.visibility === 'hide')
-      .map((row) => `${row.providerID}/${row.modelID}`.toLowerCase()));
-    if (hidden.size) ids = ids.filter((id) => !hidden.has(id.toLowerCase()));
-  } catch { /* no desktop store on this host */ }
-  return ids;
+    if (model === undefined) return [];
+    return model && typeof model === 'object' && !Array.isArray(model)
+      && (model.user === undefined || Array.isArray(model.user)) ? model.user ?? [] : null;
+  } catch { return null; }
+}
+
+// Catalog release dates are ISO calendar dates, with an optional ISO time/offset.
+// Date alone normalizes impossible dates and treats date-only text as UTC; the
+// desktop uses strict ISO parsing and the local zone, so validate before parsing.
+function modelReleaseDate(value) {
+  if (typeof value !== 'string') return null;
+  const match = /^(\d{4})(?:-(\d{2})(?:-(\d{2}))?)?(?:T(\d{2})(?::?(\d{2}))?(?::?(\d{2})(?:[.,](\d+))?)?(Z|[+-]\d{2}(?::?\d{2})?)?)?$/.exec(value);
+  // deferred(ISO calendar dates, add week/ordinal parsing before accepting those
+  // representations): unfamiliar potentially valid ISO forms cannot enable a model.
+  if (!match) return /^[+-]?\d{4}/.test(value) ? undefined : null;
+  const [, y, m = '01', d = '01', h = '00', min = '00', sec = '00', fraction = '', zone] = match;
+  const [year, month, day, hour, minute, second] = [y, m, d, h, min, sec].map(Number);
+  const date = new Date(0);
+  date.setFullYear(year, month - 1, day);
+  date.setHours(0, 0, 0, 0);
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day
+    || hour > 24 || minute > 59 || second > 59 || (hour === 24 && (minute || second || Number(fraction)))) return null;
+  date.setHours(hour, minute, second, Number((fraction + '000').slice(0, 3)));
+  if (zone) {
+    const offset = zone === 'Z' ? [0, 0] : zone.slice(1).split(':').join('').padEnd(4, '0').match(/\d{2}/g).map(Number);
+    if (offset[0] > 23 || offset[1] > 59) return null;
+    const utc = new Date(0);
+    utc.setUTCFullYear(year, month - 1, day);
+    utc.setUTCHours(hour, minute, second, date.getMilliseconds());
+    return new Date(+utc - (zone[0] === '-' ? -1 : 1) * (offset[0] * 60 + offset[1]) * 60_000);
+  }
+  return date;
+}
+
+function sixMonthsAfter(date) {
+  const result = new Date(+date);
+  result.setDate(1);
+  result.setMonth(result.getMonth() + 6);
+  const last = new Date(+result);
+  last.setMonth(last.getMonth() + 1, 0);
+  result.setDate(Math.min(date.getDate(), last.getDate()));
+  return result;
+}
+
+// Match the pinned desktop visible() policy: overrides win; otherwise only the
+// newest recent model per provider/family and invalid-date models are enabled.
+function enabledModels(catalog, profile, metadata = null, now = new Date(), storePath = desktopModelStorePath()) {
+  const user = desktopModelStore(storePath);
+  if (user === null || (user !== undefined && !metadata)) return [];
+  const allowed = allowList(profile);
+  if (user === undefined) return allowed ? catalog.filter(allowed) : catalog;
+  const visibility = new Map(user.map((row) => [`${row?.providerID}/${row?.modelID}`, row?.visibility]));
+  const dates = new Map();
+  const latest = new Map();
+  const ambiguous = new Set();
+  for (const id of catalog) {
+    const info = metadata[id];
+    if (!info) continue;
+    const date = modelReleaseDate(info.releaseDate);
+    dates.set(id, date);
+    if (!date || !(+date <= +now ? +now < +sixMonthsAfter(date) : +date < +sixMonthsAfter(now))) continue;
+    const group = JSON.stringify([id.slice(0, id.indexOf('/')), info.family ?? null]);
+    const previous = latest.get(group);
+    if (!previous || info.releaseDate > metadata[previous].releaseDate) {
+      latest.set(group, id);
+      ambiguous.delete(group);
+    } else if (id !== previous && info.releaseDate === metadata[previous].releaseDate
+      && (info.orderKnown === false || metadata[previous].orderKnown === false)) {
+      ambiguous.add(group);
+    }
+  }
+  // Live order retains the desktop's first equal-date model. Sorted CLI metadata
+  // cannot authorize either tied default; explicit visibility still wins below.
+  const defaults = new Set([...latest].filter(([group]) => !ambiguous.has(group)).map(([, id]) => id));
+  return catalog.filter((id) => (!allowed || allowed(id)) && metadata[id]
+    && (visibility.get(id) === 'hide' ? false : visibility.get(id) === 'show' || defaults.has(id) || dates.get(id) === null));
 }
 
 // The provider switches of the OpenCode config. A listed provider stays out, and a set
-// `enabled_providers` keeps every other provider out. An empty list counts as unset.
+// `enabled_providers` keeps every other provider out, including an empty list.
 function providerSwitches(config) {
-  const names = (value) => (Array.isArray(value) && value.length ? new Set(value.map((n) => String(n).toLowerCase())) : null);
-  return { disabled: names(config?.disabled_providers) ?? new Set(), enabled: names(config?.enabled_providers) };
+  const names = (value) => (Array.isArray(value) ? new Set(value.map(String)) : null);
+  return { disabled: names(config?.disabled_providers) ?? new Set(), enabled: names(config?.enabled_providers), models: config?.provider ?? {} };
 }
 
 function providerAllowed(fullId, switches) {
-  const id = String(fullId).toLowerCase();
+  const id = String(fullId);
   const provider = id.includes('/') ? id.slice(0, id.indexOf('/')) : '';
-  return !switches.disabled.has(provider) && (!switches.enabled || switches.enabled.has(provider));
+  const policy = switches.models?.[provider];
+  const model = bareId(id);
+  return !switches.disabled.has(provider) && (!switches.enabled || switches.enabled.has(provider))
+    && (!Array.isArray(policy?.whitelist) || policy.whitelist.includes(model))
+    && (!Array.isArray(policy?.blacklist) || !policy.blacklist.includes(model));
+}
+
+function selectionRevision(ids, profile, switches, metadata = null, storePath = desktopModelStorePath()) {
+  const weights = { ...WEIGHTS[profile?.mode] ?? WEIGHTS.balanced, ...profile?.weights };
+  const numeric = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
+  return createHash('sha256').update(JSON.stringify({
+    ids,
+    enabled: enabledModels(ids, profile, metadata, new Date(), storePath).filter((id) => providerAllowed(id, switches)),
+    weights: { cost: numeric(weights.cost), speed: numeric(weights.speed) },
+    models: ids.map((id) => {
+      const row = profileRow(id, profile);
+      return { id, tier: classifyChooserModel(id, profile), index: numeric(row?.index),
+        cost: numeric(row?.credits ?? row?.cost), tokens: numeric(row?.tokens) };
+    }),
+  })).digest('hex');
 }
 
 // A dispatch binds only a model the live host list names, the profile enabled list
 // names, the Models settings do not hide, and the provider switches allow. The
-// order is the live list, one wait for a fresh list, the catalog an earlier run
-// learned, then the `-lead` clone when the lead model meets the same conditions and
-// the agent's floor. Nothing left is a denial. It runs for every dispatch call,
+// current refresh is authoritative; a cache only seeds launch-time bindings.
+// Disabled or stale bindings require a reload. It runs for every dispatch call,
 // whatever the routing switch says, so the model cannot reach a disabled model.
-async function assertDispatchModel({ agent, bound, lead, live, refresh, switches, profile, canSwap }) {
+async function assertDispatchModel({ agent, bound, lead, live, switches, profile }) {
   const floor = AGENT_FLOORS[baseAgent(agent)];
-  let source = live?.ids ? [...live.ids] : null;
-  if (!source) {
-    let fresh = null;
-    try { fresh = await refresh(); } catch { /* the earlier catalog decides */ }
-    source = fresh?.ids ?? listChooserModels();
-  }
+  const source = live?.ids ? [...live.ids] : null;
+  if (!source) throw new Error('Dispatch guard: current host model discovery is unavailable. Restart OpenCode to reload its effective configuration and model list; cached choices cannot authorize dispatch.');
   if (!source.length) {
-    throw new Error('Dispatch guard: this host has not listed its models and no earlier list is cached, so no dispatch can bind an enabled model. Restart OpenCode so the host list loads, then dispatch again.');
+    throw new Error('Dispatch guard: the current host model list is empty. Restart OpenCode after enabling a model that meets the agent floor.');
   }
-  const usable = new Set(enabledModels(source, profile).filter((id) => providerAllowed(id, switches)).map((id) => id.toLowerCase()));
-  const ok = (id) => usable.has(String(id).toLowerCase());
-  const listed = (id) => source.some((s) => s.toLowerCase() === String(id).toLowerCase());
+  const usable = new Set(enabledModels(source, profile, live.metadata, new Date(), live.desktopStore).filter((id) => providerAllowed(id, switches)));
+  const ok = (id) => usable.has(String(id));
+  const listed = (id) => source.includes(String(id));
   const refuse = (why) => new Error(`Dispatch guard: ${why}. Enable a model that meets the ${floor ?? 'agent'} floor for ${agent || 'this dispatch'} in the OpenCode Models settings, the profile enabled list, or the provider settings, or restart OpenCode so the host list refreshes.`);
   if (!usable.size) throw refuse('no model this host lists is enabled');
-  // An agent with no binding runs on the model the operator chose in the host, which
-  // this plugin does not bind. Only a lead clone makes the lead model the plugin's choice.
-  const leadClone = /-lead$/i.test(agent);
-  const target = bound ?? (leadClone ? lead : undefined);
-  if (!target) return { swap: false, note: null };
-  const meetsFloor = floor === undefined || TIER_RANK[gateTier(lead)] >= TIER_RANK[floor];
+  // An unbound agent inherits the session model. The final parameter boundary
+  // separately verifies the identity the host actually resolves.
+  const target = bound ?? lead;
+  if (!target) {
+    if (floor) throw refuse('the selected agent model is unresolved');
+    return { swap: false, note: null };
+  }
+  const meetsFloor = floor === undefined || TIER_RANK[gateTier(target)] >= TIER_RANK[floor];
   // A lead clone binds the lead model, so it owes the floor as well.
-  if (ok(target) && (bound || meetsFloor)) return { swap: false, note: null };
+  if (ok(target) && meetsFloor) return { swap: false, note: null };
   const why = ok(target) ? `${target} is below the ${floor} floor`
     : listed(target) ? `${target} is not enabled` : `${target} is no longer listed by this host`;
-  if (bound && canSwap && lead && ok(lead) && meetsFloor) {
-    return { swap: true, note: `${why}; ${baseAgent(agent)} inherits your model for this dispatch. Restart OpenCode to rebind.` };
-  }
-  throw refuse(`${why}, and no enabled model meets the floor`);
-}
-
-function familyTier(fullId) {
-  const id = String(fullId).toLowerCase();
-  const name = id.includes('/') ? id.slice(id.indexOf('/') + 1) : id;
-  if (/fable|opus-4\.6|gpt-5\.4$|gpt-5\.6-sol|gpt-6(\.1)?-sol|gpt-6-astra|gemini-3\.1-pro|grok-4\.[67]/.test(name)) return 'frontier';
-  if (/sonnet|gemini-3-flash|gpt-4o|codex-mini|medium/.test(name) && !/opus|pro/.test(name)) return 'mid';
-  if (/luna|haiku|flash-lite|grok-code-fast|grok-build|gpt-4\.1$|gpt-5-mini|gpt-5\.\d-mini|small/.test(name) && !/pro|opus|sonnet|codex/.test(name)) return 'light';
-  if (/opus|gpt-5|codex|gemini-.*pro|claude-latest|pro/.test(name)) return 'strong';
-  if (/grok/.test(name)) return 'strong';
-  return null;
+  throw refuse(`${why}; restart OpenCode to rebind the launch-time agent`);
 }
 
 function costScore(fullId) {
@@ -866,7 +969,7 @@ function costScore(fullId) {
 // bare id, then the shipped table for that exact provider. A shipped price is a
 // provider's own bill, so a reseller of the same bare id never inherits it.
 function priceOf(fullId, profile) {
-  const id = String(fullId).toLowerCase();
+  const id = String(fullId);
   const own = profile?.prices?.[id] ?? profile?.prices?.[bareId(id)];
   if (own) return own;
   gateTier(id);
@@ -900,7 +1003,7 @@ function pickChooserModel(required, catalog, profile = {}) {
       value: valueScore(profileRow(id, profile), profile),
       cost: workloadCost(priceOf(id, profile)),
     }))
-    .filter((row) => row.tier && TIER_RANK[row.tier] >= need && !String(row.id).toLowerCase().startsWith('opencode/'));
+    .filter((row) => row.tier && TIER_RANK[row.tier] >= need);
   if (!eligible.length) return null;
   // A measured model outranks an unmeasured one. Among unmeasured ones a priced
   // model ranks by its workload cost ahead of an unpriced one, which keeps the
@@ -919,9 +1022,9 @@ function pickChooserModel(required, catalog, profile = {}) {
 function pickPremiumModel(strong, catalog, profile = {}) {
   if (!strong) return null;
   const eligible = catalog
-    .filter((id) => id.toLowerCase() !== strong.toLowerCase())
+    .filter((id) => id !== strong)
     .map((id) => ({ id, tier: classifyChooserModel(id, profile), value: valueScore(profileRow(id, profile), profile) }))
-    .filter((row) => row.tier && TIER_RANK[row.tier] >= TIER_RANK.strong && !row.id.toLowerCase().startsWith('opencode/'));
+    .filter((row) => row.tier && TIER_RANK[row.tier] >= TIER_RANK.strong);
   eligible.sort((a, b) => (a.tier === 'frontier') - (b.tier === 'frontier')
     || (b.value !== null) - (a.value !== null)
     || (b.value ?? 0) - (a.value ?? 0)
@@ -929,17 +1032,16 @@ function pickPremiumModel(strong, catalog, profile = {}) {
   return eligible[0]?.id ?? null;
 }
 
-function buildChooserLadder(catalog = listChooserModels(), profile = readProfile(), switches = providerSwitches()) {
-  const ids = enabledModels(catalog.length ? catalog : [], profile).filter((id) => providerAllowed(id, switches));
+function buildChooserLadder(catalog = listChooserModels(), profile = readProfile(), switches = providerSwitches(), metadata = null, storePath = desktopModelStorePath()) {
+  const ids = enabledModels(catalog.length ? catalog : [], profile, metadata, new Date(), storePath).filter((id) => providerAllowed(id, switches));
   const byTier = {};
   for (const tier of ['light', 'mid', 'strong', 'frontier']) {
     byTier[tier] = pickChooserModel(tier, ids, profile);
   }
   const picked = { ...byTier };
-  if (!byTier.frontier) byTier.frontier = byTier.strong;
-  if (!byTier.strong) byTier.strong = byTier.mid || byTier.light;
-  if (!byTier.mid) byTier.mid = byTier.strong || byTier.light;
-  if (!byTier.light) byTier.light = byTier.mid || byTier.strong;
+  if (!byTier.strong) byTier.strong = byTier.frontier;
+  if (!byTier.mid) byTier.mid = byTier.strong || byTier.frontier;
+  if (!byTier.light) byTier.light = byTier.mid || byTier.strong || byTier.frontier;
   // A rung with no enabled model of its class borrows a neighbor's; each borrow is reported.
   const fallbacks = Object.keys(picked)
     .filter((tier) => !picked[tier] && byTier[tier])
@@ -1098,6 +1200,7 @@ function rewriteTaskDefinition(output, byTier, profile, fallbacks) {
 }
 
 export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {}) => {
+  let desktopStore = desktopModelStorePath();
   const sessions = new Map();
   // Read-side tool arguments by call id, for a host whose after-event input omits them.
   const readArgs = new Map();
@@ -1229,7 +1332,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
       const rate = Number(profile?.credits_per_usd);
       mkdirSync(dirname(out), { recursive: true });
       appendFileSync(out, JSON.stringify({
-        v: 1,
+        v: 2,
         ts: new Date().toISOString(),
         sessionId: row.id,
         parentId: row.parentID,
@@ -1246,6 +1349,7 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
         contextAtEnd: row.contextAtEnd,
         contextPeak: peakContext(row),
         tokens: stripUsage(usage),
+        usageByModel: usageByModel(row),
         cacheHitRate: usage.input + usage.cacheRead + usage.cacheCreate > 0
           ? usage.cacheRead / (usage.input + usage.cacheRead + usage.cacheCreate)
           : null,
@@ -1338,21 +1442,33 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
   let chooserRefreshed = false;
   let live = null;
   let switches = providerSwitches();
+  let effectiveConfig = {};
   let refreshing = null;
   let byTier = {};
   let profile = {};
   let chooserWarning = null;
-  // Fallback notes for this launch: no list (static ladder stays), a rung borrowed from a neighbor.
+  // Launch notes distinguish unavailable automatic binding from borrowing a higher rung.
   let chooserFallbacks = [];
   const clones = new Set();
   const agentModels = {};
 
   // One refresh at a time: the first event and an early dispatch share the same wait.
   const refreshLive = () => {
-    refreshing ??= refreshChooserCache(client).then((result) => {
-      if (result?.ids) live = { ids: new Set(result.ids), variants: result.variants };
-      return result;
-    }).finally(() => { refreshing = null; });
+    refreshing ??= (async () => {
+      const limit = new Promise((resolve) => { setTimeout(resolve, 5000, null).unref?.(); });
+      const getConfig = typeof client?.config?.get === 'function'
+        ? Promise.race([Promise.resolve().then(() => client.config.get()), limit]).then((res) => res?.error ? null : res?.data ?? null)
+        : Promise.resolve(effectiveConfig);
+      const [result, config] = await Promise.all([refreshChooserCache(client), getConfig]);
+      profile = readProfile();
+      if (!config || typeof config !== 'object') { live = null; return null; }
+      effectiveConfig = config;
+      switches = providerSwitches(config);
+      desktopStore ??= desktopModelStorePath();
+      live = result ? { ...result, ids: new Set(result.ids), switches, profile, desktopStore,
+        revision: selectionRevision(result.ids, profile, switches, result.metadata, desktopStore) } : null;
+      return live;
+    })().catch(() => { live = null; profile = readProfile(); return null; }).finally(() => { refreshing = null; });
     return refreshing;
   };
 
@@ -1396,35 +1512,50 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           config.permission.task = { ...SUITE_TASK };
         }
         config.agent ??= {};
+        const operatorPins = new Set(Object.entries(config.agent).filter(([, agent]) => typeof agent?.model === 'string').map(([name]) => name));
         // The switches come first, so the ladder binds only a model the provider settings allow.
         switches = providerSwitches(config);
+        effectiveConfig = config;
         // A machine with no cached list asks the host once, so the first launch already binds
         // the models this machine enables. The answer is cached for later launches.
+        // Provider initialization awaits this config hook. Only a --pure child
+        // can supply startup metadata without re-entering the host's plugin state.
+        desktopStore ??= desktopModelStorePath();
         let catalog = listChooserModels();
+        let metadata = null;
         let askReason = null;
-        if (!catalog.length) {
-          const asked = await askHostModels(directory);
+        if (!catalog.length || desktopStore) {
+          const asked = await askHostModels(directory, Boolean(desktopStore));
           catalog = asked.ids;
+          metadata = asked.metadata ?? null;
           askReason = asked.reason;
           if (catalog.length) { try { writeChooserCache(catalog); } catch { /* the list still binds this launch */ } }
         }
-        const ladder = buildChooserLadder(catalog, undefined, switches);
+        const ladder = buildChooserLadder(catalog, undefined, switches, metadata, desktopStore);
         chooserFallbacks = [...ladder.fallbacks];
         if (!catalog.length) {
-          chooserFallbacks.unshift(`No enabled-model list for this host (${askReason ?? 'none found'}); suite agents keep the static ladder from opencode.json.`);
+          chooserFallbacks.unshift(`No enabled-model list for this host (${askReason ?? 'none found'}); automatic binding unavailable. Explicit bindings remain subject to dispatch and execution checks.`);
         } else if (!Object.keys(ladder.agents).length) {
-          chooserFallbacks.unshift('No enabled model this host lists meets a rung of the verified tier table; suite agents keep the static ladder from opencode.json.');
+          chooserFallbacks.unshift('No enabled model this host lists meets a rung of the verified tier table; automatic binding unavailable.');
         }
         if (Object.keys(ladder.agents).length) {
           for (const [name, model] of Object.entries(ladder.agents)) {
             const agent = config.agent[name] ??= {};
-            agent.model = model;
+            // Generated automatic defaults are unbound. A model here is an
+            // operator pin, whose eligibility is checked before it can execute.
+            agent.model ??= model;
           }
         }
         byTier = ladder.byTier;
         profile = ladder.profile;
+        const bindingRevision = selectionRevision(catalog, profile, switches, metadata, desktopStore);
         for (const base of Object.keys(AGENT_FLOORS)) {
-          if (typeof config.agent[base]?.model === 'string') agentModels[base] = config.agent[base].model;
+          if (typeof config.agent[base]?.model === 'string') {
+            agentModels[base] = config.agent[base].model;
+            routingLog({ kind: 'selection', agent: base, model: agentModels[base], floor: AGENT_FLOORS[base],
+              qualifiedTier: gateTier(agentModels[base]), qualification: 'verified-floor-table', revision: bindingRevision,
+              reason: operatorPins.has(base) ? 'operator-pin' : 'automatic', source: 'config' });
+          }
         }
         chooserWarning = ladder.warning;
         if (on('CODE_OPS_TIER_ROUTING')) buildClones(config);
@@ -1442,6 +1573,14 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
       } catch { /* fail open */ }
     },
     'chat.params': async (input, output) => {
+      if (suiteAgent(input?.agent)) {
+        const snapshot = await refreshLive();
+        const model = input?.model;
+        const selected = model?.providerID && model?.id ? `${model.providerID}/${model.id}` : undefined;
+        await assertDispatchModel({ agent: input.agent, bound: selected, live: snapshot, switches: snapshot?.switches, profile: snapshot?.profile });
+        routingLog({ kind: 'execution', agent: input.agent, model: selected, floor: AGENT_FLOORS[baseAgent(input.agent)],
+          qualifiedTier: gateTier(selected), qualification: 'verified-floor-table', revision: snapshot.revision, source: 'chat.params' });
+      }
       try {
         const row = record(input?.sessionID);
         if (!row) return;
@@ -1569,18 +1708,15 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           }
           // The live list, the profile, the Models settings, and the provider switches
           // decide the bound model, whatever the routing switch says.
-          const fallback = `${baseAgent(target)}-lead`;
+          const snapshot = await refreshLive();
           const verdict = await assertDispatchModel({
             agent: target,
             bound: agentModels[target],
             lead: row.model ?? undefined,
-            live,
-            refresh: refreshLive,
-            switches,
-            profile,
-            canSwap: Boolean(key) && clones.has(fallback),
+            live: snapshot,
+            switches: snapshot?.switches,
+            profile: snapshot?.profile,
           });
-          if (verdict.swap) target = fallback;
           if (verdict.note) notes.push(verdict.note);
           if (target !== type) args[key] = target;
           if (routing) routingLog({ kind: 'tier', from: type, to: target, tier: routing.tier.raw, effort: routing.effort.raw, model: agentModels[target] ?? 'inherit' });
@@ -1708,9 +1844,11 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
           if (!info || info.role !== 'assistant') return;
           const row = record(info.sessionID);
           if (!row) return;
-          if (info.providerID && info.modelID) row.models.add(row.model = `${info.providerID}/${info.modelID}`);
           const key = info.id ?? `at-${info.time?.created ?? row.messages.size}`;
-          row.messages.set(key, { tokens: info.tokens, cost: Number(info.cost) > 0 ? Number(info.cost) : 0 });
+          const previous = row.messages.get(key);
+          const model = info.providerID && info.modelID ? `${info.providerID}/${info.modelID}` : previous?.model ?? null;
+          if (model) row.models.add(row.model = model);
+          row.messages.set(key, { model, tokens: info.tokens, cost: Number(info.cost) > 0 ? Number(info.cost) : 0 });
           const size = contextSize(info.tokens);
           if (typeof size === 'number') row.contextAtEnd = size;
           if (typeof info.time?.created === 'number') {
@@ -1751,6 +1889,8 @@ export const CodeOpsLifecycle = async ({ directory = process.cwd(), client } = {
 // factory. A helper exported beside the factory runs with the plugin input and
 // its return value lands in the host's hook list. The proof reaches helpers here.
 CodeOpsLifecycle.internals = {
+  enabledModels,
+  selectionRevision,
   listChooserModels,
   refreshChooserCache,
   classifyChooserModel,

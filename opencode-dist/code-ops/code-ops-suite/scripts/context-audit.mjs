@@ -312,7 +312,7 @@ function main() {
     if (opt.json) {
       const pick = (s) => ({
         files: s.files, sessions: s.sessions, messages: s.messages, models: s.models, usage: s.usage,
-        normalizedUsage: s.normalizedUsage, usageByModel: s.usageByModel, hosts: s.hosts, contextAtEnd: s.contextAtEnd,
+        normalizedUsage: s.normalizedUsage, usageByModel: s.usageByModel, hosts: s.hosts, accounting: s.accounting, contextAtEnd: s.contextAtEnd,
         toolCalls: s.toolCalls, toolResults: s.toolResults, toolResultChars: s.toolResultChars,
         toolResultCharsTotal: s.toolResultCharsTotal, textChars: s.textChars, bashFamilies: s.bashFamilies,
         repeatReads: s.repeatReads, largest: s.largest, firstTs: s.firstTs, lastTs: s.lastTs,

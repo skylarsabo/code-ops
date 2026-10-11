@@ -2,6 +2,8 @@
 import { existsSync, statSync, readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { TextDecoder } from 'node:util';
+import { parseAcceptance } from './acceptance-lib.mjs';
+import { replayDispatchJournal, LEDGER_ROW_RE } from './ledger-grammar.mjs';
 import {
   assertNoTrackedPortableAlias,
   assertTrackedStage0RegularFiles,
@@ -37,7 +39,9 @@ const FILE_REFERENCE_KEYS = new Set(['path', 'sha256']);
 const LEDGER_REFERENCE_KEYS = new Set(['path', 'sha256', 'journalPath', 'journalSha256']);
 const BUNDLE_REFERENCE_KEYS = new Set(['unitId', 'path', 'bundleId', 'sha256']);
 const OBSERVATION_KEYS = new Set(['observability', 'cacheEvents', 'source', 'cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens']);
-const OPTIONAL_OBSERVATION_KEYS = ['unitId', 'model', 'reasoningTokens'];
+const OPTIONAL_OBSERVATION_KEYS = ['unitId', 'model', 'reasoningTokens', 'linkage'];
+const LINKAGE_KEYS = new Set(['runId', 'contractRevision', 'taskId', 'attemptId', 'parentAttemptId', 'relation', 'sourceKind', 'recordIds']);
+const OPAQUE_ID_RE = /^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$/;
 const RECEIPT_KINDS = new Set(['init', 'checkpoint', 'resume', 'replan', 'observation']);
 const SHA256_RE = /^[0-9a-f]{64}$/;
 const GIT_OID_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -269,7 +273,9 @@ function validateBinding(value, errors) {
 }
 
 function validateReferences(value, errors) {
-  if (!exact(value, REFERENCE_KEYS, 'runtime references', errors)) return;
+  const keys = new Set([...REFERENCE_KEYS, ...(isObject(value) && 'result' in value ? ['result'] : [])]);
+  if (!exact(value, keys, 'runtime references', errors)) return;
+  if ('result' in value) validateFileReference(value.result, 'runtime result reference', errors);
   if (value.ledger !== null) validateLedgerReference(value.ledger, errors);
   if (value.acceptance !== null) validateFileReference(value.acceptance, 'runtime acceptance reference', errors);
   if (value.handoff !== null) validateFileReference(value.handoff, 'runtime handoff reference', errors);
@@ -294,11 +300,139 @@ function validateObservation(value, errors) {
   const metrics = ['cacheReadInputTokens', 'cacheWriteInputTokens', 'inputTokens', 'outputTokens', 'reasoningTokens'].filter((key) => value[key] != null);
   if (['unobservable', 'unsupported'].includes(value.observability) && (metrics.length || (Array.isArray(value.cacheEvents) && value.cacheEvents.length))) errors.push(`${value.observability} cache observations cannot carry cache events or token metrics`);
   if (value.observability === 'observed' && value.source === 'provider-usage' && metrics.length === 0) errors.push('provider-usage observation requires token metrics');
+  if ('linkage' in value) validateLinkage(value.linkage, value, errors);
+}
+
+function validateLinkage(link, observation, errors) {
+  const optional = ['dispatchActivation', 'failedAcceptance'].filter((key) => isObject(link) && key in link);
+  if (!exact(link, new Set([...LINKAGE_KEYS, ...optional]), 'runtime linkage', errors)) return;
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(link.runId || '') || !Number.isSafeInteger(link.contractRevision) || link.contractRevision < 1
+    || !OPAQUE_ID_RE.test(link.taskId || '') || !OPAQUE_ID_RE.test(link.attemptId || '')
+    || !/^D-\d{3}$/.test(observation.unitId || '') || !['initial', 'retry', 'repair'].includes(link.relation)
+    || !['operator', 'host', 'provider'].includes(link.sourceKind)) errors.push('runtime linkage identities are invalid');
+  if (link.relation === 'initial' ? link.parentAttemptId !== null : !OPAQUE_ID_RE.test(link.parentAttemptId || '') || link.parentAttemptId === link.attemptId) errors.push('runtime linkage parent is invalid');
+  if (!Array.isArray(link.recordIds) || !link.recordIds.length || link.recordIds.length > 10000
+    || !link.recordIds.every(validSha) || new Set(link.recordIds).size !== link.recordIds.length) errors.push('runtime linkage recordIds must be unique SHA256 identities');
+  if (link.relation === 'repair' && !link.failedAcceptance) errors.push('runtime repair requires failed acceptance evidence');
+  if ('failedAcceptance' in link) {
+    const ref = link.failedAcceptance;
+    if (exact(ref, new Set(['path', 'sha256', 'criterion', 'attempt']), 'runtime failed acceptance', errors)
+      && (!safeRelative(ref.path) || !validSha(ref.sha256) || !/^Q-\d{3}$/.test(ref.criterion || '') || !Number.isSafeInteger(ref.attempt) || ref.attempt < 1)) errors.push('runtime failed acceptance reference is invalid');
+    if (link.relation !== 'repair') errors.push('failed acceptance evidence requires repair relation');
+  }
+  if ('dispatchActivation' in link) {
+    const ref = link.dispatchActivation;
+    if (exact(ref, new Set(['path', 'sha256', 'sequence']), 'runtime dispatch activation', errors)
+      && (!safeRelative(ref.path) || !validSha(ref.sha256) || !Number.isSafeInteger(ref.sequence) || ref.sequence < 1)) errors.push('runtime dispatch activation reference is invalid');
+  }
+}
+
+// All consumers share this uniqueness boundary; imports and dispatch activations are not calls.
+export function reduceRuntimeAttribution(events) {
+  const linked = []; const legacy = []; const records = new Map(); const attempts = new Map(); const tasks = new Map();
+  let duplicates = 0;
+  for (const event of events) {
+    const observation = event.observation;
+    if (!observation) continue;
+    const link = observation.linkage;
+    if (!link) { legacy.push(observation); continue; }
+    if (link.runId !== event.binding.runId || link.contractRevision !== event.binding.contractRevision) throw new Error('runtime linkage run or revision binding differs');
+    const taskKey = `${link.runId}:${link.taskId}`;
+    if (tasks.has(taskKey) && tasks.get(taskKey) !== observation.unitId) throw new Error('runtime task changes unit identity');
+    tasks.set(taskKey, observation.unitId);
+    const key = `${link.runId}:${link.attemptId}`;
+    const identity = digestJson({ taskId: link.taskId, unitId: observation.unitId, parent: link.parentAttemptId, relation: link.relation,
+      sourceKind: link.sourceKind, dispatchActivation: link.dispatchActivation ?? null, failedAcceptance: link.failedAcceptance ?? null });
+    if (attempts.has(key) && attempts.get(key).identity !== identity) throw new Error('runtime attempt identity conflict');
+    if (link.parentAttemptId) {
+      const parent = attempts.get(`${link.runId}:${link.parentAttemptId}`);
+      if (!parent || parent.taskKey !== taskKey || parent.unitId !== observation.unitId) throw new Error('runtime attempt parent is missing or belongs to another task');
+    }
+    attempts.set(key, { identity, taskKey, unitId: observation.unitId });
+    const fingerprint = digestJson({ ...observation, linkage: { ...link, recordIds: [...link.recordIds].sort() } });
+    const overlap = link.recordIds.filter((id) => records.has(id));
+    if (overlap.length) {
+      if (overlap.length === link.recordIds.length && overlap.every((id) => records.get(id) === fingerprint)) { duplicates++; continue; }
+      throw new Error('runtime linked record coverage conflicts or partially overlaps');
+    }
+    for (const id of link.recordIds) records.set(id, fingerprint);
+    linked.push(observation);
+  }
+  return { linked, legacy, observations: [...linked, ...legacy], duplicates, recordIds: [...records.keys()], completeTaskCoverage: 'UNKNOWN', evidence: 'declared-observations' };
+}
+
+export function runtimeUsage(attribution, identity = 'model') {
+  const groups = new Map();
+  for (const observation of attribution.observations) {
+    if (observation.observability !== 'observed') continue;
+    const id = observation[identity];
+    if (!id) continue;
+    if (!groups.has(id)) groups.set(id, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
+    const usage = groups.get(id); usage.observations++;
+    for (const [field, key] of [['inputTokens', 'input'], ['cacheReadInputTokens', 'cacheRead'], ['cacheWriteInputTokens', 'cacheWrite'], ['outputTokens', 'output'], ['reasoningTokens', 'reasoning']]) {
+      if (!Number.isSafeInteger(observation[field])) { usage.unknown.add(key); continue; }
+      usage[key] += observation[field];
+      if (!Number.isSafeInteger(usage[key])) throw new Error('runtime usage total exceeds safe integer range');
+    }
+  }
+  return groups;
+}
+
+export function verifyLinkedObservation(root, contract, observation) {
+  const link = observation.linkage;
+  if (!link) return;
+  if (!contract.units?.some((unit) => unit.id === observation.unitId)) throw new Error('linked observation unit is not in the current contract');
+  const readReference = (ref, label) => {
+    const path = checkedPath(root, ref.path);
+    if (sha256(readFileSync(path)) !== ref.sha256) throw new Error(`${label} digest mismatch`);
+    return path;
+  };
+  if (link.failedAcceptance) {
+    const ref = link.failedAcceptance;
+    const rows = parseAcceptance(readReference(ref, 'failed acceptance'), contract);
+    if (!rows.some((row) => row.criterion === ref.criterion && row.attempt === ref.attempt && row.verdict === 'FAIL')) throw new Error('repair does not bind a failed acceptance attempt');
+    const unit = contract.units.find((item) => item.id === observation.unitId);
+    if (!unit.qualityCriteria.includes(ref.criterion)) throw new Error('repair failed acceptance is outside unit criteria');
+  }
+  if (link.dispatchActivation) {
+    const ref = link.dispatchActivation;
+    const journal = replayDispatchJournal(readFileSync(readReference(ref, 'dispatch activation'), 'utf8'));
+    const activation = journal.events[ref.sequence - 1];
+    const add = journal.events.find((item) => item.op === 'add' && item.id === observation.unitId);
+    if (journal.violations.length || !activation || activation.id !== observation.unitId || add?.runId !== contract.runId
+      || !(activation.op === 'add' || activation.op === 'update' && activation.to === 'redispatched')) throw new Error('claimed dispatch activation is invalid');
+  }
+}
+
+export function verifyRuntimeResult(root, contract, references) {
+  if (!references.result || !references.acceptance || !references.ledger) throw new Error('bound result requires acceptance and dispatch references');
+  for (const [label, reference] of [['result', references.result], ['acceptance', references.acceptance], ['dispatch ledger', references.ledger]]) {
+    if (sha256(readFileSync(checkedPath(root, reference.path))) !== reference.sha256) throw new Error(`${label} digest mismatch`);
+  }
+  const result = readJson(checkedPath(root, references.result.path));
+  if (result.version !== 1 || result.status !== 'PASS' || result.runId !== contract.runId || result.revision !== contract.revision
+    || result.head !== contract.head || !normalizedTimestamp(result.completedAt) || !Array.isArray(result.criteria)
+    || result.criteria.length !== contract.quality.criteria.length || new Set(result.criteria.map((item) => item.id)).size !== result.criteria.length
+    || result.dispatch?.planned !== contract.units.length || !Number.isSafeInteger(result.dispatch?.reported) || result.dispatch.reported < 0) throw new Error('bound result has stale or invalid finalization semantics');
+  const latest = new Map(parseAcceptance(checkedPath(root, references.acceptance.path), contract).map((row) => [row.criterion, row]));
+  for (const criterion of contract.quality.criteria) {
+    const verdict = latest.get(criterion.id)?.verdict || 'MISSING';
+    if (result.criteria.find((item) => item.id === criterion.id)?.verdict !== verdict || criterion.blocking && verdict !== 'PASS') throw new Error('bound result acceptance criteria mismatch');
+  }
+  const rows = readFileSync(checkedPath(root, references.ledger.path), 'utf8').split(/\r?\n/).map((line) => LEDGER_ROW_RE.exec(line)).filter(Boolean);
+  if (rows.length !== result.dispatch.reported || rows.length !== contract.units.length || new Set(rows.map((row) => row[1])).size !== rows.length
+    || rows.some((row) => row[5] !== 'reported' || !contract.units.some((unit) => unit.id === row[1]))) throw new Error('bound result dispatch finalization mismatch');
+  if (contract.version >= 4) {
+    if (!references.ledger.journalPath || sha256(readFileSync(checkedPath(root, references.ledger.journalPath))) !== references.ledger.journalSha256) throw new Error('bound result dispatch journal digest mismatch');
+    const journal = replayDispatchJournal(readFileSync(checkedPath(root, references.ledger.journalPath), 'utf8'));
+    if (journal.violations.length || contract.units.some((unit) => journal.expected.get(unit.id) !== 'reported')) throw new Error('bound result dispatch journal finalization mismatch');
+  }
+  return result;
 }
 
 function emptyReferences(value) {
   return value.ledger === null && value.acceptance === null && value.handoff === null
-    && value.bundles.length === 0 && value.artifacts.length === 0;
+    && !('result' in value) && value.bundles.length === 0 && value.artifacts.length === 0;
 }
 
 export function replayRuntimeReceipts(text) {
@@ -347,7 +481,7 @@ export function replayRuntimeReceipts(text) {
     if (event.kind === 'init' || event.kind === 'replan') activeBinding = event.binding;
     if (['checkpoint', 'replan'].includes(event.kind)) latestCheckpoint = event;
   }
-  return { events, activeBinding, latestCheckpoint };
+  return { events, activeBinding, latestCheckpoint, attribution: reduceRuntimeAttribution(events) };
 }
 
 export function emptyRuntimeReferences() {
@@ -355,10 +489,12 @@ export function emptyRuntimeReferences() {
 }
 
 export function runtimeMetrics(replayed, sourceBytes) {
-  const observations = replayed.events.filter((event) => event.kind === 'observation').map((event) => event.observation);
+  const attribution = reduceRuntimeAttribution(replayed.events);
+  const observations = attribution.observations;
   const observability = Object.fromEntries(CACHE_OBSERVABILITY.map((state) => [state, observations.filter((item) => item.observability === state).length]));
   const events = Object.fromEntries(CACHE_EVENTS.map((event) => [event, observations.filter((item) => item.cacheEvents.includes(event)).length]));
-  const sum = (key) => observations.reduce((total, item) => total + (item[key] ?? 0), 0);
+  const sum = (key) => !observations.length || observations.some((item) => !Number.isSafeInteger(item[key]))
+    ? 'UNKNOWN' : observations.reduce((total, item) => total + item[key], 0);
   const sizes = replayed.events.map((event) => Buffer.byteLength(`${JSON.stringify(event)}\n`));
   const prefixDigests = new Set(replayed.events.filter((event) => ['init', 'replan'].includes(event.kind)).map((event) => event.binding.stablePrefix.sha256));
   return {
@@ -368,6 +504,7 @@ export function runtimeMetrics(replayed, sourceBytes) {
     resumes: replayed.events.filter((event) => event.kind === 'resume').length,
     replans: replayed.events.filter((event) => event.kind === 'replan').length,
     observations: observations.length,
+    attribution: { linked: attribution.linked.length, legacy: attribution.legacy.length, duplicates: attribution.duplicates, completeTaskCoverage: attribution.completeTaskCoverage, evidence: attribution.evidence },
     hostCapabilities: replayed.activeBinding.hostCapabilities,
     stablePrefix: { ...replayed.activeBinding.stablePrefix, versions: prefixDigests.size },
     promptCache: {

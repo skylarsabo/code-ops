@@ -71,8 +71,12 @@ One config per provider ships under `configs/`, each binding every agent to its 
 - `configs/opencode.github-copilot.json`
 - `configs/model-profile.github-copilot.json` — a starter chooser profile with prices and cost gates. Copy it to `~/.claude/code-ops/opencode-model-profile.json`.
 
-`opencode.json` at the root is a copy of the `opencode` one, which costs nothing and leaves the lead
-unset so it inherits the session model. Merge whichever you want into your own config rather
+`opencode.json` at the root leaves agent models unset for dynamic selection from your enabled models.
+Desktop selection honors explicit show/hide overrides and recent provider/family defaults in live
+insertion order; unreadable applicable stores deny. Sorted startup metadata refuses tied automatic
+defaults until live order is available. Startup uses a guarded `models --pure --verbose` child, and current
+host discovery authorizes dispatch and execution. Alternate desktop stores need `CODE_OPS_DESKTOP_STORE`.
+The lead inherits the session model. Merge whichever config you want into your own config rather
 than overwriting a config you already have, and keep your own copy out of a refresh.
 
 ## Run contracts

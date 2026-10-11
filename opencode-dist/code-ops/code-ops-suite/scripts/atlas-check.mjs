@@ -77,6 +77,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { resolve, join, sep, relative, isAbsolute, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { extractRefs, REF_RE } from './citation-lib.mjs';
 
 const SLUG_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // A stamp is an immutable object name, never a ref. See the moving-ref note in the header.
@@ -87,11 +88,8 @@ const INBOX_HEADER = '# Atlas inbox\n\n'
   + 'Append-only dated observations. Fold them into their sections, then clear the folded lines.\n\n';
 
 // ---- claims ---------------------------------------------------------------
-// The citation grammar is the register's own (revalidate-register.mjs REF_RE): a path whose last
-// segment carries a known code or documentation extension, a colon, then a line number. A range
-// citation (`file.mjs:10-20`) claims its first line, exactly as a register reads one. A path
-// containing a space is outside the grammar in both tools and is therefore not a claim.
-const CLAIM_REF_RE = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
+// Share the register's whole-path grammar, including dot-led and spaced paths. A range
+// citation (`file.mjs:10-20`) claims its first line, exactly as a register reads one.
 const MAX_ANCHOR = 80;
 // The register's sentinel for an anchor that may not be written down. It downgrades that item to a
 // line-existence check instead of forcing a secret substring into the manifest.
@@ -267,14 +265,33 @@ function anchorFor(lineText) {
 // Every citation in a section's prose, in document order, deduplicated by `file:line`. A citation
 // that escapes the repo root is dropped: it is not a claim ABOUT this repo, and resolving it would
 // read a path outside the tree the atlas is stamped against.
+function atlasRefs(prose, root) {
+  const refs = extractRefs(prose, root);
+  let index = 0;
+  for (const match of prose.matchAll(REF_RE)) {
+    const ref = refs[index++];
+    // Atlas claims pin a literal directory path. Preserve an explicitly quoted path even
+    // when the shared prose parser cannot widen it because the whole file is missing.
+    const before = prose.slice(Math.max(0, match.index - 256), match.index);
+    const quote = before.lastIndexOf('`');
+    const literal = quote < 0 ? '' : before.slice(quote + 1) + match[1];
+    if (prose[match.index + match[0].length] !== '`' || !literal.includes('/')
+      || !/^[\w.\-/ ,]+$/.test(literal) || literal !== literal.trim()) continue;
+    ref.path = literal;
+    ref.escaping ||= literal.startsWith('/') || literal.split('/').includes('..');
+  }
+  return refs;
+}
+
 function claimsFor(root, atlasDir, section) {
   let prose;
   try { prose = readFileSync(resolve(atlasDir, section.file), 'utf8'); } catch { return null; }
   const out = [];
   const seen = new Set();
-  for (const m of prose.matchAll(CLAIM_REF_RE)) {
-    const file = m[1].replace(/\\/g, '/');
-    const line = Number(m[2]);
+  for (const ref of atlasRefs(prose, root)) {
+    if (ref.escaping) continue;
+    const file = ref.path;
+    const line = ref.line;
     const key = `${file}:${line}`;
     if (!Number.isSafeInteger(line) || line < 1 || seen.has(key)) continue;
     seen.add(key);
@@ -302,7 +319,7 @@ const MAX_ADVISORY_ECHO = 80;
 // notice. Citing both sides makes the pair two claims, and either half drifting gates the
 // section. Fenced blocks and headings are skipped, because quoted output and a title are not
 // prose making a claim.
-function uncitedComparisons(atlasDir, section) {
+function uncitedComparisons(root, atlasDir, section) {
   let prose;
   try { prose = readFileSync(resolve(atlasDir, section.file), 'utf8'); } catch { return []; }
   let fenced = false;
@@ -318,7 +335,7 @@ function uncitedComparisons(atlasDir, section) {
     for (const sentence of para.replace(/\n/g, ' ').split(/(?<=[.!?])\s+/)) {
       if (!COMPARISON_CUE_RE.test(sentence)) continue;
       const cited = new Set();
-      for (const m of sentence.matchAll(CLAIM_REF_RE)) cited.add(`${m[1]}:${m[2]}`);
+      for (const ref of atlasRefs(sentence, root)) if (!ref.escaping) cited.add(`${ref.path}:${ref.line}`);
       if (cited.size < 2) out.push(sentence.trim().slice(0, MAX_ADVISORY_ECHO));
     }
   }
@@ -372,6 +389,12 @@ function classifyClaims(root, sections) {
       // is specific to the claim.
       const note = (m[3] ?? '').split('; ').filter((n) => !/^Verified-at \S+ != HEAD /.test(n)).join('; ');
       statuses.set(m[2], { status: m[1], note });
+    }
+    // A stamped directory path is exact evidence, so a missing file cannot become FRESH
+    // through the register's intentional filename-only relocation fallback.
+    for (const item of items) {
+      if (item.claim.file.includes('/') && !existsSync(resolve(root, item.claim.file)))
+        statuses.set(item.id, { status: 'GONE', note: `${item.claim.file} missing` });
     }
     return { items, statuses, error: null };
   } catch (e) {
@@ -717,7 +740,7 @@ function cmdCheck(args) {
   // `--gate` and `--claims-gate` exactly as they were.
   let uncited = 0;
   const reportComparisons = (s) => {
-    for (const sentence of uncitedComparisons(atlasDir, s)) {
+    for (const sentence of uncitedComparisons(root, atlasDir, s)) {
       uncited++;
       console.log(`      !! uncited comparison: ${sentence}`);
     }
@@ -992,7 +1015,7 @@ function cmdRetarget(args) {
   }
 
   const cache = new Map();
-  const refRe = new RegExp(CLAIM_REF_RE.source, 'gi');
+  const refRe = new RegExp(REF_RE.source, 'gi');
   let moved = 0;
   let judgment = 0;
   for (const section of sections) {
@@ -1000,6 +1023,8 @@ function cmdRetarget(args) {
     let prose;
     try { prose = readFileSync(prosePath, 'utf8'); }
     catch (e) { console.log(`(atlas) retarget ${section.slug}: cannot read ${section.file}: ${e.message}`); judgment++; continue; }
+    const refs = atlasRefs(prose, root);
+    const cited = new Set(refs.filter((ref) => !ref.escaping).map((ref) => `${ref.path}:${ref.line}`));
     const moves = new Map();
     for (const claim of section.claims ?? []) {
       if (typeof claim.anchor !== 'string' || claim.anchor === '' || claim.anchor === REDACTED_ANCHOR) continue;
@@ -1007,15 +1032,14 @@ function cmdRetarget(args) {
       if (abs !== root && !abs.startsWith(root + sep)) { console.log(`(atlas) retarget ${section.slug}: ${claim.file}:${claim.line} escapes the repo`); judgment++; continue; }
       const hits = linesContaining(abs, claim.anchor, cache);
       const where = `${claim.file}:${claim.line}`;
-      const cited = new RegExp(`\\b${claim.file.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}:${claim.line}\\b`);
       if (hits === null) {
-        if (!cited.test(prose)) continue;
+        if (!cited.has(where)) continue;
         console.log(`(atlas) retarget ${section.slug}: ${where} — file is unreadable`);
         judgment++;
         continue;
       }
       if (hits.includes(claim.line)) continue;
-      if (!cited.test(prose)) continue;
+      if (!cited.has(where)) continue;
       if (hits.length !== 1) {
         const why = hits.length === 0 ? 'anchor is not in the file' : `anchor is on ${hits.length} lines`;
         console.log(`(atlas) retarget ${section.slug}: ${where} — ${why}`);
@@ -1027,8 +1051,12 @@ function cmdRetarget(args) {
       console.log(`(atlas) retarget ${section.slug}: ${where} -> ${next}`);
     }
     if (!moves.size) continue;
-    const nextProse = prose.replace(refRe, (full, file, line) => {
-      const hit = moves.get(`${file}:${Number(line)}`);
+    let refIndex = 0;
+    const nextProse = prose.replace(refRe, (full, file) => {
+      // extractRefs returns one whole-path ref for each REF_RE match in the same order.
+      // Replace only the matched tail; a widened path's prefix stays in the original prose.
+      const ref = refs[refIndex++];
+      const hit = ref.escaping ? undefined : moves.get(`${ref.path}:${ref.line}`);
       return hit === undefined ? full : `${file}:${hit}`;
     });
     refRe.lastIndex = 0;

@@ -21,7 +21,7 @@ capabilities from a model name. Initialization rejects Git-visible paths and lin
 before writing raw provenance. Evidence: `scripts/host-capabilities.mjs:1-79` and
 `scripts/runtime-lib.mjs:18-30`, `193-218`.
 
-The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:96-136`, `205-218`, and `253-292`.
+The runtime stores a hash-chained receipt log at a repository-ignored path. It serializes mutations with a lock. A checkpoint or resume fails when its contract, capability receipt, stable prefix, ledger, bundle, or artifact has drifted. Evidence: `scripts/run-runtime.mjs:105-157`, `211-232`, and `255-294`.
 
 The read-only `run-runtime.mjs status` surface bounds its event output and reports checkpoint, pending-dispatch, partial-acceptance, drift, and token-budget state. Context delivery is also bounded twice: `context-bundle.mjs view` produces a verified unit projection, and `worker-brief.mjs` enforces separate invariant, unit, and total byte limits with a source-bound receipt.
 
@@ -279,7 +279,7 @@ byte-identical packaging.
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,
-blocks unknown, disabled, or below-floor operative models, and derives local MCP paths from the plugin
+checks exact operative identities against fresh effective config, connected catalog and profile policy before dispatch and at final execution. It preserves explicit pins, applies desktop show/hide overrides and recent provider/family defaults in live insertion order, refuses unavailable applicable stores and stale launch bindings, and leaves generated automatic agents unpinned. Startup metadata uses a guarded child because provider initialization awaits plugin initialization; sorted CLI metadata refuses ambiguous tied automatic defaults. Optional routing revisions hash only effective normalized routing inputs. Installed adoption remains UNVERIFIED. Its v2 cost ledger attributes latest message usage by model; the report preserves UNKNOWN for unpriced or ambiguous mixed usage and refuses applicable money gates. It derives local MCP paths from the plugin
 module. Its compatibility page names each host gap instead of claiming nonexistent
 hooks. The Grok behavior above is local runtime evidence from installed version 1.0.13 and
 `~/.grok/docs/user-guide/10-hooks.md`. The deterministic evals prove accepted output shapes

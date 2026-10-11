@@ -271,6 +271,75 @@ try {
     && /not a provider invoice/.test(pricedResult.stdout)
     && /reasoning tokens are reported for control only/.test(pricedResult.stdout), JSON.stringify(pricedMachine.actualCost));
   check('s. a price snapshot without root fails closed', run(['--runs', priced, '--prices', prices]).status === 2);
+  check('legacy usage is explicitly incomplete task coverage', pricedMachine.actualUsage?.completeTaskCoverage === 'UNKNOWN'
+    && pricedMachine.actualCost?.completeTaskCost === 'UNKNOWN');
+  const custom = join(work, 'custom'); mkdirSync(custom);
+  const seedBound = (id, recordIds = ['c'.repeat(64)]) => {
+    const folder = seedRun(custom, `2026-08-20 ship ${id}`, ['D-001 | reviewer@gpt-6-astra | bounded task | REVIEW.md | reported']);
+    const rel = (path) => relative(work, path).replace(/\\/g, '/');
+    const receiptPath = join(folder, 'runtime.jsonl');
+    const acceptancePath = join(folder, 'custom-acceptance.md');
+    const resultPath = join(folder, 'custom-result.json');
+    const ledgerPath = join(folder, 'DISPATCH_LEDGER.md');
+    const contract = { ...pricedContract, runId: id, runtime: { receipts: rel(receiptPath) },
+      units: [{ id: 'D-001', qualityCriteria: ['Q-001'] }], quality: { criteria: [{ id: 'Q-001', owner: 'tool', oracle: 'command', blocking: true }] } };
+    const contractBytes = Buffer.from(JSON.stringify(contract));
+    writeFileSync(join(folder, 'RUN_CONTRACT.json'), contractBytes);
+    writeFileSync(acceptancePath, '| criterion | attempt | verdict | proof | accepted by | reason |\n| --- | --- | --- | --- | --- | --- |\n| Q-001 | 1 | PASS | synthetic check | tool | |\n');
+    const result = { version: 1, runId: id, revision: 1, head: pricedHead, status: 'PASS', completedAt: '2026-08-20T00:10:00.000Z',
+      criteria: [{ id: 'Q-001', verdict: 'PASS' }], dispatch: { planned: 1, reported: 1 } };
+    writeFileSync(resultPath, JSON.stringify(result));
+    writeFileSync(join(folder, 'RUN_CONTRACT_RESULT.json'), JSON.stringify(result));
+    const bound = { ...binding, runId: id, contractSha256: sha256(contractBytes) };
+    const reference = (path) => ({ path: rel(path), sha256: sha256(readFileSync(path)) });
+    const references = { ...emptyRefs, result: reference(resultPath), acceptance: reference(acceptancePath),
+      ledger: { ...reference(ledgerPath), journalPath: null, journalSha256: null } };
+    const linked = { ...observation, linkage: { runId: id, contractRevision: 1, taskId: 'bounded-task', attemptId: 'attempt-one', parentAttemptId: null,
+      relation: 'initial', sourceKind: 'operator', recordIds } };
+    const events = [{ ...init, binding: bound, receiptSha256: null }, { ...observed, binding: bound, observation: linked },
+      { ...observed, binding: bound, observation: linked }, { ...observed, binding: bound, kind: 'checkpoint', observation: null, references }];
+    const save = () => {
+      events.forEach((event, index) => { event.sequence = index + 1; event.previousReceiptSha256 = index ? events[index - 1].receiptSha256 : null; event.receiptSha256 = receiptSha256(event); });
+      writeFileSync(receiptPath, events.map((event) => JSON.stringify(event)).join('\n') + '\n');
+    };
+    save(); return { events, save, acceptancePath, resultPath, receiptPath, references, folder };
+  };
+  const boundRun = seedBound('custom-one');
+  const customJson = join(work, 'custom.json');
+  const estimateCustom = () => {
+    const result = run(['--runs', custom, '--root', work, '--prices', prices, '--json', customJson]);
+    return { result, machine: JSON.parse(readFileSync(customJson, 'utf8')) };
+  };
+  let customReadback = estimateCustom();
+  check('custom digest-bound result and acceptance paths finalize the run', customReadback.machine.usableRuns === 1, JSON.stringify(customReadback.machine));
+  check('linked reimports are unique in cost and remain distinct from legacy usage', customReadback.machine.actualCost?.attributedObservedSubtotal === 71
+    && customReadback.machine.actualUsage?.duplicateImports === 1 && customReadback.machine.actualUsage?.linkedObservations === 1
+    && customReadback.machine.actualUsage?.legacyObservations === 0, JSON.stringify(customReadback.machine.actualUsage));
+  const savedResult = readFileSync(boundRun.resultPath); const savedAcceptance = readFileSync(boundRun.acceptancePath);
+  writeFileSync(boundRun.resultPath, Buffer.concat([savedResult, Buffer.from('\n')]));
+  check('explicit result digest drift refuses the conventional result fallback', estimateCustom().machine.usableRuns === 0);
+  writeFileSync(boundRun.resultPath, savedResult);
+  writeFileSync(boundRun.acceptancePath, Buffer.concat([savedAcceptance, Buffer.from('\n')]));
+  check('explicit acceptance digest drift refuses the conventional result fallback', estimateCustom().machine.usableRuns === 0);
+  writeFileSync(boundRun.acceptancePath, savedAcceptance);
+  const staleResult = JSON.parse(savedResult); staleResult.revision = 2;
+  writeFileSync(boundRun.resultPath, JSON.stringify(staleResult));
+  boundRun.references.result.sha256 = sha256(readFileSync(boundRun.resultPath)); boundRun.save();
+  check('digest-matching stale result is rejected', estimateCustom().machine.usableRuns === 0);
+  writeFileSync(boundRun.resultPath, savedResult); boundRun.references.result.sha256 = sha256(savedResult); boundRun.save();
+  writeFileSync(boundRun.acceptancePath, savedAcceptance.toString().replace('| PASS |', '| FAIL |'));
+  boundRun.references.acceptance.sha256 = sha256(readFileSync(boundRun.acceptancePath)); boundRun.save();
+  check('digest-matching failed acceptance cannot claim successful result', estimateCustom().machine.usableRuns === 0);
+  writeFileSync(boundRun.acceptancePath, savedAcceptance); boundRun.references.acceptance.sha256 = sha256(savedAcceptance); boundRun.save();
+  boundRun.events.at(-1).receiptSha256 = 'f'.repeat(64);
+  writeFileSync(boundRun.receiptPath, boundRun.events.map((event) => JSON.stringify(event)).join('\n') + '\n');
+  check('corrupt explicit receipt does not revive conventional finalization', estimateCustom().machine.usableRuns === 0);
+  boundRun.save();
+  seedBound('custom-two');
+  customReadback = estimateCustom();
+  check('overlapping record coverage across loaded runs fails attribution closed', customReadback.machine.actualUsage?.runsWithUsage === 0
+    && customReadback.machine.actualUsage?.crossRunCoverageConflicts === 1 && customReadback.machine.actualCost?.attributedObservedSubtotal === null,
+  JSON.stringify(customReadback.machine.actualUsage));
   const noUsageJson = join(work, 'no-usage-price.json');
   const noUsagePrice = run(['--runs', runs, '--root', work, '--prices', prices, '--json', noUsageJson]);
   const noUsageMachine = JSON.parse(readFileSync(noUsageJson, 'utf8'));

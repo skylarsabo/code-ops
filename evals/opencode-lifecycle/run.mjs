@@ -21,7 +21,7 @@ const { fails, expect } = tally();
 
 const floors = `const KNOWN_MODELS = {
   "anthropic": { "claude-haiku-4-5-20251001": "light", "claude-sonnet-5": "mid", "claude-opus-5-5": "strong", "claude-fable-5-1": "frontier" },
-  "openai": { "gpt-6-luna": "light", "gpt-5.1": "mid", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier" },
+  "openai": { "gpt-6-luna": "light", "gpt-5.1": "mid", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier", "gpt-6.1-sol": "frontier", "gpt-6.1-luna": "light" },
   "xai": { "grok-4.7": "frontier", "grok-build-0.1": "light" },
   "opencode": { "muse-spark-1.3-contributor-free": "strong" },
   "github-copilot": { "gpt-6-sol": "frontier", "grok-4.7": "strong" },
@@ -43,7 +43,7 @@ writeFileSync(join(runs, 'HANDOFF.md'), '# pending\n\n## Program\n\nProgram: `co
 process.env.CODE_OPS_RECEIPTS = join(work, 'session-receipts.jsonl');
 process.env.CODE_OPS_COST_LEDGER = join(work, 'opencode-cost.jsonl');
 process.env.CODE_OPS_MODEL_PROFILE = join(work, 'no-profile.json');
-process.env.CODE_OPS_DESKTOP_STORE = join(work, 'no-desktop-store.dat');
+delete process.env.CODE_OPS_DESKTOP_STORE;
 process.env.CODE_OPS_ROUND_BUDGET = '2';
 process.env.CODE_OPS_OPENCODE_MODELS = [
   'provider-a/claude-opus-5-5',
@@ -66,6 +66,7 @@ delete process.env.CODE_OPS_CONTEXT_THRESHOLD;
 // them inside the scratch tree.
 process.env.HOME = work;
 process.env.USERPROFILE = work;
+process.env.APPDATA = work;
 
 const overlay = await import(pathToFileURL(join(work, 'code-ops-lifecycle.js')).href);
 expect(Object.keys(overlay).length === 1, `lifecycle exported ${Object.keys(overlay).join(', ')}`);
@@ -83,7 +84,9 @@ expect(classifyChooserModel('github-copilot/gpt-5.6-luna') === 'light', 'a resel
 expect(pickChooserModel('light', catalog) === 'provider-b/gpt-6-luna', `light pick should be gpt-6-luna, got ${pickChooserModel('light', catalog)}`);
 expect(pickChooserModel('strong', catalog) === 'provider-a/claude-opus-5-5', `strong pick should be opus 5.5, got ${pickChooserModel('strong', catalog)}`);
 const ladder = buildChooserLadder(catalog);
-expect(!Object.values(ladder.agents).some((id) => String(id).includes('muse-spark')), 'chooser bound the Zen fallback');
+const zenOnly = buildChooserLadder(['opencode/muse-spark-1.3-contributor-free']);
+expect(zenOnly.agents['code-ops-suite-implementer'] === 'opencode/muse-spark-1.3-contributor-free'
+  && zenOnly.byTier.frontier === null, 'an enabled classified provider model must bind only at a tier it meets');
 expect(ladder.agents['code-ops-suite-explorer'] === 'provider-b/gpt-6-luna', 'explorer should bind luna');
 expect(ladder.agents['code-ops-suite-implementer'] === 'provider-a/claude-opus-5-5', 'implementer should bind opus 5.5');
 expect(ladder.warning === null, `an absent enabled list warned: ${ladder.warning}`);
@@ -97,17 +100,17 @@ expect(unmatched.warning?.includes(process.env.CODE_OPS_MODEL_PROFILE), `the unm
 const narrowed = buildChooserLadder(catalog, { enabled: ['gpt-6-luna'] });
 expect(Object.values(narrowed.agents).every((id) => id === 'provider-b/gpt-6-luna') && narrowed.warning === null, `a matching enabled list should bind only its models: ${JSON.stringify(narrowed.agents)}`);
 
-// With no floor table beside the chooser, the family classifier decides. The gpt-6.1-sol pin
-// must keep the frontier class its gpt-6-sol predecessor had.
+// Qualification requires the verified floor table; family-like names cannot invent a floor.
 const familyDir = join(work, 'family');
 mkdirSync(familyDir);
 writeFileSync(join(familyDir, 'code-ops-lifecycle.js'), readFileSync(join(root, 'scripts', 'opencode-lifecycle.js')));
 writeFileSync(join(familyDir, 'legacy-paths-lib.mjs'), readFileSync(join(root, 'scripts', 'legacy-paths-lib.mjs')));
 const family = (await import(pathToFileURL(join(familyDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
-for (const id of ['openai/gpt-6-sol', 'openai/gpt-6.1-sol']) {
-  expect(family.classifyChooserModel(id) === 'frontier', `the family classifier should resolve ${id} frontier, got ${family.classifyChooserModel(id)}`);
+for (const id of ['openai/gpt-6-sol', 'openai/gpt-6.1-sol', 'openai/gpt-6.1-luna']) {
+  expect(family.classifyChooserModel(id) === null, `a missing verified table must leave ${id} unclassified`);
 }
-expect(family.classifyChooserModel('openai/gpt-6.1-luna') === 'light', 'the sol pattern must not capture a luna sibling');
+expect(classifyChooserModel('openai/gpt-6-sol') === 'frontier' && classifyChooserModel('openai/gpt-6.1-sol') === 'frontier'
+  && classifyChooserModel('openai/gpt-6.1-luna') === 'light', 'verified model rows must retain their respective tiers');
 
 // GitHub Copilot: the shipped floor plugin carries prices, so the chooser ranks
 // the priced catalog by workload cost and the cost report prices cache writes.
@@ -116,6 +119,7 @@ mkdirSync(copilotDir);
 for (const file of ['plugins/code-ops-model-floors.js', 'plugins/code-ops-lifecycle.js', 'code-ops/cost-report.mjs']) {
   writeFileSync(join(copilotDir, file.split('/').pop()), readFileSync(join(root, 'opencode-dist', file)));
 }
+writeFileSync(join(copilotDir, 'cost-report.mjs'), readFileSync(join(root, 'scripts', 'opencode-cost-report.mjs')));
 const copilot = (await import(pathToFileURL(join(copilotDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
 const starter = JSON.parse(readFileSync(join(root, 'opencode-dist', 'configs', 'model-profile.github-copilot.json'), 'utf8'));
 const copilotCatalog = starter.enabled;
@@ -139,11 +143,22 @@ writeFileSync(copilotLedger, `${JSON.stringify({
 const copilotReport = spawnSync(process.execPath, [join(copilotDir, 'cost-report.mjs'), '--ledger', copilotLedger, '--profile', join(work, 'no-profile.json'), '--json'], { encoding: 'utf8' });
 const copilotUsd = JSON.parse(copilotReport.stdout || '{}').totals?.usd;
 expect(Math.abs(copilotUsd - 4.5) < 1e-9, `cost report should price cache writes at cacheWrite ($4.50), got ${copilotUsd}`);
+const copilotOverride = join(copilotDir, 'override.json');
+writeFileSync(copilotOverride, JSON.stringify({ prices: { 'github-copilot/gpt-6-sol': { input: 0, cacheWrite: 0 } } }));
+const overriddenReport = spawnSync(process.execPath, [join(copilotDir, 'cost-report.mjs'), '--ledger', copilotLedger, '--profile', copilotOverride, '--json'], { encoding: 'utf8' });
+expect(JSON.parse(overriddenReport.stdout || '{}').totals?.usd === 0, 'an explicit zero profile price must override shipped provider prices');
+const resellerRow = JSON.parse(readFileSync(copilotLedger, 'utf8'));
+writeFileSync(copilotLedger, JSON.stringify({ ...resellerRow, models: ['unpriced-provider/gpt-6-sol'] }) + '\n');
+const resellerReport = spawnSync(process.execPath, [join(copilotDir, 'cost-report.mjs'), '--ledger', copilotLedger, '--profile', join(work, 'no-profile.json'), '--json'], { encoding: 'utf8' });
+expect(JSON.parse(resellerReport.stdout || '{}').totals?.usd === null, 'shipped prices must not leak across providers with the same model id');
 
+const hostConfig = { providers: async () => ({ providers: Object.entries(Object.groupBy([...catalog, 'xai/grok-4.7'], (id) => id.split('/')[0]))
+  .map(([id, models]) => ({ id, models: Object.fromEntries(models.map((model) => [model.slice(model.indexOf('/') + 1), {}])) })) }) };
 const hooks = await overlay.CodeOpsLifecycle({
   directory: work,
-  client: { session: { get: async ({ path }) => (path.id.startsWith('child') ? { parentID: 'lead' } : {}) } },
+  client: { config: hostConfig, session: { get: async ({ path }) => (path.id.startsWith('child') ? { parentID: 'lead' } : {}) } },
 });
+await hooks.config({ agent: {} });
 const leadSystem = { system: [] };
 await hooks['experimental.chat.system.transform']({ sessionID: 'lead' }, leadSystem);
 const later = { system: [] };
@@ -187,7 +202,7 @@ await hooks['chat.message']({ sessionID: 'eff-lead', agent: 'build' }, effTurn);
 expect(effTurn.parts[0].text.includes('Effort "xhigh" is above high; it runs at high.'), `an Effort: xhigh dispatch did not surface the clamp note: ${effTurn.parts[0].text}`);
 await hooks['chat.message']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer' }, { parts: [{ type: 'text', text: 'Effort: xhigh\ndo it' }] });
 const effParams = {};
-await hooks['chat.params']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer', model: { providerID: 'p', id: 'm', variants: { low: { e: 'low' }, high: { e: 'high' }, xhigh: { e: 'xhigh' } } } }, effParams);
+await hooks['chat.params']({ sessionID: 'eff-child', agent: 'code-ops-suite-implementer', model: { providerID: 'provider-a', id: 'claude-opus-5-5', variants: { low: { e: 'low' }, high: { e: 'high' }, xhigh: { e: 'xhigh' } } } }, effParams);
 expect(effParams.options?.e === 'high', `an Effort: xhigh child did not clamp to the high variant: ${JSON.stringify(effParams.options)}`);
 
 // Premium directive: `Tier: premium` routes a strong-floor agent to its premium clone, and
@@ -242,7 +257,8 @@ await hooks['chat.message']({ sessionID: 'ceil', agent: 'build' }, { parts: [{ t
 gate = await dispatch(hooks, 'ceil');
 expect(gate === null, `a typed handoff did not unlock dispatch: ${gate}`);
 // The assessed band survives a host restart.
-const restarted = await overlay.CodeOpsLifecycle({ directory: work, client: { session: { get: async () => ({}) } } });
+const restarted = await overlay.CodeOpsLifecycle({ directory: work, client: { config: hostConfig, session: { get: async () => ({}) } } });
+await restarted.config({ agent: {} });
 await setContext(restarted, 'ceil', 470000, 'c3');
 gate = await dispatch(restarted, 'ceil');
 expect(gate === null, `the assessment did not survive a restart: ${gate}`);
@@ -318,6 +334,101 @@ await hooks.event({ event: { type: 'message.updated', properties: { info: { ...a
 await hooks.event({ event: { type: 'session.idle', properties: { sessionID: 'costlead' } } });
 const rows = readFileSync(process.env.CODE_OPS_COST_LEDGER, 'utf8').trim().split('\n').map((line) => JSON.parse(line)).filter((row) => row.sessionId === 'costlead');
 expect(rows.length === 2 && rows[0].turns === 1 && rows[1].turns === 2 && rows[1].costUsd === 2.5, `cost ledger rows were ${JSON.stringify(rows)}`);
+
+// Per-message attribution must survive model switches and revisions before pricing.
+{
+  const usage = (input = 0, extra = {}) => ({ input, cacheCreate: 0, cacheRead: 0, output: 0, thinking: 0, ...extra });
+  const update = (sessionID, id, model, tokens) => hooks.event({ event: { type: 'message.updated', properties: { info: {
+    role: 'assistant', sessionID, id, cost: 0, tokens,
+    ...(model ? { providerID: model.split('/')[0], modelID: model.slice(model.indexOf('/') + 1) } : {}),
+  } } } });
+  const idle = (sessionID) => hooks.event({ event: { type: 'session.idle', properties: { sessionID } } });
+  const latest = (id) => readFileSync(process.env.CODE_OPS_COST_LEDGER, 'utf8').trim().split('\n')
+    .map((line) => JSON.parse(line)).filter((row) => row.sessionId === id).at(-1);
+  const a = 'rates/model-a';
+  const b = 'rates/model-b';
+  const prices = { [a]: { input: 2, cached: 0.5, cacheWrite: 3, output: 4 }, [b]: { input: 10, output: 20 } };
+  const ledger = join(work, 'accounting.jsonl');
+  const profileFile = join(work, 'accounting-profile.json');
+  const report = (entries, profileCase = {}, json = true) => {
+    writeFileSync(ledger, entries.map((entry) => JSON.stringify(entry)).join('\n') + '\n');
+    writeFileSync(profileFile, JSON.stringify({ credits_per_usd: 40, prices, ...profileCase }));
+    const result = spawnSync(process.execPath, [join(work, 'cost-report.mjs'), '--ledger', ledger, '--profile', profileFile, '--check', ...(json ? ['--json'] : [])], { encoding: 'utf8' });
+    expect(!result.error && result.status !== null, `cost report failed to execute: ${result.error ?? result.stderr}`);
+    return { ...result, parsed: json ? JSON.parse(result.stdout || '{}') : null };
+  };
+  const group = (model, input = 1_000_000, extra = {}) => ({ model, turns: 1, costUsd: 0, tokens: usage(input, extra) });
+  const row = (extra = {}) => ({ v: 2, sessionId: 'accounting', ts: new Date().toISOString(), turns: 6,
+    costUsd: 0, models: [a, b], tokens: usage(2_000_000), usageByModel: [group(a), group(b)], ...extra });
+  const mixed = report([row()]);
+  expect(mixed.parsed.totals.usd === 12 && mixed.parsed.totals.credits === 480 && mixed.parsed.totals.usdPerTurn === 2,
+    `two model rates should sum to $12: ${JSON.stringify(mixed.parsed.totals)}`);
+  const reversed = report([row({ models: [b, a], usageByModel: [group(b), group(a)] })]);
+  expect(reversed.parsed.totals.usd === mixed.parsed.totals.usd, 'model order changed mixed-model cost');
+  const gates = { max_session_credits: 1000, max_usd_per_turn: 100, max_projected_month_credits: 1_000_000 };
+  for (const [label, entry, profileCase] of [
+    ['missing price', row(), { prices: { [a]: prices[a] } }],
+    ['legacy mixed', row({ v: 1, usageByModel: undefined }), {}],
+    ['empty attribution', row({ usageByModel: [] }), {}],
+    ['unknown identity', row({ usageByModel: [group(a), group(null)] }), {}],
+    ['missing consumed bucket price', row({ models: [a], usageByModel: [group(a)] }), { prices: { [a]: { output: 4 } } }],
+  ]) {
+    const unknown = report([entry], { ...profileCase, cost_gates: gates });
+    const t = unknown.parsed.totals;
+    expect(t.usd === null && t.credits === null && t.usdPerTurn === null && t.monthCredits === null && t.projectedMonthCredits === null,
+      `${label} must propagate UNKNOWN: ${JSON.stringify(t)}`);
+    expect(unknown.status === 1 && Object.keys(gates).every((name) => unknown.parsed.breaches.some((text) => text.startsWith(`${name}:`) && text.includes('UNKNOWN'))),
+      `${label} falsely passed a money gate: ${JSON.stringify(unknown.parsed.breaches)}`);
+  }
+  const human = report([row({ v: 1, usageByModel: undefined })], { cost_gates: gates, budget_credits: 1000, baseline: { usd_per_turn: 1 } }, false);
+  expect(human.status === 1 && human.stdout.includes('UNKNOWN') && !human.stdout.includes('All cost gates hold') && !/NaN|\$0\.00/.test(human.stdout),
+    `human report must identify unknown spend: ${human.stdout}`);
+  const combined = report([row({ sessionId: 'known', costUsd: 3, usageByModel: undefined }),
+    row({ sessionId: 'unknown-child', parentId: 'known', usageByModel: [group(null)] })]);
+  expect(combined.parsed.sessions[0].usd === null && combined.parsed.sessions[0].leadShare === null && combined.parsed.totals.usd === null,
+    'unknown child cost disappeared from combined session accounting');
+  const reported = report([row({ costUsd: 7, usageByModel: [group(null)] })]);
+  expect(reported.parsed.totals.usd === 7 && !reported.parsed.sessions[0].estimated, 'positive provider cost must remain authoritative');
+  const free = report([row({ models: [a], usageByModel: [group(a)] })], { prices: { [a]: { input: 0 } }, cost_gates: gates });
+  expect(free.status === 0 && free.parsed.totals.usd === 0 && free.parsed.totals.projectedMonthCredits === 0,
+    'an explicit zero rate must be known zero');
+  const cached = report([row({ models: [a], usageByModel: [group(a, 1_000_000, { cacheCreate: 1_000_000, cacheRead: 1_000_000, output: 1_000_000, thinking: 1_000_000 })] })]);
+  expect(cached.parsed.totals.usd === 13.5, `cache and reasoning buckets must retain their prices: ${cached.parsed.totals.usd}`);
+  const legacySingle = report([row({ v: 1, models: [a], tokens: usage(1_000_000), usageByModel: undefined })]);
+  expect(legacySingle.parsed.totals.usd === 2, 'legacy single-model usage must still estimate');
+  const exact = report([row({ models: [a], usageByModel: [group(a)] })], { prices: { [a]: { input: 3 }, 'model-a': { input: 50 } } });
+  expect(exact.parsed.totals.usd === 3, 'exact profile price must precede the bare model price');
+  const noRate = report([row({ costUsd: 7, credits: null })], { credits_per_usd: undefined, cost_gates: { max_session_credits: 1000 } });
+  expect(noRate.status === 1 && noRate.parsed.totals.usd === 7 && noRate.parsed.totals.credits === null,
+    'missing credit conversion must not falsely pass a credits gate');
+  await update('mixed-producer', 'm1', a, { input: 500_000 });
+  await update('mixed-producer', 'm2', b, { input: 1_000_000 });
+  await idle('mixed-producer');
+  await update('mixed-producer', 'm1', a, { input: 1_000_000 });
+  await idle('mixed-producer');
+  const produced = latest('mixed-producer');
+  expect(produced.v === 2 && produced.turns === 2 && produced.usageByModel?.length === 2
+    && produced.usageByModel.find((g) => g.model === a)?.tokens.input === 1_000_000,
+    `producer must replace a message contribution: ${JSON.stringify(produced.usageByModel)}`);
+  expect(report([produced]).parsed.totals.usd === 12, 'producer-to-report mixed-model estimate did not sum to $12');
+  await update('mixed-producer', 'm1', null, { input: 1_500_000 });
+  await idle('mixed-producer');
+  const partial = latest('mixed-producer');
+  expect(partial.usageByModel?.find((g) => g.model === a)?.tokens.input === 1_500_000
+    && report([partial]).parsed.totals.usd === 13, 'partial update lost the same message identity or double-counted its usage');
+  await update('identity-producer', 'm1', a, { input: 1_000_000 });
+  await update('identity-producer', 'm2', null, { input: 1_000_000 });
+  await idle('identity-producer');
+  const unidentified = latest('identity-producer');
+  expect(unidentified.usageByModel?.some((g) => g.model === null && g.turns === 1), 'missing message identity inherited the preceding model');
+  expect(report([unidentified]).parsed.totals.usd === null, 'unidentified producer usage must remain UNKNOWN');
+  await update('mixed-producer', 'm1', b, { input: 1_000_000 });
+  await idle('mixed-producer');
+  const revised = latest('mixed-producer');
+  expect(revised.usageByModel?.length === 1 && revised.usageByModel[0].model === b && revised.usageByModel[0].turns === 2
+    && report([revised]).parsed.totals.usd === 20, 'changing a message model left its old contribution behind');
+  console.log('ok   mixed-model accounting prices attributed usage, preserves UNKNOWN and gates missing money');
+}
 
 const profile = join(work, 'gate.json');
 writeFileSync(profile, JSON.stringify({ credits_per_usd: 40, cost_gates: { max_context_peak: 100000 } }));

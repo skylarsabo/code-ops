@@ -659,6 +659,42 @@ try {
   const y7 = run(['check', '--atlas', atlasCL]);
   check('y. a cited file that is gone is reported gone', /claims: 0 fresh, 1 moved, 0 drifted, 1 gone/.test(y7.out), y7.out);
 
+  // Whole dot-led and spaced paths must win over plausible suffix decoys.
+  const WP = newRepo('whole-path');
+  put(WP, '.github/workflows/build.yml', 'name: whole-dot\n');
+  put(WP, 'github/workflows/build.yml', 'name: suffix-decoy\n');
+  put(WP, 'docs/My Folder/guide.md', '# Whole spaced path\n');
+  put(WP, 'Folder/guide.md', '# Suffix decoy\n');
+  commit(WP, 'whole path fixtures');
+  const atlasWP = join(WP, 'docs', 'atlas');
+  run(['init', '--atlas', atlasWP]);
+  run(['add', '--atlas', atlasWP, '--section', 'core', '--scope', '.github/**', '--scope', 'docs/My Folder/**']);
+  put(WP, 'docs/atlas/sections/core.md', '# Core\n\nCharter: whole paths.\n\nDot is `.github/workflows/build.yml:1`. Spaced is `docs/My Folder/guide.md:1`.\n');
+  commit(WP, 'whole path atlas');
+  run(['stamp', '--atlas', atlasWP, '--section', 'core']);
+  const wholeClaims = readManifest(WP).sections[0].claims;
+  check('wp. stamp preserves whole dot-led and spaced paths despite suffix decoys', wholeClaims?.length === 2
+    && wholeClaims[0].file === '.github/workflows/build.yml' && wholeClaims[1].file === 'docs/My Folder/guide.md', JSON.stringify(wholeClaims));
+  check('wp. whole path claims pass immediately after stamp', run(['check', '--atlas', atlasWP, '--claims-gate']).status === 0);
+  put(WP, '.github/workflows/build.yml', 'name: changed-dot\n');
+  check('wp. whole dot claim drift fails the claims gate', run(['check', '--atlas', atlasWP, '--claims-gate']).status === 1);
+  put(WP, '.github/workflows/build.yml', '\nname: whole-dot\n');
+  put(WP, 'docs/My Folder/guide.md', '\n# Whole spaced path\n');
+  const retargetWP = run(['retarget', '--atlas', atlasWP]);
+  const wholeProse = readFileSync(join(atlasWP, 'sections/core.md'), 'utf8');
+  check('wp. retarget moves whole dot-led and spaced citations', retargetWP.status === 0
+    && wholeProse.includes('.github/workflows/build.yml:2') && wholeProse.includes('docs/My Folder/guide.md:2'), retargetWP.out);
+  put(WP, 'Folder/guide.md', '\n# Whole spaced path\n');
+  commit(WP, 'retarget whole paths');
+  run(['stamp', '--atlas', atlasWP, '--section', 'core']);
+  rmSync(join(WP, 'docs/My Folder/guide.md'));
+  check('wp. a missing spaced literal never rebinds to an identical suffix decoy', run(['check', '--atlas', atlasWP, '--claims-gate']).status === 1);
+  run(['stamp', '--atlas', atlasWP, '--section', 'core', '--at', 'HEAD']);
+  const missingClaims = readManifest(WP).sections[0].claims;
+  check('wp. restamping a missing quoted spaced literal preserves its whole path', missingClaims?.some((claim) => claim.file === 'docs/My Folder/guide.md'), JSON.stringify(missingClaims));
+  rmSync(join(WP, '.github/workflows/build.yml'));
+  check('wp. a missing whole path remains gated despite its suffix decoy', run(['check', '--atlas', atlasWP, '--claims-gate']).status === 1);
+
   // A malformed claim is a manifest that cannot be read, not a section that aged out: fail closed.
   const clm = JSON.parse(readFileSync(join(atlasCL, 'MANIFEST.json'), 'utf8'));
   clm.sections.find((s) => s.slug === 'core').claims = [{ file: 'src/app.js', line: 0 }];

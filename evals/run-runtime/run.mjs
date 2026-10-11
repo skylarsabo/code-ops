@@ -16,7 +16,7 @@ import {
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { compileStablePrefix, replayRuntimeReceipts } from '../../scripts/runtime-lib.mjs';
+import { compileStablePrefix, replayRuntimeReceipts, runtimeMetrics, runtimeUsage } from '../../scripts/runtime-lib.mjs';
 import { ACCEPT_HEADER } from '../../scripts/acceptance-lib.mjs';
 import { tally, withDetail } from '../harness.mjs';
 
@@ -334,10 +334,25 @@ try {
 
   const visibleBundles = writeContract(1, git(root, ['rev-parse', 'HEAD']), firstSnapshot.snapshotId);
   visibleBundles.context.bundleDir = 'bundles';
-  writeFileSync(contractPath, `${JSON.stringify(visibleBundles, null, 2)}\n`);
-  r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
+  visibleBundles.context.snapshot = 'run/CONTEXT_SNAPSHOT.json';
+  const visibleBundleContractPath = join(root, 'VISIBLE_BUNDLE_CONTRACT.json');
+  writeFileSync(visibleBundleContractPath, `${JSON.stringify(visibleBundles, null, 2)}\n`);
+  r = run(RUNTIME, ['init', '--root', root, '--contract', visibleBundleContractPath], root);
   check('runtime init refuses a Git-visible bundle directory', r.status === 1
     && /context\.bundleDir must use a repository-ignored path/.test(r.out) && !existsSync(runtimePath), r.out);
+  rmSync(visibleBundleContractPath);
+  visibleBundles.context.snapshot = 'CONTEXT_SNAPSHOT.json';
+  for (const bundleDir of ['../../outside', '/outside']) {
+    visibleBundles.context.bundleDir = bundleDir;
+    writeFileSync(contractPath, `${JSON.stringify(visibleBundles, null, 2)}\n`);
+    r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
+    check(`runtime init refuses unsafe bundle directory ${bundleDir}`, r.status === 1 && !existsSync(runtimePath), r.out);
+  }
+  visibleBundles.context.bundleDir = 'bundles';
+  writeFileSync(contractPath, `${JSON.stringify(visibleBundles, null, 2)}\n`);
+  r = run(RUNTIME, ['init', '--root', root, '--contract', contractPath], root);
+  check('runtime init accepts the contract-relative default bundle directory', r.status === 0 && existsSync(runtimePath), r.out);
+  rmSync(runtimePath, { force: true });
   const visibleContractPath = join(root, 'VISIBLE_RUN_CONTRACT.json');
   const visibleSnapshotPath = join(root, 'VISIBLE_SNAPSHOT.json');
   const snapshotBytes = readFileSync(snapshotPath);
@@ -421,6 +436,21 @@ try {
     && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('input')
     && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('output')
     && cleanStatus?.tokenBudgets?.overruns?.items[0]?.exceeded?.includes('reasoning'), r.out);
+  const beforeResultCheckpoint = readFileSync(runtimePath, 'utf8');
+  const customAcceptancePath = join(runDir, 'CUSTOM_ACCEPTANCE.md');
+  const customResultPath = join(runDir, 'CUSTOM_RESULT.json');
+  writeFileSync(customAcceptancePath, ACCEPT_HEADER + '| Q-001 | 1 | PASS | synthetic check | tool | |\n');
+  r = run(CONTRACT, ['finalize', '--root', root, '--contract', contractPath, '--acceptance', customAcceptancePath,
+    '--dispatch-ledger', ledgerPath, '--result', customResultPath], root);
+  check('fixture finalizes at custom result and acceptance paths', r.status === 0, r.out);
+  r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/DISPATCH_LEDGER.md',
+    '--acceptance', 'run/CUSTOM_ACCEPTANCE.md', '--result', 'run/CUSTOM_RESULT.json'], root);
+  check('checkpoint binds a custom result with its exact digest', r.status === 0
+    && replayRuntimeReceipts(readFileSync(runtimePath, 'utf8')).latestCheckpoint.references.result.path === 'run/CUSTOM_RESULT.json', r.out);
+  writeFileSync(customResultPath, readFileSync(customResultPath, 'utf8') + '\n');
+  r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
+  check('resume refuses custom result digest drift', r.status === 1 && /result digest mismatch/.test(r.out), r.out);
+  writeFileSync(runtimePath, beforeResultCheckpoint);
   const savedContract = readFileSync(contractPath);
   const savedLedger = readFileSync(ledgerPath);
   const savedJournal = readFileSync(`${ledgerPath}.journal.jsonl`);
@@ -511,6 +541,86 @@ try {
   writeFileSync(runtimePath, goodChain);
   writeFileSync(acceptancePath, partialAcceptance);
   const firstReceipt = JSON.parse(goodChain.split('\n')[0]);
+  const linkedObservation = { ...attributedObservation, linkage: {
+    runId: firstReceipt.binding.runId, contractRevision: 1, taskId: 'task-one', attemptId: 'attempt-one',
+    parentAttemptId: null, relation: 'initial', sourceKind: 'operator', recordIds: ['a'.repeat(64)],
+  } };
+  const linkedChain = (observations) => {
+    const events = [structuredClone(firstReceipt)];
+    for (const observation of observations) {
+      const event = { ...structuredClone(firstReceipt), kind: 'observation', sequence: events.length + 1,
+        previousReceiptSha256: events.at(-1).receiptSha256, observation };
+      event.receiptSha256 = receiptDigest(event); events.push(event);
+    }
+    return events.map((event) => JSON.stringify(event)).join('\n') + '\n';
+  };
+  let linkedReplay;
+  try { linkedReplay = replayRuntimeReceipts(linkedChain([linkedObservation, linkedObservation])); } catch { /* assertion below records red */ }
+  check('linked identical imports replay without double counting', linkedReplay?.attribution?.linked.length === 1
+    && linkedReplay?.attribution?.duplicates === 1);
+  const retry = { ...linkedObservation, model: 'gpt-6-sol', linkage: { ...linkedObservation.linkage,
+    attemptId: 'attempt-two', parentAttemptId: 'attempt-one', relation: 'retry', recordIds: ['b'.repeat(64)] } };
+  let retryReplay;
+  try { retryReplay = replayRuntimeReceipts(linkedChain([linkedObservation, retry])); } catch { /* assertion below records red */ }
+  check('provider retry needs no dispatch redispatch and preserves both models', retryReplay?.attribution?.linked.length === 2);
+  const uniqueMetrics = linkedReplay && runtimeMetrics(linkedReplay, linkedChain([linkedObservation, linkedObservation]));
+  check('metrics and budgets share unique record attribution', uniqueMetrics?.promptCache.inputTokens === linkedObservation.inputTokens
+    && runtimeUsage(linkedReplay.attribution, 'unitId').get('D-001')?.input === linkedObservation.inputTokens);
+  const nullUsageReplay = replayRuntimeReceipts(linkedChain([{ ...linkedObservation, outputTokens: null }]));
+  check('null output stays unknown in shared model usage', runtimeUsage(nullUsageReplay.attribution).get(linkedObservation.model)?.unknown.has('output'));
+  const replanEvents = linkedChain([linkedObservation]).trimEnd().split('\n').map(JSON.parse);
+  const replanEvent = { ...structuredClone(firstReceipt), sequence: 3, kind: 'replan', previousReceiptSha256: replanEvents.at(-1).receiptSha256,
+    binding: { ...firstReceipt.binding, contractRevision: 2 }, references: JSON.parse(goodChain.split('\n')[1]).references };
+  replanEvent.receiptSha256 = receiptDigest(replanEvent); replanEvents.push(replanEvent);
+  const continued = { ...structuredClone(replanEvent), sequence: 4, kind: 'observation', references: firstReceipt.references,
+    previousReceiptSha256: replanEvent.receiptSha256, observation: { ...retry, linkage: { ...retry.linkage, contractRevision: 2 } } };
+  continued.receiptSha256 = receiptDigest(continued); replanEvents.push(continued);
+  let continuity;
+  try { continuity = replayRuntimeReceipts(replanEvents.map((event) => JSON.stringify(event)).join('\n') + '\n'); } catch { /* assertion below */ }
+  check('replan preserves the prior task and parent attempt across revisions', continuity?.attribution.linked.length === 2);
+  for (const [name, changed] of [
+    ['identity conflict', { ...linkedObservation, inputTokens: 7 }],
+    ['record overlap', { ...retry, linkage: { ...retry.linkage, recordIds: ['a'.repeat(64), 'b'.repeat(64)] } }],
+    ['missing parent', { ...retry, linkage: { ...retry.linkage, parentAttemptId: 'missing' } }],
+    ['invalid repair', { ...retry, linkage: { ...retry.linkage, relation: 'repair' } }],
+    ['unknown metadata', { ...retry, linkage: { ...retry.linkage, surprise: true } }],
+    ['foreign run', { ...retry, linkage: { ...retry.linkage, runId: 'foreign' } }],
+    ['future revision', { ...retry, linkage: { ...retry.linkage, contractRevision: 2 } }],
+  ]) {
+    let refused = false;
+    try { replayRuntimeReceipts(linkedChain([linkedObservation, changed])); } catch { refused = true; }
+    check(`linked ${name} is rejected`, refused);
+  }
+  const linkagePath = join(runDir, 'LINKAGE.json');
+  const observeLinked = ['observe', '--root', root, '--contract', contractPath, '--observability', 'observed', '--source', 'operator',
+    '--unit', 'D-001', '--model', 'gpt-6-sol', '--input-tokens', '10', '--output-tokens', '4', '--linkage', 'run/LINKAGE.json'];
+  writeFileSync(linkagePath, JSON.stringify(linkedObservation.linkage));
+  writeFileSync(runtimePath, linkedChain([linkedObservation]));
+  const smallLinkage = readFileSync(linkagePath);
+  writeFileSync(linkagePath, Buffer.alloc(1024 * 1024 + 1, 32));
+  r = run(RUNTIME, observeLinked, root);
+  check('linkage metadata size is bounded before JSON parsing', r.status === 1 && /exceeds 1 MiB/.test(r.out), r.out);
+  writeFileSync(linkagePath, smallLinkage);
+  r = run(RUNTIME, observeLinked.map((item, index) => index === observeLinked.indexOf('--unit') + 1 ? 'D-999' : item), root);
+  check('linked CLI rejects an unknown unit', r.status === 1 && /not in the current contract/.test(r.out), r.out);
+  const repairAcceptance = join(runDir, 'FAILED_ACCEPTANCE.md');
+  writeFileSync(repairAcceptance, ACCEPT_HEADER + '| Q-001 | 1 | FAIL | synthetic failure | tool | |\n');
+  const repairLink = { ...retry.linkage, relation: 'repair', failedAcceptance: { path: 'run/FAILED_ACCEPTANCE.md',
+    sha256: createHash('sha256').update(readFileSync(repairAcceptance)).digest('hex'), criterion: 'Q-001', attempt: 1 } };
+  writeFileSync(linkagePath, JSON.stringify(repairLink));
+  r = run(RUNTIME, observeLinked, root);
+  check('repair CLI binds an actual failed criterion without a fabricated redispatch', r.status === 0, r.out);
+  writeFileSync(runtimePath, linkedChain([linkedObservation]));
+  writeFileSync(repairAcceptance, ACCEPT_HEADER + '| Q-001 | 1 | PASS | synthetic success | tool | |\n');
+  repairLink.failedAcceptance.sha256 = createHash('sha256').update(readFileSync(repairAcceptance)).digest('hex');
+  writeFileSync(linkagePath, JSON.stringify(repairLink));
+  r = run(RUNTIME, observeLinked, root);
+  check('repair CLI rejects a digest-matching successful acceptance attempt', r.status === 1 && /failed acceptance attempt/.test(r.out), r.out);
+  writeFileSync(linkagePath, JSON.stringify({ ...retry.linkage, dispatchActivation: { path: 'run/FAILED_ACCEPTANCE.md',
+    sha256: repairLink.failedAcceptance.sha256, sequence: 1 } }));
+  r = run(RUNTIME, observeLinked, root);
+  check('claimed dispatch activation must resolve to a valid bound activation', r.status === 1 && /dispatch activation is invalid/.test(r.out), r.out);
+  writeFileSync(runtimePath, goodChain);
   const rejectsInvalidOidLength = [39, 41, 63, 65].every((length) => {
     const invalid = structuredClone(firstReceipt);
     invalid.binding.head = 'a'.repeat(length);
@@ -627,7 +737,7 @@ try {
   const reportL055 = (id) => run(LEDGER, ['update', '--ledger', l055Ledger, '--id', id, '--status', 'reported'], root);
   addL055('D-001', 'gatherer', 'map runtime state', 'run/L055_REPORT.md', 'agent-l055-gatherer');
   addL055('D-002', 'tracer', 'trace runtime boundaries', 'run/L055_TRACE.md', 'agent-l055-tracer');
-  reportL055('D-001'); reportL055('D-002');
+  // Active operatives retain the ledger's dispatched status until they report.
 
   r = run(CONTRACT, ['reconcile', '--contract', contractPath, '--ledger', l055Ledger, '--root', root, '--strict'], root);
   check('strict reconcile refuses wave 2 before it is dispatched', r.status === 1, r.out);
@@ -637,7 +747,7 @@ try {
   check('reconcile rejects --in-flight combined with --strict', r.status === 2, r.out);
 
   r = run(RUNTIME, ['checkpoint', '--root', root, '--contract', contractPath, '--ledger', 'run/L055_DISPATCH_LEDGER.md'], root);
-  check('mid-run checkpoint appends despite an unreported planned unit', r.status === 0 && /sequence 2/.test(r.out), r.out);
+  check('mid-run checkpoint appends with journaled active units and a planned unit', r.status === 0 && /sequence 2/.test(r.out), r.out);
   r = run(RUNTIME, ['resume', '--root', root, '--contract', contractPath], root);
   check('resume replays the in-flight checkpoint', r.status === 0 && /sequence 3/.test(r.out), r.out);
   r = run(RUNTIME, ['verify', '--root', root, '--contract', contractPath], root);
@@ -650,6 +760,7 @@ try {
 
   r = run(CONTRACT, ['finalize', '--contract', contractPath, '--acceptance', join(runDir, 'L055_ACCEPTANCE_LEDGER.md'), '--dispatch-ledger', l055Ledger, '--result', l055Result, '--root', root], root);
   check('finalize still refuses the same partial dispatch state', r.status === 1 && !existsSync(l055Result), r.out);
+  reportL055('D-001'); reportL055('D-002');
 
   // ---- a planned unit that will never run is declared, not given an invented actor id -------
   // D-003 is still planned with no row. Save the ledger and receipts bytes so the chain the

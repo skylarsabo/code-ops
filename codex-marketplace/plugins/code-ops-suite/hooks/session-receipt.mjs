@@ -149,11 +149,11 @@ async function doFinish() {
     const lib = await import(pathToFileURL(libPath).href);
     const measuredTranscript = lib.measurementTranscriptFor(transcript);
     const mainText = readFileSync(measuredTranscript, 'utf8');
-    const main = lib.summarizeTranscript(mainText, { top: 0 });
+    const main = lib.summarizeFile(transcript, { top: 0, host: process.env.GROK_PLUGIN_ROOT ? 'grok' : undefined });
     const subFiles = lib.subagentFilesFor(transcript);
     const subs = [];
     for (const f of subFiles) {
-      try { subs.push(lib.summarizeTranscript(readFileSync(f, 'utf8'), { top: 0 })); } catch { /* counted in skipped */ }
+      try { subs.push(lib.summarizeFile(f, { top: 0 })); } catch { /* counted in skipped */ }
     }
     const sub = lib.mergeSummaries(subs, { top: 0 });
     const strip = (u) => ({ input: u.input, cacheRead: u.cacheRead, cacheCreate: u.cacheCreate, output: u.output, thinking: u.thinking, total: u.total });
@@ -198,6 +198,8 @@ async function doFinish() {
       files: 1 + subFiles.length,
       skipped: subFiles.length - subs.length,
       tokens: { main: strip(main.usage), subagents: strip(sub.usage) },
+      normalizedTokens: { main: strip(main.normalizedUsage), subagents: strip(sub.normalizedUsage) },
+      accounting: { main: main.accounting, subagents: sub.accounting },
     };
     const out = ledgerPath();
     mkdirSync(dirname(out), { recursive: true });

@@ -23,7 +23,8 @@ const { fails, expect } = tally();
 
 const floors = `const KNOWN_MODELS = {
   "provider-a": { "claude-opus-5-5": "strong", "claude-fable-5-1": "frontier" },
-  "provider-b": { "gpt-6-luna": "light", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier" }
+  "provider-b": { "gpt-6-luna": "light", "gpt-5.6-terra": "strong", "gpt-6-sol": "frontier", "vendor/gpt-6-sol": "frontier", "vendor/gpt-6-sol:free": "frontier" },
+  "opencode": { "gpt-6-sol": "frontier" }
 };
 `;
 const source = readFileSync(join(root, 'scripts', 'opencode-lifecycle.js'), 'utf8');
@@ -32,12 +33,13 @@ expect(source.includes(CALL), 'the lifecycle plugin has no call to assertDispatc
 const plugins = {};
 const LADDER = '.filter((id) => providerAllowed(id, switches));\n  const byTier';
 expect(source.includes(LADDER), 'the startup ladder does not filter by the provider switches');
-const DISTINCT = '.filter((id) => id.toLowerCase() !== strong.toLowerCase())';
+const DISTINCT = '.filter((id) => id !== strong)';
 expect(source.includes(DISTINCT), 'the premium pick does not filter out the strong pick');
 for (const [label, text] of [
   ['real', source],
   ['nodistinct', source.replace(DISTINCT, '.filter(() => true)')],
-  ['mutant', source.replace(CALL, 'await (async () => ({ swap: false, note: null }))(')],
+  ['mutant', source.replaceAll(CALL, 'await (async () => ({ swap: false, note: null }))(')],
+  ['noexecution', source.replace(CALL, 'await (async () => ({ swap: false, note: null }))(')],
   ['noladder', source.replace(LADDER, ';\n  const byTier')],
 ]) {
   const dir = join(work, label);
@@ -52,6 +54,7 @@ process.env.CODE_OPS_RECEIPTS = join(work, 'receipts.jsonl');
 process.env.CODE_OPS_COST_LEDGER = join(work, 'cost.jsonl');
 process.env.HOME = work;
 process.env.USERPROFILE = work;
+process.env.APPDATA = work;
 
 const IMPLEMENTER = 'code-ops-suite-implementer';
 const OPUS = 'provider-a/claude-opus-5-5';
@@ -61,11 +64,11 @@ const SOL = 'provider-b/gpt-6-sol';
 const TERRA = 'provider-b/gpt-5.6-terra';
 const HOST = [OPUS, FABLE, LUNA, SOL];
 
-const providersOf = (ids) => {
+const providersOf = (ids, metadata = {}) => {
   const by = {};
   for (const id of ids) {
     const [provider, model] = [id.slice(0, id.indexOf('/')), id.slice(id.indexOf('/') + 1)];
-    (by[provider] ??= { id: provider, models: {} }).models[model] = {};
+    (by[provider] ??= { id: provider, models: {} }).models[model] = metadata[id] ?? {};
   }
   return Object.values(by);
 };
@@ -85,10 +88,11 @@ async function dispatch(label, o) {
   const dir = mkdtempSync(join(work, 'case-'));
   process.env.CODE_OPS_CHOOSER_CACHE = join(dir, 'cache.json');
   process.env.CODE_OPS_MODEL_PROFILE = join(dir, 'profile.json');
-  process.env.CODE_OPS_DESKTOP_STORE = join(dir, 'store.dat');
+  delete process.env.CODE_OPS_DESKTOP_STORE;
   if (o.cache) writeFileSync(process.env.CODE_OPS_CHOOSER_CACHE, JSON.stringify({ hosts: { [basename(process.execPath)]: { ids: o.cache } } }));
   if (o.profile) writeFileSync(process.env.CODE_OPS_MODEL_PROFILE, JSON.stringify(o.profile));
   if (o.hidden) {
+    process.env.CODE_OPS_DESKTOP_STORE = join(dir, 'store.dat');
     writeFileSync(process.env.CODE_OPS_DESKTOP_STORE, JSON.stringify({
       model: { user: o.hidden.map((id) => ({ providerID: id.split('/')[0], modelID: id.split('/')[1], visibility: 'hide' })) },
     }));
@@ -176,12 +180,14 @@ const fakeHost = join(work, 'fake-opencode.mjs');
 writeFileSync(fakeHost, `import { appendFileSync } from 'node:fs';
 const args = process.argv.slice(2).join(' ');
 if (process.env.FAKE_LOG) appendFileSync(process.env.FAKE_LOG, args + ' child=' + process.env.CODE_OPS_CHOOSER_CHILD + '\\n');
-if (args !== 'models --pure') process.exit(2);
+if (args !== 'models --pure' && args !== 'models --pure --verbose') process.exit(2);
 if (process.env.FAKE_MODE === 'fail') process.exit(1);
 if (process.env.FAKE_MODE === 'empty') process.exit(0);
-console.log(process.env.FAKE_IDS.split(',').join('\\n'));
+for (const id of process.env.FAKE_IDS.split(',').filter(Boolean)) {
+  console.log(id);
+  if (args.endsWith('--verbose')) console.log(JSON.stringify(JSON.parse(process.env.FAKE_METADATA ?? '{}')[id] ?? {}, null, 2));
+}
 `);
-const STATIC = 'static/zen-free';
 const startupLog = join(work, 'ask.log');
 
 async function startup(label, o) {
@@ -189,7 +195,7 @@ async function startup(label, o) {
   const cachePath = o.cachePath ?? join(dir, 'cache.json');
   process.env.CODE_OPS_CHOOSER_CACHE = cachePath;
   process.env.CODE_OPS_MODEL_PROFILE = join(dir, 'profile.json');
-  process.env.CODE_OPS_DESKTOP_STORE = join(dir, 'store.dat');
+  delete process.env.CODE_OPS_DESKTOP_STORE;
   delete process.env.CODE_OPS_TIER_ROUTING;
   rmSync(startupLog, { force: true });
   for (const name of ['CODE_OPS_OPENCODE_CMD', 'FAKE_MODE', 'FAKE_IDS', 'FAKE_LOG', 'CODE_OPS_CHOOSER_CHILD']) delete process.env[name];
@@ -202,7 +208,7 @@ async function startup(label, o) {
   }
   if (o.child) process.env.CODE_OPS_CHOOSER_CHILD = '1';
   const hooks = await plugins[label]({ directory: dir, client: {} });
-  const config = { agent: { [IMPLEMENTER]: { prompt: 'Build.', description: 'Builds.', model: STATIC } } };
+  const config = { agent: { [IMPLEMENTER]: { prompt: 'Build.', description: 'Builds.' } } };
   await hooks.config(config);
   const definition = { description: 'Delegate.', parameters: {} };
   await hooks['tool.definition']({ toolID: 'task' }, definition);
@@ -231,27 +237,27 @@ const startupCases = [
   }, mutates: true },
   { name: 'a failing host command keeps the static model and shows a fallback note', run: async (label) => {
     const r = await startup(label, { ask: { mode: 'fail' } });
-    return { r, ok: r.model === STATIC && r.asks.length === 1 && r.cached === null
-      && r.card.includes(FALLBACK_HEAD) && r.card.includes('opencode models failed (exit 1)') && r.card.includes('static ladder') };
+    return { r, ok: r.model === undefined && r.asks.length === 1 && r.cached === null
+      && r.card.includes(FALLBACK_HEAD) && r.card.includes('opencode models failed (exit 1)') && r.card.includes('automatic binding unavailable') };
   }, mutates: true, noteMutant: true },
   { name: 'a host list with no model keeps the static model and says so', run: async (label) => {
     const r = await startup(label, { ask: { mode: 'empty' } });
-    return { r, ok: r.model === STATIC && r.cached === null && r.card.includes('opencode models listed nothing') };
+    return { r, ok: r.model === undefined && r.cached === null && r.card.includes('opencode models listed nothing') };
   } },
   { name: 'no host binary and no command keeps the static model and names the switch', run: async (label) => {
     const r = await startup(label, {});
-    return { r, ok: r.model === STATIC && r.asks.length === 0 && r.card.includes(FALLBACK_HEAD) && r.card.includes('CODE_OPS_OPENCODE_CMD') };
+    return { r, ok: r.model === undefined && r.asks.length === 0 && r.card.includes(FALLBACK_HEAD) && r.card.includes('CODE_OPS_OPENCODE_CMD') };
   } },
   { name: 'the model-list child never asks again', run: async (label) => {
     const r = await startup(label, { ask: { ids: PROVIDER_B }, child: true });
-    return { r, ok: r.model === STATIC && r.asks.length === 0 && r.card.includes('model-list child') };
+    return { r, ok: r.model === undefined && r.asks.length === 0 && r.card.includes('model-list child') };
   } },
-  { name: 'a rung with no model of its class borrows a neighbor and reports it', run: async (label) => {
+  { name: 'a constrained rung never borrows a below-floor neighbor', run: async (label) => {
     const r = await startup(label, { cache: [LUNA] });
-    return { r, ok: r.card.includes(FALLBACK_HEAD) && /strong has no enabled model of its class and uses/.test(r.card) };
+    return { r, ok: r.model === undefined && !/strong has no enabled model of its class and uses/.test(r.card) };
   } },
 ];
-const noask = source.replace('await askHostModels(directory)', '{ ids: [], reason: null }');
+const noask = source.replace('await askHostModels(directory, Boolean(desktopStore))', '{ ids: [], reason: null }');
 const nonote = source.replace('...(fallbacks.length ?', '...(false ?');
 expect(noask !== source && nonote !== source, 'a startup mutant did not apply');
 for (const [label, text] of [['noask', noask], ['nonote', nonote]]) {
@@ -282,15 +288,15 @@ const cases = [
   { name: 'a model hidden in the desktop Models settings is denied', deny: true, o: { live: HOST, configured: OPUS, lead: FABLE, hidden: [OPUS, FABLE] } },
   { name: 'a profile list that names no available model denies', deny: true, o: { live: HOST, configured: OPUS, lead: FABLE, profile: { enabled: ['other/model'] } } },
   { name: 'a model the live list no longer names is denied', deny: true, o: { live: [LUNA, SOL], configured: OPUS, lead: LUNA } },
-  { name: 'live list null with a warm cache lets the cache pass an enabled model', deny: false, o: { live: null, cache: HOST, lead: FABLE },
+  { name: 'successful empty live list invalidates a warm cache', deny: true, o: { live: null, cache: HOST, lead: FABLE },
     check: (r) => r.agent === IMPLEMENTER },
   { name: 'live list null with a warm cache denies a disabled provider', deny: true, o: { live: null, cacheAfter: HOST, configured: OPUS, lead: FABLE, config: { disabled_providers: ['provider-a'] } } },
   { name: 'live list null with a cache that omits the model denies', deny: true, o: { live: null, cache: HOST, cacheAfter: [LUNA], lead: LUNA } },
   { name: 'live list null with no cache denies and says to restart', deny: true, o: { noClient: true, lead: FABLE, configured: OPUS },
     check: (r) => /Restart OpenCode/.test(r.denied) },
   { name: 'an empty live list with no cache denies', deny: true, o: { live: null, lead: FABLE, configured: OPUS } },
-  { name: 'the lead clone is accepted when the lead meets every condition and the floor', deny: false, o: { live: HOST, configured: OPUS, lead: SOL, config: { disabled_providers: ['provider-a'] } },
-    check: (r) => r.agent === `${IMPLEMENTER}-lead` && r.output.includes('inherits your model') },
+  { name: 'stale explicit binding requires reload even when lead meets floor', deny: true, o: { live: HOST, configured: OPUS, lead: SOL, config: { disabled_providers: ['provider-a'] } },
+    check: (r) => r.agent === IMPLEMENTER && /restart OpenCode/i.test(r.denied) },
   { name: 'the lead clone is refused when the lead is below the agent floor', deny: true, o: { live: HOST, configured: OPUS, lead: LUNA, config: { disabled_providers: ['provider-a'] } } },
   { name: 'the lead clone is refused when the lead is off the profile list', deny: true, o: { live: HOST, configured: OPUS, lead: SOL, profile: { enabled: ['gpt-6-luna'] } } },
   { name: 'the lead clone is refused when the lead is hidden', deny: true, o: { live: HOST, configured: OPUS, lead: SOL, hidden: [OPUS, SOL] } },
@@ -310,6 +316,170 @@ for (const c of cases) {
     expect(mutant.denied === null, `${c.name}: still denied with assertDispatchModel removed (${String(mutant.denied).slice(0, 120)})`);
   }
 }
+
+// Configuration, discovery and execution are separate boundaries. A launch-time
+// binding is never evidence that a later selected model is still authorized.
+async function boundaryCase({ ids = HOST, pin, profile = {}, changedProfile, changedConfig, discovery, selected, unavailableConfig, metadata, store, changedStore, bootstrap, deleteStore }, label = 'real') {
+  const dir = mkdtempSync(join(work, 'boundary-'));
+  process.env.CODE_OPS_CHOOSER_CACHE = join(dir, 'cache.json');
+  process.env.CODE_OPS_MODEL_PROFILE = join(dir, 'profile.json');
+  delete process.env.CODE_OPS_DESKTOP_STORE;
+  const storePath = join(dir, 'store.dat');
+  const saveStore = (value) => {
+    process.env.CODE_OPS_DESKTOP_STORE = storePath;
+    if (value !== null) writeFileSync(storePath, typeof value === 'string' ? value : JSON.stringify({ model: value }));
+  };
+  if (store !== undefined) saveStore(store);
+  for (const name of ['CODE_OPS_OPENCODE_CMD', 'FAKE_MODE', 'FAKE_IDS', 'FAKE_METADATA']) delete process.env[name];
+  if (store !== undefined) {
+    process.env.CODE_OPS_OPENCODE_CMD = JSON.stringify([process.execPath, fakeHost]);
+    process.env.FAKE_IDS = ids.join(',');
+    process.env.FAKE_METADATA = JSON.stringify(metadata ?? {});
+  }
+  delete process.env.CODE_OPS_TIER_ROUTING;
+  writeFileSync(process.env.CODE_OPS_CHOOSER_CACHE, JSON.stringify({ hosts: { [basename(process.execPath)]: { ids } } }));
+  writeFileSync(process.env.CODE_OPS_MODEL_PROFILE, JSON.stringify(profile));
+  let current = { agent: { [IMPLEMENTER]: { prompt: 'Build.', description: 'Builds.', ...(pin ? { model: pin } : {}) } } };
+  let offered = ids;
+  let finishConfig;
+  const configured = new Promise((resolve) => { finishConfig = resolve; });
+  let startupQueries = 0;
+  const client = { config: {
+    get: async () => unavailableConfig ? { error: 'unavailable' } : { data: current },
+    providers: async () => {
+      if (bootstrap) { startupQueries++; await configured; }
+      return offered === null ? { error: 'unavailable' } : { data: { providers: providersOf(offered, metadata) } };
+    },
+  } };
+  const hooks = await plugins[label]({ directory: dir, client });
+  await hooks.config(current);
+  const configQueries = startupQueries;
+  finishConfig();
+  const bound = current.agent[IMPLEMENTER].model;
+  if (changedStore !== undefined) saveStore(changedStore);
+  if (deleteStore) rmSync(storePath);
+  if (changedProfile) writeFileSync(process.env.CODE_OPS_MODEL_PROFILE, JSON.stringify(changedProfile));
+  if (changedConfig) current = { ...current, ...changedConfig };
+  if (discovery !== undefined) offered = discovery;
+  let denied = null;
+  try {
+    if (selected) {
+      const slash = selected.indexOf('/');
+      await hooks['chat.params']({ sessionID: 'worker', agent: IMPLEMENTER, model: { providerID: selected.slice(0, slash), id: selected.slice(slash + 1) } }, {});
+    } else {
+      await hooks['tool.execute.before']({ tool: 'task', sessionID: 'lead', callID: 'boundary' }, { args: { subagent_type: IMPLEMENTER, prompt: 'Round budget: 5. Build.' } });
+    }
+  } catch (error) { denied = String(error.message); }
+  return { bound, denied, configQueries };
+}
+const tieDate = new Date().toISOString().slice(0, 10);
+const tieMetadata = Object.fromEntries([SOL, TERRA].map((id) => [id, { family: 'gpt', release_date: tieDate }]));
+for (const c of [
+  { name: 'eligible explicit pin survives automatic selection', options: { pin: SOL }, pass: (r) => r.bound === SOL && !r.denied },
+  { name: 'changed profile revokes startup binding', options: { changedProfile: { enabled: [SOL] } }, pass: (r) => Boolean(r.denied) },
+  { name: 'changed effective provider settings revoke binding', options: { changedConfig: { disabled_providers: ['provider-a'] } }, pass: (r) => Boolean(r.denied) },
+  { name: 'changed per-model blacklist revokes binding', options: { changedConfig: { provider: { 'provider-a': { blacklist: ['claude-opus-5-5'] } } } }, pass: (r) => Boolean(r.denied) },
+  { name: 'changed per-model whitelist revokes binding', options: { changedConfig: { provider: { 'provider-a': { whitelist: ['claude-fable-5-1'] } } } }, pass: (r) => Boolean(r.denied) },
+  { name: 'empty enabled provider set revokes all providers', options: { changedConfig: { enabled_providers: [] } }, pass: (r) => Boolean(r.denied) },
+  { name: 'empty profile enabled list revokes all models', options: { changedProfile: { enabled: [] } }, pass: (r) => Boolean(r.denied) },
+  { name: 'unavailable effective config cannot authorize a catalog', options: { unavailableConfig: true }, pass: (r) => Boolean(r.denied) },
+  { name: 'successful empty discovery invalidates warm cache', options: { discovery: [] }, pass: (r) => Boolean(r.denied) },
+  { name: 'unavailable discovery cannot authorize warm cache', options: { discovery: null }, pass: (r) => Boolean(r.denied) },
+  { name: 'nested verified identity binds intact', options: { ids: ['provider-b/vendor/gpt-6-sol'] }, pass: (r) => r.bound === 'provider-b/vendor/gpt-6-sol' && !r.denied },
+  { name: 'qualified nested identity with suffix binds intact', options: { ids: ['provider-b/vendor/gpt-6-sol:free'] }, pass: (r) => r.bound === 'provider-b/vendor/gpt-6-sol:free' && !r.denied },
+  { name: 'case-different identity cannot borrow known quality', options: { ids: ['provider-b/GPT-6-SOL'], selected: 'provider-b/GPT-6-SOL' }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'unknown nested identity remains unqualified', options: { ids: ['provider-b/vendor/unknown'], selected: 'provider-b/vendor/unknown' }, pass: (r) => Boolean(r.denied) },
+  { name: 'opencode participates in operator enabled set', options: { ids: ['opencode/gpt-6-sol'] }, pass: (r) => r.bound === 'opencode/gpt-6-sol' && !r.denied },
+  { name: 'inflated profile cannot raise actual role floor', options: { ids: [LUNA], profile: { models: { 'gpt-6-luna': { tier: 'frontier' } } }, selected: LUNA }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'final selected identity is checked after host rewrite', options: { changedProfile: { enabled: [SOL] }, selected: OPUS }, pass: (r) => Boolean(r.denied) },
+  { name: 'final selected below-floor identity is denied', options: { selected: LUNA }, pass: (r) => Boolean(r.denied) },
+  { name: 'desktop default-hidden old date cannot bind or execute', options: { ids: [OPUS], metadata: { [OPUS]: { family: 'claude', release_date: '2025-01-01' } }, store: { user: [] }, selected: OPUS }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'desktop explicit show permits an old dated model', options: { ids: [OPUS], metadata: { [OPUS]: { family: 'claude', release_date: '2025-01-01' } }, store: { user: [{ providerID: 'provider-a', modelID: 'claude-opus-5-5', visibility: 'show' }] }, selected: OPUS }, pass: (r) => r.bound === OPUS && !r.denied },
+  { name: 'desktop hide after startup revokes the final identity', options: { ids: [OPUS], store: { user: [] }, changedStore: { user: [{ providerID: 'provider-a', modelID: 'claude-opus-5-5', visibility: 'hide' }] }, selected: OPUS }, pass: (r) => r.bound === OPUS && Boolean(r.denied) },
+  { name: 'configured missing desktop store fails closed', options: { ids: [OPUS], store: null, selected: OPUS }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'malformed desktop store fails closed', options: { ids: [OPUS], store: '{', selected: OPUS }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'desktop malformed current store revokes startup binding', options: { ids: [OPUS], store: { user: [] }, changedStore: '{', selected: OPUS }, pass: (r) => r.bound === OPUS && Boolean(r.denied) },
+  { name: 'desktop bootstrap never recursively queries provider initialization', options: { ids: [OPUS], store: { user: [] }, bootstrap: true, selected: OPUS }, pass: (r) => r.bound === OPUS && !r.denied && r.configQueries === 0 },
+  { name: 'a discovered desktop store remains required after deletion', options: { ids: [OPUS], store: { user: [] }, deleteStore: true, selected: OPUS }, pass: (r) => r.bound === OPUS && Boolean(r.denied) },
+  { name: 'console model does not inherit desktop default visibility', options: { ids: [OPUS], metadata: { [OPUS]: { family: 'claude', release_date: '2025-01-01' } }, selected: OPUS }, pass: (r) => r.bound === OPUS && !r.denied },
+  { name: 'desktop live tie retains first insertion at final execution', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [] }, selected: TERRA }, pass: (r) => !r.bound && !r.denied },
+  { name: 'desktop live tie refuses hidden second insertion at final execution', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [] }, selected: SOL }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'desktop reversed live tie changes the final winner', options: { ids: [SOL, TERRA], metadata: tieMetadata, store: { user: [] }, selected: SOL }, pass: (r) => !r.bound && !r.denied },
+  { name: 'desktop reversed live tie refuses the new loser', options: { ids: [SOL, TERRA], metadata: tieMetadata, store: { user: [] }, selected: TERRA }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'an agent pin cannot enable the hidden desktop tie loser', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [] }, pin: SOL, selected: SOL }, pass: (r) => r.bound === SOL && Boolean(r.denied) },
+  { name: 'desktop explicit show resolves startup tie and enables live loser', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [{ providerID: 'provider-b', modelID: 'gpt-6-sol', visibility: 'show' }] }, selected: SOL }, pass: (r) => r.bound === SOL && !r.denied },
+  { name: 'desktop explicit hide refuses live tie winner without promoting sibling', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [{ providerID: 'provider-b', modelID: 'gpt-5.6-terra', visibility: 'hide' }] }, selected: SOL }, pass: (r) => !r.bound && Boolean(r.denied) },
+  { name: 'desktop explicit hide refuses the live tie winner itself', options: { ids: [TERRA, SOL], metadata: tieMetadata, store: { user: [{ providerID: 'provider-b', modelID: 'gpt-5.6-terra', visibility: 'hide' }] }, selected: TERRA }, pass: (r) => !r.bound && Boolean(r.denied) },
+]) {
+  const r = await boundaryCase(c.options);
+  expect(c.pass(r), `${c.name}: ${JSON.stringify(r)}`);
+  if (c.options.selected) {
+    const mutant = await boundaryCase(c.options, 'noexecution');
+    expect(!mutant.denied, `${c.name}: final denial survives removed execution guard`);
+  }
+}
+
+// Pinned desktop policy uses provider/family groups, a strict calendar-month
+// window in both directions, last visibility override, and invalid-date visibility.
+const policyDir = mkdtempSync(join(work, 'policy-'));
+process.env.CODE_OPS_DESKTOP_STORE = join(policyDir, 'store.dat');
+const desktopStore = (user = []) => writeFileSync(process.env.CODE_OPS_DESKTOP_STORE, JSON.stringify({ model: { user } }));
+desktopStore();
+const { enabledModels, selectionRevision } = plugins.real.internals;
+const policyNow = new Date(2026, 9, 30, 12);
+const policyMetadata = {
+  'a/old': { family: 'f', releaseDate: '2025-01-01' },
+  'a/new': { family: 'f', releaseDate: '2026-10-01' },
+  'a/newer': { family: 'f', releaseDate: '2026-10-02' },
+  'b/new': { family: 'f', releaseDate: '2026-10-01' },
+  'a/other': { family: 'g', releaseDate: '2026-10-01' },
+  'a/edge': { family: 'edge', releaseDate: '2026-04-30T12:00:00' },
+  'a/inside': { family: 'inside', releaseDate: '2026-04-30T12:00:01' },
+  'a/future-edge': { family: 'future', releaseDate: '2027-04-30T12:00:00' },
+  'a/future-inside': { family: 'future-inside', releaseDate: '2027-04-30T11:59:59' },
+  'a/invalid': { releaseDate: '2026-02-30' },
+  'a/missing': {},
+  'a/basic': { releaseDate: '20250101' },
+  'a/ordinal': { releaseDate: '2025-001' },
+  'a/week': { releaseDate: '2025-W01-1' },
+};
+const policyIds = Object.keys(policyMetadata);
+if (enabledModels && selectionRevision) {
+  const groups = {
+    'a/z-first': { family: 'f', releaseDate: '2026-10-01' },
+    'a/a-second': { family: 'f', releaseDate: '2026-10-01' },
+    'b/independent': { family: 'f', releaseDate: '2026-10-01' },
+    'a/independent': { family: 'g', releaseDate: '2026-10-01' },
+  };
+  const groupIds = Object.keys(groups);
+  expect(JSON.stringify(enabledModels(groupIds, {}, groups, policyNow)) === JSON.stringify(['a/z-first', 'b/independent', 'a/independent']), 'live ties retain insertion order independently per provider and family');
+  const unordered = Object.fromEntries(Object.entries(groups).map(([id, row]) => [id, { ...row, orderKnown: false }]));
+  expect(JSON.stringify(enabledModels(groupIds, {}, unordered, policyNow)) === JSON.stringify(['b/independent', 'a/independent']), 'startup ambiguity excludes only the tied provider/family group');
+  expect(enabledModels([...groupIds, 'a/latest'], {}, { ...unordered, 'a/latest': { family: 'f', releaseDate: '2026-10-02', orderKnown: false } }, policyNow).includes('a/latest'), 'a unique newer model clears older startup tie ambiguity');
+  const visible = enabledModels(policyIds, {}, policyMetadata, policyNow);
+  expect(JSON.stringify(visible) === JSON.stringify(['a/newer', 'b/new', 'a/other', 'a/inside', 'a/future-inside', 'a/invalid', 'a/missing']), `desktop default policy: ${JSON.stringify(visible)}`);
+  expect(!enabledModels(['a/edge'], {}, policyMetadata, new Date(2026, 9, 31, 12)).length, 'calendar addition clamps the release date rather than subtracting six months from today');
+  desktopStore([
+    { providerID: 'a', modelID: 'old', visibility: 'hide' },
+    { providerID: 'a', modelID: 'old', visibility: 'show' },
+    { providerID: 'a', modelID: 'newer', visibility: 'show' },
+    { providerID: 'a', modelID: 'newer', visibility: 'hide' },
+  ]);
+  const overrides = enabledModels(policyIds, {}, policyMetadata, policyNow);
+  expect(overrides.includes('a/old') && !overrides.includes('a/newer') && !overrides.includes('a/new'), 'desktop overrides replace defaults and last duplicate wins without promoting siblings');
+  expect(enabledModels(policyIds, {}, null, policyNow).length === 0, 'desktop cached IDs without current metadata cannot authorize selection');
+  const switches = { disabled: new Set(), enabled: null, models: {} };
+  const profile = { models: { [OPUS]: { index: 40, cost: 1, tokens: 1000 } } };
+  const revisionMetadata = Object.fromEntries(HOST.map((id) => [id, {}]));
+  const revision = selectionRevision(HOST, profile, switches, revisionMetadata);
+  expect(revision === selectionRevision(HOST, { ...profile, budget_credits: 100, arbitrary: { private_marker: 'synthetic-only' }, models: { [OPUS]: { ...profile.models[OPUS], unrelated: 'synthetic-only' }, 'outside/catalog': { index: 12 } } }, switches, revisionMetadata), 'unrelated profile fields must not affect routing revision');
+  expect(revision !== selectionRevision(HOST, { ...profile, enabled: [] }, switches, revisionMetadata), 'effective enabled changes must affect routing revision');
+  expect(revision !== selectionRevision(HOST, { ...profile, models: { [OPUS]: { index: 39, cost: 1, tokens: 1000 } } }, switches, revisionMetadata), 'routing measurement changes must affect routing revision');
+  expect(revision !== selectionRevision(HOST, profile, { ...switches, disabled: new Set(['provider-a']) }, revisionMetadata), 'provider membership changes must affect routing revision');
+  expect(revision !== selectionRevision([OPUS], profile, switches, revisionMetadata), 'exact catalog identities must affect routing revision');
+  desktopStore([{ providerID: 'provider-a', modelID: 'claude-opus-5-5', visibility: 'hide' }]);
+  expect(revision !== selectionRevision(HOST, profile, switches, revisionMetadata), 'current desktop visibility changes must affect routing revision');
+} else expect(false, 'desktop policy and routing projection helpers must be available to the focused proof');
 
 rmSync(work, { recursive: true, force: true });
 if (fails.length) {

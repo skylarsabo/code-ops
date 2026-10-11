@@ -547,8 +547,12 @@ function modelTiersDoc(agents) {
     ...providers.map((p) => `- \`configs/opencode.${p.id}.json\``),
     ...Object.keys(PROVIDER_PRICES).map((id) => `- \`configs/model-profile.${id}.json\` — a starter chooser profile with prices and cost gates. Copy it to \`~/.claude/code-ops/opencode-model-profile.json\`.`),
     '',
-    `\`opencode.json\` at the root is a copy of the \`${DEFAULT_PROVIDER}\` one, which costs nothing and leaves the lead`,
-    'unset so it inherits the session model. Merge whichever you want into your own config rather',
+    '`opencode.json` at the root leaves agent models unset for dynamic selection from your enabled models.',
+    'Desktop selection honors explicit show/hide overrides and recent provider/family defaults in live',
+    'insertion order; unreadable applicable stores deny. Sorted startup metadata refuses tied automatic',
+    'defaults until live order is available. Startup uses a guarded `models --pure --verbose` child, and current',
+    'host discovery authorizes dispatch and execution. Alternate desktop stores need `CODE_OPS_DESKTOP_STORE`.',
+    'The lead inherits the session model. Merge whichever config you want into your own config rather',
     'than overwriting a config you already have, and keep your own copy out of a refresh.',
     '',
     ...runContractSection(),
@@ -597,14 +601,14 @@ function runContractSection() {
   ];
 }
 
-function exampleConfig(agents, providerId) {
+function exampleConfig(agents, providerId = null) {
   const provider = PROVIDER_TIERS[providerId];
   return {
     $schema: 'https://opencode.ai/config.json',
     // No top-level model when the provider leaves the lead unset: the lead inherits the session model.
-    ...(leadInherits(provider) ? {} : { model: `${provider.id}/${provider.models.frontier}` }),
+    ...(!provider || leadInherits(provider) ? {} : { model: `${provider.id}/${provider.models.frontier}` }),
     agent: Object.fromEntries(
-      agents.map((agent) => [agent.name, { model: `${provider.id}/${provider.models[agent.tier]}` }]),
+      agents.map((agent) => [agent.name, provider ? { model: `${provider.id}/${provider.models[agent.tier]}` } : {}]),
     ),
     permission: {
       // The traceless plugin gates commit/PR-publishing commands, but it only shortens the
@@ -661,7 +665,7 @@ function generatedReadme(skills, agents) {
     '  scripts, and non-discoverable tier-floor carriers for the vendored preflight scripts.',
     '- `plugins/` — the traceless-publishing gate, the model-floor gate, and the lifecycle',
     '  plugin. `code-ops/cost-report.mjs` reads the lifecycle cost ledger.',
-    '- `opencode.json` — an example config binding every agent to its tier. Merge it into',
+    '- `opencode.json` — automatic selection from your enabled models, with role floors enforced. Merge it into',
     '  your own config rather than overwriting one you already have.',
     '',
     '## Naming',
@@ -810,7 +814,7 @@ function buildExpectedFiles() {
   for (const providerId of Object.keys(PROVIDER_TIERS)) {
     add(`configs/opencode.${providerId}.json`, JSON.stringify(exampleConfig(agents, providerId), null, 2) + '\n');
   }
-  add('opencode.json', JSON.stringify(exampleConfig(agents, DEFAULT_PROVIDER), null, 2) + '\n');
+  add('opencode.json', JSON.stringify(exampleConfig(agents), null, 2) + '\n');
   for (const providerId of Object.keys(PROVIDER_PRICES)) {
     add(`configs/model-profile.${providerId}.json`, JSON.stringify(starterProfile(providerId), null, 2) + '\n');
   }
@@ -902,7 +906,7 @@ function validate({ files, skills, agents }) {
 
   const config = JSON.parse(files.get('opencode.json'));
   for (const agent of agents) {
-    expect(typeof config.agent?.[agent.name]?.model === 'string', `opencode.json does not bind a model for ${agent.name}`);
+    expect(config.agent?.[agent.name] && !Object.hasOwn(config.agent[agent.name], 'model'), `opencode.json pins an automatic model for ${agent.name}`);
   }
   const tiers = files.get('MODEL_TIERS.md');
   for (const provider of Object.values(PROVIDER_TIERS)) {

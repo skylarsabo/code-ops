@@ -32,6 +32,10 @@ import {
   replayRuntimeReceipts,
   runtimeBinding,
   runtimeMetrics,
+  reduceRuntimeAttribution,
+  runtimeUsage,
+  verifyLinkedObservation,
+  verifyRuntimeResult,
 } from './runtime-lib.mjs';
 
 const SCRIPT_DIR = dirname(fileURLToPath(import.meta.url));
@@ -43,11 +47,11 @@ const REPEATABLE = new Set(['--artifact', '--bundle', '--cache-event']);
 function die(message, code = 1) { console.error(`x ${message}`); process.exit(code); }
 function usage() {
   die('usage: run-runtime.mjs init --root <repo> --contract <path>\n'
-    + '       run-runtime.mjs checkpoint --root <repo> --contract <path> --ledger <path> [--acceptance <path>] [--handoff <path>] [--bundle <path> ...] [--artifact <path> ...]\n'
+    + '       run-runtime.mjs checkpoint --root <repo> --contract <path> --ledger <path> [--acceptance <path>] [--result <path>] [--handoff <path>] [--bundle <path> ...] [--artifact <path> ...]\n'
     + '       run-runtime.mjs resume --root <repo> --contract <path>\n'
     + '       run-runtime.mjs status --root <repo> --contract <path> [--limit <1-100>] [--json]\n'
-    + '       run-runtime.mjs replan --root <repo> --contract <path> --ledger <path> [--acceptance <path>] [--handoff <path>] [--bundle <path> ...] [--artifact <path> ...]\n'
-    + '       run-runtime.mjs observe --root <repo> --contract <path> --observability observed|unobservable|unsupported --source provider-usage|host-telemetry|operator [--cache-event hit|miss|write ...] [--cache-read-input-tokens <n>] [--cache-write-input-tokens <n>] [--input-tokens <n>] [--output-tokens <n>] [--reasoning-tokens <n>] [--unit D-NNN] [--model <observed-model>]\n'
+    + '       run-runtime.mjs replan --root <repo> --contract <path> --ledger <path> [--acceptance <path>] [--result <path>] [--handoff <path>] [--bundle <path> ...] [--artifact <path> ...]\n'
+    + '       run-runtime.mjs observe --root <repo> --contract <path> --observability observed|unobservable|unsupported --source provider-usage|host-telemetry|operator [--cache-event hit|miss|write ...] [--cache-read-input-tokens <n>] [--cache-write-input-tokens <n>] [--input-tokens <n>] [--output-tokens <n>] [--reasoning-tokens <n>] [--unit D-NNN] [--model <observed-model>] [--linkage <metadata.json>]\n'
     + '       run-runtime.mjs verify --root <repo> --contract <path>\n'
     + '       run-runtime.mjs prefix --root <repo> --contract <path>\n'
     + '       run-runtime.mjs metrics --root <repo> --contract <path> [--json]', 2);
@@ -109,7 +113,9 @@ function loadCurrent(root, contractArgument) {
   if (contract.version < 3 || !contract.runtime) throw new Error('long-horizon runtime requires a version 3 or newer run contract');
   const snapshotRelative = repoRelative(root, resolve(dirname(contractPath.absolute), contract.context.snapshot));
   requireIgnoredPath(root, snapshotRelative, 'context.snapshot');
-  requireIgnoredPath(root, repoRelative(root, resolve(root, contract.context.bundleDir)), 'context.bundleDir');
+  const bundleRelative = repoRelative(root, resolve(dirname(contractPath.absolute), contract.context.bundleDir));
+  checkedPath(root, bundleRelative);
+  requireIgnoredPath(root, bundleRelative, 'context.bundleDir');
   const bound = runtimeBinding(root, contractPath.absolute, contract);
   const runtimePath = { relative: contract.runtime.receipts, absolute: checkedPath(root, contract.runtime.receipts) };
   return { contract, contractPath, runtimePath, ...bound };
@@ -213,7 +219,9 @@ function buildReferences(root, current, f) {
   portableUnique(artifacts, 'artifact references');
   const acceptance = f['--acceptance'] ? fileReference(root, f['--acceptance'], 'acceptance path') : null;
   if (acceptance) parseAcceptance(checkedPath(root, acceptance.path), current.contract);
-  const ledger = checkLedger(root, f['--ledger']);
+  const ledger = checkLedger(root, f['--ledger'], current.contract.version !== 4);
+  const result = f['--result'] ? fileReference(root, f['--result'], 'result path') : null;
+  if (result) verifyRuntimeResult(root, current.contract, { result, acceptance, ledger });
   // WHY --in-flight, not --strict (calibration lesson L-055): a mid-run checkpoint or replan
   // binds a version 4 contract before every planned unit has reported, so a strict reconcile
   // (which demands every row reported) would refuse every wave but the last. In-flight still
@@ -226,6 +234,7 @@ function buildReferences(root, current, f) {
     handoff: f['--handoff'] ? fileReference(root, f['--handoff'], 'handoff path') : null,
     bundles,
     artifacts,
+    ...(result ? { result } : {}),
   };
 }
 
@@ -237,7 +246,7 @@ function verifyFileReference(root, reference, label) {
 function verifyReferences(root, current, references) {
   if (!references) return;
   if (references.ledger) {
-    const actual = checkLedger(root, references.ledger.path);
+    const actual = checkLedger(root, references.ledger.path, current.contract.version !== 4);
     if (!same(actual, references.ledger)) throw new Error(`dispatch ledger drift: ${references.ledger.path}`);
     // WHY --in-flight (calibration lesson L-055): resume and verify replay a checkpoint that
     // may itself be mid-run, so this reconcile shares buildReferences' tolerance for unreported
@@ -249,6 +258,7 @@ function verifyReferences(root, current, references) {
     verifyFileReference(root, references.acceptance, 'acceptance ledger');
     parseAcceptance(checkedPath(root, references.acceptance.path), current.contract);
   }
+  if (references.result) verifyRuntimeResult(root, current.contract, references);
   if (references.handoff) verifyFileReference(root, references.handoff, 'handoff');
   for (const reference of references.artifacts) verifyFileReference(root, reference, 'checkpoint artifact');
   for (const reference of references.bundles) {
@@ -266,7 +276,7 @@ function parseToken(f, name) {
 }
 
 function receiptFlags(args) {
-  const known = new Set(['--root', '--contract', '--ledger', '--acceptance', '--handoff', '--bundle', '--artifact']);
+  const known = new Set(['--root', '--contract', '--ledger', '--acceptance', '--result', '--handoff', '--bundle', '--artifact']);
   const f = flags(args, known);
   if (!f['--root'] || !f['--contract'] || !f['--ledger']) usage();
   return f;
@@ -325,25 +335,16 @@ function runtimeStatus(root, contractArgument, limit) {
   const unresolved = contract.quality.criteria.filter((criterion) => !acceptanceValid
     || !(criterion.blocking ? ['PASS'] : ['PASS', 'N/A']).includes(latest.get(criterion.id)?.verdict))
     .map((criterion) => ({ criterionId: criterion.id, verdict: acceptanceValid ? latest.get(criterion.id)?.verdict || 'MISSING' : 'UNKNOWN' }));
-  const observedByUnit = new Map();
-  for (const event of replayed.events) {
-    const observation = event.observation;
-    if (!observation?.unitId) continue;
-    if (!observedByUnit.has(observation.unitId)) observedByUnit.set(observation.unitId, { input: 0, output: 0, reasoning: 0, observations: 0 });
-    const usage = observedByUnit.get(observation.unitId);
-    usage.observations++;
-    for (const [field, key] of [['inputTokens', 'input'], ['outputTokens', 'output'], ['reasoningTokens', 'reasoning']]) {
-      if (usage[key] === 'UNKNOWN') continue;
-      if (Number.isSafeInteger(observation[field])) usage[key] += observation[field];
-      else usage[key] = 'UNKNOWN';
-    }
-  }
+  const observedByUnit = runtimeUsage(reduceRuntimeAttribution(replayed.events), 'unitId');
   const budgeted = contract.units.filter((unit) => unit.tokenBudget).map((unit) => {
-    const observed = observedByUnit.get(unit.id) || { input: 'UNKNOWN', output: 'UNKNOWN', reasoning: 'UNKNOWN', observations: 0 };
+    const usage = observedByUnit.get(unit.id);
+    const observed = { observations: usage?.observations ?? 0,
+      ...Object.fromEntries(['input', 'output', 'reasoning'].map((key) => [key, !usage || usage.unknown.has(key) ? 'UNKNOWN' : usage[key]])) };
     const exceeded = Object.keys(unit.tokenBudget).filter((key) => Number.isSafeInteger(observed[key]) && observed[key] > unit.tokenBudget[key]);
     return { unitId: unit.id, model: unit.model, limit: unit.tokenBudget, observed, exceeded };
   });
   const budgetOverruns = budgeted.filter((item) => item.exceeded.length);
+  if (references.result) probe('result', references.result.path, () => verifyRuntimeResult(root, contract, references));
   if (references.handoff) probe('handoff', references.handoff.path, () => verifyFileReference(root, references.handoff, 'handoff'));
   for (const reference of references.artifacts) probe('artifact', reference.path, () => verifyFileReference(root, reference, 'artifact'));
   for (const reference of references.bundles) probe('bundle', reference.path, () => {
@@ -352,7 +353,7 @@ function runtimeStatus(root, contractArgument, limit) {
   });
   const pointers = [...new Set([contractPath.relative, contract.runtime.receipts, contract.runtime.capabilities,
     snapshotPath, ...contract.runtime.stablePrefix, references.ledger?.path,
-    references.acceptance?.path, references.handoff?.path, ...references.bundles.map((item) => item.path),
+    references.acceptance?.path, references.result?.path, references.handoff?.path, ...references.bundles.map((item) => item.path),
     ...references.artifacts.map((item) => item.path)].filter(Boolean))];
   const bounded = (items) => ({ total: items.length, items: items.slice(0, limit), omitted: Math.max(0, items.length - limit) });
   return {
@@ -440,7 +441,7 @@ if (command === 'init') {
     console.log(`ok runtime ${current.contract.runId} sequence ${event.sequence}`);
   } catch (error) { die(error.message); }
 } else if (command === 'observe') {
-  const known = new Set(['--root', '--contract', '--observability', '--cache-event', '--source', '--cache-read-input-tokens', '--cache-write-input-tokens', '--input-tokens', '--output-tokens', '--reasoning-tokens', '--unit', '--model']);
+  const known = new Set(['--root', '--contract', '--observability', '--cache-event', '--source', '--cache-read-input-tokens', '--cache-write-input-tokens', '--input-tokens', '--output-tokens', '--reasoning-tokens', '--unit', '--model', '--linkage']);
   const f = flags(process.argv.slice(3), known);
   if (!f['--root'] || !f['--contract'] || !f['--observability'] || !f['--source']) usage();
   try {
@@ -451,6 +452,8 @@ if (command === 'init') {
     const root = resolve(f['--root']);
     const current = loadCurrent(root, f['--contract']);
     if (f['--unit'] && !current.contract.units.some((unit) => unit.id === f['--unit'])) throw new Error('observation unit is not in the current contract');
+    const linkagePath = f['--linkage'] === undefined ? null : resolveInput(root, f['--linkage'], 'linkage path').absolute;
+    if (linkagePath && statSync(linkagePath).size > 1024 * 1024) throw new Error('linkage metadata exceeds 1 MiB');
     const observation = {
       observability: f['--observability'],
       cacheEvents,
@@ -462,9 +465,11 @@ if (command === 'init') {
       ...(f['--unit'] === undefined ? {} : { unitId: f['--unit'] }),
       ...(f['--model'] === undefined ? {} : { model: f['--model'] }),
       ...(f['--reasoning-tokens'] === undefined ? {} : { reasoningTokens: parseToken(f, '--reasoning-tokens') }),
+      ...(linkagePath === null ? {} : { linkage: readJson(linkagePath) }),
     };
     const event = appendReceipt(current.runtimePath.absolute, (replayed) => {
       requireCurrentBinding(current, replayed);
+      verifyLinkedObservation(root, current.contract, observation);
       return newReceipt('observation', current.binding, emptyRuntimeReferences(), observation, replayed);
     });
     console.log(`ok runtime ${current.contract.runId} sequence ${event.sequence}`);

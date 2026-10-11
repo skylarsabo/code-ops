@@ -1,5 +1,5 @@
 // Transcript summarizer for the code-ops suite — reads the host's local session transcripts
-// (JSONL) and returns exact token usage plus tool-output volume, with no model in the loop.
+// and returns reported token usage plus tool-output volume, with no model in the loop.
 //
 // WHY: the suite's only token figures were hand-entered notes (calibration-graph) or
 // byte-over-four estimates. Every assistant message in a local transcript already carries
@@ -14,8 +14,8 @@
 //   - Claude subagent transcripts live under `<session>/subagents/`. Codex stores every
 //     rollout as a peer JSONL and links children through `parent_thread_id`; both layouts are
 //     resolved without relying on filenames.
-//   - Grok writes cumulative usage snapshots per prompt to `updates.jsonl`. Repeated snapshots
-//     are collapsed by prompt id before prompts are summed.
+//   - Grok update snapshots are observations, not billing identities. File measurements prefer
+//     stored turns in `usage.json`, reconciled with all session and model counters.
 //   - Tool results are attributed to the tool by `tool_use_id` → the earlier `tool_use` block
 //     in the same file; a result whose call lives in another file lands in the `?` bucket.
 //   - `messages.user` counts human turns only; tool-result carrier lines are excluded.
@@ -101,6 +101,73 @@ function normalizeGrokUsage(u) {
 }
 
 const GROK_USAGE_FIELDS = ['inputTokens', 'cachedReadTokens', 'cacheCreationTokens', 'outputTokens', 'reasoningTokens', 'totalTokens', 'modelCalls', 'numTurns'];
+const GROK_COUNTERS = GROK_USAGE_FIELDS.filter((k) => k !== 'numTurns');
+const unknownUsage = () => Object.fromEntries([...USAGE_FIELDS, 'total'].map((k) => [k, UNKNOWN]));
+const validGrokCounters = (u) => u && typeof u === 'object' && !Array.isArray(u)
+  && GROK_COUNTERS.every((k) => typeof tokenCount(u[k]) === 'number')
+  && u.inputTokens >= u.cachedReadTokens + u.cacheCreationTokens
+  && u.totalTokens === u.inputTokens + u.outputTokens && u.reasoningTokens <= u.outputTokens;
+
+function grokAccounting(s, source, coverage, reason = null) {
+  s.accounting = [{ source, coverage, billing: UNKNOWN, ...(reason ? { reason } : {}) }];
+  if (coverage !== 'reconciled') {
+    s.normalizedUsage = unknownUsage();
+    for (const model of Object.keys(s.usageByModel)) s.usageByModel[model] = unknownUsage();
+  }
+  return s;
+}
+
+// Reconciliation proves agreement between stored host sources, never billing completeness.
+function storedGrokUsage(data) {
+  const zero = () => Object.fromEntries(GROK_COUNTERS.map((k) => [k, 0]));
+  const same = (a, b) => GROK_COUNTERS.every((k) => a[k] === b[k]);
+  const plus = (a, b) => { for (const k of GROK_COUNTERS) a[k] += b[k]; };
+  const modelCounters = (u) => {
+    if (u.modelUsage === undefined && GROK_COUNTERS.every((k) => u[k] === 0)) return new Map();
+    if (!u.modelUsage || typeof u.modelUsage !== 'object' || Array.isArray(u.modelUsage)) return null;
+    const entries = new Map(Object.entries(u.modelUsage));
+    const total = zero();
+    for (const [model, counters] of entries) {
+      if (!model.trim() || !validGrokCounters(counters)) return null;
+      plus(total, counters);
+    }
+    return same(total, u) ? entries : null;
+  };
+  const session = data?.session;
+  const rows = Array.isArray(data?.turns) ? data.turns
+    : data?.turns && typeof data.turns === 'object' ? Object.values(data.turns) : null;
+  if (!validGrokCounters(session) || !rows || typeof tokenCount(session.turnCount) !== 'number') return { reason: 'malformed-storage' };
+  const sessionModels = modelCounters(session);
+  if (!sessionModels) return { reason: 'model-mismatch' };
+  const turns = new Map(), models = new Map(), total = zero();
+  let lastEnded = null;
+  for (const row of rows) {
+    const ended = typeof row?.endedAt === 'string' ? Date.parse(row.endedAt) : NaN;
+    if (!validGrokCounters(row) || typeof tokenCount(row.turnNumber) !== 'number' || !Number.isFinite(ended)) return { reason: 'malformed-turn' };
+    const rowModels = modelCounters(row);
+    if (!rowModels) return { reason: 'model-mismatch' };
+    const previous = turns.get(row.turnNumber);
+    if (previous) {
+      if (!same(previous, row) || previous.endedAt !== row.endedAt
+        || Object.keys(previous.modelUsage || {}).length !== rowModels.size
+        || [...rowModels].some(([model, usage]) => !previous.modelUsage?.[model] || !same(previous.modelUsage[model], usage)))
+        return { reason: 'conflicting-turn' };
+      continue;
+    }
+    turns.set(row.turnNumber, row);
+    plus(total, row);
+    lastEnded = Math.max(lastEnded ?? ended, ended);
+    for (const [model, counters] of rowModels) {
+      if (!models.has(model)) models.set(model, zero());
+      plus(models.get(model), counters);
+    }
+  }
+  if (session.turnCount !== turns.size || !same(total, session)) return { reason: 'session-mismatch' };
+  if (models.size !== sessionModels.size || [...models].some(([model, counters]) => !sessionModels.has(model)
+    || !same(counters, sessionModels.get(model)))) return { reason: 'model-mismatch' };
+  return { usage: normalizeGrokUsage(total), usageByModel: Object.fromEntries([...models].map(([model, u]) => [model, normalizeGrokUsage(u)])),
+    models: Object.fromEntries([...models].map(([model, u]) => [model, u.modelCalls])), turns: turns.size, lastEnded };
+}
 
 function mergeGrokSnapshot(into, from) {
   for (const key of GROK_USAGE_FIELDS) {
@@ -201,7 +268,7 @@ export function emptySummary() {
     messages: { user: 0, assistant: 0 },
     models: {},
     usage: emptyUsage(),
-    normalizedUsage: emptyUsage(), usageByModel: {}, hosts: {},
+    normalizedUsage: emptyUsage(), usageByModel: {}, hosts: {}, accounting: [],
     toolCalls: {}, skills: {}, toolResults: 0, toolResultChars: {}, toolResultCharsTotal: 0,
     textChars: { assistant: 0, user: 0, thinking: 0 },
     bashFamilies: {},
@@ -275,7 +342,7 @@ export function summarizeTranscript(text, opts = {}) {
     let msg = o.message;
     const grokUpdate = o.params?.update;
     if (grokUpdate?.usage && typeof grokUpdate.usage === 'object') {
-      const id = typeof grokUpdate.prompt_id === 'string' ? grokUpdate.prompt_id
+      const id = typeof grokUpdate.prompt_id === 'string' ? JSON.stringify([o.params?.sessionId || UNKNOWN, grokUpdate.prompt_id])
         : typeof o.params?.sessionId === 'string' ? `${o.params.sessionId}:unkeyed` : `line-${s.lines}`;
       const usage = grokPrompts.get(id) || {};
       mergeGrokSnapshot(usage, grokUpdate.usage);
@@ -501,6 +568,7 @@ export function summarizeTranscript(text, opts = {}) {
   if ('claude' in s.hosts) s.hosts.claude = usageById.size;
   if ('codex' in s.hosts) s.hosts.codex = codexResponses.size;
   if ('grok' in s.hosts) s.hosts.grok = grokPrompts.size;
+  if (grokPrompts.size) grokAccounting(s, 'grok-updates', 'observed', 'stored-turns-unavailable');
   for (const n of readsByPath.values()) if (n > 1) s.repeatReads.paths++;
   s.largest.sort((a, c) => c.chars - a.chars);
   s.largest.length = Math.min(s.largest.length, top);
@@ -738,6 +806,7 @@ export function mergeSummaries(list, opts = {}) {
       addNormalizedUsage(m.usageByModel[k], u);
     }
     for (const [k, n] of Object.entries(s.hosts)) bump(m.hosts, k, n);
+    m.accounting.push(...(s.accounting || []));
     for (const [k, v] of Object.entries(s.toolCalls)) bump(m.toolCalls, k, v);
     for (const [k, v] of Object.entries(s.skills || {})) bump(m.skills, k, v);
     m.toolResults += s.toolResults;
@@ -1130,10 +1199,45 @@ export function subagentFilesFor(sessionFile) {
   return descendants.sort();
 }
 
-// Grok's hook transcript path names chat_history.jsonl; exact usage lives beside it.
+// Grok's hook transcript path names chat_history.jsonl; update observations live beside it.
 export function measurementTranscriptFor(sessionFile) {
   const updates = join(dirname(sessionFile), 'updates.jsonl');
   return /chat_history\.jsonl$/i.test(sessionFile) && existsSync(updates) ? updates : sessionFile;
+}
+
+// Shared measurement boundary for CLI and hook consumers; no prompt-to-stored-turn join is
+// proven, so an update tail is never added to stored totals.
+export function summarizeFile(sessionFile, opts = {}) {
+  const measured = measurementTranscriptFor(sessionFile);
+  const text = readFileSync(measured, 'utf8');
+  const s = summarizeTranscript(text, opts);
+  const grok = opts.host === 'grok' || /^(chat_history|updates)\.jsonl$/i.test(basename(sessionFile));
+  if (!grok) return s;
+  let stored;
+  try { stored = storedGrokUsage(JSON.parse(readFileSync(join(dirname(sessionFile), 'usage.json'), 'utf8').replace(/^\uFEFF/, ''))); }
+  catch (error) { return grokAccounting(s, 'grok-updates', 'observed', error.code === 'ENOENT' ? 'missing-storage' : 'malformed-storage'); }
+  if (stored.reason) return grokAccounting(s, 'grok-updates', 'observed', stored.reason);
+  Object.assign(s, { usage: { ...stored.usage }, normalizedUsage: { ...stored.usage }, usageByModel: stored.usageByModel,
+    models: stored.models, hosts: { grok: stored.turns }, sessions: 1 });
+  grokAccounting(s, 'grok-stored-turns', 'reconciled');
+  let latest = null, malformed = false;
+  const sessions = new Set();
+  for (const line of text.split('\n')) {
+    if (!line.trim()) continue;
+    let row;
+    try { row = JSON.parse(line.replace(/^\uFEFF/, '')); } catch { malformed = true; continue; }
+    if (typeof row?.params?.sessionId === 'string') sessions.add(row.params.sessionId);
+    if (!row?.params?.update?.usage) continue;
+    if (!validGrokCounters(row.params.update.usage)) malformed = true;
+    const ts = typeof row.timestamp === 'number' ? row.timestamp < 1e12 ? row.timestamp * 1000 : row.timestamp
+      : typeof row.timestamp === 'string' ? Date.parse(row.timestamp) : NaN;
+    if (!Number.isFinite(ts)) malformed = true;
+    else latest = Math.max(latest ?? ts, ts);
+  }
+  if (malformed || sessions.size > 1) return grokAccounting(s, 'grok-stored-turns', 'observed', 'unverifiable-updates');
+  if (latest !== null && (stored.lastEnded === null || latest > stored.lastEnded))
+    return grokAccounting(s, 'grok-stored-turns', 'observed', 'stale-storage');
+  return s;
 }
 
 // The agent type a subagent thread ran under, from the `<thread>.meta.json` the host writes
@@ -1155,16 +1259,29 @@ export function summarizeDirectory(dir, opts = {}) {
   if (!existsSync(dir) || !statSync(dir).isDirectory()) return out;
   const find = (d) => readdirSync(d, { withFileTypes: true }).flatMap((entry) => {
     const path = join(d, entry.name);
+    const grok = opts.host === 'grok' || existsSync(join(d, 'updates.jsonl')) || existsSync(join(d, 'chat_history.jsonl'));
+    if (grok && entry.isFile()) {
+      if (entry.name === 'chat_history.jsonl') return [path];
+      if (entry.name === 'updates.jsonl' && !existsSync(join(d, 'chat_history.jsonl'))) return [path];
+      return [];
+    }
     return entry.isFile() && entry.name.endsWith('.jsonl') ? [path]
-      : opts.host === 'codex' && entry.isDirectory() ? find(path) : [];
+      : (opts.host === 'codex' || opts.host === 'grok') && entry.isDirectory() ? find(path) : [];
   });
   const mains = find(dir).sort();
+  // Parents own descendant readback; process roots first even when a child's name sorts first.
+  if (opts.host === 'codex') {
+    const children = new Set(mains.filter((f) => codexSessionLink(f)?.parent));
+    mains.sort((a, b) => Number(children.has(a)) - Number(children.has(b)));
+  }
   const mainSums = [], subSums = [];
+  const counted = new Set();
   for (const f of mains) {
+    if (counted.has(resolve(f))) continue;
     let s;
     try {
-      const text = readFileSync(f, 'utf8');
       if (opts.cwd && opts.host === 'codex') {
+        const text = readFileSync(f, 'utf8');
         let cwd = null;
         for (const line of text.split('\n')) {
           try { const o = JSON.parse(line.replace(/^\uFEFF/, '')); if (o.type === 'session_meta') { cwd = o.payload?.cwd; break; } } catch { /* skip */ }
@@ -1172,15 +1289,18 @@ export function summarizeDirectory(dir, opts = {}) {
         if (typeof cwd !== 'string' || cwd.replace(/\\/g, '/').toLowerCase()
           !== String(opts.cwd).replace(/\\/g, '/').toLowerCase()) continue;
       }
-      s = summarizeTranscript(text, opts);
+      s = summarizeFile(f, opts);
     } catch { continue; }
     if (opts.since && s.lastTs && Date.parse(s.lastTs) < Date.parse(opts.since)) continue;
+    counted.add(resolve(f));
     out.files++;
     (s.sidechain ? subSums : mainSums).push(s);
     const subs = [];
     for (const sf of subagentFilesFor(f)) {
+      if (counted.has(resolve(sf))) continue;
       let sub;
-      try { sub = summarizeTranscript(readFileSync(sf, 'utf8'), opts); } catch { continue; }
+      try { sub = summarizeFile(sf, opts); } catch { continue; }
+      counted.add(resolve(sf));
       subs.push(sub);
       out.files++;
       if (!sub.turns) continue;
@@ -1241,7 +1361,12 @@ export function renderMarkdown(agg, opts = {}) {
   L.push('');
   L.push('## Exact tokens (deduplicated by host usage identity)');
   L.push('');
-  L.push('UNKNOWN means the host did not report that category. Thinking is included in output.');
+  L.push('UNKNOWN means a category or accounting coverage is unproven. Thinking is included in output.');
+  if (all.accounting?.length) {
+    const sources = [...new Set(all.accounting.map((a) => `${a.source}: ${a.coverage}${a.reason ? ` (${a.reason})` : ''}`))];
+    L.push('');
+    L.push(`Accounting sources: ${sources.join('; ')}. Stored-source reconciliation does not prove billing completeness.`);
+  }
   L.push('');
   L.push('| Thread | Messages | Input | Cache read | Cache create | Output | Thinking | Total |');
   L.push('| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |');

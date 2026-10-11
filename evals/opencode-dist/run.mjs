@@ -188,15 +188,12 @@ for (const provider of Object.values(PROVIDER_TIERS)) {
     expect(bound === `${provider.id}/${provider.models[agent.tier]}`, `${provider.id}: binds ${agent.name} to "${bound}", not its ${agent.tier}-tier model`);
   }
 }
-// The root config is the default provider's copy, so a drifted default is a real regression.
+// Root models remain automatic; per-provider examples are explicit operator pins.
 const config = JSON.parse(read(join(dist, 'opencode.json')));
-const defaults = PROVIDER_TIERS[DEFAULT_PROVIDER];
-if (leadInherits(defaults)) expect(!Object.hasOwn(config, 'model'), 'the default config must carry no top-level model, so the lead inherits the session model');
-else expect(config.model === `${defaults.id}/${defaults.models.frontier}`, 'the default config pins the lead to the frontier rung');
+expect(!Object.hasOwn(config, 'model'), 'the default config must carry no top-level model, so the lead inherits the session model');
 expect(config.permission?.bash?.['git push *'] === 'ask' && config.permission?.bash?.['gh pr *'] === 'ask', 'the default config keeps the publish-command ask rules');
 for (const agent of expectedAgents) {
-  const bound = config.agent?.[agent.name]?.model;
-  expect(bound === `${defaults.id}/${defaults.models[agent.tier]}`, `opencode.json binds ${agent.name} to "${bound}", not its ${agent.tier}-tier ${DEFAULT_PROVIDER} model`);
+  expect(config.agent?.[agent.name] && !Object.hasOwn(config.agent[agent.name], 'model'), `opencode.json must leave ${agent.name} automatic`);
 }
 
 // ---- 5. model floors and compaction preservation use verified plugin hooks -------
