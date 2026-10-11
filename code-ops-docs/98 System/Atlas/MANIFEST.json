@@ -1646,8 +1646,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
-      "verifiedDigest": "d1b084d741347438fb09dd7206acd16d9fe103cce0d10bcf9f2b904199f72017",
+      "verifiedAt": "42f4346f00ce123f70521e18debb1deb00562a83",
+      "verifiedDigest": "fdbac3970358da21dc600cac1b3019d308f96223436c9c01804397daf6b93342",
       "claims": [
         {
           "file": ".github/workflows/validate.yml",

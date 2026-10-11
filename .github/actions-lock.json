@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-29",
+  "reviewedAt": "2026-10-11",
   "nodeVersionFile": ".node-version",
   "sources": [
     ".github/workflows",
@@ -25,8 +25,8 @@
       "advisories": []
     },
     "actions/setup-node": {
-      "sha": "820762786026740c76f36085b0efc47a31fe5020",
-      "version": "v7.0.0",
+      "sha": "949feb2413d6458794dcd2491c4babbbce0c15c1",
+      "version": "v7.1.0",
       "repository": "https://github.com/actions/setup-node",
       "license": "MIT",
       "tagVerification": "verified GitHub signature",
