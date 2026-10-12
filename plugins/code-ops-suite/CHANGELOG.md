@@ -4,6 +4,15 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.80.0
+- Reconcile Grok stored-turn usage with session and model counters, preserving real cancelled work and marking incomplete coverage UNKNOWN. Count Codex descendant files once in directory totals.
+- Link task usage to explicit attempts, retries, repairs and exact source records. Deduplicate repeated imports, reject overlapping attribution and resolve custom acceptance/result paths through bound runtime receipts. Preserve legacy records and unknown complete-task costs.
+
+## 2.79.2
+- OpenCode automatic selection preserves operator pins and checks exact model identity against fresh effective config, connected catalog, profile policy and effective desktop visibility before dispatch and final execution. Explicit show/hide overrides precede calendar-based defaults, whose equal-date winners retain live insertion order. Sorted startup metadata refuses ambiguous tied defaults until live order is available. Applicable unavailable stores fail closed; startup metadata uses a guarded child to avoid recursive provider initialization. Routing revisions retain only normalized routing inputs. Stale bindings and empty or unavailable discovery refuse execution; role floors never borrow downward.
+- Cost ledgers attribute latest message usage by model. Reports price each model independently, preserve explicit zero and positive reported costs, and carry UNKNOWN through totals and applicable monetary gates when attribution or pricing is incomplete.
+- Version-4 checkpoints reconcile active dispatches with the runtime journal while finalization stays strict. Bundle directories share the contract anchor. Atlas citations preserve leading dots and whole spaced paths through checks and retargeting.
+
 ## 2.61.0
 - The explorer, reviewer, and mech agents name the file:line link standard in their Return section. A report cites code as `[name](repo-relative/path:line)`. The Handbook page `standards/file-line-links.md` states the form and points to where its grammar lives.
 

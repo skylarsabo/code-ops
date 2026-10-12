@@ -27,11 +27,11 @@
 // history would make adopting it a risk; it is advisory by construction. 2 on a usage error.
 
 import { readFileSync, readdirSync, existsSync, statSync, writeFileSync } from 'node:fs';
-import { resolve, join, basename, relative, isAbsolute } from 'node:path';
+import { resolve, join, basename } from 'node:path';
 import { modelClassOf, MODEL_CLASS_ORDER } from './model-tiers.mjs';
 import { LEDGER_ROW_RE, LEDGER_STATUSES } from './ledger-grammar.mjs';
-import { replayRuntimeReceipts } from './runtime-lib.mjs';
-import { sha256 } from './context-index-lib.mjs';
+import { replayRuntimeReceipts, runtimeUsage, verifyRuntimeResult, verifyLinkedObservation } from './runtime-lib.mjs';
+import { sha256, checkedPath } from './context-index-lib.mjs';
 
 // Grammar (a) comes from scripts/ledger-grammar.mjs, shared with the writer
 // (dispatch-ledger.mjs) and the post-run scorer (calibration-metrics.mjs).
@@ -148,7 +148,31 @@ function readRun(ledgerPath) {
   if (contractBacked && contract === null) {
     try { const contractBytes = readFileSync(contractPath); contract = JSON.parse(contractBytes); contractSha256 = sha256(contractBytes); } catch { /* lifecycle caveat handles it */ }
   }
-  return { folder, label: basename(folder), dispatches, malformed, byClass, models, contract, contractSha256, contractBacked, finalized };
+  let replayed = null;
+  let coverageRecordIds = [];
+  let runtimeInvalid = false;
+  let explicitResult = false;
+  if (contract?.version >= 3 && flags['--root'] && contract.runtime?.receipts) {
+    try {
+      const text = readFileSync(checkedPath(resolve(flags['--root']), contract.runtime.receipts), 'utf8');
+      // Detect declared paths before replay so a corrupt explicit receipt cannot revive a fallback result.
+      explicitResult = text.split('\n').some((line) => { try { return Object.hasOwn(JSON.parse(line).references || {}, 'result'); } catch { return false; } });
+      replayed = replayRuntimeReceipts(text);
+      coverageRecordIds = replayed.attribution.recordIds;
+      const binding = replayed.activeBinding;
+      if (binding.runId !== contract.runId || binding.contractRevision !== contract.revision || binding.head !== contract.head
+        || binding.contractSha256 !== contractSha256) throw new Error('runtime contract binding differs');
+      const references = replayed.latestCheckpoint?.references;
+      if (explicitResult) {
+        finalized = false;
+        if (!references?.result) throw new Error('latest checkpoint dropped an explicit result reference');
+        verifyRuntimeResult(resolve(flags['--root']), contract, references);
+        if (checkedPath(resolve(flags['--root']), references.ledger.path) !== ledgerPath) throw new Error('bound result dispatch ledger differs');
+        finalized = true;
+      }
+    } catch { replayed = null; runtimeInvalid = true; finalized = false; }
+  }
+  return { folder, label: basename(folder), dispatches, malformed, byClass, models, contract, contractSha256, contractBacked, finalized, replayed, runtimeInvalid, coverageRecordIds };
 }
 
 // A run is comparable to a named skill when the skill's name appears in its folder label. Run
@@ -220,30 +244,9 @@ function loadPrices(path) {
   return value;
 }
 
-function usageForRun(run, root) {
-  const receipt = run.contract?.version >= 3 && run.contract.runtime?.receipts;
-  if (!receipt || typeof receipt !== 'string') return null;
-  const rootPath = resolve(root);
-  const path = resolve(rootPath, receipt);
-  const rel = relative(rootPath, path);
-  if (!rel || rel.startsWith('..') || isAbsolute(rel) || !existsSync(path)) return null;
-  let replayed;
-  try { replayed = replayRuntimeReceipts(readFileSync(path, 'utf8')); } catch { return null; }
-  const binding = replayed.activeBinding;
-  if (!binding || binding.runId !== run.contract.runId || binding.contractRevision !== run.contract.revision
-    || binding.head !== run.contract.head || binding.contractSha256 !== run.contractSha256) return null;
-  const byModel = new Map();
-  for (const event of replayed.events) {
-    const observation = event.observation;
-    if (!observation || observation.observability !== 'observed' || !observation.model) continue;
-    if (!byModel.has(observation.model)) byModel.set(observation.model, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
-    const usage = byModel.get(observation.model);
-    usage.observations++;
-    for (const [field, key] of [['inputTokens', 'input'], ['cacheReadInputTokens', 'cacheRead'], ['cacheWriteInputTokens', 'cacheWrite'], ['outputTokens', 'output'], ['reasoningTokens', 'reasoning']]) {
-      if (Number.isSafeInteger(observation[field])) usage[key] += observation[field];
-      else usage.unknown.add(key);
-    }
-  }
+function usageForRun(run) {
+  if (!run.replayed) return null;
+  const byModel = runtimeUsage(run.replayed.attribution);
   return byModel.size ? byModel : null;
 }
 
@@ -322,12 +325,42 @@ if (usable.length) {
   }
 }
 
-if (usable.length && '--root' in flags) {
+if ((usable.length || comparable.some((run) => run.contractBacked)) && '--root' in flags) {
   const aggregate = new Map();
+  let linkedObservations = 0; let legacyObservations = 0; let duplicateImports = 0;
+  let unattributedObservations = 0;
+  const grouped = { linked: new Map(), legacy: new Map() };
+  const claimedRecords = new Set();
+  const collidingRuns = new Set();
+  // deferred(loaded-run-set, an explicitly authorized external reconciliation): no global usage registry.
+  for (const run of allRuns) {
+    for (const id of run.coverageRecordIds) {
+      if (claimedRecords.has(id)) collidingRuns.add(id);
+      claimedRecords.add(id);
+    }
+  }
   let runsWithUsage = 0;
   for (const run of usable) {
-    const byModel = usageForRun(run, flags['--root']);
+    if (run.replayed?.attribution.recordIds.some((id) => collidingRuns.has(id))) continue;
+    try {
+      for (const event of run.replayed?.events || []) if (event.observation?.linkage && event.binding.contractRevision === run.contract.revision) {
+        verifyLinkedObservation(resolve(flags['--root']), run.contract, event.observation);
+      }
+    } catch { machine.caveats.push(`${run.label}: linked usage evidence is invalid; usage excluded`); continue; }
+    const byModel = usageForRun(run);
     if (!byModel) continue;
+    linkedObservations += run.replayed?.attribution.linked.length || 0;
+    legacyObservations += run.replayed?.attribution.legacy.length || 0;
+    duplicateImports += run.replayed?.attribution.duplicates || 0;
+    unattributedObservations += run.replayed?.attribution.observations.filter((item) => item.observability === 'observed' && !item.model).length || 0;
+    for (const kind of ['linked', 'legacy']) {
+      for (const [model, usage] of runtimeUsage({ observations: run.replayed?.attribution[kind] || [] })) {
+        if (!grouped[kind].has(model)) grouped[kind].set(model, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
+        const total = grouped[kind].get(model); total.observations += usage.observations;
+        for (const key of ['input', 'cacheRead', 'cacheWrite', 'output', 'reasoning']) total[key] += usage[key];
+        for (const key of usage.unknown) total.unknown.add(key);
+      }
+    }
     runsWithUsage++;
     for (const [model, usage] of byModel) {
       if (!aggregate.has(model)) aggregate.set(model, { observations: 0, input: 0, cacheRead: 0, cacheWrite: 0, output: 0, reasoning: 0, unknown: new Set() });
@@ -341,7 +374,11 @@ if (usable.length && '--root' in flags) {
     observations: usage.observations,
     ...Object.fromEntries(['input', 'cacheRead', 'cacheWrite', 'output', 'reasoning'].map((key) => [key, usage.unknown.has(key) ? 'UNKNOWN' : usage[key]])),
   }]));
-  machine.actualUsage = { runsWithUsage, comparableRuns: usable.length, models: modelUsage };
+  machine.actualUsage = { runsWithUsage, comparableRuns: usable.length, models: modelUsage, linkedObservations, legacyObservations, duplicateImports,
+    unattributedObservations, groups: Object.fromEntries(Object.entries(grouped).map(([kind, models]) => [kind, Object.fromEntries([...models].map(([model, usage]) => [model,
+      { observations: usage.observations, ...Object.fromEntries(['input', 'cacheRead', 'cacheWrite', 'output', 'reasoning'].map((key) => [key, usage.unknown.has(key) ? 'UNKNOWN' : usage[key]])) }]))])),
+    completeTaskCoverage: 'UNKNOWN', crossRunCoverageConflicts: collidingRuns.size, crossRunScope: 'loaded-run-set', evidence: 'declared-observations' };
+  if (collidingRuns.size) machine.caveats.push('linked usage record coverage overlaps across loaded runs; affected usage excluded');
   p();
   p(`  observed token usage: ${runsWithUsage}/${usable.length} comparable run(s) carry attributable runtime receipts`);
   for (const [model, usage] of Object.entries(modelUsage)) {
@@ -355,7 +392,7 @@ if (usable.length && '--root' in flags) {
     const byModel = {};
     const componentsByModel = {};
     let total = 0;
-    let complete = runsWithUsage === usable.length && usable.length > 0;
+    let complete = runsWithUsage === usable.length && usable.length > 0 && unattributedObservations === 0;
     for (const [model, usage] of Object.entries(modelUsage)) {
       const rates = prices.perMillionTokens[model];
       const keys = ['input', 'cacheRead', 'cacheWrite', 'output'];
@@ -371,6 +408,7 @@ if (usable.length && '--root' in flags) {
       currency: prices.currency,
       effectiveAt: prices.effectiveAt,
       scope: 'attributed-runtime-observations-only',
+      completeTaskCost: 'UNKNOWN',
       comparableRunCoverageComplete: runsWithUsage === usable.length && usable.length > 0,
       byModel,
       componentsByModel,

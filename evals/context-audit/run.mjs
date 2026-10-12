@@ -21,12 +21,12 @@
 //   node evals/context-audit/run.mjs   (exit 0 = pass)
 
 import { spawnSync } from 'node:child_process';
-import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, existsSync, mkdtempSync, rmSync, appendFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
-import { summarizeTranscript, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor, projectSlug } from '../../scripts/transcript-lib.mjs';
+import { summarizeTranscript, summarizeFile, summarizeDirectory, mergeSummaries, normalizeUsage, subagentFilesFor, measurementTranscriptFor, projectSlug } from '../../scripts/transcript-lib.mjs';
 import { recordFromPayload } from '../../scripts/agent-ledger.mjs';
 import { countAgentCalls, runContractPath, authorityOf, RUN_CONTRACT_LINE } from '../../scripts/context-audit.mjs';
 import { tally } from '../harness.mjs';
@@ -90,11 +90,12 @@ const grok = summarizeTranscript(jsonl([
   { timestamp: 1001, method: '_x.ai/session/update', params: { sessionId: 'g1', update: { sessionUpdate: 'turn_completed', prompt_id: 'p1', usage: grokUsage(150, 100, 10, 20, 6, 2) } } },
   { timestamp: 1002, method: '_x.ai/session/update', params: { sessionId: 'g1', update: { sessionUpdate: 'turn_completed', prompt_id: 'p2', usage: grokUsage(50, 20, 0, 10, 2, 1) } } },
 ]));
-expect(grok.normalizedUsage.input === 70 && grok.normalizedUsage.cacheRead === 120
-  && grok.normalizedUsage.cacheCreate === 10 && grok.normalizedUsage.output === 30
-  && grok.normalizedUsage.thinking === 8 && grok.normalizedUsage.total === 230,
-`Grok cumulative snapshots deduplicate per prompt: ${JSON.stringify(grok.normalizedUsage)}`);
-expect(grok.usageByModel['grok-model-a']?.total === 230 && grok.models['grok-model-a'] === 3
+expect(grok.usage.input === 70 && grok.usage.cacheRead === 120
+  && grok.usage.cacheCreate === 10 && grok.usage.output === 30
+  && grok.usage.thinking === 8 && grok.usage.total === 230
+  && grok.normalizedUsage.total === 'UNKNOWN' && grok.accounting[0]?.coverage === 'observed',
+`Grok update maxima remain observations with exact totals UNKNOWN: ${JSON.stringify(grok.usage)}`);
+expect(grok.usageByModel['grok-model-a']?.total === 'UNKNOWN' && grok.models['grok-model-a'] === 3
   && grok.hosts.grok === 2 && grok.contextAtEnd === 50 && grok.durationMs === 2000,
 `Grok model, prompt, context, and numeric timestamp accounting: ${JSON.stringify(grok)}`);
 const noTelemetry = summarizeTranscript(jsonl([{ type: 'response_item', payload: { type: 'message', id: 'no-usage', role: 'assistant', content: [] } }]));
@@ -130,6 +131,10 @@ appendFileSync(join(codexLinkDir, 'grandchild.jsonl'), linkedUsage('grandchild',
 appendFileSync(join(codexLinkDir, 'unrelated.jsonl'), linkedUsage('unrelated', null, 40));
 expect(subagentFilesFor(codexParent).map((f) => f.split(/[\\/]/).at(-1)).join(',') === 'child.jsonl,grandchild.jsonl',
   `Codex child graph includes descendants only: ${JSON.stringify(subagentFilesFor(codexParent))}`);
+const linkedDirectory = summarizeDirectory(codexLinkDir, { host: 'codex' });
+expect(linkedDirectory.files === 4 && linkedDirectory.main.usage.total === 52
+  && linkedDirectory.subagents.usage.total === 52 && linkedDirectory.all.usage.total === 104,
+  'Codex directory counts each parent, child and grandchild once');
 
 // Claude Workflow agents sit one level below subagents/workflows/<run>/; a deeper folder is ignored.
 const wfDir = mkdtempSync(join(tmpdir(), 'ca-wf-'));
@@ -323,14 +328,110 @@ appendFileSync(grokUpdates, jsonl([
   { timestamp: 1000, params: { sessionId: 'g1', update: { prompt_id: 'p1', usage: grokUsage(100, 70, 10, 10, 4, 1) } } },
   { timestamp: 1001, params: { sessionId: 'g1', update: { prompt_id: 'p1', usage: grokUsage(150, 100, 10, 20, 6, 2) } } },
 ]));
+const storedTurn = (turnNumber, usage, endedAt = '1970-01-01T00:16:42.000Z') => ({ turnNumber, endedAt, ...usage });
+const storedUsage = grokUsage(80, 40, 10, 10, 4, 2);
+const storedSession = grokUsage(160, 80, 20, 20, 8, 4);
+const grokStorage = join(grokDir, 'usage.json');
+const stored = { session: { ...storedSession, turnCount: 2 }, turns: [storedTurn(1, storedUsage), storedTurn(3, storedUsage)] };
+writeFileSync(grokStorage, JSON.stringify(stored));
+const storedDirectory = summarizeDirectory(grokDir, { host: 'grok' });
+expect(storedDirectory.files === 1 && storedDirectory.all.usage.total === 180
+  && storedDirectory.all.normalizedUsage.input === 60 && storedDirectory.all.normalizedUsage.cacheRead === 80
+  && storedDirectory.all.normalizedUsage.cacheCreate === 20 && storedDirectory.all.normalizedUsage.output === 20
+  && storedDirectory.all.normalizedUsage.thinking === 8 && storedDirectory.all.models['grok-model-a'] === 4,
+  'Grok directory uses stored turns once, preserving equal usage across distinct identities');
+expect(storedDirectory.all.accounting[0]?.source === 'grok-stored-turns'
+  && storedDirectory.all.accounting[0]?.coverage === 'reconciled'
+  && storedDirectory.all.accounting[0]?.billing === 'UNKNOWN'
+  && storedDirectory.all.usageByModel['grok-model-a']?.total === 180,
+  'Grok reconciled source and model usage do not certify billing completeness');
+const storedCase = (data) => { writeFileSync(grokStorage, JSON.stringify(data)); return summarizeFile(grokChat); };
+expect(storedCase({ ...stored, turns: [...stored.turns, stored.turns[0]] }).normalizedUsage.total === 180,
+  'Grok repeated identical stored chunks count once by stable turn identity');
+expect(storedCase({ ...stored, turns: Object.fromEntries(stored.turns.map((t) => [t.turnNumber, t])) }).normalizedUsage.total === 180,
+  'Grok keyed stored turns reconcile using explicit turnNumber');
+const badStorage = [
+  { ...stored, turns: [...stored.turns, { ...stored.turns[0], endedAt: '1970-01-01T00:16:43.000Z' }] },
+  { ...stored, turns: [stored.turns[0]] },
+  { ...stored, session: { ...stored.session, cachedReadTokens: 79 } },
+  { ...stored, session: { ...stored.session, modelCalls: 5 } },
+  { ...stored, turns: [{ ...stored.turns[0], turnNumber: undefined }, stored.turns[1]] },
+  { ...stored, turns: [{ ...stored.turns[0], endedAt: undefined }, stored.turns[1]] },
+  { ...stored, session: { ...stored.session, modelUsage: { 'grok-model-b': stored.session.modelUsage['grok-model-a'] } } },
+  { ...stored, turns: [{ ...stored.turns[0], modelUsage: {} }, stored.turns[1]] },
+];
+for (const [i, data] of badStorage.entries()) {
+  const s = storedCase(data);
+  expect(s.normalizedUsage.total === 'UNKNOWN' && s.usage.total === 170 && s.accounting[0]?.coverage === 'observed',
+    `Grok incomplete/conflicting/malformed category or model storage ${i} fails exact accounting`);
+}
+for (const category of ['inputTokens', 'cachedReadTokens', 'cacheCreationTokens', 'outputTokens', 'reasoningTokens', 'totalTokens', 'modelCalls']) {
+  expect(storedCase({ ...stored, session: { ...stored.session, [category]: stored.session[category] + 1 } }).normalizedUsage.total === 'UNKNOWN',
+    `Grok reconciliation checks session ${category}`);
+}
+writeFileSync(grokStorage, '{');
+expect(summarizeFile(grokChat).normalizedUsage.total === 'UNKNOWN', 'Grok malformed JSON fails exact accounting');
+rmSync(grokStorage);
+expect(summarizeFile(grokChat).usage.total === 170 && summarizeFile(grokChat).normalizedUsage.total === 'UNKNOWN',
+  'Grok missing storage preserves observed update counters');
+storedCase(stored);
+appendFileSync(grokUpdates, '\n' + jsonl([
+  { timestamp: 1003, params: { sessionId: 'g1', update: { prompt_id: 'live-cancel', stop_reason: 'cancelled', usage: grokUsage(20, 0, 0, 5, 1, 1) } } },
+]));
+const liveCancellation = summarizeFile(grokChat);
+expect(liveCancellation.usage.total === 180 && liveCancellation.normalizedUsage.total === 'UNKNOWN'
+  && liveCancellation.accounting[0]?.reason === 'stale-storage',
+  'Grok live cancelled work makes storage stale without adding unjoined updates');
+const cancelledTurn = storedTurn(4, grokUsage(20, 0, 0, 5, 1, 1), '1970-01-01T00:16:44.000Z');
+const cancelledStorage = { session: { ...grokUsage(180, 80, 20, 25, 9, 5), turnCount: 3 }, turns: [...stored.turns, cancelledTurn] };
+const storedCancellation = storedCase(cancelledStorage);
+expect(storedCancellation.normalizedUsage.total === 205 && storedCancellation.models['grok-model-a'] === 5,
+  'Grok cancelled work survives once durably stored and reconciled');
+const updateText = readFileSync(grokUpdates, 'utf8');
+for (const tail of ['{', JSON.stringify({ params: { sessionId: 'g1', update: { usage: storedUsage } } }),
+  JSON.stringify({ timestamp: 1003, params: { sessionId: 'g1', update: { usage: { inputTokens: 10 } } } }),
+  JSON.stringify({ timestamp: 1003, params: { sessionId: 'other-session', update: { prompt_id: 'p1', usage: storedUsage } } })]) {
+  writeFileSync(grokUpdates, updateText + '\n' + tail);
+  const s = summarizeFile(grokChat);
+  expect(s.normalizedUsage.total === 'UNKNOWN' && s.usage.total === 205
+    && s.accounting[0]?.reason === 'unverifiable-updates', 'Grok malformed or unbound update tails fail exact coverage');
+}
+writeFileSync(grokUpdates, updateText);
+const otherModel = grokUsage(50, 20, 0, 5, 2, 1);
+const multiModel = { ...grokUsage(130, 60, 10, 15, 6, 3),
+  modelUsage: { 'grok-model-a': storedUsage.modelUsage['grok-model-a'], 'grok-model-b': otherModel.modelUsage['grok-model-a'] } };
+const multiModelSummary = storedCase({ session: { ...multiModel, turnCount: 1 }, turns: [storedTurn(1, multiModel, cancelledTurn.endedAt)] });
+expect(multiModelSummary.normalizedUsage.total === 145 && multiModelSummary.models['grok-model-a'] === 2
+  && multiModelSummary.models['grok-model-b'] === 1 && multiModelSummary.usageByModel['grok-model-b']?.total === 55,
+  'Grok multi-model stored counters reconcile independently without double counting top-level usage');
+storedCase(cancelledStorage);
+const equalUpdates = summarizeTranscript(jsonl([
+  { params: { sessionId: 'g1', update: { prompt_id: 'equal-1', usage: storedUsage, stop_reason: 'end_turn' } } },
+  { params: { sessionId: 'g1', update: { prompt_id: 'equal-2', usage: storedUsage, stop_reason: 'cancelled' } } },
+]));
+expect(equalUpdates.usage.total === 180 && equalUpdates.models['grok-model-a'] === 4
+  && equalUpdates.normalizedUsage.total === 'UNKNOWN', 'Grok update-only fallback preserves equal cancelled work as observed');
+const reusedPrompt = summarizeTranscript(jsonl([
+  { params: { sessionId: 'g1', update: { prompt_id: 'same', usage: storedUsage } } },
+  { params: { sessionId: 'g2', update: { prompt_id: 'same', usage: storedUsage } } },
+]));
+expect(reusedPrompt.usage.total === 180, 'Grok update observation identity includes session and prompt');
+const storedCli = run([cli, '--transcripts', grokDir, '--json']);
+expect(storedCli.status === 0 && JSON.parse(storedCli.stdout || '{}').all.normalizedUsage.total === 205
+  && JSON.parse(storedCli.stdout || '{}').all.accounting[0]?.coverage === 'reconciled',
+  'Grok CLI shares stored measurement and exposes reconciliation coverage');
+const storedMd = run([cli, '--transcripts', grokDir]);
+expect(storedMd.status === 0 && storedMd.stdout.includes('grok-stored-turns: reconciled')
+  && storedMd.stdout.includes('does not prove billing completeness'), 'Grok Markdown exposes accounting limits');
 expect(measurementTranscriptFor(grokChat) === grokUpdates, 'Grok chat transcript resolves its sibling usage stream');
 const grokLedger = join(tmp, 'grok', 'receipts.jsonl');
 const grokReceipt = run([hook], { input: JSON.stringify({ session_id: 'grok-session', transcript_path: grokChat, cwd: root }),
   env: { ...env, CODE_OPS_RECEIPTS: grokLedger, GROK_PLUGIN_ROOT: join(root, 'plugins', 'code-ops-suite') } });
 const grokRow = existsSync(grokLedger) ? JSON.parse(readFileSync(grokLedger, 'utf8')) : {};
-expect(grokReceipt.status === 0 && grokRow.tokens?.main?.total === 170 && grokRow.models?.['grok-model-a'] === 2
+expect(grokReceipt.status === 0 && grokRow.tokens?.main?.total === 205 && grokRow.models?.['grok-model-a'] === 5
+  && grokRow.normalizedTokens?.main?.total === 205 && grokRow.accounting?.main?.[0]?.coverage === 'reconciled'
   && grokRow.arms?.ladderCard === false && grokRow.arms?.handoffCard === true && grokRow.arms?.handoffPickup === false,
-  `Grok receipt reads deduplicated updates; ladder and pickup stay off, handoff follows the switch: ${JSON.stringify(grokRow)}`);
+  `Grok receipt shares reconciled stored measurement and records mechanism switches: ${JSON.stringify(grokRow)}`);
 rmSync(grokDir, { recursive: true, force: true });
 
 // receipts mode reads the ledger back.

@@ -4,7 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.79.1
+## 2.80.0
+- Reconcile Grok stored-turn usage with session and model counters, preserving real cancelled work and marking incomplete coverage UNKNOWN. Count Codex descendant files once in directory totals.
+- Link task usage to explicit attempts, retries, repairs and exact source records. Deduplicate repeated imports, reject overlapping attribution and resolve custom acceptance/result paths through bound runtime receipts. Preserve legacy records and unknown complete-task costs.
 - The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
 - Workflow `agent()` calls to the `implementer` get the same anchors advisory: a literal or template prompt without `Anchors:` is named by call index, and a prompt the hook cannot read is reported as unchecked.
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
@@ -55,6 +57,11 @@ Transcript recall: `co recall` and the `transcript_recall` MCP tool find and ope
 - `subagentFilesFor` in `transcript-lib.mjs` also reads the agents a Workflow run writes under `subagents/workflows/<run>/`, one level deep. So `cost-split`, the context audit and the session receipt now count Workflow agents. A Workflow agent groups by the `agentType` in its sibling meta file, or `unknown` when that file is missing. On the local corpus this added about 1,049 transcripts that were skipped before.
 - `cost-split` counts each message id once across every file it reads. Before, a forked or resumed session counted about 1.3 percent of messages twice. This rule covers usage, Haiku tier pricing and advisor tokens. A line with no message id still counts per line.
 - The cost-split eval adds a nested Workflow tree and a forked pair that shares ids, each with a mutant. The context-audit eval asserts the nested file list.
+
+## 2.79.2
+- OpenCode automatic selection preserves operator pins and checks exact model identity against fresh effective config, connected catalog, profile policy and effective desktop visibility before dispatch and final execution. Explicit show/hide overrides precede calendar-based defaults, whose equal-date winners retain live insertion order. Sorted startup metadata refuses ambiguous tied defaults until live order is available. Applicable unavailable stores fail closed; startup metadata uses a guarded child to avoid recursive provider initialization. Routing revisions retain only normalized routing inputs. Stale bindings and empty or unavailable discovery refuse execution; role floors never borrow downward.
+- Cost ledgers attribute latest message usage by model. Reports price each model independently, preserve explicit zero and positive reported costs, and carry UNKNOWN through totals and applicable monetary gates when attribution or pricing is incomplete.
+- Version-4 checkpoints reconcile active dispatches with the runtime journal while finalization stays strict. Bundle directories share the contract anchor. Atlas citations preserve leading dots and whole spaced paths through checks and retargeting.
 
 ## 2.61.0
 - The explorer, reviewer, and mech agents name the file:line link standard in their Return section. A report cites code as `[name](repo-relative/path:line)`. The Handbook page `standards/file-line-links.md` states the form and points to where its grammar lives.

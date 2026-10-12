@@ -210,44 +210,9 @@ The four hosts all document a compaction event (`host-docs.md`). No PreCompact h
 
 ## OpenCode enabled models
 
-**Rule.** A dispatch on OpenCode binds only a model that meets all four conditions. If none meets them for the agent's floor, the dispatch is denied.
+The September design identified gaps in early dispatch, provider policy and cached authorization. The current corrective implementation supersedes the cached fallback and lead-clone recovery proposed here. The [current OpenCode contract](../35%20Contracts%20and%20Data/CONTRACTS.md#dispatch-guard-hook) owns selection, exact identity, explicit pins, verified floors, fresh eligibility and final execution checks. Explicit empty provider or profile enabled lists revoke all applicable models. Desktop enforcement applies explicit show/hide precedence and default provider/family visibility, preserving live insertion order for equal newest dates, with fresh metadata and fail-closed applicable stores. Startup uses a guarded child to avoid the provider/plugin initialization cycle; its sorted output refuses ambiguous tied automatic defaults. Installed-host adoption remains UNVERIFIED.
 
-1. The live host list names the model.
-2. The operator profile names it, when the profile has an `enabled` list.
-3. The desktop Models settings do not hide it.
-4. No `disabled_providers` entry covers its provider, and `enabled_providers` includes it when set.
-
-**What exists today.** The repository already covers part of the rule.
-
-- `enabledModels()` filters the catalog by the profile list and by the desktop hidden-model store (`scripts/opencode-lifecycle.js:604-627`). `buildChooserLadder()` assigns tiers from that result (`:705-725`).
-- `refreshChooserCache()` calls `client.config.providers()` with a 5 second limit and builds the live id list (`:470-495`).
-- At dispatch, `tool.execute.before` compares the bound model with the live list. When the model is gone, it swaps the agent for its `-lead` clone and queues a note (`:1277-1283`).
-- `chat.params` throws when the bound model falls below the agent's floor (`:435-437`).
-
-**What is missing.** These are the real gaps. The earlier reports said nothing checks the live list, and that claim was too strong.
-
-- The live check sits behind the `CODE_OPS_TIER_ROUTING` switch (`:1263`). Tier routing is on by default, so the gap shows only when the operator turns it off. The check must still not depend on the switch.
-- `live` stays null until the first event handler finishes its refresh (`:1088`, `:1391-1392`), so an early dispatch skips the check.
-- The check never applies the profile `enabled` list to the live ids. A model on the live list but off the profile list passes.
-- The check inherits the lead model. It does not deny.
-- When the profile list names no model the host offers, the code only warns, and agents keep their configured models (`:721-723`).
-- Nothing reads `enabled_providers` or `disabled_providers`. Whether `client.config.providers()` already honors them is UNVERIFIED (`host-docs.md`).
-
-**Where the check lives.** One function, `assertDispatchModel`, in `scripts/opencode-lifecycle.js`. It runs in `tool.execute.before` for every dispatch tool call, whatever the routing switch says. The model calls the task tool, so no lead-side script can bypass this point. A lead-side script check would duplicate it.
-
-**Fail-closed behavior.** The order is: the live list, then the cache filtered by conditions 2 to 4, then the lead clone if the lead meets the agent's floor, then a denial.
-
-- When the live list is null, the function waits once for `refreshChooserCache()` within its 5 second limit.
-- If the wait fails, the function falls back to the cached catalog (`readChooserCache()`), filtered by conditions 2 to 4. The cache holds ids the host listed on an earlier run.
-- If the cache is empty too, the function denies and tells the operator how to restart OpenCode.
-- When the profile list names no available model, the function denies the dispatch. The startup warning stays.
-- The lead clone fallback stays, but only when the lead model itself meets all four conditions and the agent's floor.
-
-**Generated plugin.** `scripts/build-opencode-dist.mjs:363-395` writes `KNOWN_MODELS` and `TIER_BY_ID` at build time. The design does not filter those by the build machine's model list. A build-time list goes stale when the operator changes settings. `build-opencode-dist.mjs --check` only verifies that the generated plugin carries the function.
-
-**Proof before claiming it works.** A live-payload check runs `client.config.providers()` with one provider under `disabled_providers` and records whether that provider's models appear. The result sets whether condition 4 needs its own read of the OpenCode config. A new eval, `opencode-enabled-models`, plants a disabled model and expects a denial before launch. The eval covers three states: live list present, live list null with a cache, and live list null with no cache.
-
-**Codex and Grok.** Both hosts bind models through agent frontmatter and lint-enforced floors (`lint-plugins.mjs:710-741`) and through `agents/model-floors.json` for Codex. Neither host exposes an enabled-models list in the sources read. No runtime check is proposed for them.
+**Codex and Grok.** These hosts use their projected role contracts and lint-enforced floors. No enabled-models runtime parity is claimed for them.
 
 ## Workflows on Claude
 
@@ -572,7 +537,7 @@ The operator accepts or rejects each line. Numbers here are draft numbers. They 
 6. Block a handoff and a clean stop while any worker is pending, on every host.
 7. Build the PreCompact snapshot (OI-56) after F3 merges, and name pending workers in the compact re-inject.
 8. Treat PreCompact stdout as ignored, and steer the summary only through Compact Instructions.
-9. Enforce OpenCode enabled models in one function at `tool.execute.before`, unconditional and fail-closed, using the cached catalog when the live list is null.
+9. Enforce OpenCode eligibility unconditionally before dispatch and at final execution, using fresh effective config, connected catalog and profile policy; cached catalogs cannot authorize a failed live check (amended 2026-10-09).
 10. Deny a dispatch when the profile list names no available model, and keep the startup warning.
 11. Skip a build-time model filter in `build-opencode-dist.mjs`.
 12. Offer the Workflow branch to `distill`, `codebase-audit`, and design and planning work on Claude, only on operator opt-in (amended at acceptance, DEC-75), with `agentType` a suite agent and `effort` at most `high` on every `agent()` call.

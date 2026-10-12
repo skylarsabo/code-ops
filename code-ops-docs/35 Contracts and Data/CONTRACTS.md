@@ -156,7 +156,7 @@ Context bundles support v2, v3, and v4 contracts. A bundle still binds its run I
 contract revision, work unit, snapshot, compiler digest, and bounded contents. Runtime
 receipts reference a verified bundle by unit ID, bundle ID, path, and file digest.
 Evidence: `scripts/context-bundle.mjs:44-54`, `scripts/context-bundle.mjs:160-214`, and
-`scripts/run-runtime.mjs:177-183`.
+`scripts/run-runtime.mjs:179-185`.
 
 `context-bundle.mjs view` first verifies the canonical bundle, then emits a smaller deterministic unit view. The default view preserves the bundle identity, contract and snapshot bindings, completeness markers, omissions, and dependency edges. It fails on a byte-budget breach and never truncates. `worker-brief.mjs build` then frames invariant files before unit files under separate prefix, unit, and total byte limits. Its receipt binds the compiler, every source, both sections, and the final payload. Both tools reject portable path aliases that could overwrite an input or collapse two outputs onto one physical target. `worker-brief.mjs verify` rejects source, compiler, receipt, or payload drift before dispatch. Evidence: `scripts/context-bundle.mjs` and `scripts/worker-brief.mjs`.
 
@@ -189,6 +189,18 @@ charges. Components use unrounded arithmetic; display subtotals retain their exi
 Missing usage or prices remain `UNKNOWN`. Reasoning is already part of output and receives no
 second charge. These are attributed observations, not invoices or proof of savings. Evidence:
 `scripts/estimate-run-cost.mjs` and `evals/estimate-run-cost/run.mjs`.
+
+With `--root`, the estimator follows an explicit checkpoint result reference, including custom
+result and acceptance filenames. It verifies their digests and finalization against the current
+contract and dispatch journal; an invalid explicit reference cannot fall back to a conventional
+filename. Linked observations share one uniqueness reducer with runtime metrics and budgets.
+Exact reimports count once; conflicting or overlapping source records fail. Cross-run overlap
+detection covers only the runs loaded by that invocation. Legacy observations remain separate,
+and complete-task coverage and cost remain `UNKNOWN` without evidence of complete attempts.
+
+OpenCode cost-ledger rows use `v: 2` and `usageByModel`: exact provider/model identity (or null), turns, reported cost and input, cache-create, cache-read, output and thinking token buckets per model. The latest contribution for each message ID replaces earlier updates; an unidentified new message never borrows the previous message's model. Aggregate fields remain for compatibility.
+
+The report preserves positive provider-reported session costs. Otherwise it estimates each attributed group at its own price, preferring exact profile, bare profile, then qualified shipped-provider rates. Explicit zero rates remain valid. Missing required consumed rates, unidentified usage and ambiguous legacy mixed-model totals are UNKNOWN, represented as null in JSON. Legacy single-model totals may still estimate. Unknown money propagates through child totals, averages, projections and credit conversion; applicable configured monetary gates refuse UNKNOWN. Evidence: `scripts/opencode-cost-report.mjs`, `scripts/opencode-lifecycle.js`, and `evals/opencode-lifecycle/run.mjs`.
 
 ## Host capabilities and policy
 
@@ -229,13 +241,14 @@ the run ID and increments the revision by one. Git heads are complete 40- or 64-
 IDs. Capability and receipt paths must differ portably and cannot share one physical file.
 Evidence: `scripts/runtime-lib.mjs:174-219` and `scripts/runtime-lib.mjs:331-346`.
 
-A checkpoint requires a strict dispatch-ledger reference and may bind acceptance, handoff,
-bundle, and artifact files by digest. Resume replays and revalidates the latest checkpoint
+A checkpoint requires a validated dispatch-ledger reference and may bind acceptance, handoff,
+bundle, artifact, and finalized result files by digest. `--result` requires the accompanying
+acceptance and dispatch references. Resume replays and revalidates the latest checkpoint
 references. Verification rejects any binding or referenced-file drift. Evidence:
-`scripts/run-runtime.mjs:159-169`, `scripts/run-runtime.mjs:200-217`, and
-`scripts/run-runtime.mjs:253-329`.
+`scripts/run-runtime.mjs:161-171`, `scripts/run-runtime.mjs:211-232`, and
+`scripts/run-runtime.mjs:255-331`.
 
-Checkpoint, resume, replan, and verification accept a partial acceptance ledger when every recorded actor and criterion is valid. Finalization still requires every blocking criterion to pass. `run-runtime.mjs status` emits a bounded view of the latest checkpoint, pending dispatches, acceptance coverage, drift categories, read pointers, observed token totals, and per-unit overruns. It does not mutate the receipt chain.
+Version-4 checkpoint, resume, replan, and verification reconcile active dispatched rows with the bound runtime journal; schema, actor, revision and dependency checks still apply. Version-3 ledger validation remains strict. Bundle directories resolve against the contract directory, with physical containment and ignored-path checks. Checkpoint, resume, replan, and verification accept a partial acceptance ledger when every recorded actor and criterion is valid. Finalization still requires every blocking criterion to pass. `run-runtime.mjs status` emits a bounded view of the latest checkpoint, pending dispatches, acceptance coverage, drift categories, read pointers, observed token totals, and per-unit overruns. It does not mutate the receipt chain.
 
 ## Cache telemetry
 
@@ -245,15 +258,31 @@ token metrics. Provider-usage observations must carry at least one metric. The m
 reports normalized totals and event counts plus the minimized capability binding. Raw host
 provenance stays in the ignored descriptor. Elapsed time remains `UNKNOWN`. Evidence:
 `scripts/runtime-lib.mjs:281-294`, `scripts/runtime-lib.mjs:349-383`, and
-`scripts/run-runtime.mjs:293-317`.
+`scripts/run-runtime.mjs:295-319`.
+
+`observe --linkage <metadata.json>` adds optional attempt attribution without changing legacy
+receipt bytes. Metadata binds `runId`, `contractRevision`, opaque `taskId` and `attemptId`,
+`parentAttemptId`, an `initial`, `retry`, or `repair` relation, a declared `sourceKind`, and
+unique SHA-256 `recordIds`. Every linked observation names a current work unit. A parent must
+already belong to the same task and unit. A repair also binds a failed acceptance attempt by
+file digest, criterion and attempt number; an optional dispatch-activation reference binds the
+exact journal event. Dispatch activation is not a provider call identity. Source kinds are
+declarations, not provider attestation. Record identifiers must cover the same original source
+records across imports; hashing a newly repackaged aggregate does not establish uniqueness.
+Provider-internal attempts and missing categories remain unknown. Evidence:
+`scripts/runtime-lib.mjs`, `scripts/run-runtime.mjs`, and `evals/run-runtime/run.mjs`.
 
 ## Session receipt hook
 
 The `SessionEnd` hook `session-receipt.mjs` is on by default on hosts that expose a transcript
 callback. Claude summarizes the main transcript and its `subagents/*.jsonl` siblings. Codex
 reads peer rollouts and follows `session_meta.payload.parent_thread_id` to include descendants.
-Installed Grok 1.0.13 reads cumulative per-prompt usage from the session's `updates.jsonl`;
-its receipt records `arms.ladderCard=false` and `arms.handoffPickup=false`.
+Grok file measurements use stored turns from `usage.json` when their token and model counters
+reconcile with the stored session summary. Repeated update snapshots are never added to those
+turns. Missing, malformed, conflicting or stale storage keeps observed counters but marks
+normalized usage UNKNOWN. The receipt adds `normalizedTokens` and `accounting` beside its
+legacy token fields. Reconciled host records do not prove complete billing.
+Grok receipts record `arms.ladderCard=false` and `arms.handoffPickup=false`.
 `arms.handoffCard` follows its switch, because PostToolUse delivers that note. `arms` also carries `handoffPickup` and `dispatchGuard`, each read
 from its own switch the way every other arm is; `CODE_OPS_DISPATCH_GUARD=warn` records
 `dispatchGuard=true`, because only the hard stop is lifted. Every receipt also
@@ -759,7 +788,7 @@ the Codex projection. OpenCode has no `PostToolUse` hook that replaces tool outp
 distribution bundles only `digest-rewrite.mjs` and `index-refresh.mjs`. Evidence:
 `scripts/build-codex-marketplace.mjs:367-369`, `scripts/build-codex-marketplace.mjs:375`,
 `scripts/build-codex-marketplace.mjs:451`, `scripts/build-codex-marketplace.mjs:606`, and
-`scripts/build-opencode-dist.mjs:796`. The eval is `evals/digest-post/run.mjs`.
+`scripts/build-opencode-dist.mjs:799`. The eval is `evals/digest-post/run.mjs`.
 
 ## Script entrypoint
 
@@ -1485,43 +1514,21 @@ The routing card, the dispatch ledger, and the narration scan are advisories onl
 separately requires every bundled agent body to carry a `Report cap: at most N words` line.
 Evidence: `scripts/lint-plugins.mjs` and `scripts/scan-narration.mjs`.
 
-On OpenCode, `scripts/opencode-lifecycle.js` denies a dispatch to a model the operator has not
-enabled. A model is usable only when four conditions hold. The live host model list names it. The
-profile's enabled list names it. The desktop Models settings do not hide it. The config's
-`disabled_providers` does not name its provider, and `enabled_providers`, when set, does. An empty
-provider list counts as unset. The check fails closed in this order: the live list, one awaited
-refresh, then the environment catalog and the model cache filtered by the last three conditions.
-When no source yields the model, a lead clone falls back to the lead model only if the lead meets
-all four conditions and the agent floor. Otherwise the dispatch throws. The check runs whatever
-`CODE_OPS_TIER_ROUTING` says and ignores `CODE_OPS_DISPATCH_GUARD=warn`. The startup chooser ladder
-filters by the same provider switches.
+On OpenCode, operative selection uses exact, case-sensitive provider/model identities, including nested model IDs. The generated root config leaves operative models unset for automatic selection; provider examples and operator model pins remain explicit. Automatic binding uses the operator's launch catalog, profile and provider policy. A missing rung may use a higher qualified rung, never a model below the role floor. Profile measurements may lower a verified qualification, but cannot raise it.
 
-The config hook binds the suite agents from the models this machine enables. It reads
-`CODE_OPS_OPENCODE_MODELS`, else the model cache. With neither, it asks the host once by running
-`<opencode> models --pure`, caches the answer, and binds from it, so the first launch is already
-bound. The command is `CODE_OPS_OPENCODE_CMD` (a JSON array), else this process when it is the
-OpenCode binary. It is never a bare `opencode` from `PATH`. The call times out after 8 seconds and
-sets `CODE_OPS_CHOOSER_CHILD`, which stops a child from asking again. The `--pure` flag keeps the
-child from loading this plugin. A plain `opencode models` loads it and recurses.
+Before every Task dispatch and again at the final `chat.params` execution boundary, the adapter refreshes the connected host catalog and effective operator config, rereads the profile, and enforces explicit persisted desktop `visibility=hide` rows. Eligibility is their intersection, including provider switches and exact provider model whitelist/blacklist entries. An explicit empty `enabled_providers` list enables no providers; an explicit empty profile `enabled` list enables no models. Desktop default UI visibility is not verified as an enable signal. Concurrent checks share one bounded refresh; a successful empty discovery clears authorization, and unavailable config or catalog denies. Cached and environment catalogs help launch selection but do not authorize execution after failed live discovery.
 
-A launch that cannot bind keeps the static ladder from `opencode.json` and says why. Three
-fallback notes exist. The first says no list arrived and names the failed command, the empty list,
-or the missing binary. The second says no listed model meets a rung of the verified tier table.
-The third says a rung with no enabled model of its class borrows a neighbor's model. The routing
-card prints these notes under `Ladder fallbacks on this host:` only while one is active. The
-first-event toast repeats them.
+Operator pins survive automatic selection. A launch-time binding that is no longer eligible or meets no verified floor is refused with reload guidance; Task arguments cannot rebind it. Unbound agents may inherit the session model only when the actual resolved identity passes the final check. Both checks run independently of tier routing and warn-only dispatch settings. Selection receipts record automatic versus operator-pin ownership, the exact identity, role floor, verified qualification and selection revision.
 
-The ask is a local process, not a request by the plugin. On OpenCode 1.17.15 with an empty cache
-directory, `models --pure` wrote a 5 MB `models.json`, and it wrote none with the network
-blocked. The host CLI therefore fetches its model catalog on a cold cache, and the build wording
-says the adapters make no network request of their own.
+Desktop visibility follows the pinned [OpenCode v1.17.15 model context](https://raw.githubusercontent.com/anomalyco/opencode/v1.17.15/packages/app/src/context/models.tsx): the last explicit show/hide row wins. Without an override, only the newest model in each provider/family within a strict six-calendar-month window, and models with invalid or missing dates, are enabled. Equal newest release-date strings retain the first model in the live provider's insertion order. Month addition clamps the day; future dates use the same strict window. The [settings switch](https://raw.githubusercontent.com/anomalyco/opencode/v1.17.15/packages/app/src/components/settings-models.tsx) uses visibility, while the [provider hook](https://raw.githubusercontent.com/anomalyco/opencode/v1.17.15/packages/app/src/hooks/use-providers.ts) supplies the connected catalog separately.
 
-On OpenCode 1.17.15, `models --pure` and `client.config.providers()` both honor
-`disabled_providers`. Only `models --pure` was probed for `enabled_providers`, which it honors.
-Both list connected providers only. OpenCode's own reading of an empty `enabled_providers` is
-UNVERIFIED. Evidence:
-`scripts/opencode-lifecycle.js` (`providerSwitches`, `assertDispatchModel`, `buildChooserLadder`,
-`askHostModels`) and `evals/opencode-enabled-models/run.mjs`.
+The adapter keeps family and release-date metadata in memory. It parses ISO calendar dates with optional time/offset strictly; potentially valid unsupported ISO forms deny by default until explicitly shown. An explicit `CODE_OPS_DESKTOP_STORE` or an existing supported desktop store applies this policy. Missing, malformed or unreadable applicable stores deny, and a discovered path remains required after deletion. Production stores follow the Electron app-data directory on Windows/macOS and `XDG_CONFIG_HOME` on Linux; an existing sidecar `XDG_STATE_HOME` store is also supported. Alternate channels and remote desktop stores require an explicit path. Without desktop evidence the console uses profile/provider membership.
+
+Startup metadata comes from the guarded host child with `models --pure --verbose`, never an SDK provider request from the config hook: provider initialization awaits plugin initialization. The child retains only IDs/family/release date and marks ordering unknown because the CLI sorts model IDs. A tied newest provider/family group supplies no automatic default until live ordered metadata is available; explicit desktop show/hide overrides still apply. An agent model pin alone cannot enable a hidden model. The persisted chooser cache still holds IDs only. Fresh host discovery remains mandatory before dispatch and execution. The optional logged revision hashes exact catalog IDs, effective enabled membership and normalized routing weights/measurements. Budgets, arbitrary profile fields and model rows outside the catalog cannot change it; the revision is diagnostic, not execution authority.
+
+A launch without a catalog asks the configured local host command once using `models --pure`, with an 8-second limit and recursion protection. The command is `CODE_OPS_OPENCODE_CMD` (a JSON array), else this process when it is the OpenCode binary; it never resolves a bare executable through PATH. Missing automatic binding is reported, and explicit pins still owe live dispatch and execution checks. On OpenCode 1.17.15 the host command fetched its catalog on a cold cache; the adapter makes no network request of its own. These source and fixture checks do not establish installed-host adoption or live provider acceptance.
+
+Evidence: `scripts/opencode-lifecycle.js` (`refreshLive`, `assertDispatchModel`, `buildChooserLadder`, `chat.params`), `scripts/build-opencode-dist.mjs`, and `evals/opencode-enabled-models/run.mjs`.
 
 ## Agent state machine
 
@@ -1857,11 +1864,13 @@ paraphrase-only fact is a declared miss, reported and not gated.
 `atlas-check.mjs check` prints a claim report beneath each section's freshness verdict. A
 claim is a `path:line` citation in the section's prose. Its statuses come from
 `revalidate-register.mjs`, run once over one temporary register the check deletes when it
-ends, so the atlas and a findings register classify a drifted citation identically. A
+ends. Atlas then overrides an explicit path containing a directory separator to GONE
+when that exact path is missing, preventing a same-tail file from satisfying the claim.
+This missing-path rule is Atlas-local; other classifications retain the register result. A
 section citing nothing reports `claims: none`. The digest verdict and `--gate` keep their
 existing meaning. `--claims-gate` is separate, and exits 1 on any claim the classifier did
-not call FRESH, an unclassifiable one included. Evidence: `scripts/atlas-check.mjs:302-344`,
-`scripts/atlas-check.mjs:544-567`, and `scripts/atlas-check.mjs:698-706`.
+not call FRESH, an unclassifiable one included. Evidence: `scripts/atlas-check.mjs:360-401`,
+`scripts/atlas-check.mjs:567-590`, and `scripts/atlas-check.mjs:721-729`.
 
 `atlas-check.mjs scope <slug> --suggest` reads `context-query.mjs blast --json` over the
 section's scoped files and prints the depth-1 importers that the current scope does not
@@ -1869,7 +1878,7 @@ already cover, as a pathspec list for `add --scope`. It writes nothing. `blast` 
 importer direction only, so the suggestion never names what the scope itself imports. A
 missing symbol index exits 1 naming the refresh command rather than building one, and the
 query is capped at 200 scoped files with an explicit advisory. Evidence:
-`scripts/atlas-check.mjs:763-841`.
+`scripts/atlas-check.mjs:786-864`.
 
 ## Documentation manifest
 

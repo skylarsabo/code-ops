@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-10-06
+updated: 2026-10-10
 ---
 
 # Measurements
@@ -10,8 +10,9 @@ updated: 2026-10-06
 
 Every number here comes from a local receipt, never from an estimate or a hand-entered note.
 The source and granularity are host-qualified: Claude exposes per-message transcript usage,
-Codex exposes response usage in peer rollouts, and installed Grok 1.0.13 exposes cumulative
-per-prompt snapshots in `updates.jsonl`. OpenCode has no automatic transcript receipt. Reading
+Codex exposes response usage in peer rollouts. Grok stores turns in `usage.json`; reconciled
+turn and session counters take precedence over cumulative `updates.jsonl` observations.
+Incomplete Grok source coverage leaves normalized usage UNKNOWN. OpenCode has no automatic transcript receipt. Reading
 supported local records costs no model tokens and nothing leaves the machine. A row without a
 receipt does not enter this page. A registration, such as the program metric registry below, fixes a
 metric's source, owner, baseline, and decision rule before a receipt exists. It carries no
@@ -23,13 +24,14 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 
 - `node scripts/context-audit.mjs` summarizes Claude transcripts for the current directory.
   `--host codex` adapts Codex response usage and follows child rollout `parent_thread_id`
-  links. Grok receipts normalize cumulative snapshots from `updates.jsonl`. Output is
+  links, counting each discovered file once. Grok receipts reconcile stored turns and expose
+  source coverage; an explicit transcript directory can contain Grok session files. Output is
   sanitized by default. `--json` emits the aggregate a receipt can hash.
   The report carries context shape per thread, spend by context band, cache rewrites, and
   subagents by agent type. `--all` merges every project under the host transcript root and ranks
   projects as `project-N`; `--raw` names them.
-- `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and installed Grok
-  1.0.13. It appends one normalized row to the host-specific home ledger or
+- `hooks/session-receipt.mjs` runs at `SessionEnd` on Claude, Codex, and Grok.
+  It appends one row with observed counters and normalized coverage to the host-specific home ledger or
   `$CODE_OPS_RECEIPTS`; `off` disables it. Grok rows always record `ladderCard=false` and
   `handoffPickup=false`. `handoffCard` follows its switch. Every row also carries `handoffPickup` and
   `dispatchGuard` beside the older arms. Each row counts skill invocations by id in `skills`
@@ -39,9 +41,14 @@ Numbers age. Treat a row as true for the window it names and re-run the audit be
 - `node scripts/run-proof.mjs record -- <audit command>` turns an audit run into a replayable receipt row.
 - `node scripts/context-audit.mjs receipts --purge-before <ISO date>` is the ledger's retention: it rewrites the file keeping rows at or after the date and prints what it removed.
 - `evals/context-audit/run.mjs` pins the parser and the hook against a synthetic fixture.
+- `node scripts/run-runtime.mjs observe --linkage <metadata.json>` records declared task and
+  attempt identities with exact source-record coverage. Runtime metrics, budgets and cost
+  attribution share unique imports; conflicting overlaps fail. Retry and repair relations keep
+  their parents, and repairs bind failed acceptance evidence. Complete-task usage remains
+  unknown where outer or provider-internal attempts are unproven.
 - `node scripts/digest.mjs -- <cmd>` measures one command's own compressible share: it prints the before-and-after line counts in its trailer and appends `bytesIn`, `bytesOut`, `linesIn`, and `linesOut` to `DIGEST_RECEIPTS.jsonl`. The `PreToolUse` digest hook runs it for every allowlisted simple command, so the ledger fills on its own. A row exists only for a command the digest shrank: an output of at most 1,536 bytes, or one the digest cannot make smaller, passes through raw with no row, because the session measurement of 2026-09-03 found 77 of 84 receipted commands paid more in trailer than they saved. `evals/digest/run.mjs` reports the per-shape reduction on a fixed corpus and fails when it drops below the recorded floor.
 
-Usage is deduplicated by message id. The host writes one assistant message as several transcript lines that repeat the same usage block, so a naive sum overcounts by more than two to one.
+Claude usage is deduplicated by message id. The host writes one assistant message as several transcript lines that repeat the same usage block, so a naive sum overcounts by more than two to one. Grok uses reconciled stored-turn identities instead; its update observations do not establish separate billable calls.
 
 The `context-bundle view` regression fixture is 1,482 bytes against a 1,987-byte canonical
 bundle, a 25.4% byte reduction. This is compiler-fixture evidence only. Hook evals likewise
