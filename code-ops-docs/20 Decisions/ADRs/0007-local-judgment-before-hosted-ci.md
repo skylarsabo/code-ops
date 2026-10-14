@@ -36,7 +36,7 @@ judgment boundary.
 Evidence: `scripts/local-review-gate.mjs:84-182`,
 `scripts/local-review-gate.mjs:190-265`, `scripts/local-review-gate.mjs:353-432`,
 `scripts/local-review-gate.mjs:437-464`, and
-`.github/workflows/validate.yml:23-159`.
+`.github/workflows/validate.yml:23-165`.
 
 ## Consequences
 

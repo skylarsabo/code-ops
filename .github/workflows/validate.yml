@@ -88,6 +88,12 @@ jobs:
           node scripts/scan-ai-tells.mjs --git "$BASE_SHA..$HEAD_SHA" "$pr_text"
           node scripts/branch-name.mjs check "$HEAD_REF"
 
+      - name: Beat-the-bare-model bench check (matrix, target digest, seed proofs)
+        run: node evals/bench/bench.mjs check
+
+      - name: Beat-the-bare-model bench regression eval
+        run: node evals/bench/run.mjs
+
       # Advisory only: prints a note when the body links no row of the direction note's gap table
       # and exits 0 either way. It stays a separate step so the fail-closed traceless step above
       # never carries an advisory. Promotion to a failing gate waits for zero false positives.

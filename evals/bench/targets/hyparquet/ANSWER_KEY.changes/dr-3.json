@@ -1,0 +1,26 @@
+{
+  "id": "dr-3",
+  "kind": "review",
+  "edits": [
+    {
+      "file": "src/locate.js",
+      "find": null,
+      "replace": "/**\n * @import {FileMetaData} from '../src/types.js'\n */\n\n/**\n * Finds the row group that holds a row, and the row's offset inside that group.\n * Returns undefined when row is not a valid row index of the file.\n *\n * @param {FileMetaData} metadata\n * @param {number} row zero-based row index in the file\n * @returns {{ group: number, offset: number } | undefined}\n */\nexport function locateRow(metadata, row) {\n  if (!Number.isInteger(row) || row < 0 || row >= Number(metadata.num_rows)) return undefined\n  let groupStart = 0\n  for (let group = 0; group < metadata.row_groups.length; group++) {\n    const groupEnd = groupStart + Number(metadata.row_groups[group].num_rows)\n    if (row < groupEnd) return { group, offset: row - groupStart }\n    groupStart = groupEnd\n  }\n  return undefined\n}\n\n/**\n * Flags the row groups that hold at least one of the rows.\n * Rows that are not valid row indices of the file are ignored.\n *\n * @param {FileMetaData} metadata\n * @param {number[]} rows zero-based row indices in the file\n * @returns {boolean[]} one flag per row group\n */\nexport function groupsHolding(metadata, rows) {\n  const included = Array(metadata.row_groups.length).fill(false)\n  if (!rows.length) return included\n  for (const row of rows) {\n    const located = locateRow(metadata, row)\n    if (located) included[located.group] = true\n  }\n  return included\n}\n"
+    },
+    {
+      "file": "src/query.js",
+      "find": "import { parquetMetadataAsync, parquetSchema } from './metadata.js'",
+      "replace": "import { groupsHolding } from './locate.js'\nimport { parquetMetadataAsync, parquetSchema } from './metadata.js'"
+    },
+    {
+      "file": "src/query.js",
+      "find": "  const groupIncluded = Array(rowGroups.length).fill(false)\n  let groupStart = 0\n  const groupEnds = rowGroups.map(group => groupStart += Number(group.num_rows))\n  for (const index of rows) {\n    const groupIndex = groupEnds.findIndex(end => index < end)\n    groupIncluded[groupIndex] = true\n  }\n",
+      "replace": "  const groupIncluded = groupsHolding(options.metadata, rows)\n"
+    },
+    {
+      "file": "src/query.js",
+      "find": "  groupStart = 0\n  for (let i = 0; i < groupIncluded.length; i++) {",
+      "replace": "  let groupStart = 0\n  for (let i = 0; i < groupIncluded.length; i++) {"
+    }
+  ]
+}

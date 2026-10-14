@@ -1,0 +1,16 @@
+{
+  "id": "sh-summary-ref",
+  "kind": "reference",
+  "edits": [
+    {
+      "file": "src/summary.js",
+      "find": null,
+      "replace": "/**\n * @import {FileMetaData} from '../src/types.js'\n */\n\n/**\n * Summarize each column across all row groups.\n * Columns are merged by dotted path, in order of first appearance.\n * The null count is null unless every chunk of the column records one.\n *\n * @param {FileMetaData} metadata\n * @returns {{ name: string, type: string, numValues: number, nullCount: number | null, compressedBytes: number, uncompressedBytes: number }[]}\n */\nexport function parquetColumnSummary(metadata) {\n  /** @type {Map<string, { name: string, type: string, numValues: number, nullCount: number | null, compressedBytes: number, uncompressedBytes: number }>} */\n  const columns = new Map()\n  for (const { columns: chunks } of metadata.row_groups) {\n    for (const { meta_data } of chunks) {\n      if (!meta_data) continue\n      const name = meta_data.path_in_schema.join('.')\n      let summary = columns.get(name)\n      if (!summary) {\n        summary = {\n          name,\n          type: meta_data.type,\n          numValues: 0,\n          nullCount: 0,\n          compressedBytes: 0,\n          uncompressedBytes: 0,\n        }\n        columns.set(name, summary)\n      }\n      summary.numValues += Number(meta_data.num_values)\n      summary.compressedBytes += Number(meta_data.total_compressed_size)\n      summary.uncompressedBytes += Number(meta_data.total_uncompressed_size)\n      const nulls = meta_data.statistics?.null_count\n      if (nulls === undefined) summary.nullCount = null\n      else if (summary.nullCount !== null) summary.nullCount += Number(nulls)\n    }\n  }\n  return [...columns.values()]\n}\n"
+    },
+    {
+      "file": "src/index.js",
+      "find": "export { parquetQuery } from './query.js'",
+      "replace": "export { parquetQuery } from './query.js'\nexport { parquetColumnSummary } from './summary.js'"
+    }
+  ]
+}

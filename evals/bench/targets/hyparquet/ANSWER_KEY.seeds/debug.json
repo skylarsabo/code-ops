@@ -1,0 +1,35 @@
+[
+  {
+    "id": "db-bloom-mask",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/bloom.js",
+    "find": "const low = Number(hash & 0xffffffffn) | 0",
+    "replace": "const low = Number(hash >> 32n) | 0",
+    "oracle": "db-bloom-mask.test.js",
+    "symptom": "Bloom filter lookups drop rows that exist. The file data/bloom_filter.parquet has 4096 rows, one INT32 column named code, and two row groups of 2048 rows. Calling parquetQuery({ file, filter: { code: { $eq: 30 } } }) returns the 1024 rows where code is 30, as expected. Adding useBloomFilters: true to the same call returns an empty array. The same happens for the values 10, 70, and 90. A filter on a value that is not in the file, such as 50, correctly returns an empty array either way."
+  },
+  {
+    "id": "db-scan-range",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/plan.js",
+    "find": "groupStart < rowEnd && !canSkipRowGroup({",
+    "replace": "groupStart <= rowEnd && !canSkipRowGroup({",
+    "oracle": "db-scan-range.test.js",
+    "symptom": "parquetScan returns an empty range at a row group boundary. The file data/bloom_filter.parquet has 4096 rows in two row groups of 2048 rows. Calling parquetScan({ file, rowStart: 0, rowEnd: 2048 }) and reading the ranges property should give one range, { rowStart: 0, rowEnd: 2048 }. It gives two: that range and a second one, { rowStart: 2048, rowEnd: 2048 }, which covers no rows. Our reader loops over the ranges and trips on the empty one. Starting a scan on a boundary, with rowStart: 2048 and rowEnd: 4096, gives the single range it should."
+  },
+  {
+    "id": "db-meta-await",
+    "kind": "defect",
+    "class": "missing-await",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "const metadataBuffer = await asyncBuffer.slice(metadataOffset, footerOffset)",
+    "replace": "const metadataBuffer = asyncBuffer.slice(metadataOffset, footerOffset)",
+    "oracle": "db-meta-await.test.js",
+    "symptom": "Reading a file through an asynchronous source fails when the footer is larger than the first fetch. The file data/datapage_v2.snappy.parquet has 5 rows. I wrap its bytes in an object with byteLength and an async slice(start, end) method that returns a promise, like a file behind a network request. parquetReadObjects({ file }) returns the 5 rows. To reproduce the case of a large footer with a small file, I pass initialFetchSize: 64 to the same call. It then rejects with \"TypeError: Cannot read properties of undefined (reading 'map')\" instead of returning the same 5 rows. Wrapping the bytes in an object whose slice returns the buffer directly, with no promise, gives the 5 rows with the same option."
+  }
+]

@@ -1,0 +1,9 @@
+{
+  "name": "hyparquet-bench-target",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node --test"
+  }
+}

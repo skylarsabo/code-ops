@@ -1,0 +1,112 @@
+[
+  {
+    "id": "dr-1-rowend-clamp",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": "dr-1",
+    "file": "src/utils.js",
+    "find": "const end = Math.min(rowEnd ?? numRows, numRows)",
+    "replace": "const end = rowEnd ?? numRows",
+    "oracle": "dr-1-rowend-clamp.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-read-await",
+    "kind": "defect",
+    "class": "missing-await",
+    "base": "dr-1",
+    "file": "src/count.js",
+    "find": "const rows = await parquetReadObjects(",
+    "replace": "const rows = parquetReadObjects(",
+    "oracle": "dr-1-read-await.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-slice-break",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": "dr-1",
+    "file": "src/utils.js",
+    "find": "if (groupStart >= rowEnd) break",
+    "replace": "if (groupStart > rowEnd) break",
+    "oracle": "dr-1-slice-break.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-file-guard",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-1",
+    "file": "src/count.js",
+    "find": "if (!options.file || !(options.file.byteLength >= 0)) {",
+    "replace": "if (!(options.file?.byteLength >= 0)) {",
+    "oracle": "dr-1-file-guard.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-null-side",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": "dr-2",
+    "file": "src/query.js",
+    "find": "const nullOrder = nullsFirst ? -1 : 1",
+    "replace": "const nullOrder = descending ? -1 : 1",
+    "oracle": "dr-2-null-side.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-filter-nulls",
+    "kind": "defect",
+    "class": "wrong-default",
+    "base": "dr-2",
+    "file": "src/query.js",
+    "find": "const compareRows = comparator(descending, nullsFirst)",
+    "replace": "const compareRows = comparator(descending)",
+    "oracle": "dr-2-filter-nulls.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-index-tiebreak",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-2",
+    "file": "src/query.js",
+    "find": ".sort((a, b) => compareValues(orderColumn[a], orderColumn[b]) || a - b)",
+    "replace": ".sort((a, b) => compareValues(orderColumn[a], orderColumn[b]))",
+    "oracle": "dr-2-index-tiebreak.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-default-flags",
+    "kind": "decoy",
+    "class": "wrong-default",
+    "base": "dr-2",
+    "file": "src/query.js",
+    "find": "orderBy, descending = false, nullsFirst = false, filter } = options",
+    "replace": "orderBy, descending, nullsFirst, filter } = options",
+    "oracle": "dr-2-default-flags.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-row-bound",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-3",
+    "file": "src/locate.js",
+    "find": " || row >= Number(metadata.num_rows)",
+    "replace": "",
+    "oracle": "dr-3-row-bound.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-empty-rows",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-3",
+    "file": "src/locate.js",
+    "find": "  if (!rows.length) return included\n",
+    "replace": "",
+    "oracle": "dr-3-empty-rows.test.js",
+    "symptom": null
+  }
+]
