@@ -1,6 +1,7 @@
 {
   "id": "dr-2",
   "kind": "review",
+  "message": "Add descending and nullsFirst ordering options to parquetQuery",
   "edits": [
     {
       "file": "src/query.js",

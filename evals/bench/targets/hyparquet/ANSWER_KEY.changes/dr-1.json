@@ -1,6 +1,7 @@
 {
   "id": "dr-1",
   "kind": "review",
+  "message": "Add parquetCount for counting rows in a range",
   "edits": [
     {
       "file": "src/count.js",

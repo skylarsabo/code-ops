@@ -1,6 +1,7 @@
 {
   "id": "sh-summary-ref",
   "kind": "reference",
+  "message": null,
   "edits": [
     {
       "file": "src/summary.js",

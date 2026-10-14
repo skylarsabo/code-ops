@@ -1,6 +1,7 @@
 {
   "id": "sh-limit-ref",
   "kind": "reference",
+  "message": null,
   "edits": [
     {
       "file": "src/read.js",

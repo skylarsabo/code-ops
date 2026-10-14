@@ -14,6 +14,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tally, withDetail } from '../harness.mjs';
 import { SKILLS, checkBench, treeDigest } from './bench.mjs';
+import { cases as sandboxCases } from './cases/sandbox.cases.mjs';
+import { cases as scoreCases } from './cases/score.cases.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { fails, check } = tally(withDetail);
@@ -57,7 +59,7 @@ const ORACLES = {
 
 // A review change adds last(); a reference change adds it for a ship task.
 const LAST = '\nexport function last(xs) {\n  return xs[xs.length - 1]\n}\n';
-const addLast = (id, kind) => ({ id, kind, edits: [{ file: 'src/lib.js', find: '  return xs[0]\n}\n', replace: `  return xs[0]\n}\n${LAST}` }] });
+const addLast = (id, kind) => ({ id, kind, message: kind === 'review' ? 'Add last helper' : null, edits: [{ file: 'src/lib.js', find: '  return xs[0]\n}\n', replace: `  return xs[0]\n}\n${LAST}` }] });
 
 const seed = (id, kind, cls, find, replace, oracleFile, extra = {}) =>
   ({ id, kind, class: cls, base: null, file: 'src/lib.js', find, replace, oracle: oracleFile, symptom: null, ...extra });
@@ -202,7 +204,7 @@ try {
   });
   await mustFail('unknown seed class fails', /class must be one of/, { seeds: [{ ...SEEDS.firstOff, class: 'typo' }] });
   await mustFail('change that breaks the visible suite fails', /visible suite fails with the change applied/, {
-    changes: [{ id: 'break-sum', kind: 'review', edits: [{ file: 'src/lib.js', find: 'total += xs[i]', replace: 'total -= xs[i]' }] }],
+    changes: [{ id: 'break-sum', kind: 'review', message: 'Rework sum', edits: [{ file: 'src/lib.js', find: 'total += xs[i]', replace: 'total -= xs[i]' }] }],
   });
   await mustFail('change with a tell word fails', /tell word "hack"/, {
     changes: [{ ...REVIEW, edits: [{ ...REVIEW.edits[0], replace: `${REVIEW.edits[0].replace}// hack\n` }] }],
@@ -236,10 +238,15 @@ try {
     changes: [{ ...REFERENCE, edits: [{ ...REFERENCE.edits[0], replace: REFERENCE.edits[0].replace.replace('- 1]', '- 2]') }] }],
     tasks: [SHIP],
   });
+  await mustFail('review change without a message fails', /review change needs a non-empty message/, {
+    changes: [{ ...REVIEW, message: '' }],
+  });
   await mustFail('ship task with a review change fails', /must be a reference change/, {
-    changes: [{ ...REFERENCE, kind: 'review' }],
+    changes: [{ ...REFERENCE, kind: 'review', message: 'Add last helper' }],
     tasks: [SHIP],
   });
+  await scoreCases(check);
+  await sandboxCases(check);
 } finally {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
 }

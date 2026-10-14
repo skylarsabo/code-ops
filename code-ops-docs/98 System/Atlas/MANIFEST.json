@@ -1104,8 +1104,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "3d94d52e120cd1b2d313a0e61ea6c1db121e9990",
-      "verifiedDigest": "30aa340560ab0cdfde3804737c6a362533ed922a33c80a6e5bd2c680dd43c5d8",
+      "verifiedAt": "5912d4234ad248c692b833715615766934158be9",
+      "verifiedDigest": "9890dad6fe9d006db07011b7b827a557eb725978c06f34ac0a9fb97c01cd8c89",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1510,6 +1510,16 @@
           "file": "evals/bench/bench.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/bench/cases/score.cases.mjs",
+          "line": 1,
+          "anchor": "// Cases and mutants for evals/bench/lib/score.mjs. Wired into evals/bench/run.m"
+        },
+        {
+          "file": "evals/bench/cases/sandbox.cases.mjs",
+          "line": 1,
+          "anchor": "// Cases for evals/bench/lib/sandbox.mjs and evals/bench/lib/audit.mjs. No model"
         }
       ]
     },

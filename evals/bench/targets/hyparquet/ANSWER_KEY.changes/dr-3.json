@@ -1,6 +1,7 @@
 {
   "id": "dr-3",
   "kind": "review",
+  "message": "Locate requested rows by row group in parquetReadRows",
   "edits": [
     {
       "file": "src/locate.js",
