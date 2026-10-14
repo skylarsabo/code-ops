@@ -23,6 +23,16 @@ const REPO_ROOT = resolve(BENCH_DIR, '..', '..');
 export const PLAN_VERSION = 1;
 export const ARMS = ['skill', 'control'];
 const KEY_FILE = join(process.env.USERPROFILE || process.env.HOME || '', '.bench-key');
+// Optional: the workspace for an organization-level key, sent as the anthropic-workspace-id header.
+const WORKSPACE_FILE = join(process.env.USERPROFILE || process.env.HOME || '', '.bench-workspace');
+
+/** The anthropic-workspace-id header line, or null when no workspace file exists. */
+export function workspaceHeader(file = WORKSPACE_FILE) {
+  if (!existsSync(file)) return null;
+  const id = readFileSync(file, 'utf8').trim();
+  if (!/^wrkspc_[A-Za-z0-9]+$/.test(id)) throw new Error(`${file} must hold one workspace id (wrkspc_...)`);
+  return `anthropic-workspace-id: ${id}`;
+}
 
 const sha256 = (data) => createHash('sha256').update(data).digest('hex');
 const fileDigest = (path) => `sha256:${sha256(readFileSync(path))}`;
@@ -156,6 +166,8 @@ function unitEnv(configDir) {
     env[k] = v;
   }
   env.CLAUDE_CONFIG_DIR = configDir;
+  const header = workspaceHeader();
+  if (header) env.ANTHROPIC_CUSTOM_HEADERS = header;
   return env;
 }
 
