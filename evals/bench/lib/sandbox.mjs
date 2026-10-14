@@ -14,7 +14,7 @@ import { randomBytes } from 'node:crypto';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { VISIBLE_TESTS, listTargetFiles } from '../bench.mjs';
+import { listTargetFiles } from '../bench.mjs';
 
 const ORACLE_DIR = 'ANSWER_KEY.oracles';
 const LINE_TOLERANCE = 3;
@@ -230,6 +230,10 @@ export async function afterRun({ derivedKey, targetDir, dest }) {
   for (const file of derivedKey.oracles) copyFile(join(targetDir, ORACLE_DIR, file), join(dest, 'oracle', file));
   const results = await Promise.all(derivedKey.oracles.map((file) => runTests(dest, [`oracle/${file}`])));
   derivedKey.oracles.forEach((file, i) => { oracles[file] = results[i].ok; });
-  const visible = await runTests(dest, [VISIBLE_TESTS]);
+  // The visible suite is the target's own test files, restored to their pristine bytes, so a
+  // failing repro test the agent added or a test it weakened never moves the count.
+  const visibleFiles = listTargetFiles(targetDir).filter((rel) => /^test\/.*\.test\.js$/.test(rel));
+  for (const rel of visibleFiles) copyFile(native(targetDir, rel), native(dest, rel));
+  const visible = visibleFiles.length ? await runTests(dest, visibleFiles) : { failures: 0 };
   return { oracles, visibleFailures: visible.failures, headCommits };
 }

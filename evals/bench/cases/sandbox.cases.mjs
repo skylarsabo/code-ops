@@ -214,8 +214,13 @@ export async function cases(check) {
       "test('two', () => assert.equal(1, 3))",
       '',
     ].join('\n'));
+    writeFileSync(join(sbBh.dest, 'test', 'a.test.js'), "import test from 'node:test'\ntest('weakened', () => {})\n");
     const afterBh = await afterRun({ task: TASKS.bh, derivedKey: bh, targetDir: tiny, dest: sbBh.dest });
-    mutantPair('afterRun: visibleFailures counts failing visible tests', afterBh.visibleFailures === 2 && Object.keys(afterBh.oracles).length === 0, afterPristine.visibleFailures === 2, JSON.stringify(afterBh));
+    check('afterRun: an added test file is not counted and a weakened visible test is restored',
+      afterBh.visibleFailures === 0 && Object.keys(afterBh.oracles).length === 0 && readFileSync(join(sbBh.dest, 'test', 'a.test.js'), 'utf8') === TINY['test/a.test.js'], JSON.stringify(afterBh));
+    writeFileSync(join(sbBh.dest, 'src', 'a.js'), A_JS.replace('out.push(x)', 'out.push(x, x)'));
+    const afterBroken = await afterRun({ task: TASKS.bh, derivedKey: bh, targetDir: tiny, dest: sbBh.dest });
+    mutantPair('afterRun: visibleFailures counts failing original tests', afterBroken.visibleFailures === 1, afterPristine.visibleFailures === 1, JSON.stringify(afterBroken));
 
     // the real target: every task, key bytes, lines, and anchors in the materialized tree
     const matrix = readJson(join(BENCH, 'bench-matrix.json'));

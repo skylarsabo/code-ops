@@ -231,6 +231,7 @@ async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, co
   mkdirSync(configDir);
   const dest = join(box, 'repo');
   materialize({ task, seeds: answerKey.seeds, changes: answerKey.changes, targetDir, dest });
+  const base = git(dest, ['rev-parse', 'HEAD']);
   const helper = join(aux, 'key-helper.mjs');
   writeFileSync(helper, `import { readFileSync } from 'node:fs';\nprocess.stdout.write(readFileSync(${JSON.stringify(KEY_FILE)}, 'utf8').trim());\n`);
   writeFileSync(join(aux, 'settings.json'), JSON.stringify({ apiKeyHelper: `node "${helper}"` }));
@@ -256,9 +257,15 @@ async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, co
   const audit = auditUnit({ transcriptTexts: [ran.stdout, ...sidechains(configDir)], findingsText, repoRoot: REPO_ROOT, runFolder: runDir,
     canary, upstream: upstreamOf(task.target, targetDir), allowedPaths });
   const findings = Array.isArray(findingsFile?.findings) ? findingsFile.findings : null;
+  // The agent's work only: commits after the materialized base, then uncommitted and untracked
+  // paths. Taken before afterRun copies the oracles in.
+  const diff = [
+    git(dest, ['log', '-p', '--format=commit %H%n%s', '--reverse', `${base}..HEAD`]),
+    git(dest, ['diff', 'HEAD']),
+    git(dest, ['ls-files', '--others', '--exclude-standard']).split('\n').filter(Boolean).map((p) => `untracked ${p}`).join('\n'),
+  ].filter(Boolean).join('\n');
   const after = await afterRun({ task, derivedKey: key, targetDir, dest });
   const proofs = (findings ?? []).flatMap((f, index) => (f?.tier === 'CONFIRMED' ? [{ index, resolves: resolveProof(f.proof, dest) }] : []));
-  const diff = git(dest, ['log', '-p', '--format=commit %H%n%s', '--reverse', '-n', '20']);
   mkdirSync(join(runDir, 'diffs'), { recursive: true });
   writeFileSync(join(runDir, 'diffs', `${unit.id}.patch`), diff);
   const usage = result.usage ?? {};
