@@ -12,7 +12,7 @@ Code-ops is a repository and marketplace, not a running product service. It has 
 
 ## CI evidence
 
-GitHub Actions is the primary operational signal. The `validate` workflow gives named job and step results for package shape, generated-output drift, dependency policy, vault conformance, and regression evals. The Ubuntu and Windows jobs both run the long-horizon runtime eval. A third job, `host-evals-macos`, runs the host-facing evals on the weekly schedule and on manual dispatch only, so a macOS-only regression surfaces within a week rather than never. Evidence: `.github/workflows/validate.yml:29-245`, `.github/workflows/validate.yml:244-267`, and `.github/workflows/validate.yml:269-439`.
+GitHub Actions is the primary operational signal. The `validate` workflow gives named job and step results for package shape, generated-output drift, dependency policy, vault conformance, and regression evals. The Ubuntu and Windows jobs both run the long-horizon runtime eval. A third job, `host-evals-macos`, runs the host-facing evals on the weekly schedule and on manual dispatch only, so a macOS-only regression surfaces within a week rather than never. Evidence: `.github/workflows/validate.yml:29-251`, `.github/workflows/validate.yml:250-273`, and `.github/workflows/validate.yml:275-445`.
 
 The local review gate provides separate deep-review and OpSec signals before a pull request.
 Its plan binds base SHA, HEAD SHA, binary diff, and changed paths. Its receipts bind reviewer,

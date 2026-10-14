@@ -587,7 +587,7 @@ Hosted CI keeps deterministic validation. `validate.yml` runs the structural gat
 regression evals, including the local-review and judgment-orchestration fixture evals.
 Provider action examples remain compatibility paths, not a substitute for local model
 judgment. Evidence: `.github/workflows/validate.yml:23-67` and
-`.github/workflows/validate.yml:147-159`.
+`.github/workflows/validate.yml:153-165`.
 
 ## Acceptance and result
 

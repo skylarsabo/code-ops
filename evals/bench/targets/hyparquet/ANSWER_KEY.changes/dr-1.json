@@ -1,0 +1,26 @@
+{
+  "id": "dr-1",
+  "kind": "review",
+  "edits": [
+    {
+      "file": "src/count.js",
+      "find": null,
+      "replace": "/**\n * @import {BaseParquetReadOptions} from '../src/types.js'\n */\n\nimport { columnsNeededForFilter } from './filter.js'\nimport { parquetMetadataAsync } from './metadata.js'\nimport { parquetReadObjects } from './read.js'\nimport { clampRowRange, rowGroupSlices } from './utils.js'\n\n/**\n * Counts the rows in a row range, optionally only the rows that match a filter.\n * Without a filter the count comes from the metadata and no data is read.\n * With a filter, rowStart and rowEnd bound the physical rows that are tested.\n * The filter columns are read one row group at a time.\n *\n * @param {BaseParquetReadOptions} options\n * @returns {Promise<number>} the number of rows in the range that match\n */\nexport async function parquetCount(options) {\n  if (!options.file || !(options.file.byteLength >= 0)) {\n    throw new Error('parquet expected AsyncBuffer')\n  }\n  options.metadata ??= await parquetMetadataAsync(options.file, options)\n\n  const { metadata, filter, rowStart = 0 } = options\n  if (rowStart < 0) throw new Error('parquet rowStart must be positive')\n  const range = clampRowRange(rowStart, options.rowEnd, Number(metadata.num_rows))\n  if (!range) return 0\n  const [start, end] = range\n  if (!filter) return end - start\n\n  const columns = columnsNeededForFilter(filter)\n  let count = 0\n  for (const [sliceStart, sliceEnd] of rowGroupSlices(metadata, start, end)) {\n    const rows = await parquetReadObjects({ ...options, columns, rowStart: sliceStart, rowEnd: sliceEnd })\n    count += rows.length\n  }\n  return count\n}\n"
+    },
+    {
+      "file": "src/index.js",
+      "find": "export { parquetQuery } from './query.js'",
+      "replace": "export { parquetCount } from './count.js'\nexport { parquetQuery } from './query.js'"
+    },
+    {
+      "file": "src/utils.js",
+      "find": " * @import {AsyncBuffer, Awaitable, DecodedArray} from '../src/types.js'",
+      "replace": " * @import {AsyncBuffer, Awaitable, DecodedArray, FileMetaData} from '../src/types.js'"
+    },
+    {
+      "file": "src/utils.js",
+      "find": "  return output\n}",
+      "replace": "  return output\n}\n\n/**\n * Clamp a row range to the rows of a file.\n * Returns undefined when no rows are left in the range.\n *\n * @param {number} rowStart first row of the range\n * @param {number | undefined} rowEnd end of the range (exclusive), defaults to the end of the file\n * @param {number} numRows number of rows in the file\n * @returns {[number, number] | undefined}\n */\nexport function clampRowRange(rowStart, rowEnd, numRows) {\n  const end = Math.min(rowEnd ?? numRows, numRows)\n  if (rowStart >= end) return undefined\n  return [rowStart, end]\n}\n\n/**\n * Split a row range into the pieces that fall inside each row group.\n * Row groups that do not overlap the range are left out.\n *\n * @param {FileMetaData} metadata\n * @param {number} rowStart first row of the range\n * @param {number} rowEnd end of the range (exclusive)\n * @returns {[number, number][]} one [start, end) range per overlapping row group\n */\nexport function rowGroupSlices(metadata, rowStart, rowEnd) {\n  /** @type {[number, number][]} */\n  const slices = []\n  let groupStart = 0\n  for (const group of metadata.row_groups) {\n    const groupEnd = groupStart + Number(group.num_rows)\n    if (groupStart >= rowEnd) break\n    if (groupEnd > rowStart) slices.push([Math.max(rowStart, groupStart), Math.min(rowEnd, groupEnd)])\n    groupStart = groupEnd\n  }\n  return slices\n}"
+    }
+  ]
+}

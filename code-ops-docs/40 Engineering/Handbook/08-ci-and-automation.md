@@ -42,7 +42,7 @@ record-collection eval costs about 754 seconds of a 960-second Windows job, agai
 invocation lines in the workflow. Ubuntu still runs it on every change. The weekly
 schedule and a manual dispatch run it on Windows unconditionally, so a platform-side
 regression cannot hide behind the gate. Evidence:
-`.github/workflows/validate.yml:397-430`.
+`.github/workflows/validate.yml:403-436`.
 
 The documentation manifest is deliberately outside the trigger list. It re-syncs on
 nearly every change, and a manifest-only edit cannot alter record behavior that the
@@ -55,7 +55,7 @@ minutes. So `host-evals-macos` runs on the weekly schedule and on manual dispatc
 never per pull request. It runs `lint-plugins.mjs` and the host-facing evals: skim,
 digest, the digest hook, context-query, the context-query MCP server, the ladder card,
 the context audit, the over-build scanner, the deferral harvest, and atlas-check.
-Evidence: `.github/workflows/validate.yml:244-267`.
+Evidence: `.github/workflows/validate.yml:250-273`.
 
 The job earns its cost. The first macOS host-eval run found that `scan-overbuild.mjs`
 matched nothing there, because `git grep -E` on macOS runs the system regular-expression

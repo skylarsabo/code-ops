@@ -1,0 +1,222 @@
+[
+  {
+    "id": "bh-scan-candidate-edge",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/scan.js",
+    "find": "} else if (rowStart >= candidate.rowEnd) {",
+    "replace": "} else if (rowStart > candidate.rowEnd) {",
+    "oracle": "bh-scan-candidate-edge.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-scan-column-await",
+    "kind": "defect",
+    "class": "missing-await",
+    "base": null,
+    "file": "src/scan.js",
+    "find": "const result = await asyncColumn.data",
+    "replace": "const result = asyncColumn.data",
+    "oracle": "bh-scan-column-await.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-or-group-skip",
+    "kind": "defect",
+    "class": "inverted-guard",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "return filter.$or.every(subFilter => canSkipRowGroup(",
+    "replace": "return filter.$or.some(subFilter => canSkipRowGroup(",
+    "oracle": "bh-or-group-skip.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-strict-default",
+    "kind": "defect",
+    "class": "wrong-default",
+    "base": null,
+    "file": "src/read.js",
+    "find": "filter, filterStrict = true } = options",
+    "replace": "filter, filterStrict = false } = options",
+    "oracle": "bh-strict-default.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-bloom-truncated-silent",
+    "kind": "defect",
+    "class": "swallowed-error",
+    "base": null,
+    "file": "src/bloom.js",
+    "find": "    throw new Error(`parquet bloom filter truncated: need ${numBytes} bytes, have ${view.byteLength - offset}`)",
+    "replace": "    return undefined",
+    "oracle": "bh-bloom-truncated-silent.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-equals-bytes-length",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/utils.js",
+    "find": "if (a instanceof Uint8Array && b instanceof Uint8Array) {\n    if (a.length !== b.length) return false\n",
+    "replace": "if (a instanceof Uint8Array && b instanceof Uint8Array) {\n",
+    "oracle": "bh-equals-bytes-length.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-intersect-advance-tie",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "if (a[i][1] < b[j][1]) i++",
+    "replace": "if (a[i][1] <= b[j][1]) i++",
+    "oracle": "bh-intersect-advance-tie.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-projection-redundant-columns",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/read.js",
+    "find": "if (requiresProjection && columns) {",
+    "replace": "if (requiresProjection) {",
+    "oracle": "bh-projection-redundant-columns.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-query-return-await",
+    "kind": "decoy",
+    "class": "missing-await",
+    "base": null,
+    "file": "src/query.js",
+    "find": "return await parquetReadObjects(options)",
+    "replace": "return parquetReadObjects(options)",
+    "oracle": "bh-query-return-await.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-query-metadata-alias",
+    "kind": "decoy",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/query.js",
+    "find": "const allColumns = parquetSchema(options.metadata).children.map(c => c.element.name)",
+    "replace": "const allColumns = parquetSchema(metadata).children.map(c => c.element.name)",
+    "oracle": "bh-query-metadata-alias.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-chunk-row-end",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/read.js",
+    "find": "rowEnd: rowStart + columnData.length,",
+    "replace": "rowEnd: rowStart + columnData.length - 1,",
+    "oracle": "bh-chunk-row-end.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-sort-slice-order",
+    "kind": "defect",
+    "class": "wrong-order",
+    "base": null,
+    "file": "src/query.js",
+    "find": "      .sort((a, b) => compare(orderColumn[a], orderColumn[b]))\n      .slice(rowStart, rowEnd)\n",
+    "replace": "      .slice(rowStart, rowEnd)\n      .sort((a, b) => compare(orderColumn[a], orderColumn[b]))\n",
+    "oracle": "bh-sort-slice-order.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-cache-slice-end",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/scan.js",
+    "find": "        rowEnd - cached.rowStart\n",
+    "replace": "        rowEnd - cached.rowEnd\n",
+    "oracle": "bh-cache-slice-end.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-bloom-skip-inverted",
+    "kind": "defect",
+    "class": "inverted-guard",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "if (hash !== undefined && !sbbfContains(bloom.blocks, hash)) return true",
+    "replace": "if (hash !== undefined && sbbfContains(bloom.blocks, hash)) return true",
+    "oracle": "bh-bloom-skip-inverted.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-scan-range-reversed",
+    "kind": "defect",
+    "class": "unsafe-input",
+    "base": null,
+    "file": "src/scan.js",
+    "find": "if (!Number.isSafeInteger(rowEnd) || rowEnd < rowStart) {",
+    "replace": "if (!Number.isSafeInteger(rowEnd)) {",
+    "oracle": "bh-scan-range-reversed.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-unknown-leaf-filter",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "    const columnIndex = physicalColumns.indexOf(field)\n    if (columnIndex === -1) continue\n",
+    "replace": "    const columnIndex = physicalColumns.indexOf(field)\n",
+    "oracle": "bh-unknown-leaf-filter.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-filter-limit-break",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/query.js",
+    "find": "if (filteredRows.length >= rowEnd) break",
+    "replace": "if (filteredRows.length > rowEnd) break",
+    "oracle": "bh-filter-limit-break.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-scan-offset-fallback",
+    "kind": "decoy",
+    "class": "wrong-default",
+    "base": null,
+    "file": "src/scan.js",
+    "find": "    useBloomFilters: false,\n    useOffsetIndex: options.useOffsetIndex ?? true,\n",
+    "replace": "    useBloomFilters: false,\n    useOffsetIndex: options.useOffsetIndex ?? false,\n",
+    "oracle": "bh-scan-offset-fallback.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-tojson-branch-order",
+    "kind": "decoy",
+    "class": "wrong-order",
+    "base": null,
+    "file": "src/utils.js",
+    "find": "  if (obj instanceof Uint8Array) return Array.from(obj)\n  if (obj instanceof Date) return obj.toISOString()\n",
+    "replace": "  if (obj instanceof Date) return obj.toISOString()\n  if (obj instanceof Uint8Array) return Array.from(obj)\n",
+    "oracle": "bh-tojson-branch-order.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-literal-condition-form",
+    "kind": "decoy",
+    "class": "inverted-guard",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "if (typeof condition !== 'object' || condition === null || Array.isArray(condition)) {",
+    "replace": "if (!(typeof condition === 'object' && condition !== null && !Array.isArray(condition))) {",
+    "oracle": "bh-literal-condition-form.test.js",
+    "symptom": null
+  }
+]

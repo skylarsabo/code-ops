@@ -1,0 +1,26 @@
+{
+  "id": "sh-limit-ref",
+  "kind": "reference",
+  "edits": [
+    {
+      "file": "src/read.js",
+      "find": "  const { rowStart = 0, rowEnd, columns, onChunk, onComplete, rowFormat, filter, filterStrict = true } = options",
+      "replace": "  const { rowStart = 0, rowEnd, columns, onChunk, onComplete, rowFormat, filter, filterStrict = true, limit } = options"
+    },
+    {
+      "file": "src/read.js",
+      "find": "  const filterColumns = columnsNeededForFilter(filter)",
+      "replace": "  if (limit !== undefined && limit !== Infinity && !(Number.isInteger(limit) && limit >= 0)) {\n    throw new Error('parquet limit must be a non-negative integer')\n  }\n\n  const filterColumns = columnsNeededForFilter(filter)"
+    },
+    {
+      "file": "src/read.js",
+      "find": "    onComplete(rows)\n",
+      "replace": "    onComplete(rows.slice(0, limit))\n"
+    },
+    {
+      "file": "src/types.d.ts",
+      "find": "  rowEnd?: number // last requested row index (exclusive)",
+      "replace": "  rowEnd?: number // last requested row index (exclusive)\n  limit?: number // maximum number of rows passed to onComplete, counted after rowStart, rowEnd, and filter (default unlimited)"
+    }
+  ]
+}

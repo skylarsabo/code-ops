@@ -1,0 +1,36 @@
+{
+  "id": "dr-2",
+  "kind": "review",
+  "edits": [
+    {
+      "file": "src/query.js",
+      "find": " * Accepts optional orderBy column name to sort the results.",
+      "replace": " * Accepts optional orderBy column name to sort the results, with descending to\n * reverse the order and nullsFirst to move missing values to the front."
+    },
+    {
+      "file": "src/query.js",
+      "find": "@param {BaseParquetReadOptions & { orderBy?: string }} options",
+      "replace": "@param {BaseParquetReadOptions & { orderBy?: string, descending?: boolean, nullsFirst?: boolean }} options"
+    },
+    {
+      "file": "src/query.js",
+      "find": "const { metadata, rowStart = 0, columns, orderBy, filter } = options",
+      "replace": "const { metadata, rowStart = 0, columns, orderBy, descending = false, nullsFirst = false, filter } = options"
+    },
+    {
+      "file": "src/query.js",
+      "find": "    results.sort((a, b) => compare(a[orderBy], b[orderBy]))",
+      "replace": "    const compareRows = comparator(descending, nullsFirst)\n    results.sort((a, b) => compareRows(a[orderBy], b[orderBy]))"
+    },
+    {
+      "file": "src/query.js",
+      "find": "    const sortedIndices = Array.from(orderColumn, (_, index) => index)\n      .sort((a, b) => compare(orderColumn[a], orderColumn[b]))",
+      "replace": "    const compareValues = comparator(descending, nullsFirst)\n    const sortedIndices = Array.from(orderColumn, (_, index) => index)\n      .sort((a, b) => compareValues(orderColumn[a], orderColumn[b]) || a - b)"
+    },
+    {
+      "file": "src/query.js",
+      "find": " * @param {any} a\n * @param {any} b\n * @returns {number}\n */\nfunction compare(a, b) {\n  if (a < b) return -1\n  if (a > b) return 1\n  return 0 // TODO: null handling\n}",
+      "replace": " * Builds the comparator for orderBy. Null and undefined values sort last, or\n * first with nullsFirst, in both directions. Other values sort ascending, or\n * descending with descending.\n *\n * @param {boolean} [descending]\n * @param {boolean} [nullsFirst]\n * @returns {(a: any, b: any) => number}\n */\nfunction comparator(descending, nullsFirst) {\n  const direction = descending ? -1 : 1\n  const nullOrder = nullsFirst ? -1 : 1\n  return (a, b) => {\n    const aMissing = a === null || a === undefined\n    const bMissing = b === null || b === undefined\n    if (aMissing || bMissing) return nullOrder * (Number(aMissing) - Number(bMissing))\n    if (a < b) return -direction\n    if (a > b) return direction\n    return 0\n  }\n}"
+    }
+  ]
+}
