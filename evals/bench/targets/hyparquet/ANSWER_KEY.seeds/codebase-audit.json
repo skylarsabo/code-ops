@@ -262,5 +262,181 @@
     "replace": "return parquetReadObjects(options)",
     "oracle": "ca-query-return-await.test.js",
     "symptom": null
+  },
+  {
+    "id": "ca-metadata-fetch-margin",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "if (metadataLength + 8 > initialFetchSize) {",
+    "replace": "if (metadataLength > initialFetchSize) {",
+    "oracle": "ca-metadata-fetch-margin.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-wkb-unknown-type",
+    "kind": "defect",
+    "class": "swallowed-error",
+    "base": null,
+    "file": "src/wkb.js",
+    "find": "    throw new Error(`Unsupported geometry type: ${flags.type}`)",
+    "replace": "    return undefined",
+    "oracle": "ca-wkb-unknown-type.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-map-length-check",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/assemble.js",
+    "find": "    if (keys.length !== values.length) {\n      throw new Error('parquet map column key/value length mismatch')\n    }\n",
+    "replace": "",
+    "oracle": "ca-map-length-check.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-zigzag-sign",
+    "kind": "defect",
+    "class": "unsafe-input",
+    "base": null,
+    "file": "src/thrift.js",
+    "find": "return zigzag >>> 1 ^ -(zigzag & 1)",
+    "replace": "return zigzag >> 1 ^ -(zigzag & 1)",
+    "oracle": "ca-zigzag-sign.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-decimal-sign-edge",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/convert.js",
+    "find": "if (value >= 2n ** BigInt(bits - 1)) {",
+    "replace": "if (value > 2n ** BigInt(bits - 1)) {",
+    "oracle": "ca-decimal-sign-edge.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-wkb-zm-dim",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/wkb.js",
+    "find": "if (flags === 3) dim++",
+    "replace": "if (flags >= 3) dim++",
+    "oracle": "ca-wkb-zm-dim.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-uint64-fill-length",
+    "kind": "decoy",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/convert.js",
+    "find": "for (let i = 0; i < arr.length; i++) arr[i] = data[i]",
+    "replace": "for (let i = 0; i < data.length; i++) arr[i] = data[i]",
+    "oracle": "ca-uint64-fill-length.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-metadata-footer-clamp",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "const footerOffset = Math.max(0, asyncBuffer.byteLength - initialFetchSize)",
+    "replace": "const footerOffset = asyncBuffer.byteLength - initialFetchSize",
+    "oracle": "ca-metadata-footer-clamp.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-metadata-second-fetch-await",
+    "kind": "defect",
+    "class": "missing-await",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "const metadataBuffer = await asyncBuffer.slice(metadataOffset, footerOffset)",
+    "replace": "const metadataBuffer = asyncBuffer.slice(metadataOffset, footerOffset)",
+    "oracle": "ca-metadata-second-fetch-await.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-asm-align-start",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/rowgroup.js",
+    "find": "const start = skipped - resolved[i].skipped",
+    "replace": "const start = skipped - resolved[0].skipped",
+    "oracle": "ca-asm-align-start.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-list-long-form",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/thrift.js",
+    "find": "if (listSize === 15) {",
+    "replace": "if (listSize >= 15) {",
+    "oracle": "ca-list-long-form.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-map-null-coalesce",
+    "kind": "decoy",
+    "class": "wrong-default",
+    "base": null,
+    "file": "src/assemble.js",
+    "find": "obj[keys[i][j]] = value === undefined ? null : value",
+    "replace": "obj[keys[i][j]] = value ?? null",
+    "oracle": "ca-map-null-coalesce.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-cache-key-suffix",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/utils.js",
+    "find": "return `${size + start},${size}`",
+    "replace": "return `${size + start},${start}`",
+    "oracle": "ca-cache-key-suffix.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-delta-length-order",
+    "kind": "defect",
+    "class": "wrong-order",
+    "base": null,
+    "file": "src/delta.js",
+    "find": "    output[i] = new Uint8Array(reader.view.buffer, reader.view.byteOffset + reader.offset, lengths[i])\n    reader.offset += lengths[i]\n",
+    "replace": "    reader.offset += lengths[i]\n    output[i] = new Uint8Array(reader.view.buffer, reader.view.byteOffset + reader.offset, lengths[i])\n",
+    "oracle": "ca-delta-length-order.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-head-length-missing",
+    "kind": "defect",
+    "class": "inverted-guard",
+    "base": null,
+    "file": "src/utils.js",
+    "find": "if (!length) {",
+    "replace": "if (length) {",
+    "oracle": "ca-head-length-missing.test.js",
+    "symptom": null
+  },
+  {
+    "id": "ca-rle-width-bytes",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/encoding.js",
+    "find": "const width = bitWidth + 7 >> 3",
+    "replace": "const width = bitWidth + 8 >> 3",
+    "oracle": "ca-rle-width-bytes.test.js",
+    "symptom": null
   }
 ]

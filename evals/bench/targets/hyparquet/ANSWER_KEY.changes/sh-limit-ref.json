@@ -5,13 +5,18 @@
   "edits": [
     {
       "file": "src/read.js",
+      "find": "import { concat } from './utils.js'",
+      "replace": "import { concat, validateLimit } from './utils.js'"
+    },
+    {
+      "file": "src/read.js",
       "find": "  const { rowStart = 0, rowEnd, columns, onChunk, onComplete, rowFormat, filter, filterStrict = true } = options",
       "replace": "  const { rowStart = 0, rowEnd, columns, onChunk, onComplete, rowFormat, filter, filterStrict = true, limit } = options"
     },
     {
       "file": "src/read.js",
       "find": "  const filterColumns = columnsNeededForFilter(filter)",
-      "replace": "  if (limit !== undefined && limit !== Infinity && !(Number.isInteger(limit) && limit >= 0)) {\n    throw new Error('parquet limit must be a non-negative integer')\n  }\n\n  const filterColumns = columnsNeededForFilter(filter)"
+      "replace": "  validateLimit(limit)\n\n  const filterColumns = columnsNeededForFilter(filter)"
     },
     {
       "file": "src/read.js",
@@ -19,9 +24,29 @@
       "replace": "    onComplete(rows.slice(0, limit))\n"
     },
     {
+      "file": "src/utils.js",
+      "find": "/**\n * Concatenate two arrays fast.",
+      "replace": "/**\n * Check a row limit option. Undefined and Infinity mean no limit.\n *\n * @param {unknown} limit\n */\nexport function validateLimit(limit) {\n  if (limit === undefined || limit === Infinity) return\n  if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 0) {\n    throw new Error('parquet limit must be a non-negative integer')\n  }\n}\n\n/**\n * Concatenate two arrays fast."
+    },
+    {
+      "file": "src/query.js",
+      "find": "import { parquetReadColumn, parquetReadObjects, rowIndex } from './read.js'",
+      "replace": "import { parquetReadColumn, parquetReadObjects, rowIndex } from './read.js'\nimport { validateLimit } from './utils.js'"
+    },
+    {
+      "file": "src/query.js",
+      "find": "export async function parquetQuery(options) {\n  if (!options.file",
+      "replace": "export async function parquetQuery(options) {\n  const { limit } = options\n  validateLimit(limit)\n  // limit applies to the final rows, so the inner reads must not see it\n  const rows = await queryRows({ ...options, limit: undefined })\n  return rows.slice(0, limit)\n}\n\n/**\n * @param {BaseParquetReadOptions & { orderBy?: string }} options\n * @returns {Promise<ParquetRow[]>}\n */\nasync function queryRows(options) {\n  if (!options.file"
+    },
+    {
       "file": "src/types.d.ts",
       "find": "  rowEnd?: number // last requested row index (exclusive)",
-      "replace": "  rowEnd?: number // last requested row index (exclusive)\n  limit?: number // maximum number of rows passed to onComplete, counted after rowStart, rowEnd, and filter (default unlimited)"
+      "replace": "  rowEnd?: number // last requested row index (exclusive)\n  limit?: number // maximum number of rows passed to onComplete or returned by parquetQuery, counted after rowStart, rowEnd, filter, and orderBy (default unlimited)"
+    },
+    {
+      "file": "src/types.d.ts",
+      "find": "'useOffsetIndex' | 'includeRowIndex'> & {",
+      "replace": "'useOffsetIndex' | 'includeRowIndex' | 'limit'> & {"
     }
   ]
 }

@@ -108,5 +108,93 @@
     "replace": "",
     "oracle": "dr-3-empty-rows.test.js",
     "symptom": null
+  },
+  {
+    "id": "dr-1-nested-null-count",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": "dr-1",
+    "file": "src/count.js",
+    "find": "c.meta_data?.path_in_schema.length === 1 && c.meta_data.path_in_schema[0] === column",
+    "replace": "c.meta_data?.path_in_schema[0] === column",
+    "oracle": "dr-1-nested-null-count.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-whole-span",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": "dr-1",
+    "file": "src/utils.js",
+    "find": "return rowStart <= groupStart && rowEnd >= groupEnd",
+    "replace": "return rowStart <= groupStart && rowEnd >= groupStart",
+    "oracle": "dr-1-whole-span.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-empty-span",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-1",
+    "file": "src/count.js",
+    "find": "    if (span.end <= span.start) continue\n",
+    "replace": "",
+    "oracle": "dr-1-empty-span.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-missing-undefined",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": "dr-2",
+    "file": "src/order.js",
+    "find": "  return value === null || value === undefined",
+    "replace": "  return value === null",
+    "oracle": "dr-2-missing-undefined.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-locale-collation",
+    "kind": "defect",
+    "class": "wrong-default",
+    "base": "dr-2",
+    "file": "src/order.js",
+    "find": "  if (a < b) return -1",
+    "replace": "  if (typeof a === 'string' && typeof b === 'string' && a !== b) return a.localeCompare(b)\n  if (a < b) return -1",
+    "oracle": "dr-2-locale-collation.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-flag-strict",
+    "kind": "decoy",
+    "class": "inverted-guard",
+    "base": "dr-2",
+    "file": "src/order.js",
+    "find": "(descending || nullsFirst)",
+    "replace": "(descending === true || nullsFirst === true)",
+    "oracle": "dr-2-flag-strict.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-empty-group",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-3",
+    "file": "src/locate.js",
+    "find": "    if (groupEnd === groupStart) continue\n",
+    "replace": "",
+    "oracle": "dr-3-empty-group.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-no-ranges",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "dr-3",
+    "file": "src/query.js",
+    "find": "  if (!rowRanges.length) return sparseData\n",
+    "replace": "",
+    "oracle": "dr-3-no-ranges.test.js",
+    "symptom": null
   }
 ]

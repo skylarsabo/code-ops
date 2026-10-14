@@ -218,5 +218,137 @@
     "replace": "if (!(typeof condition === 'object' && condition !== null && !Array.isArray(condition))) {",
     "oracle": "bh-literal-condition-form.test.js",
     "symptom": null
+  },
+  {
+    "id": "bh-offset-index-fields",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/indexes.js",
+    "find": "      compressed_page_size: loc.field_2,\n      first_row_index: loc.field_3,\n",
+    "replace": "      compressed_page_size: loc.field_3,\n      first_row_index: loc.field_2,\n",
+    "oracle": "bh-offset-index-fields.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-delta-33bit-zigzag",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/delta.js",
+    "find": "reader.view.getUint8(start + 4) >>> 4 & 1 : 0",
+    "replace": "reader.view.getUint8(start + 4) >>> 3 & 1 : 0",
+    "oracle": "bh-delta-33bit-zigzag.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-page-range-touch",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/plan.js",
+    "find": "if (pageEnd > rangeStart && pageStart < rangeEnd) {",
+    "replace": "if (pageEnd >= rangeStart && pageStart < rangeEnd) {",
+    "oracle": "bh-page-range-touch.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-stats-gte-edge",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "if (operator === '$gte' && relationalBoundsAreSafe && maxComparison !== undefined && maxComparison < 0) return true",
+    "replace": "if (operator === '$gte' && relationalBoundsAreSafe && maxComparison !== undefined && maxComparison <= 0) return true",
+    "oracle": "bh-stats-gte-edge.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-bloom-int64-wrap",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/bloom.js",
+    "find": "setBigUint64(0, BigInt.asUintN(64, bigValue), true)",
+    "replace": "setBigUint64(0, bigValue, true)",
+    "oracle": "bh-bloom-int64-wrap.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-coalesce-touching",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/plan.js",
+    "find": "if (last && range.startByte <= last.endByte + maxGap && ",
+    "replace": "if (last && range.startByte < last.endByte + maxGap + 1 && ",
+    "oracle": "bh-coalesce-touching.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-rle-width-bytes",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/encoding.js",
+    "find": "const width = bitWidth + 7 >> 3",
+    "replace": "const width = bitWidth + 8 >> 3",
+    "oracle": "bh-rle-width-bytes.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-split-stream-layout",
+    "kind": "defect",
+    "class": "wrong-order",
+    "base": null,
+    "file": "src/encoding.js",
+    "find": "bytes[i * width + b] = reader.view.getUint8(reader.offset++)",
+    "replace": "bytes[b * count + i] = reader.view.getUint8(reader.offset++)",
+    "oracle": "bh-split-stream-layout.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-column-start-zero",
+    "kind": "defect",
+    "class": "wrong-default",
+    "base": null,
+    "file": "src/plan.js",
+    "find": "const columnOffset = meta.dictionary_page_offset || meta.data_page_offset",
+    "replace": "const columnOffset = meta.dictionary_page_offset ?? meta.data_page_offset",
+    "oracle": "bh-column-start-zero.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-prefetch-slice-edge",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/plan.js",
+    "find": "startByte <= start && end <= endByte)",
+    "replace": "startByte <= start && end < endByte)",
+    "oracle": "bh-prefetch-slice-edge.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-bloom-min-size",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": null,
+    "file": "src/bloom.js",
+    "find": "typeof numBytes !== 'number' || numBytes <= 0 || numBytes % 32 !== 0",
+    "replace": "typeof numBytes !== 'number' || numBytes < 32 || numBytes % 32 !== 0",
+    "oracle": "bh-bloom-min-size.test.js",
+    "symptom": null
+  },
+  {
+    "id": "bh-read-return-promise",
+    "kind": "decoy",
+    "class": "missing-await",
+    "base": null,
+    "file": "src/read.js",
+    "find": "    await awaitAllColumns(asyncGroups)\n    return\n",
+    "replace": "    return awaitAllColumns(asyncGroups)\n",
+    "oracle": "bh-read-return-promise.test.js",
+    "symptom": null
   }
 ]

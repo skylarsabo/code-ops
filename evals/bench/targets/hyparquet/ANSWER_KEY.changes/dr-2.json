@@ -4,6 +4,21 @@
   "message": "Add descending and nullsFirst ordering options to parquetQuery",
   "edits": [
     {
+      "file": "src/order.js",
+      "find": null,
+      "replace": "/**\n * Ordering options of parquetQuery.\n *\n * @typedef {{ orderBy?: string, descending?: boolean, nullsFirst?: boolean }} OrderOptions\n */\n\n/**\n * Whether orderBy treats a value as missing. Flat columns decode a missing\n * value as null. Columns with nested structure decode it as undefined.\n *\n * @param {any} value\n * @returns {boolean}\n */\nexport function isMissing(value) {\n  return value === null || value === undefined\n}\n\n/**\n * Compares two present values in ascending order. Strings compare by UTF-16\n * code unit, as the relational operators and the filter comparisons do, so the\n * order never depends on the locale of the host.\n *\n * @param {any} a\n * @param {any} b\n * @returns {number} negative when a sorts first, positive when b sorts first, 0 for a tie\n */\nexport function compareAscending(a, b) {\n  if (a < b) return -1\n  if (a > b) return 1\n  return 0\n}\n\n/**\n * Throws when the ordering options contradict each other.\n * descending and nullsFirst only apply to a column order, so a flag without\n * orderBy is an error. A flag that is not a boolean is an error too.\n *\n * @param {OrderOptions} options\n */\nexport function checkOrderOptions({ orderBy, descending, nullsFirst }) {\n  for (const [name, flag] of [['descending', descending], ['nullsFirst', nullsFirst]]) {\n    if (flag !== undefined && typeof flag !== 'boolean') {\n      throw new Error(`parquet ${name} must be a boolean`)\n    }\n  }\n  if (!orderBy && (descending || nullsFirst)) {\n    throw new Error('parquet descending and nullsFirst require orderBy')\n  }\n}\n"
+    },
+    {
+      "file": "src/query.js",
+      "find": "import { parquetReadColumn, parquetReadObjects, rowIndex } from './read.js'",
+      "replace": "import { checkOrderOptions, compareAscending, isMissing } from './order.js'\nimport { parquetReadColumn, parquetReadObjects, rowIndex } from './read.js'"
+    },
+    {
+      "file": "src/query.js",
+      "find": "    throw new Error('parquet expected AsyncBuffer')\n  }\n",
+      "replace": "    throw new Error('parquet expected AsyncBuffer')\n  }\n  checkOrderOptions(options)\n"
+    },
+    {
       "file": "src/query.js",
       "find": " * Accepts optional orderBy column name to sort the results.",
       "replace": " * Accepts optional orderBy column name to sort the results, with descending to\n * reverse the order and nullsFirst to move missing values to the front."
@@ -31,7 +46,7 @@
     {
       "file": "src/query.js",
       "find": " * @param {any} a\n * @param {any} b\n * @returns {number}\n */\nfunction compare(a, b) {\n  if (a < b) return -1\n  if (a > b) return 1\n  return 0 // TODO: null handling\n}",
-      "replace": " * Builds the comparator for orderBy. Null and undefined values sort last, or\n * first with nullsFirst, in both directions. Other values sort ascending, or\n * descending with descending.\n *\n * @param {boolean} [descending]\n * @param {boolean} [nullsFirst]\n * @returns {(a: any, b: any) => number}\n */\nfunction comparator(descending, nullsFirst) {\n  const direction = descending ? -1 : 1\n  const nullOrder = nullsFirst ? -1 : 1\n  return (a, b) => {\n    const aMissing = a === null || a === undefined\n    const bMissing = b === null || b === undefined\n    if (aMissing || bMissing) return nullOrder * (Number(aMissing) - Number(bMissing))\n    if (a < b) return -direction\n    if (a > b) return direction\n    return 0\n  }\n}"
+      "replace": " * Builds the comparator for orderBy. Missing values sort last, or\n * first with nullsFirst, in both directions. Other values sort ascending, or\n * descending with descending.\n *\n * @param {boolean} [descending]\n * @param {boolean} [nullsFirst]\n * @returns {(a: any, b: any) => number}\n */\nfunction comparator(descending, nullsFirst) {\n  const direction = descending ? -1 : 1\n  const nullOrder = nullsFirst ? -1 : 1\n  return (a, b) => {\n    const aMissing = isMissing(a)\n    const bMissing = isMissing(b)\n    if (aMissing || bMissing) return nullOrder * (Number(aMissing) - Number(bMissing))\n    return direction * compareAscending(a, b)\n  }\n}"
     }
   ]
 }
