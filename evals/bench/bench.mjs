@@ -28,7 +28,7 @@
 // so `check` and CI never import them:
 //   plan   --run <dir> [--reps 4] [--pilot] [--model claude-opus-5-5] [--cap-usd 5] [--timeout-min 60]
 //          [--target <name>] [--isolation config-dir|bare] [--permission-mode bypassPermissions]
-//          --target plans only the tasks on that matrix target.
+//          [--tasks <id,id,...>]  --target and --tasks narrow the plan to that target or those tasks.
 //          config-dir (default) gives each unit a fresh, empty CLAUDE_CONFIG_DIR. bare adds --bare,
 //          which also drops plugin agents (observed on 2.1.293), so the skill arm loses its agents.
 //   run    --run <dir> [--limit <n>]       resumable; one result file per unit
@@ -553,7 +553,7 @@ async function modelVerb(verb, rest) {
   if (verb === 'plan') {
     const { planBench } = await import('./lib/runner.mjs');
     const plan = planBench({
-      runDir, pilot: Boolean(f.pilot), reps: Number(f.reps ?? (f.pilot ? 1 : 4)), target: f.target, model: f.model ?? 'claude-opus-5-5',
+      runDir, pilot: Boolean(f.pilot), reps: Number(f.reps ?? (f.pilot ? 1 : 4)), target: f.target, taskIds: f.tasks, model: f.model ?? 'claude-opus-5-5',
       capUsd: Number(f['cap-usd'] ?? 5), timeoutMs: Number(f['timeout-min'] ?? 60) * 60_000,
       isolation: f.isolation ?? 'config-dir', permissionMode: f['permission-mode'] ?? 'bypassPermissions',
     });

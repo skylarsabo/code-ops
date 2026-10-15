@@ -307,6 +307,11 @@ export async function cases(check) {
   let refused = false;
   try { planTasks(m, 'c'); } catch { refused = true; }
   check('plan: an unknown --target is refused', refused);
+  check('plan: --tasks keeps only the listed ids', planTasks(m, undefined, 'b1, a2').map((t) => t.id).join() === 'b1,a2');
+  check('plan: --target and --tasks combine', planTasks(m, 'a', 'a2').map((t) => t.id).join() === 'a2');
+  const refuses = (target, ids) => { try { planTasks(m, target, ids); return false; } catch { return true; } };
+  check('plan: a --tasks id off the target is refused', refuses('a', 'a1,b1'));
+  check('plan: an unknown or empty --tasks is refused', refuses(undefined, 'z9') && refuses(undefined, ','));
 
   // Target size: JavaScript outside test/, dist/, docs/, and ANSWER_KEY.* counts.
   const tree = mkdtempSync(join(tmpdir(), 'bench-lines-'));

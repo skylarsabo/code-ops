@@ -106,18 +106,30 @@ export function claudeBin() {
   return execFileSync('where', ['claude'], { encoding: 'utf8' }).split(/\r?\n/).find((l) => /\.(exe|cmd)$/i.test(l.trim())).trim();
 }
 
-/** The matrix tasks a plan covers: all of them, or only those on the named target. */
-export function planTasks(matrix, target) {
-  if (target === undefined) return matrix.tasks;
-  if (!matrix.targets.some((t) => t.name === target)) throw new Error(`--target ${target}: not a matrix target`);
-  return matrix.tasks.filter((t) => t.target === target);
+/**
+ * The matrix tasks a plan covers: all of them, narrowed to the named target and to the listed
+ * task ids (comma-separated) when given. An unknown name or id is refused, not ignored.
+ */
+export function planTasks(matrix, target, taskIds) {
+  let tasks = matrix.tasks;
+  if (target !== undefined) {
+    if (!matrix.targets.some((t) => t.name === target)) throw new Error(`--target ${target}: not a matrix target`);
+    tasks = tasks.filter((t) => t.target === target);
+  }
+  if (taskIds !== undefined) {
+    const ids = taskIds.split(',').map((s) => s.trim()).filter(Boolean);
+    const missing = ids.filter((id) => !tasks.some((t) => t.id === id));
+    if (!ids.length || missing.length) throw new Error(`--tasks: not a planned matrix task: ${missing.join(', ') || '(none given)'}`);
+    tasks = tasks.filter((t) => ids.includes(t.id));
+  }
+  return tasks;
 }
 
 /** Write plan.json, the derived keys, and the canary into runDir. */
-export function planBench({ runDir, model, reps, pilot, target, capUsd, timeoutMs, isolation, permissionMode, benchDir = BENCH_DIR }) {
+export function planBench({ runDir, model, reps, pilot, target, taskIds, capUsd, timeoutMs, isolation, permissionMode, benchDir = BENCH_DIR }) {
   if (existsSync(join(runDir, 'plan.json'))) throw new Error(`${runDir} already holds a plan; use a new run folder`);
   const { matrix, targets, answerKey } = loadBench(benchDir);
-  const tasks = planTasks(matrix, target);
+  const tasks = planTasks(matrix, target, taskIds);
   const host = execFileSync(claudeBin(), ['--version'], { encoding: 'utf8' }).trim();
   const canary = newCanary();
   mkdirSync(join(runDir, 'keys'), { recursive: true });
@@ -132,6 +144,7 @@ export function planBench({ runDir, model, reps, pilot, target, capUsd, timeoutM
     pilot: Boolean(pilot),
     reps,
     target: target ?? null,
+    tasks: taskIds ?? null,
     capUsd,
     timeoutMs,
     isolation,
