@@ -1,0 +1,8 @@
+{
+  "name": "tau-prolog-bench-target",
+  "private": true,
+  "main": "modules/core.js",
+  "scripts": {
+    "test": "node --test"
+  }
+}

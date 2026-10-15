@@ -150,10 +150,12 @@ export function planDrift(plan, runDir, benchDir = BENCH_DIR) {
   return Object.keys(plan.bound).filter((k) => stableJson(plan.bound[k]) !== stableJson(now[k])).map((k) => `bound input ${k} drifted since plan`);
 }
 
+/** The exit contract section a task's units get: change for debug and ship, else detection. */
+export const sectionFor = (task) => (['code-ops-suite:debug', 'code-ops-suite:ship'].includes(task.skill) ? 'change' : 'detection');
+
 /** The prompt for one unit: slash command (skill arm only), statement, exit contract. */
 export function promptFor(task, arm, contractText) {
-  const section = ['code-ops-suite:debug', 'code-ops-suite:ship'].includes(task.skill) ? 'change' : 'detection';
-  const body = `${task.statement}\n\n${contractSection(contractText, section)}\n`;
+  const body = `${task.statement}\n\n${contractSection(contractText, sectionFor(task))}\n`;
   return arm === 'skill' ? `/${task.skill} ${body}` : body;
 }
 
@@ -230,7 +232,8 @@ async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, co
   const configDir = join(aux, 'config');
   mkdirSync(configDir);
   const dest = join(box, 'repo');
-  materialize({ task, seeds: answerKey.seeds, changes: answerKey.changes, targetDir, dest });
+  // Both arms get the same sandbox: the contract section is in the prompt and in CLAUDE.md.
+  materialize({ task, seeds: answerKey.seeds, changes: answerKey.changes, targetDir, dest, contract: contractSection(contractText, sectionFor(task)) });
   const base = git(dest, ['rev-parse', 'HEAD']);
   const helper = join(aux, 'key-helper.mjs');
   writeFileSync(helper, `import { readFileSync } from 'node:fs';\nprocess.stdout.write(readFileSync(${JSON.stringify(KEY_FILE)}, 'utf8').trim());\n`);

@@ -197,6 +197,25 @@ export async function cases(check) {
     mutantPair('sandbox: no answer-key path, oracle, PROVENANCE.md, or id; LICENSE kept',
       [sbBh, sbDr, sbSh, sbDb].every((sb) => clean(sb, ids)), clean(leaky, ids));
 
+    // the exit contract as CLAUDE.md: in the initial import, never in a review change
+    const contract = '\nWrite BENCH_FINDINGS.json when you finish.\n\n';
+    const withContract = (task) => materialize({ task, seeds: SEEDS, changes: CHANGES, targetDir: tiny, dest: fresh('bench-sbx-'), contract });
+    const ctDr = withContract(TASKS.dr);
+    const ctSh = withContract(TASKS.sh);
+    const ctText = (sb, rev) => (existsSyncAt(sb, rev, 'CLAUDE.md') ? gitOut(sb.dest, ['show', `${rev}:CLAUDE.md`]) : null);
+    mutantPair('contract: CLAUDE.md holds the trimmed section, committed in the initial import',
+      ctText(ctDr, 'HEAD~1') === 'Write BENCH_FINDINGS.json when you finish.\n' && ctText(ctSh, 'HEAD') === ctText(ctDr, 'HEAD~1') && ctSh.commits === 1,
+      ctText(sbDr, 'HEAD~1') !== null || ctText(sbSh, 'HEAD') !== null);
+    mutantPair('contract: the review change commit does not touch CLAUDE.md',
+      !gitOut(ctDr.dest, ['show', '--name-only', '--format=', 'HEAD']).includes('CLAUDE.md'),
+      gitOut(ctDr.dest, ['show', '--name-only', '--format=', 'HEAD~1']).includes('CLAUDE.md') === false);
+    const shipsAgentFile = fresh('bench-tiny-');
+    writeTree(shipsAgentFile, { ...TINY, 'AGENTS.md': 'Do something else.\n' });
+    let refused = '';
+    try { materialize({ task: TASKS.bh, seeds: SEEDS, changes: CHANGES, targetDir: shipsAgentFile, dest: fresh('bench-sbx-'), contract }); } catch (err) { refused = err.message; }
+    mutantPair('contract: a target that ships an agent instruction file is refused',
+      refused.includes('agent instruction file, AGENTS.md'), (() => { try { withContract(TASKS.bh); return false; } catch { return true; } })(), refused);
+
     // afterRun: oracles and the visible suite
     const keyDb = key(TASKS.db);
     const afterDb = await afterRun({ task: TASKS.db, derivedKey: keyDb, targetDir: tiny, dest: sbDb.dest });
@@ -224,18 +243,30 @@ export async function cases(check) {
 
     // the real target: every task, key bytes, lines, and anchors in the materialized tree
     const matrix = readJson(join(BENCH, 'bench-matrix.json'));
-    const realSeeds = readdirSync(join(REAL_TARGET, 'ANSWER_KEY.seeds')).flatMap((f) => readJson(join(REAL_TARGET, 'ANSWER_KEY.seeds', f)));
-    const realChanges = readdirSync(join(REAL_TARGET, 'ANSWER_KEY.changes')).map((f) => readJson(join(REAL_TARGET, 'ANSWER_KEY.changes', f)));
+    // Every target in the matrix, each with its own seed and change namespace.
+    const keyOf = (name) => {
+      const dir = join(BENCH, 'targets', name);
+      const list = (sub) => (existsSync(join(dir, sub)) ? readdirSync(join(dir, sub)) : []);
+      return {
+        dir,
+        seeds: list('ANSWER_KEY.seeds').flatMap((f) => readJson(join(dir, 'ANSWER_KEY.seeds', f))),
+        changes: list('ANSWER_KEY.changes').map((f) => readJson(join(dir, 'ANSWER_KEY.changes', f))),
+      };
+    };
+    const realKeys = new Map(matrix.targets.map((tg) => [tg.name, keyOf(tg.name)]));
+    const realSeeds = realKeys.get('hyparquet').seeds;
+    const realChanges = realKeys.get('hyparquet').changes;
     const canary = newCanary();
     const wrong = [];
     const shifted = [];
     const identical = [];
     const dirty = [];
     const counts = [];
-    const realIds = [...realSeeds.map((s) => s.id), ...realChanges.map((c) => c.id), ...matrix.tasks.map((t) => t.id)];
+    const realIds = [...[...realKeys.values()].flatMap((k) => [...k.seeds.map((s) => s.id), ...k.changes.map((c) => c.id)]), ...matrix.tasks.map((t) => t.id)];
     const realBuilds = new Map();
     for (const task of matrix.tasks) {
-      const args = { task, seeds: realSeeds, changes: realChanges, targetDir: REAL_TARGET, canary };
+      const k = realKeys.get(task.target);
+      const args = { task, seeds: k.seeds, changes: k.changes, targetDir: k.dir, canary };
       const derived = deriveKey(args);
       identical.push(stableJson(derived) === stableJson(deriveKey(args)));
       counts.push(derived.entries.length === task.seeds.length);
@@ -245,9 +276,9 @@ export async function cases(check) {
         if (lines(sb.dest, e.file)[e.line - 1]?.trim() !== e.anchor || e.anchor === '') wrong.push(`${task.id}:${e.id}@${e.line}`);
         shifted.push(lines(sb.dest, e.file)[e.line]?.trim() === e.anchor);
       }
-      if (!clean(sb, realIds.filter((id) => !/^(bh|ca|dr|db|sh)-\d$/.test(id)))) dirty.push(task.id);
+      if (!clean(sb, realIds.filter((id) => !/^(?:tp-)?(bh|ca|dr|db|sh)-\d$/.test(id)))) dirty.push(task.id);
     }
-    mutantPair('real tasks: every key line holds its anchor in the materialized tree', wrong.length === 0 && matrix.tasks.length === 12, shifted.every(Boolean), wrong.join(' '));
+    mutantPair('real tasks: every key line holds its anchor in the materialized tree', wrong.length === 0 && matrix.tasks.length === matrix.skills.reduce((n, s) => n + s.tasks, 0), shifted.every(Boolean), wrong.join(' '));
     check('real tasks: key bytes are identical across calls', identical.every(Boolean));
     check('real tasks: one key entry per seed', counts.every(Boolean));
     check('real tasks: sandboxes hold no answer-key path, seed id, or change id', dirty.length === 0, dirty.join(' '));

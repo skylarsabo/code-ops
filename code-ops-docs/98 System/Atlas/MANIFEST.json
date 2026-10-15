@@ -1104,8 +1104,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "b30e8edb5ddc0513d32f546c108644ece928492b",
-      "verifiedDigest": "785992e2e2dee1fb149b4e630b61dce2ee423cd89ae83b4b64b7609ceb00df2d",
+      "verifiedAt": "a0b1c06104182d60c19130426e032e6eb418039b",
+      "verifiedDigest": "f84e8df1ed930857e465e76f59d24a26fb3450d446f08d49b83266a1ad33ddc0",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",

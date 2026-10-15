@@ -181,6 +181,8 @@ Both arms end their prompt with the same exit contract, so the scorer reads one 
 
 Repair and build tasks commit their change in the sandbox repository and write `BENCH_SUMMARY.json` with a root-cause `file` and `line` and a summary. The contract states that no remote exists and that the run ends at a committed change.
 
+The sandbox also holds the task's contract section as `CLAUDE.md`, committed in the initial import in both arms, so subagents that the skill dispatches load it too. Pilot-3 showed why: the codebase-audit reviewers never saw the prompt's contract and wrote their proofs outside the sandbox. A vendored target may not ship its own agent instruction file.
+
 Scoring reuses the matching rules of [score.mjs](../../evals/score.mjs): path suffix plus basename, a line tolerance of 3, and an ambiguous flag scored as the decoy.
 
 ## Harness
@@ -244,7 +246,7 @@ The build needs three grants that this design does not assume:
 The known threats and their handling are:
 
 - **Memorization**: the model may know the upstream target. Both arms share the exposure, and seeds are new edits. A less-known target reduces it.
-- **One target, one language**: results generalize to JavaScript libraries of this size only. A second target in another language is the first follow-up.
+- **Two targets, one language**: results generalize to JavaScript libraries of this size only. A target in another language is the first follow-up.
 - **Seed realism**: authored seeds can be easier or harder than native bugs. The class mix follows the calibration bug classes, and unkeyed adjudication watches native finds.
 - **Cap hits**: a skill arm that hits the dollar cap scores lower. The report counts cap hits per arm.
 - **Host drift**: a host or model change is a snapshot boundary, the same rule as the floor table.
@@ -274,3 +276,15 @@ The build-phase pick is hyparam/hyparquet at commit `2a4b96cc04ca0ac268596302667
 - **Fame**: it is newer and less known than xmldom, the fallback. xmldom was not downloaded, because the physical count did not fall under 5,000.
 - **Data**: 8 upstream test files. Two other files need ZSTD or GZIP decoders, which the core lacks, so they were dropped.
 - **Characterization suite**: `test/characterization.test.js` passes 8 of 8 on the pristine tree. A one-byte mutation in the snappy decoder, made on a scratch copy, failed 3 of 8. The suite covers full-file decode paths only, so step 3 seeds go in paths it does not reach, such as row ranges, column selection, filters, and query planning.
+
+### Second target: tau-prolog
+
+Pilot-2 and pilot-3 showed that the bare model clears mid-size seeds on hyparquet, which sits at the low edge of the size rule. The second target is tau-prolog/tau-prolog at commit `5bd606a255910d8e34ff1d721e80969af294b64c`, vendored on 2026-10-14 at `evals/bench/targets/tau-prolog/`. Its `PROVENANCE.md` lists the files taken and every local change. The run folder holds the shortlist with the measured line counts of the rejected candidates.
+
+- **License**: BSD-3-Clause, vendored unchanged.
+- **Dependencies**: the CLI `taupl.js` needs `readline-sync`, so it is left out. A lazy `require('readline-sync')` in `modules/core.js` became a `node:fs` line read from standard input. The bare builtins became `node:` specifiers. `modules/dom.js` throws when required under Node, so it is left out.
+- **Size**: 12,060 physical lines in the 10 vendored `modules/*.js` files, 9,101 of them in `core.js`.
+- **Fame**: about 650 stars. It is less known than matter-js, the other candidate above 10,000 lines.
+- **Characterization suite**: `test/characterization.test.js` runs 25 queries over one consulted program (lists, arithmetic, findall and bagof, atom builtins, format) and compares every formatted answer with values recorded from the pristine source. Seeds go in paths it does not reach.
+
+The tau-prolog tasks add to the hyparquet tasks, so each skill declares twice as many tasks.

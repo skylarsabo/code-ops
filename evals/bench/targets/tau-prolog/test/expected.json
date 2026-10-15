@@ -1,0 +1,88 @@
+{
+  "append([1,2], [3], L).": [
+    "L = [1,2,3]"
+  ],
+  "append(X, Y, [a,b]).": [
+    "X = [], Y = [a,b]",
+    "X = [a], Y = [b]",
+    "X = [a,b], Y = []"
+  ],
+  "member(X, [a,b,c]).": [
+    "X = a",
+    "X = b",
+    "X = c"
+  ],
+  "member(z, [a,b,c]).": [],
+  "length([a,b,c], N).": [
+    "N = 3"
+  ],
+  "length(L, 2), L = [x,y].": [
+    "L = [x,y]"
+  ],
+  "sort([c,a,b,a], S).": [
+    "S = [a,b,c]"
+  ],
+  "X is 7 * 6 + 2 ** 3.": [
+    "X = 50.0"
+  ],
+  "X is 17 mod 5, Y is 17 // 5, Z is -17 // 5.": [
+    "X = 2, Y = 3, Z = -3"
+  ],
+  "fact(6, F).": [
+    "F = 720"
+  ],
+  "ancestor(tom, X).": [
+    "X = bob",
+    "X = liz",
+    "X = ann",
+    "X = pat"
+  ],
+  "findall(X-Y, parent(X, Y), L).": [
+    "L = [-(tom,bob),-(tom,liz),-(bob,ann),-(bob,pat)]"
+  ],
+  "findall(X, color(X), L), length(L, N).": [
+    "L = [red,green,blue], N = 3"
+  ],
+  "bagof(X, parent(X, Y), L).": [
+    "Y = ann, L = [bob]",
+    "Y = bob, L = [tom]",
+    "Y = liz, L = [tom]",
+    "Y = pat, L = [bob]"
+  ],
+  "atom_codes(abc, L).": [
+    "L = [97,98,99]"
+  ],
+  "atom_codes(A, [104,105]).": [
+    "A = hi"
+  ],
+  "atom_length(hello, N).": [
+    "N = 5"
+  ],
+  "atom_chars(X, [a,b]), atom_concat(X, c, Y).": [
+    "X = ab, Y = abc"
+  ],
+  "copy_term(f(a,g(b)), C).": [
+    "C = f(a,g(b))"
+  ],
+  "format(\"~w and ~a~n\", [foo, bar]).": [
+    "true",
+    "stdout: foo and bar\n"
+  ],
+  "format(\"~d items~n\", [3]).": [
+    "true",
+    "stdout: 3 items\n"
+  ],
+  "X = 1 ; X = 2.": [
+    "X = 1",
+    "X = 2"
+  ],
+  "color(X), X @> green.": [
+    "X = red"
+  ],
+  "atom_length(X, 3).": [
+    "uncaught exception: error(instantiation_error,/(atom_length,2))"
+  ],
+  "foo(1).": [
+    "uncaught exception: error(existence_error(procedure,/(foo,1)),/(top_level,0))"
+  ]
+}

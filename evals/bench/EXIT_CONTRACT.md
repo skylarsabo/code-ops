@@ -1,8 +1,9 @@
 # Bench exit contract
 
 `bench.mjs plan` binds this file's digest, and `bench.mjs run` appends one section's text verbatim
-to every prompt in both arms. The text between a heading and the next heading is the section, with
-leading and trailing blank lines removed. Edit it only before a snapshot is planned.
+to every prompt in both arms. It also writes that section as `CLAUDE.md` in the sandbox's initial
+commit, so subagents load it too. The text between a heading and the next heading is the section,
+with leading and trailing blank lines removed. Edit it only before a snapshot is planned.
 
 ## detection
 

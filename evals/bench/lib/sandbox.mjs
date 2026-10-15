@@ -22,6 +22,10 @@ const FIXED_DATE = '2026-01-01T00:00:00Z';
 const FIXED_WHO = { name: 'Bench', email: 'bench@example.invalid' };
 // Target files the agent must not see: they name the upstream project.
 const WITHHELD = new Set(['PROVENANCE.md']);
+// The sandbox file that carries the exit contract, so that plugin subagents load it too.
+export const CONTRACT_FILE = 'CLAUDE.md';
+// Agent instruction files a vendored target must not ship: they would replace or add to the contract.
+const AGENT_FILES = /^(?:CLAUDE\.md$|AGENTS\.md$|\.claude\/|\.cursorrules$|\.github\/copilot-instructions\.md$)/;
 
 const countOf = (text, needle) => (needle ? text.split(needle).length - 1 : 0);
 const lineOf = (text, index) => text.slice(0, index).split('\n').length;
@@ -182,14 +186,19 @@ function commit(dest, message) {
 /**
  * Build the sandbox at dest (a fresh directory under the OS temp directory) and return
  * { dest, head, commits }. No oracle file, answer-key path, PROVENANCE.md, id, or seed text but the
- * seeded source itself enters it.
+ * seeded source itself enters it. When contract is given, it is written as CLAUDE.md and committed in
+ * the initial import, so it is never part of a review change or of the agent's own commit.
  */
-export function materialize({ task, seeds, changes, targetDir, dest }) {
+export function materialize({ task, seeds, changes, targetDir, dest, contract }) {
   const { files, change } = compose({ task, seeds, changes, targetDir });
+  const listed = listTargetFiles(targetDir);
+  const agentFile = listed.find((rel) => AGENT_FILES.test(rel));
+  if (agentFile) throw new Error(`${task.id}: the target ships an agent instruction file, ${agentFile}`);
   mkdirSync(dest, { recursive: true });
-  for (const rel of listTargetFiles(targetDir)) {
+  for (const rel of listed) {
     if (!WITHHELD.has(rel)) copyFile(native(targetDir, rel), native(dest, rel));
   }
+  if (contract !== undefined) writeFileSync(native(dest, CONTRACT_FILE), `${contract.trim()}\n`);
   git(dest, ['init', '-q', '-b', 'main']);
   git(dest, ['config', 'core.autocrlf', 'false']);
   git(dest, ['config', 'core.safecrlf', 'false']);
