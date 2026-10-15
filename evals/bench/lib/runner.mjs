@@ -283,9 +283,18 @@ async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, co
     findings, verdict: typeof findingsFile?.verdict === 'string' ? findingsFile.verdict : null,
     summary, after, proofs,
   };
-  rmSync(box, { recursive: true, force: true });
-  rmSync(aux, { recursive: true, force: true });
+  removeBestEffort(box);
+  removeBestEffort(aux);
   return record;
+}
+
+/** Remove a sandbox directory; a file a child process still holds on Windows must not lose a paid unit. */
+function removeBestEffort(dir) {
+  try {
+    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 1000 });
+  } catch (err) {
+    console.error(`warning: could not remove ${dir}: ${err.code ?? err.message}`);
+  }
 }
 
 /** Run every unit in plan order that has no result yet. Stops on an API billing error. */
