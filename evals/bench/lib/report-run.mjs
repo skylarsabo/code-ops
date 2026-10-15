@@ -8,13 +8,16 @@ import { renderReport, summarizeSkill } from './score.mjs';
 export const ITERATIONS = 10000;
 export const SEED = 1;
 
-/** Physical line count of every file under dir, recursively. */
+// The target size rule's exclusions (design doc, "Target"), plus the answer-key folders.
+const NOT_SOURCE = /^(?:test|dist|docs|node_modules|ANSWER_KEY\..*)$/;
+
+/** Physical line count of the JavaScript files under dir, outside test/, dist/, docs/, and ANSWER_KEY.*. */
 export function countLines(dir) {
   let n = 0;
   for (const e of readdirSync(dir, { withFileTypes: true })) {
     const p = join(dir, e.name);
-    if (e.isDirectory()) n += countLines(p);
-    else {
+    if (e.isDirectory()) n += NOT_SOURCE.test(e.name) ? 0 : countLines(p);
+    else if (/\.[cm]?js$/.test(e.name)) {
       const text = readFileSync(p, 'utf8');
       n += text === '' ? 0 : text.split('\n').length - (text.endsWith('\n') ? 1 : 0);
     }
@@ -33,10 +36,12 @@ export function scoreRun({ runDir, benchDir, iterations = ITERATIONS, seed = SEE
   const units = readJsonDir(join(runDir, 'units'));
   const planned = new Set(plan.units.map((u) => u.id));
   const missing = [...planned].filter((id) => !units.some((u) => u.unitId === id));
-  const targetOf = Object.fromEntries(matrix.tasks.map((t) => [t.id, t.target]));
+  const lines = Object.fromEntries(Object.entries(targets).map(([name, dir]) => [name, countLines(dir)]));
+  const plannedTasks = new Set(plan.units.map((u) => u.task));
   const summaries = matrix.skills.map((matrixSkill) => {
-    const target = targetOf[matrix.tasks.find((t) => t.skill === matrixSkill.id).id];
-    const srcLines = countLines(join(targets[target], 'src'));
+    // The planned tasks' targets set the size; a skill planned on several targets gets their mean.
+    const sizes = matrix.tasks.filter((t) => t.skill === matrixSkill.id && plannedTasks.has(t.id)).map((t) => lines[t.target]);
+    const srcLines = sizes.length ? sizes.reduce((a, b) => a + b, 0) / sizes.length : 0;
     return summarizeSkill({ skill: matrixSkill.id, matrixSkill, units, keys, srcLines, iterations, seed });
   });
   const scores = { iterations, seed, unitsPlanned: planned.size, unitsScored: units.length, missing, summaries };

@@ -4,6 +4,8 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { countLines } from '../lib/report-run.mjs';
+import { planTasks } from '../lib/runner.mjs';
 import { bootstrap, f05, matchFindings, renderReport, resolveProof, scoreUnit, summarizeSkill, verdict } from '../lib/score.mjs';
 
 const near = (a, b) => Math.abs(a - b) < 1e-9;
@@ -296,5 +298,28 @@ export async function cases(check) {
     check('proof: an empty or missing proof does not resolve', !r('') && !r(undefined));
   } finally {
     rmSync(base, { recursive: true, force: true });
+  }
+
+  // --target filter: only the named target's tasks; an unknown name is refused, not ignored.
+  const m = { targets: [{ name: 'a' }, { name: 'b' }], tasks: [{ id: 'a1', target: 'a' }, { id: 'b1', target: 'b' }, { id: 'a2', target: 'a' }] };
+  check('plan: no --target keeps every task', planTasks(m, undefined).length === 3);
+  check('plan: --target keeps only that target', planTasks(m, 'a').map((t) => t.id).join() === 'a1,a2');
+  let refused = false;
+  try { planTasks(m, 'c'); } catch { refused = true; }
+  check('plan: an unknown --target is refused', refused);
+
+  // Target size: JavaScript outside test/, dist/, docs/, and ANSWER_KEY.* counts.
+  const tree = mkdtempSync(join(tmpdir(), 'bench-lines-'));
+  try {
+    const put = (rel, text) => { mkdirSync(join(tree, rel, '..'), { recursive: true }); writeFileSync(join(tree, rel), text); };
+    put('modules/a.js', 'a\nb\n');
+    put('index.mjs', 'c\n');
+    put('test/a.test.js', 'x\nx\nx\n');
+    put('ANSWER_KEY.oracles/o.test.js', 'x\n');
+    put('docs/d.js', 'x\n');
+    put('data/blob.parquet', 'x\nx\n');
+    check('size: counts source JavaScript only', countLines(tree) === 3, String(countLines(tree)));
+  } finally {
+    rmSync(tree, { recursive: true, force: true });
   }
 }

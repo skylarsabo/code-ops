@@ -298,8 +298,8 @@ function guard(applies, skill, control, limit, margin = 0) {
 /**
  * Summarize one skill: effect and interval, guards, cost and wall ratios, cap hits and timeouts
  * per arm, and the void share. `units` are raw per-unit results (other skills are ignored),
- * `keys` maps task id to its derived key, `srcLines` is the target's physical line count under
- * src/. Void units are excluded from every metric and counted toward the void share.
+ * `keys` maps task id to its derived key, `srcLines` is the target's physical line count of
+ * source JavaScript (report-run.mjs countLines). Void units are excluded from every metric and counted toward the void share.
  * `adjudicatedTrueShare` is the optional adjudication result: when at least 0.5, the unkeyed guard
  * holds on that evidence.
  */

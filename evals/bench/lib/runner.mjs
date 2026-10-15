@@ -106,14 +106,22 @@ export function claudeBin() {
   return execFileSync('where', ['claude'], { encoding: 'utf8' }).split(/\r?\n/).find((l) => /\.(exe|cmd)$/i.test(l.trim())).trim();
 }
 
+/** The matrix tasks a plan covers: all of them, or only those on the named target. */
+export function planTasks(matrix, target) {
+  if (target === undefined) return matrix.tasks;
+  if (!matrix.targets.some((t) => t.name === target)) throw new Error(`--target ${target}: not a matrix target`);
+  return matrix.tasks.filter((t) => t.target === target);
+}
+
 /** Write plan.json, the derived keys, and the canary into runDir. */
-export function planBench({ runDir, model, reps, pilot, capUsd, timeoutMs, isolation, permissionMode, benchDir = BENCH_DIR }) {
+export function planBench({ runDir, model, reps, pilot, target, capUsd, timeoutMs, isolation, permissionMode, benchDir = BENCH_DIR }) {
   if (existsSync(join(runDir, 'plan.json'))) throw new Error(`${runDir} already holds a plan; use a new run folder`);
   const { matrix, targets, answerKey } = loadBench(benchDir);
+  const tasks = planTasks(matrix, target);
   const host = execFileSync(claudeBin(), ['--version'], { encoding: 'utf8' }).trim();
   const canary = newCanary();
   mkdirSync(join(runDir, 'keys'), { recursive: true });
-  for (const task of matrix.tasks) {
+  for (const task of tasks) {
     const { seeds, changes } = answerKey(targets[task.target]);
     const key = deriveKey({ task, seeds, changes, targetDir: targets[task.target], canary });
     writeFileSync(join(runDir, 'keys', `${task.id}.json`), stableJson(key));
@@ -123,13 +131,14 @@ export function planBench({ runDir, model, reps, pilot, capUsd, timeoutMs, isola
     version: PLAN_VERSION,
     pilot: Boolean(pilot),
     reps,
+    target: target ?? null,
     capUsd,
     timeoutMs,
     isolation,
     permissionMode,
     mcp: 'none (--strict-mcp-config with an empty server list in both arms)',
     bound: { ...bindings({ benchDir, matrix, targets, model, host }), canaryDigest: `sha256:${sha256(canary)}`, keysDigest: keysDigest(runDir) },
-    units: unitOrder(matrix.tasks.map((t) => t.id), reps),
+    units: unitOrder(tasks.map((t) => t.id), reps),
   };
   writeFileSync(join(runDir, 'plan.json'), stableJson(plan));
   return plan;
