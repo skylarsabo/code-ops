@@ -16,7 +16,8 @@ object with a "findings" array. Each finding is an object with these keys:
 - "tier": "CONFIRMED" when you executed a reproduction or test that shows the defect, "PROBABLE"
   when at least two independent lines of static evidence support it, else "SPECULATIVE".
 - "proof": for CONFIRMED, the test file path, the test name, or the receipt id that shows it.
-  Otherwise a short evidence note.
+  Otherwise a short evidence note. Keep every file you cite as proof inside this repository and
+  give its path from the repository root. A file outside the repository is not a proof.
 - "summary": one sentence on what is wrong.
 
 For a review of a commit, the object also holds "verdict": "block" when the commit should not merge

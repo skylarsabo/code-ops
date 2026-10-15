@@ -181,7 +181,7 @@ Both arms end their prompt with the same exit contract, so the scorer reads one 
 
 Repair and build tasks commit their change in the sandbox repository and write `BENCH_SUMMARY.json` with a root-cause `file` and `line` and a summary. The contract states that no remote exists and that the run ends at a committed change.
 
-The sandbox also holds the task's contract section as `CLAUDE.md`, committed in the initial import in both arms, so subagents that the skill dispatches load it too. Pilot-3 showed why: the codebase-audit reviewers never saw the prompt's contract and wrote their proofs outside the sandbox. A vendored target may not ship its own agent instruction file.
+The sandbox also holds the task's contract section as `CLAUDE.md`, committed in the initial import in both arms, so subagents that the skill dispatches load it too. A vendored target may not ship its own agent instruction file. The detection section also requires every proof file to stay inside the repository, because the scorer resolves a proof only against files in the sandbox. Pilot-4 showed why that rule is necessary: a codebase-audit unit had the contract as `CLAUDE.md` and still wrote its reproductions to a scratch folder under the operating system temp directory, so 1 of its 11 CONFIRMED proofs resolved.
 
 Scoring reuses the matching rules of [score.mjs](../../evals/score.mjs): path suffix plus basename, a line tolerance of 3, and an ambiguous flag scored as the decoy.
 
