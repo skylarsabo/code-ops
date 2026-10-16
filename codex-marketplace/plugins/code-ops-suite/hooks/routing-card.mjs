@@ -14,6 +14,10 @@
 // the line is omitted when `CODE_OPS_HANDOFF_PICKUP` is `off`, `0`, or `false` (case-insensitive),
 // the same switch shape `CODE_OPS_HANDOFF_CARD` uses in hooks/handoff-card.mjs.
 //
+// WHOLE-CARD SWITCH. `CODE_OPS_ROUTING_CARD` set to `off`, `0`, or `false` silences the entire hook,
+// compact restore included, so a measurement session that must not see the card's skill names (the
+// skill-trigger harness runs `-p` sessions, which never compact) prints nothing and exits 0.
+//
 // SESSION IDENTITY. When the payload carries `session_id`, the card names its first 8 characters so
 // the lead can identify itself to peers. After compaction the card reads this session's record,
 // `<home>/.claude/code-ops/sessions/<slug(cwd)>/<slug(session id)>.json`, which `co.mjs run open` and
@@ -431,7 +435,7 @@ function stalePluginLine() {
 }
 
 async function main() {
-  if (process.env.GROK_PLUGIN_ROOT) return 0;
+  if (process.env.GROK_PLUGIN_ROOT || /^(off|0|false)$/i.test(process.env.CODE_OPS_ROUTING_CARD ?? '')) return 0;
   let raw = '';
   try { raw = readFileSync(0, 'utf8').replace(/^\uFEFF/, ''); } catch { /* no stdin */ }
   let payload = {};

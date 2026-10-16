@@ -457,7 +457,8 @@ Codex, the `SessionStart` hook
 `routing-card.mjs` prints a fixed card naming the standard routing table, tier and effort
 rules, and context-economy defaults. It parses the start source so a compact resume receives
 the restore instruction above. On Grok it emits nothing because passive hook stdout is ignored;
-the paired instruction files carry the routing doctrine. Any error exits `0` silently.
+the paired instruction files carry the routing doctrine. `CODE_OPS_ROUTING_CARD` of `off`, `0`, or
+`false` silences the whole card on every source, compact restore included. Any error exits `0` silently.
 Evidence: `plugins/code-ops-suite/hooks/routing-card.mjs` and
 `evals/grok-build-compat/run.mjs`.
 

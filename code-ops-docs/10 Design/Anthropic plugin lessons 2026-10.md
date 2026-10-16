@@ -75,6 +75,7 @@ Goal: replace the prose tallies with the script.
 - Later candidates: the `plugins/code-ops-suite/skills/security-privacy-audit/SKILL.md` validator and `plugins/researcher/skills/research-verify/SKILL.md`. Each is a separate follow-up after P3 shows a measured effect.
 - Bumps: code-ops-suite and rigor, minor.
 - Done when: the gates pass, the vendored copies are byte-identical, the Codex output has no leaked plugin-root token (`evals/codex-marketplace/run.mjs:39`), and one bug-garden or trap-garden fixture run shows the tally drops a planted false positive.
+- Status (2026-10-16): done. A three-lens `researcher:claim-checker` panel ran on an unlabeled copy of the trap-garden fixture. The tally dropped decoy DEC-6 (ReDoS, `checkout.js:64`), downgraded decoy DEC-1 (md5, `:6`) to SPECULATIVE low, and kept real bug BUG-3 (`:33`) at PROBABLE. Evidence: `code-ops-docs/80 Runs/2026-10-16-live-checks/RUN_LOG.md`.
 
 ## P4. Fail-closed frontmatter key allow-list
 
@@ -97,6 +98,7 @@ Goal: enforce read-only on Claude for the skills that write nothing.
 - Pilot on one skill (`plugins/researcher/skills/research-verify/SKILL.md`) with a local probe: invoke the skill and confirm Edit is not available. Then roll out in one PR per plugin.
 - Bumps: one minor bump per plugin.
 - Done when: the classifier output matches the declared set, and the pilot probe is recorded in the run folder.
+- Status (2026-10-16): done. In a headless session with research-verify loaded, Edit was denied by rule and Write created a new file. A control session without the skill loaded allowed Edit. A headless probe needs `--allowedTools Skill`, or the skill does not load. Grok Build 1.0.52 discovers and enables all 11 skills that carry the key; enforcement on Grok is unverified. Evidence: `code-ops-docs/80 Runs/2026-10-16-live-checks/RUN_LOG.md`.
 
 ## P6. Skill trigger measurement
 
@@ -117,6 +119,7 @@ Prerequisites: `eng/bench-runner` is merged, and bench pilot P-1 (does `--bare` 
 - Pilot: measure the cost of one 60-session evaluation before any loop. Report the cost per skill.
 - Output: a trigger table per skill (hit rate, false fires by sibling) in the run folder. Description edits go through the normal skill PR path, with the 160-char lint cap.
 - Done when: the CI eval passes, and the pilot table for one plugin is recorded with its cost.
+- Status (2026-10-16): smoke passed; pilot open. A two-query smoke ran end to end. Neither query fired a skill, and the raw stream shows a real non-trigger, not a detector miss. The detector key `skill` is confirmed. A non-trigger session costs 0.15 to 0.37 USD; an early-stopped session reports null cost. Evidence: `code-ops-docs/80 Runs/2026-10-16-live-checks/RUN_LOG.md`.
 
 ## P7. `claude plugin eval` stays a cross-check
 

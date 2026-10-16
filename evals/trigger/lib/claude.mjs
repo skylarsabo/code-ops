@@ -1,6 +1,6 @@
 // Spawn one `claude -p` session for one query and stop at the first Skill tool_use.
 import { spawn, spawnSync } from 'node:child_process';
-import { buildSpawn, scrubEnv } from './env.mjs';
+import { buildSpawn, sessionEnv } from './env.mjs';
 import { createDetector } from './stream.mjs';
 
 /** The claude argument list. The query is not in it; it goes on stdin. */
@@ -30,7 +30,7 @@ export function runQuery(bin, query, opts) {
     let killed = false;
     let buf = '';
     let stderr = '';
-    const child = spawn(command, args, { cwd: opts.cwd, env: scrubEnv(process.env), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { cwd: opts.cwd, env: sessionEnv(process.env), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     const stop = () => { killed = true; kill(child, shim); };
     const timer = setTimeout(() => { det.state.error ??= 'timeout'; stop(); }, opts.timeoutMs ?? 240000);
     child.stdin.on('error', () => {});
