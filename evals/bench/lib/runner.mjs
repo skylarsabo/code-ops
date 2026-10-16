@@ -9,7 +9,7 @@
 
 import { createHash } from 'node:crypto';
 import { execFileSync, spawn } from 'node:child_process';
-import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -247,6 +247,23 @@ function upstreamOf(name, targetDir) {
 
 const readJson = (path) => { try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return null; } };
 
+// Tools a unit must not use. Host-wide process kills took down the runner itself (a unit ran
+// taskkill /IM node.exe). Bare mode skips hooks, so deny rules on the command line are the
+// mechanism. Both arms get the same list.
+export const DENIED_TOOLS = ['WebFetch', 'WebSearch',
+  'Bash(taskkill:*)', 'Bash(pkill:*)', 'Bash(killall:*)', 'Bash(Stop-Process:*)',
+  'Bash(*taskkill*)', 'Bash(*pkill*)', 'Bash(*killall*)', 'Bash(*Stop-Process*)'];
+
+/** The claude command-line arguments for one unit; pluginCopy is null for the control arm. */
+export function claudeArgs({ plan, aux, pluginCopy }) {
+  const args = ['-p', '--settings', join(aux, 'settings.json'), '--model', plan.bound.model, '--output-format', 'stream-json', '--verbose',
+    '--max-budget-usd', String(plan.capUsd), '--permission-mode', plan.permissionMode, '--strict-mcp-config', '--mcp-config', join(aux, 'mcp.json'),
+    '--disallowedTools', ...DENIED_TOOLS];
+  if (plan.isolation === 'bare') args.unshift('--bare');
+  if (pluginCopy) args.push('--plugin-dir', pluginCopy);
+  return args;
+}
+
 /** Run one unit once; returns the result record (without voidReruns). */
 async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, contractText, canary, bin }) {
   const box = mkdtempSync(join(tmpdir(), 'bench-box-'));
@@ -261,16 +278,10 @@ async function runOnce({ unit, task, key, plan, runDir, targetDir, answerKey, co
   writeFileSync(helper, `import { readFileSync } from 'node:fs';\nprocess.stdout.write(readFileSync(${JSON.stringify(KEY_FILE)}, 'utf8').trim());\n`);
   writeFileSync(join(aux, 'settings.json'), JSON.stringify({ apiKeyHelper: `node "${helper}"` }));
   writeFileSync(join(aux, 'mcp.json'), JSON.stringify({ mcpServers: {} }));
-  const args = ['-p', '--settings', join(aux, 'settings.json'), '--model', plan.bound.model, '--output-format', 'stream-json', '--verbose',
-    '--max-budget-usd', String(plan.capUsd), '--permission-mode', plan.permissionMode, '--strict-mcp-config', '--mcp-config', join(aux, 'mcp.json'),
-    '--disallowedTools', 'WebFetch', 'WebSearch'];
-  if (plan.isolation === 'bare') args.unshift('--bare');
+  const pluginCopy = unit.arm === 'skill' ? join(aux, 'plugin') : null;
+  if (pluginCopy) cpSync(join(REPO_ROOT, 'plugins', pluginOf(task.skill)), pluginCopy, { recursive: true });
+  const args = claudeArgs({ plan, aux, pluginCopy });
   const allowedPaths = [box, aux];
-  if (unit.arm === 'skill') {
-    const pluginCopy = join(aux, 'plugin');
-    cpSync(join(REPO_ROOT, 'plugins', pluginOf(task.skill)), pluginCopy, { recursive: true });
-    args.push('--plugin-dir', pluginCopy);
-  }
   mkdirSync(join(runDir, 'transcripts'), { recursive: true });
   const ran = await spawnUnit({ bin, args, cwd: dest, env: unitEnv(configDir), prompt: promptFor(task, unit.arm, contractText),
     timeoutMs: plan.timeoutMs, transcriptPath: join(runDir, 'transcripts', `${unit.id}.jsonl`) });
@@ -322,6 +333,85 @@ function removeBestEffort(dir) {
   }
 }
 
+const inflightPath = (runDir, unitId) => join(runDir, 'inflight', `${unitId}.json`);
+
+/** Append one attempt to the run folder's append-only spend ledger (spend.jsonl). */
+export function appendSpend(runDir, entry) {
+  appendFileSync(join(runDir, 'spend.jsonl'), `${JSON.stringify(entry)}\n`);
+}
+
+/** The per-attempt summary kept on the unit record and in the ledger. */
+export function attemptOf(record) {
+  return {
+    costUsd: record.costUsd, wallMs: record.wallMs, void: Boolean(record.audit?.void),
+    triggers: (record.audit?.triggers ?? []).map((t) => t.rule),
+    capHit: record.capHit, timedOut: record.timedOut, exitCode: record.exitCode,
+  };
+}
+
+/**
+ * Run one attempt between an in-flight marker write and its removal; a runner that dies
+ * mid-attempt leaves the marker for recoverInflight. Every finished attempt, including one
+ * that ended in an API error, gets a ledger line.
+ */
+async function attempt(ctx, n, run) {
+  const marker = inflightPath(ctx.runDir, ctx.unit.id);
+  mkdirSync(dirname(marker), { recursive: true });
+  writeFileSync(marker, stableJson({ unitId: ctx.unit.id, attempt: n, startedAt: new Date().toISOString(), runnerPid: process.pid }));
+  const record = await run(ctx);
+  rmSync(marker, { force: true });
+  const entry = attemptOf(record);
+  appendSpend(ctx.runDir, { unitId: ctx.unit.id, attempt: n, status: record.apiError ? 'api-error' : 'ok', ...entry, at: new Date().toISOString() });
+  return { record, entry };
+}
+
+/**
+ * Run a unit, rerunning once when the audit voids it. Returns { record } carrying the attempts
+ * array and spentUsd, or { apiError } when an attempt ended without a result. costUsd stays the
+ * scored attempt's cost; spentUsd sums every attempt.
+ */
+export async function runUnit(ctx, { run = runOnce, log = console.log } = {}) {
+  const attempts = [];
+  let { record, entry } = await attempt(ctx, 1, run);
+  attempts.push(entry);
+  if (record.apiError) return { apiError: record.apiError };
+  if (record.audit.void) {
+    log(`void ${ctx.unit.id}: ${record.audit.triggers.map((t) => t.rule).join(', ')}; rerunning once`);
+    ({ record, entry } = await attempt(ctx, 2, run));
+    attempts.push(entry);
+    if (record.apiError) return { apiError: record.apiError };
+    record = { ...record, voidReruns: 1 };
+  }
+  return { record: { ...record, attempts, spentUsd: attempts.reduce((a, e) => a + (e.costUsd ?? 0), 0) } };
+}
+
+/**
+ * Settle the markers a dead runner left; each is a killed attempt. The ledger gets its line
+ * (cost from the attempt's transcript when that file is newer than the marker and holds a
+ * result line, else null), then the marker goes. Returns the killed entries.
+ */
+export function recoverInflight(runDir, log = console.log) {
+  const dir = join(runDir, 'inflight');
+  if (!existsSync(dir)) return [];
+  const killed = [];
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.json')).sort()) {
+    const path = join(dir, f);
+    const marker = readJson(path) ?? { unitId: f.slice(0, -5) };
+    const transcript = join(runDir, 'transcripts', `${marker.unitId}.jsonl`);
+    let costUsd = null;
+    // An older transcript belongs to an earlier attempt of the same unit, not the killed one.
+    if (existsSync(transcript) && statSync(transcript).mtimeMs >= Date.parse(marker.startedAt ?? '')) {
+      costUsd = streamLines(readFileSync(transcript, 'utf8')).findLast((l) => l.type === 'result')?.total_cost_usd ?? null;
+    }
+    const entry = { unitId: marker.unitId, attempt: marker.attempt ?? null, status: 'killed-unrecorded', costUsd, startedAt: marker.startedAt ?? null, runnerPid: marker.runnerPid ?? null, at: new Date().toISOString() };
+    appendSpend(runDir, entry);
+    rmSync(path, { force: true });
+    log(`recovered ${marker.unitId}: the previous runner died mid-attempt; recorded as killed, rerunning`);
+    killed.push(entry);
+  }
+  return killed;
+}
+
 /** Run every unit in plan order that has no result yet. Stops on an API billing error. */
 export async function runBench({ runDir, limit = Infinity, benchDir = BENCH_DIR, log = console.log }) {
   const plan = JSON.parse(readFileSync(join(runDir, 'plan.json'), 'utf8'));
@@ -332,6 +422,7 @@ export async function runBench({ runDir, limit = Infinity, benchDir = BENCH_DIR,
   const canary = readFileSync(join(runDir, 'canary.txt'), 'utf8').trim();
   const bin = claudeBin();
   mkdirSync(join(runDir, 'units'), { recursive: true });
+  recoverInflight(runDir, log);
   let ran = 0;
   for (const unit of plan.units) {
     const out = join(runDir, 'units', `${unit.id}.json`);
@@ -340,18 +431,14 @@ export async function runBench({ runDir, limit = Infinity, benchDir = BENCH_DIR,
     const task = matrix.tasks.find((t) => t.id === unit.task);
     const key = JSON.parse(readFileSync(join(runDir, 'keys', `${task.id}.json`), 'utf8'));
     const ctx = { unit, task, key, plan, runDir, targetDir: targets[task.target], answerKey: answerKey(targets[task.target]), contractText, canary, bin };
-    let record = await runOnce(ctx);
-    if (record.apiError) {
-      log(`stop ${unit.id}: API error ${record.apiError}; no result written`);
-      return { ran, stopped: `api error ${record.apiError}` };
-    }
-    if (record.audit.void) {
-      log(`void ${unit.id}: ${record.audit.triggers.map((t) => t.rule).join(', ')}; rerunning once`);
-      record = { ...(await runOnce(ctx)), voidReruns: 1 };
+    const { record, apiError } = await runUnit(ctx, { log });
+    if (apiError) {
+      log(`stop ${unit.id}: API error ${apiError}; no result written`);
+      return { ran, stopped: `api error ${apiError}` };
     }
     writeFileSync(out, stableJson(record));
     ran++;
-    log(`unit ${unit.id}: $${record.costUsd.toFixed(2)} ${Math.round(record.wallMs / 1000)}s${record.audit.void ? ' VOID' : ''}${record.capHit ? ' CAP' : ''}${record.timedOut ? ' TIMEOUT' : ''}`);
+    log(`unit ${unit.id}: $${record.costUsd.toFixed(2)} (spent $${record.spentUsd.toFixed(2)}) ${Math.round(record.wallMs / 1000)}s${record.audit.void ? ' VOID' : ''}${record.capHit ? ' CAP' : ''}${record.timedOut ? ' TIMEOUT' : ''}`);
   }
   return { ran, stopped: null };
 }

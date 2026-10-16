@@ -1114,8 +1114,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "217e9d6ca207349c83d01fb78c65f47ef6badf48",
-      "verifiedDigest": "4f0981114ec1ba7afd03978d3a89a31d25f67bec37d7c61f0fca0174b96133aa",
+      "verifiedAt": "f24c9e1607f1cbef7247ee8f6e50dc8b3f951f15",
+      "verifiedDigest": "9c47897ec0ded49dccb041c7bd9f582e2033a08602394b31984c3318b29b05d8",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1530,6 +1530,21 @@
           "file": "evals/bench/cases/sandbox.cases.mjs",
           "line": 1,
           "anchor": "// Cases for evals/bench/lib/sandbox.mjs and evals/bench/lib/audit.mjs. No model"
+        },
+        {
+          "file": "evals/bench/lib/score.mjs",
+          "line": 1,
+          "anchor": "// Scoring for the beat-the-bare-model benchmark (design: code-ops-docs/10 Desig"
+        },
+        {
+          "file": "evals/bench/lib/runner.mjs",
+          "line": 1,
+          "anchor": "// Bench plan and run verbs (design: code-ops-docs/10 Design/Beat the bare model"
+        },
+        {
+          "file": "evals/bench/lib/report-run.mjs",
+          "line": 1,
+          "anchor": "// The score and report verbs: read a run folder's frozen keys and unit results,"
         },
         {
           "file": "evals/refutation-tally/run.mjs",

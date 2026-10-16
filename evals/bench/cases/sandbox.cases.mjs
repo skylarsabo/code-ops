@@ -290,9 +290,85 @@ export async function cases(check) {
     check('real tasks: deep-review commit two uses the change message', gitOut(realBuilds.get(reviewTask.id).dest, ['log', '-1', '--format=%s']).trim() === reviewChange.message && realBuilds.get(reviewTask.id).commits === 2);
 
     auditCases(check, mutantPair);
+    await runnerCases(check, mutantPair, fresh);
   } finally {
     for (const d of temps) rmSync(d, { recursive: true, force: true, maxRetries: 3 });
   }
+}
+
+/** Runner safeguards: deny rules, in-flight recovery, attempt accounting, and the report spend section. No claude process. */
+async function runnerCases(check, mutantPair, fresh) {
+  // Loaded on demand: lib/runner.mjs imports bench.mjs, as bench.mjs's own header explains.
+  const { claudeArgs, DENIED_TOOLS, runUnit, recoverInflight } = await import('../lib/runner.mjs');
+  const { spendSummary, reportRun } = await import('../lib/report-run.mjs');
+  const plan = { bound: { model: 'm' }, capUsd: 5, permissionMode: 'bypassPermissions', isolation: 'bare' };
+  const denied = (args) => args.slice(args.indexOf('--disallowedTools') + 1).filter((a) => !a.startsWith('--'));
+  const need = ['Bash(taskkill:*)', 'Bash(pkill:*)', 'Bash(killall:*)', 'Bash(Stop-Process:*)', 'Bash(*taskkill*)', 'Bash(*Stop-Process*)'];
+  const skillArgs = claudeArgs({ plan, aux: 'aux', pluginCopy: 'aux/plugin' });
+  const controlArgs = claudeArgs({ plan, aux: 'aux', pluginCopy: null });
+  mutantPair('runner args: both arms deny host-wide process kills',
+    [skillArgs, controlArgs].every((a) => need.every((r) => denied(a).includes(r)) && denied(a).includes('WebFetch')),
+    [skillArgs, controlArgs].every((a) => need.every((r) => ['WebFetch', 'WebSearch'].includes(r))));
+  mutantPair('runner args: arms differ only in --plugin-dir',
+    JSON.stringify(skillArgs.slice(0, controlArgs.length)) === JSON.stringify(controlArgs) && skillArgs.slice(controlArgs.length).join() === '--plugin-dir,aux/plugin' && DENIED_TOOLS.length > 2,
+    JSON.stringify(skillArgs) === JSON.stringify(controlArgs));
+
+  // In-flight marker recovery
+  const runDir = fresh('bench-run-');
+  mkdirSync(join(runDir, 'inflight'));
+  mkdirSync(join(runDir, 'transcripts'));
+  const marker = (id, attempt, startedAt) => writeFileSync(join(runDir, 'inflight', `${id}.json`), JSON.stringify({ unitId: id, attempt, startedAt, runnerPid: 1 }));
+  marker('a.skill.r1', 1, '2000-01-01T00:00:00.000Z');
+  marker('b.skill.r1', 2, '2000-01-01T00:00:00.000Z');
+  marker('c.skill.r1', 1, '2999-01-01T00:00:00.000Z');
+  writeFileSync(join(runDir, 'transcripts', 'a.skill.r1.jsonl'), `${JSON.stringify({ type: 'result', total_cost_usd: 1.25 })}\n`);
+  writeFileSync(join(runDir, 'transcripts', 'c.skill.r1.jsonl'), `${JSON.stringify({ type: 'result', total_cost_usd: 9 })}\n`);
+  const ledgerOf = () => readFileSync(join(runDir, 'spend.jsonl'), 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+  const killed = recoverInflight(runDir, () => {});
+  const byId = Object.fromEntries(killed.map((k) => [k.unitId, k]));
+  check('inflight recovery: every leftover marker becomes a killed ledger line', killed.length === 3 && ledgerOf().length === 3 && ledgerOf().every((e) => e.status === 'killed-unrecorded'));
+  check('inflight recovery: cost comes from a transcript newer than the marker, else null',
+    byId['a.skill.r1'].costUsd === 1.25 && byId['b.skill.r1'].costUsd === null && byId['c.skill.r1'].costUsd === null);
+  check('inflight recovery: markers are removed and a second pass finds none', readdirSync(join(runDir, 'inflight')).length === 0 && recoverInflight(runDir, () => {}).length === 0);
+
+  // attempts and spentUsd across a void rerun, with a fake runOnce
+  const rec = (costUsd, isVoid, apiError = null) => ({ costUsd, wallMs: 10, capHit: false, timedOut: false, exitCode: 0, apiError, audit: { void: isVoid, triggers: isVoid ? [{ rule: 'repo-path' }] : [] }, voidReruns: 0 });
+  const script = (...recs) => { const q = [...recs]; return async () => q.shift(); };
+  const ctx = (id) => ({ unit: { id }, runDir });
+  const voided = await runUnit(ctx('u1'), { run: script(rec(2, true), rec(3, false)), log: () => {} });
+  check('runUnit: void rerun keeps both attempts, costUsd is the scored one, spentUsd the sum',
+    voided.record.attempts.length === 2 && voided.record.attempts[0].void === true && voided.record.attempts[0].costUsd === 2 && voided.record.attempts[0].triggers[0] === 'repo-path'
+    && voided.record.costUsd === 3 && voided.record.spentUsd === 5 && voided.record.voidReruns === 1);
+  const clean = await runUnit(ctx('u2'), { run: script(rec(4, false)), log: () => {} });
+  check('runUnit: a clean unit has one attempt and spentUsd equal to costUsd', clean.record.attempts.length === 1 && clean.record.spentUsd === 4 && clean.record.costUsd === 4);
+  const apiErr = await runUnit(ctx('u3'), { run: script(rec(0.5, false, 'billing')), log: () => {} });
+  const after = ledgerOf();
+  check('runUnit: an API-error attempt writes no record but lands in the ledger',
+    apiErr.apiError === 'billing' && apiErr.record === undefined && after.some((e) => e.unitId === 'u3' && e.status === 'api-error' && e.costUsd === 0.5));
+  check('runUnit: every attempt has a ledger line and no marker is left',
+    after.filter((e) => e.unitId === 'u1').length === 2 && after.filter((e) => e.status === 'ok').length === 3 && readdirSync(join(runDir, 'inflight')).length === 0);
+
+  // report spend section, with a legacy record that has no attempts
+  const sp = spendSummary([{ ...voided.record, unitId: 'u1' }, { unitId: 'old', costUsd: 1.5 }], after.filter((e) => e.status !== 'killed-unrecorded'));
+  check('spendSummary: totals cover attempts, void spend, ledger-only attempts, and the legacy record',
+    sp.totalUsd === 5 + 4 + 0.5 + 1.5 && sp.voidUsd === 2 && sp.killedUnrecorded === 0 && sp.scoredUsd === 3 + 1.5, JSON.stringify(sp));
+  check('spendSummary: killed attempts without a cost are counted, with a cost they add to the total',
+    spendSummary([], [{ status: 'killed-unrecorded', costUsd: null }, { status: 'killed-unrecorded', costUsd: 2 }]).killedUnrecorded === 1
+    && spendSummary([], [{ status: 'killed-unrecorded', costUsd: 2 }]).totalUsd === 2);
+  const orphan = spendSummary([], [{ unitId: 'u9', status: 'ok', costUsd: 1, void: true }, { unitId: 'u9', status: 'api-error', costUsd: 0.25, void: false }]);
+  check('spendSummary: a void attempt whose rerun hit an API error still counts, with no unit record',
+    orphan.totalUsd === 1.25 && orphan.voidUsd === 1, JSON.stringify(orphan));
+  const rd = fresh('bench-rep-');
+  mkdirSync(join(rd, 'units'));
+  writeFileSync(join(rd, 'plan.json'), JSON.stringify({ bound: { model: 'm', host: 'h', head: 'x' }, units: [] }));
+  writeFileSync(join(rd, 'scores.json'), JSON.stringify({ iterations: 1, seed: 1, unitsPlanned: 0, unitsScored: 2, missing: [], summaries: [] }));
+  writeFileSync(join(rd, 'units', 'u1.json'), JSON.stringify({ ...voided.record, unitId: 'u1' }));
+  writeFileSync(join(rd, 'units', 'old.json'), JSON.stringify({ unitId: 'old', costUsd: 1.5 }));
+  writeFileSync(join(rd, 'spend.jsonl'), `${JSON.stringify({ unitId: 'k', status: 'killed-unrecorded', costUsd: null })}\n`);
+  let report;
+  try { report = readFileSync(reportRun({ runDir: rd }), 'utf8'); } catch (err) { report = String(err); }
+  check('REPORT.md: spend section lists total, void, killed, and scored spend',
+    /## Spend/.test(report) && /all attempts: \$6\.50/.test(report) && /Void attempts: \$2\.00/.test(report) && /unrecorded spend: 1/.test(report) && /Scored units: \$4\.50/.test(report), report.slice(-300));
 }
 
 /** True when `rev:path` exists in the sandbox's repository. */

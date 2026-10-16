@@ -42,7 +42,7 @@ const hand = (over = {}) => ({
     inflation: { ...guardOk, margin: 0.05 }, decoy: { ...guardOk, margin: 0.5 }, regressions: guardOk,
     falseBlocks: guardOk, unkeyed: guardOk,
   },
-  costRatio: 1, wallRatio: 1, ...over,
+  strata: { used: 2, thin: 0 }, costRatio: 1, wallRatio: 1, ...over,
 });
 const withGuard = (name, patch) => {
   const s = hand();
@@ -241,6 +241,22 @@ export async function cases(check) {
   check('verdict 5: a worse-than-control interval is RETIRE candidate', V(hand({ effect: -0.3, lo: -0.4, hi: -0.1 })) === 'RETIRE candidate');
   check('verdict 6: an interval spanning the minimum delta is INCONCLUSIVE (power)', V(hand({ effect: 0.1, lo: -0.1, hi: 0.3 })) === 'INCONCLUSIVE (power)');
   check('verdict 6: no scored task is INCONCLUSIVE (power)', V(hand({ effect: null, lo: null, hi: null })) === 'INCONCLUSIVE (power)');
+  check('verdict 1 mutant: the instrument branch wins over thin strata', V(hand({ strata: { used: 1, thin: 1 }, instrument: { saturated: true, voidShare: 0, tripped: true } })) === 'INCONCLUSIVE (instrument)');
+  check('verdict power: a thin stratum is INCONCLUSIVE (power) even with a large effect', V(hand({ effect: 0.9, lo: 0.9, hi: 0.9, strata: { used: 1, thin: 1 } })) === 'INCONCLUSIVE (power)'
+    && V(hand({ effect: -0.05, lo: -0.05, hi: -0.05, strata: { used: 1, thin: 1 } })) === 'INCONCLUSIVE (power)');
+  check('verdict power: the thin-strata reason names the count', verdict(hand({ strata: { used: 3, thin: 2 } })).reasons[0].includes('below 2 in 2 of 3 tasks'));
+  check('verdict power: a nonzero-width interval with 2 per arm keeps its branch', V(hand({ strata: { used: 2, thin: 0 } })) === 'KEEP');
+  const oneRep = summarize(BH, [unit({ arm: 'skill', findings: [at('src/a.js', 10), at('src/b.js', 50)] }), unit({ arm: 'control' })], { t1: KEY });
+  check('score: one sample per arm counts as a thin stratum and gives INCONCLUSIVE (power)', oneRep.strata.thin === 1 && oneRep.strata.used === 1 && V(oneRep) === 'INCONCLUSIVE (power)');
+  const twoReps = summarize(BH, [
+    unit({ arm: 'skill', rep: 1, findings: [at('src/a.js', 10), at('src/b.js', 50)] }), unit({ arm: 'skill', rep: 2, findings: [at('src/a.js', 10)] }),
+    unit({ arm: 'control', rep: 1 }), unit({ arm: 'control', rep: 2, findings: [at('src/a.js', 10)] }),
+  ], { t1: KEY });
+  check('score: two samples per arm are not thin', twoReps.strata.thin === 0 && twoReps.strata.used === 1);
+  const flat = summarize(DEBUG, [
+    ...[1, 2].map((r) => dunit('skill', r, true)), ...[1, 2].map((r) => dunit('control', r, false)),
+  ], DEBUG_KEYS);
+  check('score: a perfect separation with 2 per arm is not thin and keeps its branch', flat.strata.thin === 0 && V(flat) === 'KEEP');
   check('verdict: every result carries reasons', ['KEEP', 'FIX', 'RETIRE'].every(() => verdict(hand()).reasons.length > 0) && verdict(vRetire).reasons.length > 0);
 
   // ---- end to end through summarizeSkill ----

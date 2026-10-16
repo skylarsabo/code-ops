@@ -299,7 +299,7 @@ function guard(applies, skill, control, limit, margin = 0) {
  * Summarize one skill: effect and interval, guards, cost and wall ratios, cap hits and timeouts
  * per arm, and the void share. `units` are raw per-unit results (other skills are ignored),
  * `keys` maps task id to its derived key, `srcLines` is the target's physical line count of
- * source JavaScript (report-run.mjs countLines). Void units are excluded from every metric and counted toward the void share.
+ * source JavaScript (report-run.mjs countLines). `strata` counts the tasks the interval uses and those with under 2 samples in an arm. Void units are excluded from every metric and counted toward the void share.
  * `adjudicatedTrueShare` is the optional adjudication result: when at least 0.5, the unkeyed guard
  * holds on that evidence.
  */
@@ -319,6 +319,8 @@ export function summarizeSkill({ skill, matrixSkill, units, keys, srcLines, iter
     control: live.filter((s) => s.task === task && s.arm === 'control' && s.primary !== null).map((s) => s.primary),
   }));
   const interval = bootstrap(perTask, { iterations, seed });
+  const used = perTask.filter((t) => t.skill.length && t.control.length);
+  const strata = { used: used.length, thin: used.filter((t) => Math.min(t.skill.length, t.control.length) < 2).length };
 
   const voids = { skill: arm('skill', scored).filter((s) => s.void).length, control: arm('control', scored).filter((s) => s.void).length };
   const voidShare = scored.length ? (voids.skill + voids.control) / scored.length : 0;
@@ -369,6 +371,7 @@ export function summarizeSkill({ skill, matrixSkill, units, keys, srcLines, iter
     effect: interval.effect,
     lo: interval.lo,
     hi: interval.hi,
+    strata,
     units: { skill: a.units, control: b.units },
     voids: { ...voids, share: voidShare },
     instrument: { saturated, voidShare, tripped: saturated || voidShare > BOUNDS.voidShare + EPS },
@@ -385,9 +388,9 @@ export function summarizeSkill({ skill, matrixSkill, units, keys, srcLines, iter
 
 // ---- verdict ----------------------------------------------------------------------------
 
-/** Apply the six ordered branches of the verdict rule to a skill summary. */
+/** Apply the ordered branches of the verdict rule to a skill summary. A task with under 2 samples in an arm gives INCONCLUSIVE (power) before KEEP, FIX, or RETIRE. */
 export function verdict(summary) {
-  const { effect, lo, hi, minDelta, instrument, guards } = summary;
+  const { effect, lo, hi, minDelta, instrument, guards, strata } = summary;
   if (instrument.tripped) {
     const why = [];
     if (instrument.saturated) why.push('the control arm scores at least 0.9 on every task');
@@ -396,6 +399,9 @@ export function verdict(summary) {
   }
   if (effect === null || effect === undefined) {
     return { verdict: VERDICTS.power, reasons: ['no task has scored units in both arms'] };
+  }
+  if (strata.thin > 0) {
+    return { verdict: VERDICTS.power, reasons: [`n per arm below 2 in ${strata.thin} of ${strata.used} tasks, so the bootstrap interval has no spread`] };
   }
   const clears = effect >= minDelta - EPS && lo > 0;
   const failed = GUARDS.filter((g) => guards[g].applies && !guards[g].holds);
@@ -442,7 +448,7 @@ export function renderReport({ plan, summaries }) {
     if (text !== null) out.push(`- ${k}: ${text}`);
   }
   out.push(
-    '- verdict rule: instrument, KEEP, FIX (cost or guard), FIX (guard value), RETIRE candidate, INCONCLUSIVE (power), in that order',
+    '- verdict rule: instrument, then INCONCLUSIVE (power) when any task has under 2 samples in an arm, then KEEP, FIX (cost or guard), FIX (guard value), RETIRE candidate, INCONCLUSIVE (power), in that order',
     `- bounds: inflation +${BOUNDS.inflation}, decoy hits +${BOUNDS.decoy}, regressions and false blocks at most control, unkeyed ${BOUNDS.unkeyedRatio}x control, cost and wall ratio at most ${BOUNDS.costRatio}`,
     '- interval: 90% stratified bootstrap by task and arm',
     '',

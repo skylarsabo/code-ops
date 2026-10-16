@@ -1,6 +1,6 @@
 // The score and report verbs: read a run folder's frozen keys and unit results, summarize each
 // skill with lib/score.mjs, and write scores.json and REPORT.md into the run folder.
-import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadBench } from './runner.mjs';
 import { renderReport, summarizeSkill } from './score.mjs';
@@ -50,6 +50,31 @@ export function scoreRun({ runDir, benchDir, iterations = ITERATIONS, seed = SEE
   return out;
 }
 
+/**
+ * Spend totals over every attempt. The ledger holds every attempt, including those of a unit that
+ * never got a record (an API error after a void, a killed rerun); a unit with no ledger line is a
+ * legacy record and counts its own attempts, or its costUsd.
+ */
+export function spendSummary(units, ledger) {
+  const sum = (xs) => xs.reduce((a, b) => a + b, 0);
+  const inLedger = new Set(ledger.map((e) => e.unitId));
+  const legacy = units.filter((u) => !inLedger.has(u.unitId)).flatMap((u) => u.attempts ?? [{ costUsd: u.costUsd ?? 0, void: false }]);
+  const attempts = [...ledger, ...legacy];
+  return {
+    totalUsd: sum(attempts.map((a) => a.costUsd ?? 0)),
+    voidUsd: sum(attempts.filter((a) => a.void).map((a) => a.costUsd ?? 0)),
+    killedUnrecorded: ledger.filter((e) => e.status === 'killed-unrecorded' && e.costUsd == null).length,
+    scoredUsd: sum(units.map((u) => u.costUsd ?? 0)),
+  };
+}
+
+/** The ledger's lines; none when the run folder has no ledger yet. */
+function readLedger(runDir) {
+  const path = join(runDir, 'spend.jsonl');
+  if (!existsSync(path)) return [];
+  return readFileSync(path, 'utf8').split(/\r?\n/).filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
+}
+
 /** Render REPORT.md from plan.json and scores.json; return its path. */
 export function reportRun({ runDir }) {
   const plan = JSON.parse(readFileSync(join(runDir, 'plan.json'), 'utf8'));
@@ -70,6 +95,8 @@ export function reportRun({ runDir }) {
   const warn = scores.missing.length
     ? `> Incomplete run: ${scores.missing.length} planned unit(s) have no result (${scores.missing.join(', ')}). The verdicts below rest on the units that ran.\n\n`
     : '';
-  writeFileSync(out, warn + body);
+  const sp = spendSummary(readJsonDir(join(runDir, 'units')), readLedger(runDir));
+  const spend = `\n## Spend\n\n- Total recorded spend, all attempts: $${sp.totalUsd.toFixed(2)}\n- Void attempts: $${sp.voidUsd.toFixed(2)}\n- Killed attempts with unrecorded spend: ${sp.killedUnrecorded}\n- Scored units: $${sp.scoredUsd.toFixed(2)}\n`;
+  writeFileSync(out, warn + body + spend);
   return out;
 }

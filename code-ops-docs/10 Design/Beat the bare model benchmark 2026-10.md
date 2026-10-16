@@ -157,6 +157,8 @@ The rule is fixed before the first scored run. It applies per skill, in this ord
 5. **RETIRE candidate**: the interval's upper bound is below the minimum delta, and step 4 does not apply.
 6. **INCONCLUSIVE (power)**: any other case. A larger n runs only as a new, pre-registered snapshot. No snapshot is extended after its results are seen.
 
+A skill also gets INCONCLUSIVE (power) before steps 2 to 5 when a task in the bootstrap has fewer than 2 scored units in either arm. With one sample per arm, every resample returns the same value, so the interval collapses to a point and cannot support KEEP, FIX, or RETIRE. A zero-width interval at 2 or more units per arm, such as every skill unit passing and every control unit failing, is a real separation and keeps its branch. This check was added on 2026-10-16, after snapshot-tau-bhca gave a RETIRE candidate at one rep per arm; it applies to every snapshot from then on.
+
 A RETIRE candidate becomes RETIRE only when a second snapshot gives the same verdict. The operator may authorize one FIX attempt between the two snapshots. Every verdict is a recommendation, and the operator owns retirement.
 
 ## Answer-key isolation
@@ -174,6 +176,10 @@ The plan writes a random 32-hex canary into the derived answer key and into the 
 - The upstream project name or URL inside a network command such as `curl`, `git clone`, or `npm view`.
 
 A void unit reruns once under the same plan. A second void leaves the unit void, and the void counts toward the instrument rule. `--bare` confines nothing for Bash, so the audit is the enforcement. An operating-system boundary, such as a separate user account, is an optional hardening.
+
+Both arms run with deny rules for host-wide process kills, such as `taskkill`, `pkill`, `killall`, and `Stop-Process`. In earlier runs a unit ran `taskkill /F /IM node.exe` and stopped the runner. Bare mode skips hooks, so the deny rules are command-line flags. Before each attempt the runner writes an in-flight marker. If the runner stops, the next start finds the marker, records the attempt as killed, and runs the unit again.
+
+Every attempt's spend is recorded, including a voided first attempt and a killed attempt. A killed attempt with no result line is recorded as unrecorded spend. The report states the total spend, the void spend, and the number of killed attempts.
 
 ## Exit contract
 
