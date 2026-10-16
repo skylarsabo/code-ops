@@ -30,7 +30,7 @@ export function runQuery(bin, query, opts) {
     let killed = false;
     let buf = '';
     let stderr = '';
-    const child = spawn(command, args, { cwd: opts.cwd, env: sessionEnv(process.env), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
+    const child = spawn(command, args, { cwd: opts.cwd, env: sessionEnv(process.env, opts.routingCard ?? 'off'), windowsHide: true, stdio: ['pipe', 'pipe', 'pipe'] });
     const stop = () => { killed = true; kill(child, shim); };
     const timer = setTimeout(() => { det.state.error ??= 'timeout'; stop(); }, opts.timeoutMs ?? 240000);
     child.stdin.on('error', () => {});

@@ -145,6 +145,10 @@ check('env: the session env overrides an ambient routing card and still scrubs',
   const e = sessionEnv({ CODE_OPS_ROUTING_CARD: 'on', CLAUDECODE: '1', PATH: 'p' });
   return e.CODE_OPS_ROUTING_CARD === 'off' && !('CLAUDECODE' in e) && e.PATH === 'p';
 })());
+check('env: the session env turns the routing card on when asked and still scrubs', (() => {
+  const e = sessionEnv({ CODE_OPS_ROUTING_CARD: 'off', CLAUDECODE: '1', PATH: 'p' }, 'on');
+  return e.CODE_OPS_ROUTING_CARD === 'on' && !('CLAUDECODE' in e) && e.PATH === 'p';
+})());
 check('env: scrubEnv keeps CODE_OPS_ROUTING_CARD', scrubEnv({ CODE_OPS_ROUTING_CARD: 'off' }).CODE_OPS_ROUTING_CARD === 'off');
 
 // ---- per-session target copy ----------------------------------------------------------------------
@@ -196,6 +200,9 @@ check('env: scrubEnv keeps CODE_OPS_ROUTING_CARD', scrubEnv({ CODE_OPS_ROUTING_C
 // ---- argument parsing -----------------------------------------------------------------------
 check('args: defaults and required flags', (() => { const o = parseArgs(['--queries', 'q.json', '--out', 'o']); return o.runs === 3 && o.split === 'all' && o.budget === 0.5; })());
 check('args: --target is optional and takes a folder', parseArgs(['--queries', 'q', '--out', 'o']).target === null && parseArgs(['--queries', 'q', '--out', 'o', '--target', 'd']).target === 'd');
+check('args: --routing-card defaults to off and takes on', parseArgs(['--queries', 'q', '--out', 'o']).routingCard === 'off' && parseArgs(['--queries', 'q', '--out', 'o', '--routing-card', 'on']).routingCard === 'on');
+check('args: a bad --routing-card throws', throws(() => parseArgs(['--queries', 'q', '--out', 'o', '--routing-card', 'yes'])));
+check('score: markdown records the routing card state', renderMarkdown(scoreResults(S, []), { split: 'all', seed: 1, runsPerQuery: 3, routingCard: 'on' }).includes('routing card on'));
 check('args: a missing --out throws', throws(() => parseArgs(['--queries', 'q.json'])));
 check('args: an unknown flag throws', throws(() => parseArgs(['--queries', 'q', '--out', 'o', '--x'])));
 check('args: a bad number throws', throws(() => parseArgs(['--queries', 'q', '--out', 'o', '--runs', '0'])));
