@@ -1,7 +1,6 @@
 # Changelog — researcher
 
-## 0.18.1
-- The `research-verify` description names the inputs it checks (claims or assumptions in a draft, memo, doc, plan, or outside assessment), so that a request phrased in other words still reaches the skill. A 60-session trigger pilot fired the old description on 2 of 30 positive runs, both on near-verbatim wording.
+## 0.18.0
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 - The `claim-checker` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional.
 - `library-eval`, `research-ideate`, `research-improve`, `research-spike`, `research-sweep`, and `research-verify` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
