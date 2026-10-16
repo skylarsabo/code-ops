@@ -120,6 +120,7 @@ Prerequisites: `eng/bench-runner` is merged, and bench pilot P-1 (does `--bare` 
 - Output: a trigger table per skill (hit rate, false fires by sibling) in the run folder. Description edits go through the normal skill PR path, with the 160-char lint cap.
 - Done when: the CI eval passes, and the pilot table for one plugin is recorded with its cost.
 - Status (2026-10-16): smoke passed; pilot open. A two-query smoke ran end to end. Neither query fired a skill, and the raw stream shows a real non-trigger, not a detector miss. The detector key `skill` is confirmed. A non-trigger session costs 0.15 to 0.37 USD; an early-stopped session reports null cost. Evidence: `code-ops-docs/80 Runs/2026-10-16-live-checks/RUN_LOG.md`.
+- Status (2026-10-16): first pilot done. The 60-session research-verify pilot ran in a per-session copy of the hyparquet target with the routing card off. The skill fired on 2 of 30 positive runs (7%), both on the query that repeats the description's own words, with 0 false fires in 30 negative runs; each sibling query that fired chose its expected sibling. A one-claim fact-check never fires the skill, because the model answers inline from the code. The description was rewritten to name the inputs it checks, and the pilot was re-run. Evidence: `code-ops-docs/80 Runs/2026-10-16-trigger-pilot/RUN_LOG.md`.
 
 ## P7. `claude plugin eval` stays a cross-check
 

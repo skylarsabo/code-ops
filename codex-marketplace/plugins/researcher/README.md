@@ -16,7 +16,7 @@ Name a workflow in Codex as `researcher:<skill>`. Every generated skill sets `po
 - `research-improve` — Use for improvements to existing code grounded in external best practice, not a generic checklist. Writes no code; hands off.
 - `research-spike` — Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code.
 - `research-sweep` — Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates; writes no code.
-- `research-verify` — Use to adversarially fact-check a claim, recommendation, or draft research against sources and our code before acting. Review only; writes no code.
+- `research-verify` — Use to fact-check claims or assumptions in a draft, memo, doc, plan, or outside assessment against our code and sources before acting. Review only; no code.
 
 ## Packaging notes
 

@@ -1,5 +1,8 @@
 # Changelog — researcher
 
+## 0.18.1
+- The `research-verify` description names the inputs it checks (claims or assumptions in a draft, memo, doc, plan, or outside assessment), so that a request phrased in other words still reaches the skill. A 60-session trigger pilot fired the old description on 2 of 30 positive runs, both on near-verbatim wording.
+
 ## 0.17.0
 - The `gatherer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.
 
