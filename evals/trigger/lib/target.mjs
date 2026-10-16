@@ -65,13 +65,19 @@ export function makeSessionCopy(source) {
 
 /**
  * Run fn(copyPath) inside a fresh copy of source and remove the copy afterwards, whether fn
- * resolves or throws. A killed session can hold its folder for a moment on win32, so removal retries.
+ * resolves or throws. A killed session can hold its folder for a while on win32, so removal retries,
+ * and a folder that still cannot be removed is reported and left behind instead of ending the run.
+ * The copy holds only target code, so a leftover folder leaks nothing.
  */
-export async function withSessionCopy(source, fn) {
+export async function withSessionCopy(source, fn, remove = rmSync) {
   const dir = makeSessionCopy(source);
   try {
     return await fn(dir);
   } finally {
-    rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+    try {
+      remove(dir, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch (e) {
+      console.warn(`trigger: left session copy ${dir}: ${e.code ?? e.message}`);
+    }
   }
 }

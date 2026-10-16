@@ -176,6 +176,14 @@ check('env: scrubEnv keeps CODE_OPS_ROUTING_CARD', scrubEnv({ CODE_OPS_ROUTING_C
     let failed = null;
     try { await withSessionCopy(src, async (dir) => { failed = dir; throw new Error('killed'); }); } catch { /* expected */ }
     check('target: the copy is removed when the session throws', failed !== null && !existsSync(failed));
+    let locked = null;
+    const eperm = () => { throw Object.assign(new Error('locked'), { code: 'EPERM' }); };
+    const warn = console.warn;
+    console.warn = () => {};
+    let result;
+    try { result = await withSessionCopy(src, async (dir) => { locked = dir; return 'done'; }, eperm); } finally { console.warn = warn; }
+    check('target: a copy that cannot be removed is left behind without ending the run', result === 'done' && locked !== null && existsSync(locked));
+    if (locked) rmSync(locked, { recursive: true, force: true });
   } finally { rmSync(scratch, { recursive: true, force: true }); }
 
   const real = makeSessionCopy(DEFAULT_TARGET);
