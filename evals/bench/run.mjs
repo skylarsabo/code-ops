@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { tally, withDetail } from '../harness.mjs';
 import { SKILLS, checkBench, treeDigest } from './bench.mjs';
 import { cases as sandboxCases } from './cases/sandbox.cases.mjs';
+import { cases as runnerCases } from './cases/runner.cases.mjs';
 import { cases as scoreCases } from './cases/score.cases.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -247,6 +248,7 @@ try {
   });
   await scoreCases(check);
   await sandboxCases(check);
+  await runnerCases(check);
 } finally {
   for (const t of temps) rmSync(t, { recursive: true, force: true });
 }

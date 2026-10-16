@@ -31,3 +31,7 @@ code-ops-docs/.trash/
 
 # third-party specifications kept locally for reference — licensed, never redistributed
 code-ops-docs/95 Attachments/*.pdf
+
+# bench API key and workspace id (home-level files; never tracked)
+.bench-key
+.bench-workspace

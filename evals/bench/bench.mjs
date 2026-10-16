@@ -542,6 +542,13 @@ function parseFlags(rest, booleans) {
   return out;
 }
 
+/** A flag's value as a finite number above zero; the default when the flag is absent. */
+export function positiveFlag(name, value, fallback) {
+  const n = Number(value ?? fallback);
+  if (!Number.isFinite(n) || n <= 0) throw new Error(`--${name} must be a finite number above zero, got ${value}`);
+  return n;
+}
+
 /** The plan, run, score, and report verbs. */
 async function modelVerb(verb, rest) {
   const f = parseFlags(rest, ['--pilot']);
@@ -553,8 +560,8 @@ async function modelVerb(verb, rest) {
   if (verb === 'plan') {
     const { planBench } = await import('./lib/runner.mjs');
     const plan = planBench({
-      runDir, pilot: Boolean(f.pilot), reps: Number(f.reps ?? (f.pilot ? 1 : 4)), target: f.target, taskIds: f.tasks, model: f.model ?? 'claude-opus-5-5',
-      capUsd: Number(f['cap-usd'] ?? 5), timeoutMs: Number(f['timeout-min'] ?? 60) * 60_000,
+      runDir, pilot: Boolean(f.pilot), reps: positiveFlag('reps', f.reps, f.pilot ? 1 : 4), target: f.target, taskIds: f.tasks, model: f.model ?? 'claude-opus-5-5',
+      capUsd: positiveFlag('cap-usd', f['cap-usd'], 5), timeoutMs: positiveFlag('timeout-min', f['timeout-min'], 60) * 60_000,
       isolation: f.isolation ?? 'config-dir', permissionMode: f['permission-mode'] ?? 'bypassPermissions',
     });
     console.log(`plan: ${plan.units.length} units, cap ${plan.capUsd} each, ${runDir}`);
@@ -562,7 +569,7 @@ async function modelVerb(verb, rest) {
   }
   if (verb === 'run') {
     const { runBench } = await import('./lib/runner.mjs');
-    const r = await runBench({ runDir, limit: f.limit ? Number(f.limit) : Infinity });
+    const r = await runBench({ runDir, limit: f.limit === undefined ? Infinity : positiveFlag('limit', f.limit) });
     console.log(`run: ${r.ran} unit(s) ran${r.stopped ? `; stopped: ${r.stopped}` : ''}`);
     return r.stopped ? 1 : 0;
   }
@@ -574,7 +581,13 @@ async function modelVerb(verb, rest) {
 
 async function main(argv) {
   const [verb, ...rest] = argv;
-  if (['plan', 'run', 'score', 'report'].includes(verb)) return modelVerb(verb, rest);
+  if (['plan', 'run', 'score', 'report'].includes(verb)) {
+    try { return await modelVerb(verb, rest); } catch (err) {
+      if (!/^--[a-z-]+ must be/.test(err.message)) throw err;
+      console.error(err.message);
+      return 2;
+    }
+  }
   const opts = { log: (line) => console.log(`ok   ${line}`), group: null, tasksFile: null };
   let bad = verb !== 'check';
   for (let i = 0; i < rest.length && !bad; i += 2) {

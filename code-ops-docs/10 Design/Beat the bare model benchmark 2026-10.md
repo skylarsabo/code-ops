@@ -171,15 +171,17 @@ The skill arm's plugin copy lives in a third location: a sibling of the sandbox 
 
 The plan writes a random 32-hex canary into the derived answer key and into the pristine target's run-folder copy. After each unit, `bench.mjs run` audits the full stream-json transcript and the findings file. A unit is void when any of these appear:
 
-- The repository root path or the run folder path in any tool input.
-- The string `ANSWER_KEY` or the canary anywhere in the transcript or the findings.
-- The upstream project name or URL inside a network command such as `curl`, `git clone`, or `npm view`.
+- The repository root path, the run folder path, the bench targets folder, the key file, or the key helper in any tool input. The audit matches absolute, home-relative (`~`, `$HOME`, `%USERPROFILE%`), and relative forms.
+- The string `ANSWER_KEY`, in any letter case, or the canary anywhere in the transcript or the findings.
+- The upstream project name inside a network command such as `curl`, `git clone`, `npm view`, `gh api`, or `Invoke-RestMethod`, or an upstream URL in any tool input.
 
 A void unit reruns once under the same plan. A second void leaves the unit void, and the void counts toward the instrument rule. `--bare` confines nothing for Bash, so the audit is the enforcement. An operating-system boundary, such as a separate user account, is an optional hardening.
 
 Both arms run with deny rules for host-wide process kills, such as `taskkill`, `pkill`, `killall`, and `Stop-Process`. In earlier runs a unit ran `taskkill /F /IM node.exe` and stopped the runner. Bare mode skips hooks, so the deny rules are command-line flags. Before each attempt the runner writes an in-flight marker. If the runner stops, the next start finds the marker, records the attempt as killed, and runs the unit again.
 
 Every attempt's spend is recorded, including a voided first attempt and a killed attempt. A killed attempt with no result line is recorded as unrecorded spend. The report states the total spend, the void spend, and the number of killed attempts.
+
+The unit and its test runs get an allowlisted environment: the variables the claude binary and Git Bash need to start, with HOME, USERPROFILE, APPDATA, and LOCALAPPDATA pointed at a scratch folder. Tokens such as `GH_TOKEN` stay out. The key helper lives in its own temporary folder outside the sandbox, and the API key is masked as `<REDACTED:api-key>` in the saved transcript. `plan` refuses a run folder inside the repository that git does not ignore. The runner computes the proofs before it copies the oracles in, checks plan drift before each unit, and stops on an attempt with no result line unless the attempt timed out.
 
 ## Exit contract
 

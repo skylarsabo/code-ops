@@ -1,8 +1,8 @@
 // The score and report verbs: read a run folder's frozen keys and unit results, summarize each
 // skill with lib/score.mjs, and write scores.json and REPORT.md into the run folder.
-import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { loadBench } from './runner.mjs';
+import { loadBench, readLedger } from './runner.mjs';
 import { renderReport, summarizeSkill } from './score.mjs';
 
 export const ITERATIONS = 10000;
@@ -63,16 +63,10 @@ export function spendSummary(units, ledger) {
   return {
     totalUsd: sum(attempts.map((a) => a.costUsd ?? 0)),
     voidUsd: sum(attempts.filter((a) => a.void).map((a) => a.costUsd ?? 0)),
-    killedUnrecorded: ledger.filter((e) => e.status === 'killed-unrecorded' && e.costUsd == null).length,
+    // Attempts whose spend is unknown: killed mid-attempt, no result line, or a throw.
+    unrecorded: ledger.filter((e) => ['killed-unrecorded', 'no-result', 'error'].includes(e.status) && e.costUsd == null).length,
     scoredUsd: sum(units.map((u) => u.costUsd ?? 0)),
   };
-}
-
-/** The ledger's lines; none when the run folder has no ledger yet. */
-function readLedger(runDir) {
-  const path = join(runDir, 'spend.jsonl');
-  if (!existsSync(path)) return [];
-  return readFileSync(path, 'utf8').split(/\r?\n/).filter(Boolean).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
 }
 
 /** Render REPORT.md from plan.json and scores.json; return its path. */
@@ -96,7 +90,7 @@ export function reportRun({ runDir }) {
     ? `> Incomplete run: ${scores.missing.length} planned unit(s) have no result (${scores.missing.join(', ')}). The verdicts below rest on the units that ran.\n\n`
     : '';
   const sp = spendSummary(readJsonDir(join(runDir, 'units')), readLedger(runDir));
-  const spend = `\n## Spend\n\n- Total recorded spend, all attempts: $${sp.totalUsd.toFixed(2)}\n- Void attempts: $${sp.voidUsd.toFixed(2)}\n- Killed attempts with unrecorded spend: ${sp.killedUnrecorded}\n- Scored units: $${sp.scoredUsd.toFixed(2)}\n`;
+  const spend = `\n## Spend\n\n- Total recorded spend, all attempts: $${sp.totalUsd.toFixed(2)}\n- Void attempts: $${sp.voidUsd.toFixed(2)}\n- Attempts with unrecorded spend (killed or no result): ${sp.unrecorded}\n- Scored units: $${sp.scoredUsd.toFixed(2)}\n`;
   writeFileSync(out, warn + body + spend);
   return out;
 }

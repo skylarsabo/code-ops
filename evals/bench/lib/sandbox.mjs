@@ -37,9 +37,26 @@ function copyFile(from, to) {
   cpSync(from, to);
 }
 
+// The only variables a child process inherits; the rest of the parent's environment may hold
+// credentials or the repository path. Compared case-insensitively (Windows spells Path, PATH).
+const ENV_ALLOW = new Set(['PATH', 'PATHEXT', 'SYSTEMROOT', 'WINDIR', 'COMSPEC', 'TEMP', 'TMP', 'TMPDIR', 'LANG', 'LC_ALL', 'TERM',
+  'NUMBER_OF_PROCESSORS', 'PROCESSOR_ARCHITECTURE', 'OS', 'PROGRAMFILES', 'PROGRAMFILES(X86)', 'COMMONPROGRAMFILES', 'SYSTEMDRIVE']);
+
+let scratchHome = null;
+/** An empty directory that stands in for the home directory. Removed at process exit. */
+function homeDir() {
+  if (scratchHome) return scratchHome;
+  const dir = mkdtempSync(join(tmpdir(), 'bench-home-'));
+  scratchHome = dir;
+  process.once('exit', () => rmSync(dir, { recursive: true, force: true }));
+  return dir;
+}
+
 function childEnv() {
-  const env = { ...process.env };
-  for (const k of ['NODE_OPTIONS', 'NODE_TEST_CONTEXT', 'NODE_V8_COVERAGE']) delete env[k];
+  const env = {};
+  for (const [k, v] of Object.entries(process.env)) if (ENV_ALLOW.has(k.toUpperCase())) env[k] = v;
+  env.HOME = homeDir();
+  env.USERPROFILE = env.HOME;
   return env;
 }
 

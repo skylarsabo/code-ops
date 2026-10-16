@@ -1114,8 +1114,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f24c9e1607f1cbef7247ee8f6e50dc8b3f951f15",
-      "verifiedDigest": "9c47897ec0ded49dccb041c7bd9f582e2033a08602394b31984c3318b29b05d8",
+      "verifiedAt": "d6836401f7feb62900bb1940fef4db4f87dd9f96",
+      "verifiedDigest": "555560758e4d9b68e0c28480e61b629abe71bdeef21a222a5a3c957a160436f0",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1547,6 +1547,11 @@
           "anchor": "// The score and report verbs: read a run folder's frozen keys and unit results,"
         },
         {
+          "file": "evals/bench/cases/runner.cases.mjs",
+          "line": 1,
+          "anchor": "// Cases for the runner safeguards in evals/bench/lib/runner.mjs and the spend s"
+        },
+        {
           "file": "evals/refutation-tally/run.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
@@ -1950,7 +1955,7 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "f1787a7c94b6a11b2758b98b19234411b96652c4",
+      "verifiedAt": "d6836401f7feb62900bb1940fef4db4f87dd9f96",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
@@ -1993,7 +1998,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "8b5fc2d79bb4b2e49ddb7aee37b982e0e6959613a595f05aac63fec985504c02"
+      "verifiedDigest": "a01a011cb19d22c49d007dd4861310a59c3c8c7e4400d40ffebbca91b10e4b4f"
     },
     {
       "slug": "runtime-toolchain",
