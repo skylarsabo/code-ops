@@ -1,0 +1,25 @@
+{
+  "skill": "researcher:research-verify",
+  "queries": [
+    { "stratum": "positive-direct", "expect": "researcher:research-verify", "query": "Fact-check this claim before we act on it: \"SQLite WAL mode lets readers proceed while a writer holds the lock.\" Check it against sources and our code." },
+    { "stratum": "positive-direct", "expect": "researcher:research-verify", "query": "Adversarially verify the recommendation in our draft research note that we should switch the job queue to Redis streams." },
+    { "stratum": "positive-direct", "expect": "researcher:research-verify", "query": "Check this research summary against sources: every statement should trace to a citation, and drop what you cannot prove." },
+    { "stratum": "positive-direct", "expect": "researcher:research-verify", "query": "A teammate says our retry logic is unsafe because the HTTP client retries POST requests. Prove or disprove that against the code and the client docs." },
+    { "stratum": "positive-direct", "expect": "researcher:research-verify", "query": "Review-only pass please: validate the claims in docs/design/caching.md before we build on them." },
+    { "stratum": "positive-indirect", "expect": "researcher:research-verify", "query": "I am about to tell the team that Node 18 is out of security support. Am I right? Back it up with sources." },
+    { "stratum": "positive-indirect", "expect": "researcher:research-verify", "query": "This blog post says our ORM leaks connections under load. Is that actually true for the version we pin?" },
+    { "stratum": "positive-indirect", "expect": "researcher:research-verify", "query": "Before I act on the earlier sweep results, which of its findings hold up and which are unsupported?" },
+    { "stratum": "positive-indirect", "expect": "researcher:research-verify", "query": "Someone claims the fix landed in release 4.2 and our code already has it. Confirm or refute with evidence." },
+    { "stratum": "positive-indirect", "expect": "researcher:research-verify", "query": "Poke holes in this proposal: it says moving to gRPC cuts our latency by half. Where is the evidence?" },
+    { "stratum": "negative-sibling", "expect": "researcher:research-spike", "query": "We plan to add rate limiting to the public API. Write a code-grounded design brief for it before anyone builds it." },
+    { "stratum": "negative-sibling", "expect": "researcher:library-eval", "query": "Should we adopt Zod or Valibot for request validation, or build our own? Give a verdict with migration cost." },
+    { "stratum": "negative-sibling", "expect": "researcher:ecosystem-watch", "query": "What changed in our dependencies this month that needs action: updates, CVEs, deprecations?" },
+    { "stratum": "negative-sibling", "expect": "researcher:research-ideate", "query": "Give me novel feature ideas for our CLI, grounded in our code and current trends in developer tooling." },
+    { "stratum": "negative-sibling", "expect": "researcher:research-improve", "query": "Suggest improvements to our existing logging module based on outside best practice for structured logging." },
+    { "stratum": "negative-sibling", "expect": "researcher:research-sweep", "query": "Run the whole research pipeline end to end on how we should handle offline sync, with me in the loop." },
+    { "stratum": "negative-sibling", "expect": "researcher:research-spike", "query": "Produce a design brief for migrating the billing service to event sourcing, grounded in the current code." },
+    { "stratum": "negative-sibling", "expect": "researcher:library-eval", "query": "Compare Playwright and Cypress for our end-to-end tests and tell me which to adopt." },
+    { "stratum": "negative-unrelated", "expect": "none", "query": "What does the Array.prototype.flatMap method do in JavaScript? Answer in two sentences." },
+    { "stratum": "negative-unrelated", "expect": "none", "query": "Say hello and tell me today's date format used in ISO 8601." }
+  ]
+}

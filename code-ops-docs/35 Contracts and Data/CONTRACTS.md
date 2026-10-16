@@ -786,8 +786,8 @@ hook. Codex support for `hookSpecificOutput.updatedToolOutput` is unproven, so
 `CODEX_EXCLUDED_HOOKS` removes the script, its `hooks.json` group, and its hook documentation from
 the Codex projection. OpenCode has no `PostToolUse` hook that replaces tool output, so its
 distribution bundles only `digest-rewrite.mjs` and `index-refresh.mjs`. Evidence:
-`scripts/build-codex-marketplace.mjs:367-369`, `scripts/build-codex-marketplace.mjs:375`,
-`scripts/build-codex-marketplace.mjs:451`, `scripts/build-codex-marketplace.mjs:606`, and
+`scripts/build-codex-marketplace.mjs:385-387`, `scripts/build-codex-marketplace.mjs:393`,
+`scripts/build-codex-marketplace.mjs:469`, `scripts/build-codex-marketplace.mjs:624`, and
 `scripts/build-opencode-dist.mjs:799`. The eval is `evals/digest-post/run.mjs`.
 
 ## Script entrypoint

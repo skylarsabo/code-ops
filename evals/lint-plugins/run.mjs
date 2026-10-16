@@ -1161,6 +1161,22 @@ No completion heading here on purpose (case 3 mutation).
     return runLint(dir);
   })();
   check('21c. a missing alignment script exits 1', r21c.status === 1 && r21c.all.includes('scripts/check-docs-standards-alignment.mjs: missing'));
+
+  // 22a-22d. SKILL FRONTMATTER KEY ALLOW-LIST (check 33) — a key outside the list fails closed,
+  // a listed key passes, and a continuation line never counts as a key.
+  const withFrontmatterLine = (label, line) => {
+    const dir = clone(label);
+    put(dir, BUG_HUNT, skillBody('BUG HUNT').replace(/^(description: .*)$/m, `$1\n${line}`));
+    return runLint(dir);
+  };
+  const r22a = withFrontmatterLine('case22a-unknown-key', 'allowed-tools: Read');
+  check('22a. an unknown SKILL.md frontmatter key exits 1', r22a.status === 1 && r22a.all.includes('rigor/bug-hunt: frontmatter key "allowed-tools" is not in the SKILL.md allow-list'));
+  const r22b = withFrontmatterLine('case22b-allowed-key', 'disallowed-tools: Edit, Write');
+  check('22b. an allow-listed SKILL.md frontmatter key exits 0', r22b.status === 0);
+  const r22c = withFrontmatterLine('case22c-continuation', 'disallowed-tools:\n  - Edit\n  - Write');
+  check('22c. an indented continuation line is not read as a key and exits 0', r22c.status === 0);
+  const r22d = withFrontmatterLine('case22d-not-a-key', 'stray text');
+  check('22d. a column-zero line that is not a key exits 1', r22d.status === 1 && r22d.all.includes('rigor/bug-hunt: frontmatter line is not a "key:" entry'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

@@ -1,5 +1,6 @@
 ---
 description: "Use to adversarially fact-check a claim, recommendation, or draft research against sources and our code before acting. Review only; writes no code."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Research verify: the prove-it-or-drop-it claim check

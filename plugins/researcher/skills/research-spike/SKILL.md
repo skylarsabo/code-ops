@@ -1,5 +1,6 @@
 ---
 description: "Use when a task, feature, or plan needs a code-grounded design brief before anyone builds it. Writes no code."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Research spike: a code-grounded design brief

@@ -21,7 +21,7 @@
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { assembleChangelog, readFragments } from './changelog-fragments.mjs';
 import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS } from './model-tiers.mjs';
 
@@ -206,9 +206,27 @@ function titleCase(slug) {
   return slug.split('-').map((part) => acronyms.get(part) ?? (part[0].toUpperCase() + part.slice(1))).join(' ');
 }
 
+// Codex emit list for SKILL.md frontmatter: a key not named here never reaches the Codex output,
+// so a new Claude-only key stays out by default. Separate from the lint allow-list on purpose.
+// `name` is not here because transformSkill writes it from the slug.
+export const CODEX_SKILL_KEYS = new Set(['description']);
+
+// Keep a frontmatter key together with its continuation lines (indented lines, block scalar
+// content, blank lines and comments that follow it) or drop them all together.
+export function filterSkillHeader(lines, keep = CODEX_SKILL_KEYS) {
+  const kept = [];
+  let keeping = false;
+  for (const line of lines) {
+    const key = line.match(/^([A-Za-z0-9_-]+):/)?.[1];
+    if (key !== undefined) keeping = keep.has(key);
+    if (keeping) kept.push(line);
+  }
+  return kept;
+}
+
 function transformSkill(pluginName, slug, contents, path) {
   const { header, body } = parseSkill(contents, path);
-  const keptHeader = header.filter((line) => !/^(name|disable-model-invocation|disable_model_invocation):/.test(line));
+  const keptHeader = filterSkillHeader(header);
   const command = `${pluginName}:${slug}`;
   const marker = `**Invoked as \`/${command}\`.**`;
   if (!body.includes(marker)) throw new Error(`${path}: expected invocation marker ${marker}`);
@@ -752,12 +770,15 @@ function writeOutput(expected) {
   writeFileSync(MARKETPLACE_PATH, JSON.stringify(makeMarketplace(), null, 2) + '\n', 'utf8');
 }
 
-const expected = buildExpectedFiles();
-validateExpectedFiles(expected);
-if (CHECK) {
-  compareOutput(expected);
-  console.log(`OK — Codex marketplace is current (${PLUGINS.length} plugins, ${[...expected.keys()].filter((path) => path.endsWith('/SKILL.md')).length} skills).`);
-} else {
-  writeOutput(expected);
-  console.log(`Built Codex marketplace (${PLUGINS.length} plugins, ${[...expected.keys()].filter((path) => path.endsWith('/SKILL.md')).length} skills).`);
+// Importing this module (the eval does) must not build or check the output.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const expected = buildExpectedFiles();
+  validateExpectedFiles(expected);
+  if (CHECK) {
+    compareOutput(expected);
+    console.log(`OK — Codex marketplace is current (${PLUGINS.length} plugins, ${[...expected.keys()].filter((path) => path.endsWith('/SKILL.md')).length} skills).`);
+  } else {
+    writeOutput(expected);
+    console.log(`Built Codex marketplace (${PLUGINS.length} plugins, ${[...expected.keys()].filter((path) => path.endsWith('/SKILL.md')).length} skills).`);
+  }
 }

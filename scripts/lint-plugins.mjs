@@ -112,6 +112,9 @@
 //      a plugin CONVENTIONS.md, or a plugin skill or agent, and every `*-standard.md` those files
 //      name is a page in that folder (scripts/check-docs-standards-alignment.mjs; fails closed
 //      when the folder, AGENTS.md, plugins/, or the script is missing).
+//  33. Every SKILL.md frontmatter key is in SKILL_FRONTMATTER_KEYS, so no key reaches a host by
+//      accident. A new key needs a deliberate allow-list entry here and, for Codex, an entry in
+//      CODEX_SKILL_KEYS (scripts/build-codex-marketplace.mjs), a separate list.
 //
 // It does NOT judge prose quality — that's the human's job.
 
@@ -141,6 +144,9 @@ const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
 // `everything` is the cross-plugin orchestrator (references skills across all plugins);
 // research-sweep and conform are intra-plugin (must reference only their OWN plugin's skills).
+// Check 33: the only top-level frontmatter keys a SKILL.md may carry. `disallowed-tools` is
+// allowed ahead of the phase that adds it. The Codex emit list is separate, in the Codex build.
+const SKILL_FRONTMATTER_KEYS = new Set(['description', 'disallowed-tools']);
 const CROSS_PLUGIN_ORCH = new Set(['everything', 'local-review-gate']);
 const INTRA_PLUGIN_ORCH = new Set(['research-sweep', 'conform']);
 // Lowercase slug-shaped tokens that legitimately appear emphasized in an orchestrator but
@@ -269,6 +275,16 @@ function checkSkills({ plugins, allSlugs, pluginByName, QUALIFIED_RE }) {
       if (!fm) fail(`${p.name}/${slug}: missing YAML frontmatter`);
       else if (!/^description:[ \t]*\S/m.test(fm[1])) fail(`${p.name}/${slug}: frontmatter missing non-empty description`); // [ \t] not \s: \s spans the newline and matches the next key
       if (fm) {
+        // Check 33: a top-level key outside the allow-list fails closed. Indented lines belong to
+        // the key above them. A column-zero line that is not a key, comment, or blank is junk.
+        for (const raw of fm[1].split('\n')) {
+          const line = raw.replace(/\r$/, '');
+          if (line === '' || /^[ \t#]/.test(line)) continue;
+          const key = line.match(/^([A-Za-z0-9_-]+):/)?.[1];
+          if (key === undefined) fail(`${p.name}/${slug}: frontmatter line is not a "key:" entry — ${line.slice(0, 40)}`);
+          else if (!SKILL_FRONTMATTER_KEYS.has(key))
+            fail(`${p.name}/${slug}: frontmatter key "${key}" is not in the SKILL.md allow-list (${[...SKILL_FRONTMATTER_KEYS].join(', ')}) — add it to SKILL_FRONTMATTER_KEYS deliberately or remove it`);
+        }
         // Every description loads into the system prompt at discovery, so each one costs
         // context on every turn of every session. Cap its length. A block scalar counts its
         // joined continuation lines, a plain or quoted scalar counts its first line plus any

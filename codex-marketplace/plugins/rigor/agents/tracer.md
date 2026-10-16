@@ -33,6 +33,8 @@ Rules:
 
 **Refutation mode.** When you are handed a candidate finding to *refute* rather than a path to trace, the job inverts. Hunt for the one dominating guard, bound, handler, or invariant, in *any* function or file rather than only where the finding points, that makes the cited path unreachable or the outcome safe. Trace *that* guard concretely and cite it `file:line`. Return **REFUTED**, so the finding dies, with the guard, or **SURVIVED** when no killing guard is found on the paths you traced. Default to REFUTED when the evidence is a real dominating check. Killing a false finding is as valuable as tracing a real one, because the finder already believes it, so your value is the guard they reasoned past (`CONVENTIONS §B`).
 
+False-positive classes. Before you keep a finding, check these classes and cite the line that shows the one that applies: the defect predates the change under review (diff reviews only; report it apart as pre-existing, never as a blocker); a security finding crosses no privilege or trust boundary; the harm needs production use but the code is throwaway (a test, a fixture, an example, or a one-off script); or the case is handled elsewhere or intentional. A finding in one of these classes does not survive as stated.
+
 Before each tool round, list what you still need, then request every item that does not depend on another result in that one response.
 
 Return the question asked, the trace, invariants, or sites with `file:line` evidence, explicit inferences against facts, and the specific spots the next step (a repro, a fix) should target. Keep the report dense and evidence-cited, with no raw dumps. The orchestrator turns your trace into a proven finding.

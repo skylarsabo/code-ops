@@ -133,7 +133,7 @@ must ASK whenever anything would cause network egress, confirming both the opt-i
 scope, and it treats the decision as high-stakes.
 
 The wording is consistent across the skills. Quoted verbatim from the Phase 0 checkpoint
-of `research-spike` (`plugins/researcher/skills/research-spike/SKILL.md:14`):
+of `research-spike` (`plugins/researcher/skills/research-spike/SKILL.md:15`):
 
 > **CHECKPOINT:** present the restated question, success criteria, constraints, and directions. **Confirm whether web egress is permitted for this run** — and if so, the scope and which hosts (`§3`). Default is local-only. Proceed within the agreed scope.
 

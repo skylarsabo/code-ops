@@ -1,5 +1,6 @@
 ---
 description: "Use for current, version-accurate library or framework docs before coding against its API; reads the installed version, not memory."
+disallowed-tools: Edit, Write, NotebookEdit
 ---
 
 # Current-docs: version-accurate library docs, in-house

@@ -1,5 +1,6 @@
 ---
 description: "Use for code-grounded research as one developer-in-the-loop pipeline, local-first with opt-in disclosed web. Orchestrates; writes no code."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Research sweep: the whole research pipeline, end to end
