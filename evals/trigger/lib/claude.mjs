@@ -19,7 +19,7 @@ function kill(child, shim) {
 }
 
 /**
- * Run one query. Resolves { skill, costUsd, toolsBefore, error, killed, exitCode }.
+ * Run one query. Resolves { skill, costUsd, toolsBefore, error, capped, killed, exitCode }.
  * Early stop: the process is killed when the first Skill tool_use arrives, so costUsd is null
  * for a triggered run (the result event never arrives).
  */
@@ -53,7 +53,7 @@ export function runQuery(bin, query, opts) {
       if (!killed && buf.trim()) det.feed(buf);
       const s = det.state;
       if (!s.skill && !s.error && code !== 0) s.error = `exit ${code}: ${stderr.trim().slice(-200)}`;
-      resolve({ skill: s.skill, costUsd: s.costUsd, toolsBefore: s.toolsBefore, error: s.error, killed, exitCode: code });
+      resolve({ skill: s.skill, costUsd: s.costUsd, toolsBefore: s.toolsBefore, error: s.error, capped: s.capped, killed, exitCode: code });
     });
   });
 }

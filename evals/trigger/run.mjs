@@ -4,7 +4,8 @@
 //   node evals/trigger/run.mjs   (exit 0 = pass)
 //
 // Covers query-set validation (fail closed), stream-json trigger detection on recorded
-// transcripts, the seeded stratified split, scoring, env scrubbing, and the spawn builder.
+// transcripts, the seeded stratified split, scoring, the run loop (a capped session is a non-fire,
+// any other error fails), env scrubbing, and the spawn builder.
 // The model-in-the-loop runner is evals/trigger/trigger.mjs; it is never a merge gate.
 
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -19,7 +20,7 @@ import { renderMarkdown, sameSkill, scoreResults } from './lib/score.mjs';
 import { stratifiedSplit } from './lib/split.mjs';
 import { createDetector, detectTranscript } from './lib/stream.mjs';
 import { assertNoAnswerKeys, findAnswerKeys, makeSessionCopy, withSessionCopy } from './lib/target.mjs';
-import { DEFAULT_TARGET, parseArgs } from './trigger.mjs';
+import { collectRuns, DEFAULT_TARGET, parseArgs } from './trigger.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { fails, check } = tally();
@@ -72,6 +73,11 @@ check('queries: no negative throws', throws(() => parse(mutate((c) => { c.querie
 }
 check('stream: a namespaced id from another plugin is kept whole', detectTranscript(fixture('namespaced.jsonl')).skill === 'code-ops-suite:mech');
 check('stream: an error result is recorded', detectTranscript(fixture('error-result.jsonl')).error === 'Credit balance is too low');
+check('stream: an error result that is not the cap is not capped', detectTranscript(fixture('error-result.jsonl')).capped === false);
+{
+  const r = detectTranscript(fixture('budget-capped.jsonl'));
+  check('stream: a budget-capped result is capped with no skill and its cost', r.capped === true && r.skill === null && r.costUsd === 0.5093 && r.toolsBefore.join() === 'Read', JSON.stringify(r));
+}
 check('stream: a leading slash is stripped', (() => {
   const d = createDetector();
   d.feed('{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Skill","input":{"skill":"/researcher:research-verify"}}]}}');
@@ -114,6 +120,39 @@ check('stream: CRLF line endings parse', detectTranscript(fixture('skill-first.j
   check('score: no costs gives null', scoreResults(S, [{ query: 'a', expect: S, stratum: 'p', runs: [{ skill: S, costUsd: null }] }]).totalCostUsd === null);
   check('score: sameSkill does not match a different namespace', !sameSkill('other:research-verify', S) && sameSkill('research-verify', S) && !sameSkill(null, S));
   check('score: markdown carries the skill and rates', (() => { const m = renderMarkdown(t); return m.includes(S) && m.includes('67%'); })());
+  check('score: no capped run gives a zero count', t.cappedRuns === 0);
+  const c = scoreResults(S, [
+    { query: 'a', expect: S, stratum: 'pos', runs: [{ skill: null, costUsd: 0.5, capped: true }, { skill: S, costUsd: null }] },
+    { query: 'b', expect: 'none', stratum: 'none', runs: [{ skill: null, costUsd: 0.25, capped: true }] },
+  ]);
+  check('score: a capped run counts as a non-fire with its cost', c.cappedRuns === 2 && c.hits === 1 && c.positiveRuns === 2 && c.falseFires === 0 && c.byStratum.none.correct === 1 && c.totalCostUsd === 0.75, JSON.stringify(c));
+  check('score: markdown reports the capped count and marks a capped run', (() => {
+    const m = renderMarkdown(c, { detail: [{ query: 'b', expect: 'none', runs: [{ skill: null, costUsd: 0.25, capped: true }] }] });
+    return m.includes('Capped runs (no skill)') && m.includes('| 2 |') && m.includes('none (capped)');
+  })());
+}
+
+// ---- run loop -------------------------------------------------------------------------------
+{
+  const qs = [{ query: 'q1', expect: 'none', stratum: 'a' }, { query: 'q2', expect: S, stratum: 'b' }];
+  const fake = (outcomes) => {
+    let i = 0;
+    const seen = [];
+    return { seen, run: async (q) => { seen.push(q.query); return outcomes[i++] ?? { skill: null, costUsd: 0.01, toolsBefore: [], error: null, capped: false }; } };
+  };
+  const quiet = () => {};
+  const capped = { skill: null, costUsd: 0.51, toolsBefore: ['Read'], error: 'error_max_budget_usd', capped: true };
+  const a = fake([capped, { skill: null, costUsd: 0.02, toolsBefore: [], error: null, capped: false }, { skill: S, costUsd: null, toolsBefore: [], error: null, capped: false }]);
+  const ra = await collectRuns(qs, 2, a.run, quiet);
+  check('loop: a capped run is recorded as a non-fire and the loop continues', ra.failure === null && a.seen.join() === 'q1,q1,q2,q2' && ra.results.length === 2
+    && JSON.stringify(ra.results[0].runs[0]) === JSON.stringify({ skill: null, costUsd: 0.51, toolsBefore: ['Read'], capped: true }) && ra.results[1].runs[0].skill === S, JSON.stringify(ra));
+  check('loop: an uncapped run carries no capped marker', !('capped' in ra.results[0].runs[1]));
+  const b = fake([capped, { skill: null, costUsd: 0.1, toolsBefore: [], error: 'Credit balance is too low', capped: false }]);
+  const rb = await collectRuns(qs, 2, b.run, quiet);
+  check('loop: any other error still fails and stops the loop', /Credit balance is too low/.test(rb.failure ?? '') && b.seen.join() === 'q1,q1' && rb.results.length === 1 && rb.results[0].runs.length === 1, JSON.stringify(rb));
+  const c = fake([{ skill: null, costUsd: null, toolsBefore: [], error: 'timeout', capped: false }]);
+  const rc = await collectRuns(qs, 2, c.run, quiet);
+  check('loop: a timeout is not treated as capped', rc.failure?.includes('timeout') === true && rc.results.length === 0 && c.seen.length === 1);
 }
 
 // ---- env scrubbing and spawn ----------------------------------------------------------------
@@ -206,4 +245,4 @@ if (fails.length) {
   for (const f of fails) console.error(`  - ${f}`);
   process.exit(1);
 }
-console.log('PASS — trigger eval: the harness parses fail-closed, detects the first Skill, splits deterministically, scores, scrubs the env, copies the target without answer keys per session, and refuses unsafe shim arguments.');
+console.log('PASS — trigger eval: the harness parses fail-closed, detects the first Skill, splits deterministically, scores, records a capped session as a non-fire, scrubs the env, copies the target without answer keys per session, and refuses unsafe shim arguments.');

@@ -10,8 +10,10 @@
 // skills compete. Each session runs in its own fresh copy of --target (default
 // evals/bench/targets/hyparquet, minus every ANSWER_KEY path and PROVENANCE.md), removed afterwards,
 // so a query about code has code to read. The query goes on stdin, never into a command line. The first Skill tool_use
-// is recorded and the process is killed there (early stop). The output is a trigger table as
-// <out>/trigger-<skill>.json and .md. The harness reports only; it never edits a SKILL.md.
+// is recorded and the process is killed there (early stop). A session that reaches --max-budget-usd
+// without a Skill call fired no skill within the cap: it is recorded as a non-fire with its cost
+// and capped: true, and the run continues. Any other session error ends the run. The output is a
+// trigger table as <out>/trigger-<skill>.json and .md. The harness reports only; it never edits a SKILL.md.
 
 import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
@@ -60,6 +62,35 @@ export function parseArgs(argv) {
   return o;
 }
 
+const usd = (c) => (typeof c === 'number' ? c.toFixed(4) : 'n/a');
+
+/**
+ * Run each query runsPerQuery times through runSession(q), which resolves a runQuery result.
+ * A capped session without a Skill call is a non-fire ({ skill: null, costUsd, capped: true }).
+ * Any other error stops the loop. Resolves { results, failure } with the runs recorded so far.
+ */
+export async function collectRuns(chosen, runsPerQuery, runSession, log = console.log) {
+  const results = [];
+  let failure = null;
+  for (const q of chosen) {
+    const runs = [];
+    for (let n = 0; n < runsPerQuery && !failure; n++) {
+      const r = await runSession(q);
+      if (!r.skill && r.capped) {
+        log(`${q.stratum} run ${n + 1}: none (capped, cost ${usd(r.costUsd)})`);
+        runs.push({ skill: null, costUsd: r.costUsd, toolsBefore: r.toolsBefore, capped: true });
+        continue;
+      }
+      log(`${q.stratum} run ${n + 1}: ${r.skill ?? 'none'}${r.error ? ` ERROR ${r.error}` : ''}`);
+      if (r.error) failure = `session failed for "${q.query.slice(0, 60)}": ${r.error}`;
+      else runs.push({ skill: r.skill, costUsd: r.costUsd, toolsBefore: r.toolsBefore });
+    }
+    if (runs.length) results.push({ ...q, runs });
+    if (failure) break;
+  }
+  return { results, failure };
+}
+
 async function main() {
   const o = parseArgs(process.argv.slice(2));
   const set = parseQuerySet(readFileSync(resolve(o.queries), 'utf8'));
@@ -73,19 +104,8 @@ async function main() {
   if (chosen.length === 0) throw new Error('the selected split has no queries');
 
   const target = o.target ? resolve(o.target) : DEFAULT_TARGET;
-  const results = [];
-  let failure = null;
-  for (const q of chosen) {
-    const runs = [];
-    for (let n = 0; n < o.runs && !failure; n++) {
-      const r = await withSessionCopy(target, (cwd) => runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, cwd }));
-      console.log(`${q.stratum} run ${n + 1}: ${r.skill ?? 'none'}${r.error ? ` ERROR ${r.error}` : ''}`);
-      if (r.error) failure = `session failed for "${q.query.slice(0, 60)}": ${r.error}`;
-      else runs.push({ skill: r.skill, costUsd: r.costUsd, toolsBefore: r.toolsBefore });
-    }
-    if (runs.length) results.push({ ...q, runs });
-    if (failure) break;
-  }
+  const { results, failure } = await collectRuns(chosen, o.runs, (q) =>
+    withSessionCopy(target, (cwd) => runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, cwd })));
 
   const table = scoreResults(set.skill, results);
   mkdirSync(resolve(o.out), { recursive: true });

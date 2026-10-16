@@ -23,11 +23,11 @@ export function skillFromEvent(ev) {
 }
 
 /**
- * Incremental detector. feed(line) returns true once the first Skill is seen, which is the
- * caller's cue to kill the process. Cost comes from the result event when present.
+ * Incremental detector. feed(line) returns true once the first Skill is seen (the cue to kill the
+ * process). Cost comes from the result event; capped marks a --max-budget-usd stop (error stays set).
  */
 export function createDetector() {
-  const state = { skill: null, toolsBefore: [], costUsd: null, error: null, malformed: 0, done: false };
+  const state = { skill: null, toolsBefore: [], costUsd: null, error: null, capped: false, malformed: 0, done: false };
   return {
     state,
     feed(line) {
@@ -38,6 +38,7 @@ export function createDetector() {
       if (ev.type === 'result') {
         if (typeof ev.total_cost_usd === 'number') state.costUsd = ev.total_cost_usd;
         if (ev.is_error === true) state.error = String(ev.result ?? ev.subtype ?? 'error').slice(0, 300);
+        if (ev.subtype === 'error_max_budget_usd') state.capped = true;
       }
       if (ev.type !== 'assistant' || !Array.isArray(ev.message?.content)) return false;
       for (const b of ev.message.content) {
