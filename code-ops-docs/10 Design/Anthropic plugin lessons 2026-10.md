@@ -37,13 +37,13 @@ Two chains are independent and can run in parallel. Each phase is one atomic PR.
 
 Goal: reviewers and refuters drop the false-positive classes that the official security plugins name.
 
-- Add one new bullet to each static reviewer and refuter: [reviewer.md](plugins/code-ops-suite/agents/reviewer.md), [claim-checker.md](plugins/researcher/agents/claim-checker.md), and [tracer.md](plugins/rigor/agents/tracer.md). The tracer is a refuter too (Refutation mode, `tracer.md:24`). The bullet names these classes:
+- Add one new bullet to each static reviewer and refuter: `plugins/code-ops-suite/agents/reviewer.md`, `plugins/researcher/agents/claim-checker.md`, and `plugins/rigor/agents/tracer.md`. The tracer is a refuter too (Refutation mode, `tracer.md:24`). The bullet names these classes:
   - The defect predates the change under review (diff reviews only). Report it apart as pre-existing, never as a blocker.
   - A security finding crosses no privilege or trust boundary. This class applies to security findings only, because a correctness bug needs no boundary.
   - The harm needs production use, but the code is throwaway: a test, a fixture, an example, or a one-off script.
   - The case is handled elsewhere, or intentional.
   Each class needs a cited line that shows it applies.
-- [verifier.md](plugins/rigor/agents/verifier.md) gets no bullet. Its proof is an executed repro, and a class must not override an observed failure.
+- `plugins/rigor/agents/verifier.md` gets no bullet. Its proof is an executed repro, and a class must not override an observed failure.
 - Do not touch any pinned span (lint check 14) or the `model:` line.
 - Bumps: code-ops-suite, rigor, and researcher, all patch.
 - Done when: the gates pass, the three agents name the classes, the verifier is unchanged,, and the pinned spans are unchanged.
@@ -68,11 +68,11 @@ Goal: a script, not a model, decides whether a finding survives refutation.
 
 Goal: replace the prose tallies with the script.
 
-- Call the script from the synthesis step in [codebase-audit](plugins/code-ops-suite/skills/codebase-audit/SKILL.md) (`:41-44`, "majority-refuted") and from the refutation step in [deep-review](plugins/rigor/skills/deep-review/SKILL.md) (`:72-76`). Use `${CLAUDE_PLUGIN_ROOT}/scripts/refutation-tally.mjs` (the Grok compat eval checks this form).
+- Call the script from the synthesis step in `plugins/code-ops-suite/skills/codebase-audit/SKILL.md` (`:41-44`, "majority-refuted") and from the refutation step in `plugins/rigor/skills/deep-review/SKILL.md` (`:72-76`). Use `${CLAUDE_PLUGIN_ROOT}/scripts/refutation-tally.mjs` (the Grok compat eval checks this form).
 - Each lens gets its own refuter dispatch. The tally runs only on findings that have no cheap repro. A finding with a repro goes to `rigor:verifier`, as it does now.
 - Add the script to `RUNTIME_SCRIPTS` for code-ops-suite and rigor (`scripts/vendored-manifest.mjs`). Re-copy it with the pre-commit sync (lint check 6).
 - Keep each skill edit under the 40-word copy limit (lint check 7).
-- Later candidates: the [security-privacy-audit](plugins/code-ops-suite/skills/security-privacy-audit/SKILL.md) validator and [research-verify](plugins/researcher/skills/research-verify/SKILL.md). Each is a separate follow-up after P3 shows a measured effect.
+- Later candidates: the `plugins/code-ops-suite/skills/security-privacy-audit/SKILL.md` validator and `plugins/researcher/skills/research-verify/SKILL.md`. Each is a separate follow-up after P3 shows a measured effect.
 - Bumps: code-ops-suite and rigor, minor.
 - Done when: the gates pass, the vendored copies are byte-identical, the Codex output has no leaked plugin-root token (`evals/codex-marketplace/run.mjs:39`), and one bug-garden or trap-garden fixture run shows the tally drops a planted false positive.
 
@@ -94,7 +94,7 @@ Goal: enforce read-only on Claude for the skills that write nothing.
 - For a skill that writes nothing, set `disallowed-tools: Edit, NotebookEdit` (and Write where the skill writes no file). Bash stays, because the skills run read-only probes. Record this residual in the skill's CHANGELOG entry.
 - A skill that writes artifacts only gets `Edit` and `NotebookEdit` removed. That protects source files and still allows a new artifact.
 - `disallowed-tools` is outside the portable subset (claude.ai and the Skills API accept only `name`, `description`, `license`, `compatibility`, `metadata`, and `allowed-tools`). P4's emit lists strip it from Codex and OpenCode. Document that plugin skills target Claude Code, not claude.ai.
-- Pilot on one skill ([research-verify](plugins/researcher/skills/research-verify/SKILL.md)) with a local probe: invoke the skill and confirm Edit is not available. Then roll out in one PR per plugin.
+- Pilot on one skill (`plugins/researcher/skills/research-verify/SKILL.md`) with a local probe: invoke the skill and confirm Edit is not available. Then roll out in one PR per plugin.
 - Bumps: one minor bump per plugin.
 - Done when: the classifier output matches the declared set, and the pilot probe is recorded in the run folder.
 
@@ -120,7 +120,7 @@ Prerequisites: `eng/bench-runner` is merged, and bench pilot P-1 (does `--bare` 
 
 ## P7. `claude plugin eval` stays a cross-check
 
-Decision note only. Add a section to [Beat the bare model benchmark 2026-10](code-ops-docs/10%20Design/Beat%20the%20bare%20model%20benchmark%202026-10.md). Its with/without ablation duplicates the bench skill and control arms, and its LLM judges are advisory. It may run locally to cross-check a bench result. It never enters CI.
+Decision note only. Add a section to [Beat the bare model benchmark 2026-10](Beat%20the%20bare%20model%20benchmark%202026-10.md). Its with/without ablation duplicates the bench skill and control arms, and its LLM judges are advisory. It may run locally to cross-check a bench result. It never enters CI.
 
 ## Dropped
 
