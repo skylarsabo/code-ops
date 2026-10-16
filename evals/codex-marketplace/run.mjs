@@ -10,6 +10,7 @@ import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 import { CLAUDE_ALIAS_TIER, PROVIDER_TIERS } from '../../scripts/model-tiers.mjs';
+import { CODEX_SKILL_KEYS, filterSkillHeader } from '../../scripts/build-codex-marketplace.mjs';
 import { COMMAND_CASES } from '../ai-tells/command-cases.mjs';
 import { tally } from '../harness.mjs';
 
@@ -24,6 +25,34 @@ const read = (path) => readFileSync(path, 'utf8');
 const run = (file, input = '') => spawnSync(process.execPath, [file], { input, encoding: 'utf8', cwd: tmpdir() });
 const { fails, expect } = tally();
 
+// Claude-only SKILL.md frontmatter keys that must never reach the Codex output.
+const CLAUDE_ONLY_KEYS = ['disallowed-tools', 'allowed-tools', 'context', 'agent', 'effort', 'paths', 'when_to_use', 'model', 'hooks', 'disable-model-invocation'];
+// Unit fixture: the emit filter keeps a key with its continuation lines and drops a Claude-only
+// key with its own, whether the value is a list, a block scalar, or a flow value.
+{
+  const fixture = [
+    'description: "Keep me."',
+    'disallowed-tools:',
+    '  - Edit',
+    '  - Write',
+    'when_to_use: >',
+    '  folded text',
+    '',
+    '  after a blank line',
+    'description2: nope',
+    'hooks:',
+    '  PreToolUse:',
+    '    - matcher: Bash',
+    'model: opus',
+    'disable-model-invocation: true',
+  ];
+  const kept = filterSkillHeader(fixture);
+  expect(kept.length === 1 && kept[0] === 'description: "Keep me."', `emit filter fixture: expected only the description, got ${JSON.stringify(kept)}`);
+  const multi = filterSkillHeader(['description: >', '  first', '  second', 'effort: high']);
+  expect(multi.join('|') === 'description: >|  first|  second', 'emit filter fixture: a kept multi-line value lost its continuation lines');
+  for (const key of CLAUDE_ONLY_KEYS) expect(!CODEX_SKILL_KEYS.has(key), `emit list names the Claude-only key ${key}`);
+}
+
 for (const plugin of pluginNames) {
   const sourceSkills = readdirSync(join(sourcePluginsDir, plugin, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
   const codexSkills = readdirSync(join(pluginsDir, plugin, 'skills'), { withFileTypes: true }).filter((entry) => entry.isDirectory()).map((entry) => entry.name).sort();
@@ -37,6 +66,9 @@ for (const plugin of pluginNames) {
     const policy = read(join(skillRoot, 'agents', 'openai.yaml'));
     expect(skillText.startsWith(`---\nname: ${skill}\n`), `${plugin}/${skill}: missing Codex skill name`);
     expect(!skillText.includes('disable-model-invocation') && !skillText.includes('${CLAUDE_PLUGIN_ROOT}'), `${plugin}/${skill}: Claude-only skill syntax leaked`);
+    const emittedKeys = skillText.match(/^---\n([\s\S]*?)\n---\n/)?.[1].split('\n').map((line) => line.match(/^([A-Za-z0-9_-]+):/)?.[1]).filter(Boolean) ?? [];
+    expect(emittedKeys.every((key) => key === 'name' || CODEX_SKILL_KEYS.has(key)), `${plugin}/${skill}: frontmatter key outside the Codex emit list: ${emittedKeys.filter((key) => key !== 'name' && !CODEX_SKILL_KEYS.has(key)).join(', ')}`);
+    expect(!emittedKeys.some((key) => CLAUDE_ONLY_KEYS.includes(key)), `${plugin}/${skill}: Claude-only frontmatter key reached the Codex output`);
     expect(policy.includes('allow_implicit_invocation: true'), `${plugin}/${skill}: invocation policy missing or stale`);
     expect(!policy.includes('allow_implicit_invocation: false'), `${plugin}/${skill}: stale manual-only policy leaked into openai.yaml`);
   }

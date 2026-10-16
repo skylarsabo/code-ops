@@ -1,7 +1,9 @@
 # Changelog — researcher
 
-## 0.17.6
+## 0.18.0
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
+- The `claim-checker` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional.
+- `library-eval`, `research-ideate`, `research-improve`, `research-spike`, `research-sweep`, and `research-verify` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.

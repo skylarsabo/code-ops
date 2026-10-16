@@ -1,5 +1,6 @@
 ---
 description: "Use as a pre-merge gate blocking egress, logging, identifier, fingerprint, correlation, or weaker anonymity defaults. Anonymity twin of rigor:deep-review."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # OpSec pull request gate: block anonymity regressions before merge

@@ -1,0 +1,1 @@
+- `opsec-pr-gate` and `privacy-feature-design` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.

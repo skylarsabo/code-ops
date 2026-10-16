@@ -1,8 +1,10 @@
 # Changelog — rigor
 
-## 3.6.8
+## 3.7.0
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+- The `tracer` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional. The `verifier` agent is unchanged, because an executed repro outranks a class.
+- `deep-review` refutes each concern with three refuters, one per lens (reachability, impact, defenses). The vendored `scripts/refutation-tally.mjs` counts their votes. A concern below PROBABLE is not Blocking, and each drop or downgrade cites the refuting guard.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.

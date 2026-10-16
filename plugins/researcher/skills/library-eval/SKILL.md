@@ -1,5 +1,6 @@
 ---
 description: "Use to decide on adopting a library or approach (A vs B vs build) with code-grounded fit, migration cost, and a tiered verdict. Writes no code."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Library evaluation: adopt it, build it, or keep the status quo

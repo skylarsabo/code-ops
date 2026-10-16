@@ -1,0 +1,1 @@
+- The SessionStart routing card has a whole-card off switch, `CODE_OPS_ROUTING_CARD` (`off`, `0`, or `false`). It silences the card on every start source, compact restore included. The skill-trigger harness sets it so a measured session sees skill descriptions only.

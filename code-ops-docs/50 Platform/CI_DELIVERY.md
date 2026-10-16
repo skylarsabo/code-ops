@@ -12,9 +12,9 @@ The `validate` workflow runs for every pull request, pushes to `main`, a weekly 
 
 The workflow has three jobs:
 
-- `structural-lint` on `ubuntu-latest` runs package lint, generated-output drift checks, dependency checks, vault conformance, and the repository regression evals, including the long-horizon runtime eval. Evidence: `.github/workflows/validate.yml:29-251`.
-- `host-evals-macos` on `macos-latest` runs structural lint and ten host-facing evals: skim, digest, the digest hook, context query, the query MCP server, the ladder card, context audit, the over-build garden, deferral harvest, and atlas check. A macOS minute costs ten Linux minutes, so the job runs on the weekly schedule and on manual dispatch only, never on a pull request. Evidence: `.github/workflows/validate.yml:250-273`.
-- `structural-lint-windows` on `windows-latest` mirrors the Ubuntu checks so a path, quoting, or line-ending failure surfaces before merge rather than for a Windows contributor. It runs the long-horizon runtime eval too. Evidence: `.github/workflows/validate.yml:275-445`.
+- `structural-lint` on `ubuntu-latest` runs package lint, generated-output drift checks, dependency checks, vault conformance, and the repository regression evals, including the long-horizon runtime eval. Evidence: `.github/workflows/validate.yml:29-254`.
+- `host-evals-macos` on `macos-latest` runs structural lint and ten host-facing evals: skim, digest, the digest hook, context query, the query MCP server, the ladder card, context audit, the over-build garden, deferral harvest, and atlas check. A macOS minute costs ten Linux minutes, so the job runs on the weekly schedule and on manual dispatch only, never on a pull request. Evidence: `.github/workflows/validate.yml:253-276`.
+- `structural-lint-windows` on `windows-latest` mirrors the Ubuntu checks so a path, quoting, or line-ending failure surfaces before merge rather than for a Windows contributor. It runs the long-horizon runtime eval too. Evidence: `.github/workflows/validate.yml:278-448`.
 
 The Ubuntu job type-checks every script that opts in with `// @ts-check`. It installs TypeScript 7.0.2 and `@types/node` 24.13.6 at exact pins into a runner temp directory, so the repository keeps zero dependencies. Evidence: `tsconfig.json` and `.github/workflows/validate.yml:68-74`.
 
@@ -22,13 +22,13 @@ The documentation link gate rejects missing, escaping, case-unsafe, and ambiguou
 
 The documentation citation gate validates both `path:line` references and explicit commit fields. Recognized commit IDs must be complete tokens, resolve unambiguously under the repository's Git object format, and name commits in `HEAD` history. A shallow checkout that cannot establish ancestry is an infrastructure failure, so both validation jobs fetch full history. With `--base <ref>`, the gate also prints warn-only `! ` advisories for in-range citations whose cited lines changed since the merge-base. A shift advisory names the new line numbers. An advisory never changes the exit code. CI runs the gate without the flag, and `integrate-branch.mjs` passes its own base. Evidence: `scripts/check-doc-citations.mjs` and `.github/workflows/validate.yml`.
 
-All three jobs run the context-audit eval, which pins the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture on every host. Evidence: `.github/workflows/validate.yml:191`, `.github/workflows/validate.yml:270`, and `.github/workflows/validate.yml:318`.
+All three jobs run the context-audit eval, which pins the transcript parser and the `SessionEnd` receipt hook against a synthetic fixture on every host. Evidence: `.github/workflows/validate.yml:191`, `.github/workflows/validate.yml:273`, and `.github/workflows/validate.yml:321`.
 
-The Ubuntu and Windows jobs run the Atlas fixture eval and gate this repository's live Atlas with `atlas-check.mjs check --gate`. Any stale live section blocks the job. Evidence: `.github/workflows/validate.yml:218-221` and `.github/workflows/validate.yml:439-442`.
+The Ubuntu and Windows jobs run the Atlas fixture eval and gate this repository's live Atlas with `atlas-check.mjs check --gate`. Any stale live section blocks the job. Evidence: `.github/workflows/validate.yml:218-221` and `.github/workflows/validate.yml:442-445`.
 
 ## Windows record-collection gate
 
-The record-collection eval exercises immutable evidence contracts. It runs on Ubuntu for every change. On Windows it dominates the leg, at about 754 seconds of a 960-second job against 73 seconds on Ubuntu, so a path gate decides whether it runs. Evidence: `.github/workflows/validate.yml:403-436`.
+The record-collection eval exercises immutable evidence contracts. It runs on Ubuntu for every change. On Windows it dominates the leg, at about 754 seconds of a 960-second job against 73 seconds on Ubuntu, so a path gate decides whether it runs. Evidence: `.github/workflows/validate.yml:406-439`.
 
 The Windows leg runs the eval when the range under test touched one of these inputs:
 

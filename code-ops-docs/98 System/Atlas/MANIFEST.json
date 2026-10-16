@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -102,12 +102,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 460,
+          "line": 464,
           "anchor": "const sessionId = typeof payload?.session_id === 'string' ? payload.session_id :"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 447,
+          "line": 451,
           "anchor": "'everything (broad/multi-domain) -> /code-ops-suite:everything',"
         },
         {
@@ -306,22 +306,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 392,
-          "anchor": "}"
+          "line": 411,
+          "anchor": "exact earlier detail: the summary is lossy, so call the MCP tool transcript_reca"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 443,
-          "anchor": "'audit/quality sweep -> /code-ops-suite:everything plugins: suite or plugins: ri"
+          "line": 438,
+          "anchor": "if (process.env.GROK_PLUGIN_ROOT || /^(off|0|false)$/i.test(process.env.CODE_OPS"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 291,
+          "line": 295,
           "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 306,
+          "line": 310,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
@@ -361,7 +361,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 414,
+          "line": 418,
           "anchor": "function stalePluginLine() {"
         },
         {
@@ -395,7 +395,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "3656dece77b87672fc2f5d3df8ce036cae3beecf0f74e27e82e7fd7817302161"
+      "verifiedDigest": "b72bfcb937919c34c412ad0fcfab8e8d07fb2d1dc78b3be3c0946ac159cde229"
     },
     {
       "slug": "gate-scripts",
@@ -404,7 +404,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -423,17 +423,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 952,
+          "line": 968,
           "anchor": "return existsSync(hooksDir) ? readdirSync(hooksDir).filter((f) => f.endsWith('.m"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1539,
+          "line": 1555,
           "anchor": "if (!SCANNED_RE.test(file) || /(^|\\/)CHANGELOG\\.md$/.test(inside)) continue;"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 1549,
+          "line": 1565,
           "anchor": "function checkDocsStandardsAlignment() {"
         },
         {
@@ -443,7 +443,7 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 455,
+          "line": 471,
           "anchor": "function checkScriptDomains() {"
         },
         {
@@ -453,17 +453,17 @@
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 127,
+          "line": 130,
           "anchor": "import { AGENT_SHARED_PASSAGES, DUP_NGRAM, SHARED_PASSAGES, normWords } from './"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 128,
+          "line": 131,
           "anchor": "import { LAYOUT, layoutPath } from './layout-manifest.mjs';"
         },
         {
           "file": "scripts/lint-plugins.mjs",
-          "line": 822,
+          "line": 838,
           "anchor": "function checkAgentCountClaims({ lines, rel, shipped, pluginOfPrefix }) {"
         },
         {
@@ -747,7 +747,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 340,
+          "line": 344,
           "anchor": "const { pendingAgents, formatLine } = await import(pathToFileURL(lib).href);"
         },
         {
@@ -802,7 +802,7 @@
         },
         {
           "file": "scripts/vendored-manifest.mjs",
-          "line": 127,
+          "line": 128,
           "anchor": "// The agent ledger. hooks/agent-ledger.mjs imports it as ../scripts/agent-ledge"
         },
         {
@@ -972,17 +972,17 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 362,
+          "line": 380,
           "anchor": "['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe bou"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 356,
+          "line": 374,
           "anchor": "['routing-card.mjs', 'prints the routing card at session start, the compaction s"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 357,
+          "line": 375,
           "anchor": "['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, runn"
         },
         {
@@ -1094,9 +1094,19 @@
           "file": "scripts/atlas-check.mjs",
           "line": 397,
           "anchor": "statuses.set(item.id, { status: 'GONE', note:"
+        },
+        {
+          "file": "scripts/lint-plugins.mjs",
+          "line": 149,
+          "anchor": "const SKILL_FRONTMATTER_KEYS = new Set(['description', 'disallowed-tools']);"
+        },
+        {
+          "file": "scripts/vendored-manifest.mjs",
+          "line": 35,
+          "anchor": "{ name: 'refutation-tally.mjs', plugins: ['code-ops-suite', 'rigor'] },"
         }
       ],
-      "verifiedDigest": "8244c6653e8fd933d18efe25f17f863dd0cbefea36f179cd80f8f2e97214ad2f"
+      "verifiedDigest": "6a747fb5e982cd5c6080d1ed21e09fa447a892e8ac98e302d5deb1dbb832d5d4"
     },
     {
       "slug": "evals-and-calibration",
@@ -1104,8 +1114,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "3ced88e8f96b76a73a8ab6f4dc6e1c6f1758ae4b",
-      "verifiedDigest": "2c4cea64cc8226d951badfe2e612d952e2d5f13cc0afd002eba00cfc83bd25c0",
+      "verifiedAt": "217e9d6ca207349c83d01fb78c65f47ef6badf48",
+      "verifiedDigest": "4f0981114ec1ba7afd03978d3a89a31d25f67bec37d7c61f0fca0174b96133aa",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1179,7 +1189,7 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 182,
+          "line": 214,
           "anchor": "// reach the package. Only lines naming a host-specific token may differ from th"
         },
         {
@@ -1199,7 +1209,7 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 139,
+          "line": 171,
           "anchor": "const hookCommands = preCommit.split('\\n').filter((line) => !/^\\s*(#|echo\\b)/.te"
         },
         {
@@ -1520,6 +1530,41 @@
           "file": "evals/bench/cases/sandbox.cases.mjs",
           "line": 1,
           "anchor": "// Cases for evals/bench/lib/sandbox.mjs and evals/bench/lib/audit.mjs. No model"
+        },
+        {
+          "file": "evals/refutation-tally/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/trigger/trigger.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/trigger/lib/stream.mjs",
+          "line": 29,
+          "anchor": "export function createDetector() {"
+        },
+        {
+          "file": "evals/trigger/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
+        },
+        {
+          "file": "evals/trigger/lib/target.mjs",
+          "line": 41,
+          "anchor": "export function assertNoAnswerKeys(dir) {"
+        },
+        {
+          "file": "evals/trigger/lib/env.mjs",
+          "line": 26,
+          "anchor": "export function sessionEnv(env, routingCard = 'off') {"
+        },
+        {
+          "file": "evals/skill-write-class/run.mjs",
+          "line": 1,
+          "anchor": "#!/usr/bin/env node"
         }
       ]
     },
@@ -1531,11 +1576,16 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "d8795278f71f060c78624134ecc8054ce040aedd",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 586
+          "line": 212,
+          "anchor": "export const CODEX_SKILL_KEYS = new Set(['description']);"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 604
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
@@ -1559,12 +1609,12 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 253,
+          "line": 271,
           "anchor": "function codexRungMap() {"
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 261,
+          "line": 279,
           "anchor": "function codexRoutingInstruction() {"
         },
         {
@@ -1579,17 +1629,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 291,
+          "line": 295,
           "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 306,
+          "line": 310,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 296,
+          "line": 300,
           "anchor": "function snapshotLines(snap, cwd, open, sessionId) {"
         },
         {
@@ -1653,7 +1703,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "f894d1c7fa1b83fba99acc94eabcf73cce4b0f33eb35a935a8372a32146f482c"
+      "verifiedDigest": "0e60033a87ee040b99e329f11d5f69b4508ec8a4f96bdc4c7dc5862e208af078"
     },
     {
       "slug": "ci-workflows",
@@ -1661,8 +1711,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "3d94d52e120cd1b2d313a0e61ea6c1db121e9990",
-      "verifiedDigest": "b9095cbf3a6dc683f73e958fd554c42d2a7ceffda78f17831b7f46953d92f6e5",
+      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
+      "verifiedDigest": "0707e748fd7b12d9de38744e81682d7dd566e5cb70dd5914b76077cfc8f461ba",
       "claims": [
         {
           "file": ".github/workflows/validate.yml",
@@ -1676,48 +1726,48 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 238,
-          "anchor": "run: node evals/direction-alignment/run.mjs"
+          "line": 241,
+          "anchor": "run: node evals/trigger/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 657,
-          "anchor": "run: node evals/direction-alignment/run.mjs"
+          "line": 660,
+          "anchor": "run: node evals/lint-plugins/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 385,
-          "anchor": "run: node evals/brief-template/run.mjs"
+          "line": 388,
+          "anchor": "run: node evals/context-audit/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 721,
-          "anchor": "run: node evals/brief-template/run.mjs"
+          "line": 724,
+          "anchor": "run: node evals/context-audit/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 259,
-          "anchor": "run: node evals/opencode-enabled-models/run.mjs"
+          "line": 262,
+          "anchor": "run: node evals/merge-driver/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 769,
-          "anchor": "run: node evals/opencode-enabled-models/run.mjs"
+          "line": 772,
+          "anchor": "run: node evals/opencode-dist/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 303,
-          "anchor": "run: node evals/collision/run.mjs"
+          "line": 306,
+          "anchor": "run: node evals/program-lifecycle/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 636,
-          "anchor": "run: node evals/peer-surfaces/run.mjs"
+          "line": 639,
+          "anchor": "- uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 471,
-          "anchor": "host-evals-macos:"
+          "line": 474,
+          "anchor": "'"
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1741,8 +1791,8 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 523,
-          "anchor": "run: node evals/distill-check/run.mjs"
+          "line": 526,
+          "anchor": "run: node evals/attack-chain-graph/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1751,8 +1801,8 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 554,
-          "anchor": "run: node evals/distill-vault/run.mjs"
+          "line": 557,
+          "anchor": "node evals/context-bundle/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1787,7 +1837,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "3d94d52e120cd1b2d313a0e61ea6c1db121e9990",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1846,17 +1896,17 @@
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 969,
+          "line": 970,
           "anchor": "so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md cu"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 1137,
+          "line": 1138,
           "anchor": "- Running work (snapshot): ..."
         },
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
-          "line": 88,
+          "line": 89,
           "anchor": ", and the snapshot warning and seeding in"
         },
         {
@@ -1870,7 +1920,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "aea70a9e4541fceb90c2fe38ee13b503f5acbf78c56e7770f5971c5d756c277e"
+      "verifiedDigest": "b41f7d1f70089c949b5fa4d0bf5e72a54f7d4bc2af4e19e23d7a5708e31a2499"
     },
     {
       "slug": "root-contracts",

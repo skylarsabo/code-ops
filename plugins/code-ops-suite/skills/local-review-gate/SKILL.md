@@ -1,5 +1,6 @@
 ---
 description: "Use to run deep review, OpSec review, or judgment evals locally before a PR, with exact-SHA receipts and optional GitHub status publication."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Local review gate: review before the PR exists

@@ -253,6 +253,10 @@ The known threats and their handling are:
 - **Answer-key leakage**: covered by the sandbox location, the transcript audit, and the canary. A leak that the audit cannot see, such as model memory of this design, is out of reach.
 - **Power**: at n=4 per arm, a small true effect can land INCONCLUSIVE. The rule says so instead of forcing a verdict.
 
+## `claude plugin eval` stays a cross-check
+
+`claude plugin eval` is not part of this benchmark and never enters CI. Its with and without ablation runs the same comparison as the skill and control arms, so it adds no new measure. Its LLM judges are advisory, and a model-in-the-loop result is never a merge gate. It may run locally to cross-check one bench result: when the two disagree on a skill, the bench verdict rule decides, and the disagreement is recorded in the run folder as a lead to investigate. Decided in [Anthropic plugin lessons 2026-10](Anthropic%20plugin%20lessons%202026-10.md) (P7).
+
 ## Appendix: target candidates
 
 A first web shortlist on 2026-10-14 found no project that met every original rule. The rule that failed most often was a test suite runnable on Node with no devDependencies: the candidates that were checked used `ava`, `jest`, `tape`, `mocha`, `grunt`, or a generated parser. The rule now drops the upstream tests and the benchmark authors its own suite, so that cause no longer disqualifies a candidate.

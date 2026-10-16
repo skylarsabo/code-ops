@@ -32,6 +32,7 @@ export const RUNTIME_SCRIPTS = [
   { name: 'research-manifest.mjs', plugins: ['researcher'] },
   { name: 'check-autofix-scope.mjs', plugins: ['code-ops-suite', 'rigor', 'privacy-opsec-suite'] },
   { name: 'run-proof.mjs', plugins: ['code-ops-suite', 'rigor'] },
+  { name: 'refutation-tally.mjs', plugins: ['code-ops-suite', 'rigor'] },
   { name: 'check-proof-integrity.mjs', plugins: ['rigor'] },
   { name: 'scan-redaction.mjs', plugins: ['code-ops-suite', 'privacy-opsec-suite'] },
   { name: 'scan-injection-tells.mjs', plugins: ['privacy-opsec-suite', 'researcher'] },

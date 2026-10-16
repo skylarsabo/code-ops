@@ -1284,6 +1284,29 @@ function noticeRepo({ state } = {}) {
   console.log('ok   the card warns when a higher semver sibling is installed and fails open on every other layout');
 }
 
+// ---------------------------------------------------------------- whole-card switch (routing card)
+
+{
+  const routingCard = join(root, 'plugins', 'code-ops-suite', 'hooks', 'routing-card.mjs');
+  const cardWith = (value, source) => {
+    const env = { ...process.env };
+    delete env.GROK_PLUGIN_ROOT;
+    delete env.CODE_OPS_ROUTING_CARD;
+    if (value !== undefined) env.CODE_OPS_ROUTING_CARD = value;
+    const run = spawnSync('node', [routingCard], { input: JSON.stringify({ hook_event_name: 'SessionStart', source, cwd: tmpdir() }), encoding: 'utf8', env });
+    return { status: run.status, out: run.stdout || '' };
+  };
+  for (const source of ['startup', 'compact']) {
+    expect(cardWith(undefined, source).out.startsWith('code-ops standard operating mode'), `an unset CODE_OPS_ROUTING_CARD must print the ${source} card`);
+    expect(cardWith('on', source).out.startsWith('code-ops standard operating mode'), `a value other than off, 0, false must leave the ${source} card on`);
+    for (const value of ['off', '0', 'false', 'OFF', 'False']) {
+      const r = cardWith(value, source);
+      expect(r.status === 0 && r.out === '', `CODE_OPS_ROUTING_CARD=${value} must print nothing and exit 0 on ${source}, got status ${r.status} and ${r.out.length} bytes`);
+    }
+  }
+  console.log('ok   CODE_OPS_ROUTING_CARD off, 0, or false silences the whole card, compact included');
+}
+
 if (fails.length) {
   for (const f of fails) console.log(`  x ${f}`);
   console.log(`\nhandoff-card eval FAILED (${fails.length})`);

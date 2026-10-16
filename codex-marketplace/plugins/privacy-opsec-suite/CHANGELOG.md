@@ -1,9 +1,10 @@
 # Changelog — privacy-opsec-suite
 
-## 2.6.7
+## 2.7.0
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+- `opsec-pr-gate` and `privacy-feature-design` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.

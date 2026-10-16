@@ -1,5 +1,6 @@
 ---
 description: "Use for grounded, high-value feature ideas mined from the codebase, not a generic wishlist. Discovery only; writes no code."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Feature discovery: find and specify high-value improvements

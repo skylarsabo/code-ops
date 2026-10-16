@@ -85,6 +85,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_HANDOFF_CARD` | `off`, `0`, or `false` | the `UserPromptSubmit` context-size nudge, `handoff-card.mjs`; it silences only the card, not the feed |
 | `CODE_OPS_FEED` | `off`, `0`, or `false` | the change feed: event recording and delivery, `change-feed.mjs` |
 | `CODE_OPS_HANDOFF_PICKUP` | `off`, `0`, or `false` | the `SessionStart` pending-handoff line inside `routing-card.mjs` |
+| `CODE_OPS_ROUTING_CARD` | `off`, `0`, or `false` | the whole `SessionStart` card, `routing-card.mjs`: no output on any source, compact restore included |
 | `CODE_OPS_COMPACT_SNAPSHOT` | `off`, `0`, or `false` | the `PreCompact` snapshot write, `compact-snapshot.mjs`, and the snapshot warning and seeding in `co handoff draft`; it does not gate the compact card in `routing-card.mjs` |
 | `CODE_OPS_RECALL` | `off`, `0`, or `false` | every `transcript-recall.mjs` command and the `transcript_recall` MCP tool: each prints a one-line disabled notice and exits 0 |
 | `CODE_OPS_DISPATCH_GUARD` | `off`, `0`, or `false` | the `PreToolUse` round counter, dispatch gates, and dispatch advisories, `dispatch-guard.mjs` |

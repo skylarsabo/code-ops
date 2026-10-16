@@ -1,5 +1,6 @@
 ---
 description: "Use for novel feature ideas grounded in our code, domain, and opt-in web trends. Writes no code. Code-only ideas go to code-ops-suite:feature-discovery."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Research ideate: net-new directions, grounded and feasibility-checked

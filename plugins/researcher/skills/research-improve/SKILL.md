@@ -1,5 +1,6 @@
 ---
 description: "Use for improvements to existing code grounded in external best practice, not a generic checklist. Writes no code; hands off."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Research improve: ground the code, gather the outside, propose verified improvements
