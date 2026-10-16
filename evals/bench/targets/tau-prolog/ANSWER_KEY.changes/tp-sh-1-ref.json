@@ -1,0 +1,32 @@
+{
+  "id": "tp-sh-1-ref",
+  "kind": "reference",
+  "message": null,
+  "edits": [
+    {
+      "file": "modules/core.js",
+      "find": "fn: function( x, y, _ ) { return gcd(x, y); }\n\t\t\t\t}",
+      "replace": "fn: function( x, y, _ ) { return gcd(x, y); }\n\t\t\t\t},\n\t\t\t\t\"lcm/2\": {\n\t\t\t\t\ttype_args: false,\n\t\t\t\t\ttype_result: false,\n\t\t\t\t\tfn: function( x, y, _ ) { return x === 0 || y === 0 ? 0 : Math.abs( x / gcd(x, y) * y ); }\n\t\t\t\t},\n\t\t\t\t\"msb/1\": {\n\t\t\t\t\ttype_args: false,\n\t\t\t\t\ttype_result: false,\n\t\t\t\t\tfn: function( x, thread ) {\n\t\t\t\t\t\tif( x < 1 )\n\t\t\t\t\t\t\treturn pl.error.evaluation( \"undefined\", thread.__call_indicator );\n\t\t\t\t\t\tvar bit = 0;\n\t\t\t\t\t\twhile( x >= 2 ) {\n\t\t\t\t\t\t\tx = Math.floor( x / 2 );\n\t\t\t\t\t\t\tbit++;\n\t\t\t\t\t\t}\n\t\t\t\t\t\treturn bit;\n\t\t\t\t\t}\n\t\t\t\t},\n\t\t\t\t\"cot/1\": {\n\t\t\t\t\ttype_args: null,\n\t\t\t\t\ttype_result: true,\n\t\t\t\t\tfn: function( x, thread ) {\n\t\t\t\t\t\tvar t = Math.tan( x );\n\t\t\t\t\t\treturn t === 0 ? pl.error.evaluation( \"zero_divisor\", thread.__call_indicator ) : 1 / t;\n\t\t\t\t\t}\n\t\t\t\t}"
+    },
+    {
+      "file": "modules/core.js",
+      "find": "\t\t// between/3\n\t\t\"between/3\": function( thread, point, atom ) {",
+      "replace": "\t\t// divmod/4\n\t\t\"divmod/4\": function( thread, point, atom ) {\n\t\t\tvar dividend = atom.args[0], divisor = atom.args[1], quotient = atom.args[2], remainder = atom.args[3];\n\t\t\tif( pl.type.is_variable( dividend ) || pl.type.is_variable( divisor ) ) {\n\t\t\t\tthread.throw_error( pl.error.instantiation( atom.indicator ) );\n\t\t\t} else if( !pl.type.is_integer( dividend ) ) {\n\t\t\t\tthread.throw_error( pl.error.type( \"integer\", dividend, atom.indicator ) );\n\t\t\t} else if( !pl.type.is_integer( divisor ) ) {\n\t\t\t\tthread.throw_error( pl.error.type( \"integer\", divisor, atom.indicator ) );\n\t\t\t} else if( divisor.value === 0 ) {\n\t\t\t\tthread.throw_error( pl.error.evaluation( \"zero_divisor\", atom.indicator ) );\n\t\t\t} else {\n\t\t\t\tvar div = Math.floor( dividend.value / divisor.value );\n\t\t\t\tvar mod = dividend.value - div * divisor.value;\n\t\t\t\tthread.prepend( [new State( point.goal.replace( new Term( \",\", [\n\t\t\t\t\tnew Term( \"=\", [quotient, new Num( div, false )] ),\n\t\t\t\t\tnew Term( \"=\", [remainder, new Num( mod, false )] )\n\t\t\t\t] ) ), point.substitution, point )] );\n\t\t\t}\n\t\t},\n\n\t\t// between/3\n\t\t\"between/3\": function( thread, point, atom ) {"
+    },
+    {
+      "file": "modules/lists.js",
+      "find": "\t\t\t// list_to_set/2\n\t\t\t\"list_to_set/2\": function( thread, point, atom ) {",
+      "replace": "\t\t\t// numlist/3\n\t\t\t\"numlist/3\": function( thread, point, atom ) {\n\t\t\t\tvar low = atom.args[0], high = atom.args[1], list = atom.args[2];\n\t\t\t\tif( pl.type.is_variable( low ) || pl.type.is_variable( high ) ) {\n\t\t\t\t\tthread.throw_error( pl.error.instantiation( atom.indicator ) );\n\t\t\t\t} else if( !pl.type.is_integer( low ) ) {\n\t\t\t\t\tthread.throw_error( pl.error.type( \"integer\", low, atom.indicator ) );\n\t\t\t\t} else if( !pl.type.is_integer( high ) ) {\n\t\t\t\t\tthread.throw_error( pl.error.type( \"integer\", high, atom.indicator ) );\n\t\t\t\t} else if( low.value <= high.value ) {\n\t\t\t\t\tvar items = [];\n\t\t\t\t\tfor( var i = low.value; i <= high.value; i++ )\n\t\t\t\t\t\titems.push( new pl.type.Num( i, false ) );\n\t\t\t\t\tvar numbers = new pl.type.Term( \"[]\", [] );\n\t\t\t\t\tfor( var j = items.length - 1; j >= 0; j-- )\n\t\t\t\t\t\tnumbers = new pl.type.Term( \".\", [items[j], numbers] );\n\t\t\t\t\tthread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( \"=\", [list, numbers] ) ), point.substitution, point )] );\n\t\t\t\t}\n\t\t\t},\n\n\t\t\t// max_member/2\n\t\t\t\"max_member/2\": function( thread, point, atom ) {\n\t\t\t\textreme( thread, point, atom, 1 );\n\t\t\t},\n\n\t\t\t// min_member/2\n\t\t\t\"min_member/2\": function( thread, point, atom ) {\n\t\t\t\textreme( thread, point, atom, -1 );\n\t\t\t},\n\n\t\t\t// lcm_list/2\n\t\t\t\"lcm_list/2\": [\n\t\t\t\tnew pl.type.Rule(new pl.type.Term(\"lcm_list\", [new pl.type.Term(\"[]\", []),new pl.type.Num(1, false)]), null),\n\t\t\t\tnew pl.type.Rule(new pl.type.Term(\"lcm_list\", [new pl.type.Term(\".\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Xs\")]),new pl.type.Var(\"L\")]), new pl.type.Term(\",\", [new pl.type.Term(\"lcm_list\", [new pl.type.Var(\"Xs\"),new pl.type.Var(\"M\")]),new pl.type.Term(\"is\", [new pl.type.Var(\"L\"),new pl.type.Term(\"lcm\", [new pl.type.Var(\"X\"),new pl.type.Var(\"M\")])])]))\n\t\t\t],\n\n\t\t\t// list_to_set/2\n\t\t\t\"list_to_set/2\": function( thread, point, atom ) {"
+    },
+    {
+      "file": "modules/lists.js",
+      "find": "\tvar predicates = function() {\n\t\t\n\t\treturn {",
+      "replace": "\t// Unify the largest (order 1) or smallest (order -1) element of a list, in standard order\n\tvar extreme = function( thread, point, atom, order ) {\n\t\tvar result = atom.args[0], list = atom.args[1];\n\t\tif( pl.type.is_variable( list ) ) {\n\t\t\tthread.throw_error( pl.error.instantiation( atom.indicator ) );\n\t\t\treturn;\n\t\t}\n\t\tvar best = null, pointer = list;\n\t\twhile( pl.type.is_term( pointer ) && pointer.indicator === \"./2\" ) {\n\t\t\tif( best === null || pl.compare( pointer.args[0], best ) * order > 0 )\n\t\t\t\tbest = pointer.args[0];\n\t\t\tpointer = pointer.args[1];\n\t\t}\n\t\tif( pl.type.is_variable( pointer ) ) {\n\t\t\tthread.throw_error( pl.error.instantiation( atom.indicator ) );\n\t\t} else if( !pl.type.is_empty_list( pointer ) ) {\n\t\t\tthread.throw_error( pl.error.type( \"list\", list, atom.indicator ) );\n\t\t} else if( best !== null ) {\n\t\t\tthread.prepend( [new pl.type.State( point.goal.replace( new pl.type.Term( \"=\", [result, best] ) ), point.substitution, point )] );\n\t\t}\n\t};\n\n\tvar predicates = function() {\n\t\t\n\t\treturn {"
+    },
+    {
+      "file": "modules/lists.js",
+      "find": "\"list_to_set/2\"];",
+      "replace": "\"list_to_set/2\", \"numlist/3\", \"max_member/2\", \"min_member/2\", \"lcm_list/2\"];"
+    }
+  ]
+}

@@ -157,6 +157,8 @@ The rule is fixed before the first scored run. It applies per skill, in this ord
 5. **RETIRE candidate**: the interval's upper bound is below the minimum delta, and step 4 does not apply.
 6. **INCONCLUSIVE (power)**: any other case. A larger n runs only as a new, pre-registered snapshot. No snapshot is extended after its results are seen.
 
+A skill also gets INCONCLUSIVE (power) before steps 2 to 5 when a task in the bootstrap has fewer than 2 scored units in either arm. With one sample per arm, every resample returns the same value, so the interval collapses to a point and cannot support KEEP, FIX, or RETIRE. A zero-width interval at 2 or more units per arm, such as every skill unit passing and every control unit failing, is a real separation and keeps its branch. This check was added on 2026-10-16, after snapshot-tau-bhca gave a RETIRE candidate at one rep per arm; it applies to every snapshot from then on.
+
 A RETIRE candidate becomes RETIRE only when a second snapshot gives the same verdict. The operator may authorize one FIX attempt between the two snapshots. Every verdict is a recommendation, and the operator owns retirement.
 
 ## Answer-key isolation
@@ -175,11 +177,17 @@ The plan writes a random 32-hex canary into the derived answer key and into the 
 
 A void unit reruns once under the same plan. A second void leaves the unit void, and the void counts toward the instrument rule. `--bare` confines nothing for Bash, so the audit is the enforcement. An operating-system boundary, such as a separate user account, is an optional hardening.
 
+Both arms run with deny rules for host-wide process kills, such as `taskkill`, `pkill`, `killall`, and `Stop-Process`. In earlier runs a unit ran `taskkill /F /IM node.exe` and stopped the runner. Bare mode skips hooks, so the deny rules are command-line flags. Before each attempt the runner writes an in-flight marker. If the runner stops, the next start finds the marker, records the attempt as killed, and runs the unit again.
+
+Every attempt's spend is recorded, including a voided first attempt and a killed attempt. A killed attempt with no result line is recorded as unrecorded spend. The report states the total spend, the void spend, and the number of killed attempts.
+
 ## Exit contract
 
 Both arms end their prompt with the same exit contract, so the scorer reads one format. Detection tasks write `BENCH_FINDINGS.json` at the sandbox root. Each entry holds `file`, `line`, `anchor` (a verbatim substring of the cited line), `tier` (`CONFIRMED`, `PROBABLE`, or `SPECULATIVE`), `proof`, and `summary`. Deep-review tasks also write a `verdict` of `block` or `approve`.
 
 Repair and build tasks commit their change in the sandbox repository and write `BENCH_SUMMARY.json` with a root-cause `file` and `line` and a summary. The contract states that no remote exists and that the run ends at a committed change.
+
+The sandbox also holds the task's contract section as `CLAUDE.md`, committed in the initial import in both arms, so subagents that the skill dispatches load it too. A vendored target may not ship its own agent instruction file. The detection section also requires every proof file to stay inside the repository, because the scorer resolves a proof only against files in the sandbox. Pilot-4 showed why that rule is necessary: a codebase-audit unit had the contract as `CLAUDE.md` and still wrote its reproductions to a scratch folder under the operating system temp directory, so 1 of its 11 CONFIRMED proofs resolved.
 
 Scoring reuses the matching rules of [score.mjs](../../evals/score.mjs): path suffix plus basename, a line tolerance of 3, and an ambiguous flag scored as the decoy.
 
@@ -244,7 +252,7 @@ The build needs three grants that this design does not assume:
 The known threats and their handling are:
 
 - **Memorization**: the model may know the upstream target. Both arms share the exposure, and seeds are new edits. A less-known target reduces it.
-- **One target, one language**: results generalize to JavaScript libraries of this size only. A second target in another language is the first follow-up.
+- **Two targets, one language**: results generalize to JavaScript libraries of this size only. A target in another language is the first follow-up.
 - **Seed realism**: authored seeds can be easier or harder than native bugs. The class mix follows the calibration bug classes, and unkeyed adjudication watches native finds.
 - **Cap hits**: a skill arm that hits the dollar cap scores lower. The report counts cap hits per arm.
 - **Host drift**: a host or model change is a snapshot boundary, the same rule as the floor table.
@@ -278,3 +286,15 @@ The build-phase pick is hyparam/hyparquet at commit `2a4b96cc04ca0ac268596302667
 - **Fame**: it is newer and less known than xmldom, the fallback. xmldom was not downloaded, because the physical count did not fall under 5,000.
 - **Data**: 8 upstream test files. Two other files need ZSTD or GZIP decoders, which the core lacks, so they were dropped.
 - **Characterization suite**: `test/characterization.test.js` passes 8 of 8 on the pristine tree. A one-byte mutation in the snappy decoder, made on a scratch copy, failed 3 of 8. The suite covers full-file decode paths only, so step 3 seeds go in paths it does not reach, such as row ranges, column selection, filters, and query planning.
+
+### Second target: tau-prolog
+
+Pilot-2 and pilot-3 showed that the bare model clears mid-size seeds on hyparquet, which sits at the low edge of the size rule. The second target is tau-prolog/tau-prolog at commit `5bd606a255910d8e34ff1d721e80969af294b64c`, vendored on 2026-10-14 at `evals/bench/targets/tau-prolog/`. Its `PROVENANCE.md` lists the files taken and every local change. The run folder holds the shortlist with the measured line counts of the rejected candidates.
+
+- **License**: BSD-3-Clause, vendored unchanged.
+- **Dependencies**: the CLI `taupl.js` needs `readline-sync`, so it is left out. A lazy `require('readline-sync')` in `modules/core.js` became a `node:fs` line read from standard input. The bare builtins became `node:` specifiers. `modules/dom.js` throws when required under Node, so it is left out.
+- **Size**: 12,060 physical lines in the 10 vendored `modules/*.js` files, 9,101 of them in `core.js`.
+- **Fame**: about 650 stars. It is less known than matter-js, the other candidate above 10,000 lines.
+- **Characterization suite**: `test/characterization.test.js` runs 25 queries over one consulted program (lists, arithmetic, findall and bagof, atom builtins, format) and compares every formatted answer with values recorded from the pristine source. Seeds go in paths it does not reach.
+
+The tau-prolog tasks add to the hyparquet tasks, so each skill declares twice as many tasks.

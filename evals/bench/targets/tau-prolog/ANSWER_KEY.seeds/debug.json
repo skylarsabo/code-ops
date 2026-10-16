@@ -1,0 +1,35 @@
+[
+  {
+    "id": "db-compare-last-arg",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "modules/core.js",
+    "find": "for( var i = 0; i < this.args.length; i++ ) {\n\t\t\t\tvar arg = pl.compare( this.args[i], obj.args[i] );",
+    "replace": "for( var i = 0; i < this.args.length - 1; i++ ) {\n\t\t\t\tvar arg = pl.compare( this.args[i], obj.args[i] );",
+    "oracle": "db-compare-last-arg.test.js",
+    "symptom": "sort/2 leaves two compound terms out of order. In the Prolog interpreter under modules/, the query sort([point(1,5), point(1,3)], S) answers S = [point(1,5),point(1,3)]. The standard order of terms puts point(1,3) before point(1,5), because the terms have the same functor and the same first argument and 3 is less than 5. Two terms that differ in the first argument, such as sort([point(2,1), point(1,9)], S), come out in the right order, as [point(1,9),point(2,1)]."
+  },
+  {
+    "id": "db-index-copy-count",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": null,
+    "file": "modules/core.js",
+    "find": "for(var j = 0; j < this.non_indexable_clauses[indicator].length; j++)",
+    "replace": "for(var j = 0; j < this.non_indexable_clauses[indicator].length - 1; j++)",
+    "oracle": "db-index-copy-count.test.js",
+    "symptom": "A query with a bound first argument skips a clause whose first argument is a variable. In the Prolog interpreter under modules/, a session consults the program kind(_, any). kind(a, letter). kind(b, letter). The query findall(K, kind(a, K), L) answers L = [letter]. It should answer L = [any,letter], because the first clause matches every first argument. The query findall(K, kind(c, K), L) correctly answers L = [any], and a query with an unbound first argument, findall(K, kind(X, K), L), answers L = [any,letter,letter]."
+  },
+  {
+    "id": "db-nub-order",
+    "kind": "defect",
+    "class": "wrong-order",
+    "base": null,
+    "file": "modules/core.js",
+    "find": "unique.push( array[i] );",
+    "replace": "unique.unshift( array[i] );",
+    "oracle": "db-nub-order.test.js",
+    "symptom": "term_variables/2 lists the variables of a term in the wrong order. In the Prolog interpreter under modules/, the query term_variables(f(X, Y, X), L), L = [A, B] answers with A bound to Y and B bound to X, so the query term_variables(f(X, Y, X), L), L = [X, Y] fails. The order should follow the first occurrence of each variable in a left-to-right walk of the term, which gives L = [X,Y]. A term with one variable, such as term_variables(g(Z), L), answers L = [Z] as expected."
+  }
+]

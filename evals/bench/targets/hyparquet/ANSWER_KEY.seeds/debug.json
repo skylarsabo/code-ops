@@ -31,5 +31,38 @@
     "replace": "const metadataBuffer = asyncBuffer.slice(metadataOffset, footerOffset)",
     "oracle": "db-meta-await.test.js",
     "symptom": "Reading a file through an asynchronous source fails when the footer is larger than the first fetch. The file data/datapage_v2.snappy.parquet has 5 rows. I wrap its bytes in an object with byteLength and an async slice(start, end) method that returns a promise, like a file behind a network request. parquetReadObjects({ file }) returns the 5 rows. To reproduce the case of a large footer with a small file, I pass initialFetchSize: 64 to the same call. It then rejects with \"TypeError: Cannot read properties of undefined (reading 'map')\" instead of returning the same 5 rows. Wrapping the bytes in an object whose slice returns the buffer directly, with no promise, gives the 5 rows with the same option."
+  },
+  {
+    "id": "db-nor-columns",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/filter.js",
+    "find": "} else if ('$nor' in filter && Array.isArray(filter.$nor)) {",
+    "replace": "} else if ('$nor' in filter && Array.isArray(filter.$or)) {",
+    "oracle": "db-nor-columns.test.js",
+    "symptom": "parquetReadObjects rejects a filter that uses $nor. The file data/dictionary_offset_indexed.parquet has 200 rows with an INT64 column named id and a string column named country. Calling parquetReadObjects({ file, filter: { $nor: [{ country: 'Canada' }, { id: { $lt: 5 } }] } }) should return the 162 rows that are not in Canada and have an id of 5 or more. It rejects with \"Error: parquet filter columns not found: $nor\". The same call with $or in place of $nor returns its 38 rows, and a filter on country alone returns its 35 rows."
+  },
+  {
+    "id": "db-stats-min",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "min_value: convertMetadata(stats.field_6, schema, parsers),",
+    "replace": "min_value: convertMetadata(stats.field_5, schema, parsers),",
+    "oracle": "db-stats-min.test.js",
+    "symptom": "parquetQuery drops rows for a less-than-or-equal filter. The file data/bloom_filter.parquet has 4096 rows in two row groups of 2048 rows, with one INT32 column named code. The first row group holds the values 10 and 90, and the second holds 30 and 70, each in 1024 rows. Calling parquetQuery({ file, filter: { code: { $lte: 20 } } }) should return the 1024 rows where code is 10. It returns an empty array. The filter { code: { $gte: 30 } } returns its 3072 rows as expected. The same kind of call on data/geospatial.parquet, parquetReadObjects({ file, filter: { wkt: { $lt: 'H' } } }), should return the 4 rows whose wkt text starts with GEOMETRYCOLLECTION, and it also returns an empty array."
+  },
+  {
+    "id": "db-footer-start",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": null,
+    "file": "src/metadata.js",
+    "find": "const footerOffset = Math.max(0, asyncBuffer.byteLength - initialFetchSize)",
+    "replace": "const footerOffset = asyncBuffer.byteLength - initialFetchSize",
+    "oracle": "db-footer-start.test.js",
+    "symptom": "Reading a small file through a range-checked source fails. The file data/bloom_filter.parquet is 522 bytes and has 4096 rows. I wrap its bytes in an object with byteLength and an async slice(start, end) method that rejects with a RangeError when start is negative, when end is past byteLength, or when start is past end, like a ranged read from disk or from a server. parquetReadObjects({ file }) with that object rejects with \"RangeError: slice start -523766 is outside the file\" instead of returning the 4096 rows. Reading the same bytes as a plain ArrayBuffer returns the 4096 rows."
   }
 ]

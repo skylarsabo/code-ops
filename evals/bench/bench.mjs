@@ -22,8 +22,18 @@
 // Each task's seeds sit at least 10 lines apart in a file, apply together on the task's base,
 // and leave the visible suite green. A ship task's acceptance test fails on the pristine tree
 // and passes with its reference change. Every proof runs in a copy under the OS temp
-// directory, never in the tracked tree. The verbs plan, run, score, and report land in build
-// step 4.
+// directory, never in the tracked tree.
+//
+// The model-in-the-loop verbs live in lib/runner.mjs and lib/score.mjs and load only on demand,
+// so `check` and CI never import them:
+//   plan   --run <dir> [--reps 4] [--pilot] [--model claude-opus-5-5] [--cap-usd 5] [--timeout-min 60]
+//          [--target <name>] [--isolation config-dir|bare] [--permission-mode bypassPermissions]
+//          [--tasks <id,id,...>]  --target and --tasks narrow the plan to that target or those tasks.
+//          config-dir (default) gives each unit a fresh, empty CLAUDE_CONFIG_DIR. bare adds --bare,
+//          which also drops plugin agents (observed on 2.1.293), so the skill arm loses its agents.
+//   run    --run <dir> [--limit <n>]       resumable; one result file per unit
+//   score  --run <dir>                     writes scores.json
+//   report --run <dir>                     writes REPORT.md
 
 import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
@@ -66,7 +76,7 @@ const SKILL_KEYS = ['id', 'metric', 'minDelta', 'tasks'];
 const TARGET_KEYS = ['name', 'upstream', 'commit', 'license', 'treeDigest'];
 const TASK_KEYS = ['id', 'skill', 'target', 'statement', 'seeds', 'change', 'acceptance'];
 const SEED_KEYS = ['id', 'kind', 'class', 'base', 'file', 'find', 'replace', 'oracle', 'symptom'];
-const CHANGE_KEYS = ['id', 'kind', 'edits'];
+const CHANGE_KEYS = ['id', 'kind', 'message', 'edits'];
 const EDIT_KEYS = ['file', 'find', 'replace'];
 const METRICS = ['keyed-f05', 'resolved-rate', 'accepted-rate'];
 const ID = /^[a-z0-9][a-z0-9-]*$/;
@@ -219,6 +229,10 @@ function checkChangeShape(change, name, problems) {
   let ok = true;
   if (change.id !== name) { problems.push(`${where}: id must equal the file name`); ok = false; }
   if (!['review', 'reference'].includes(change.kind)) { problems.push(`${where}: kind must be review or reference`); ok = false; }
+  // A review change becomes the sandbox's second commit, so it needs a neutral commit message.
+  if (change.kind === 'review' && !nonEmpty(change.message)) { problems.push(`${where}: a review change needs a non-empty message`); ok = false; }
+  if (change.kind === 'reference' && change.message !== null) { problems.push(`${where}: a reference change has message null`); ok = false; }
+  if (typeof change.message === 'string') tellWords('', change.message, `${where} message`, problems);
   if (!Array.isArray(change.edits) || !change.edits.length) { problems.push(`${where}: edits must be a non-empty array`); return false; }
   change.edits.forEach((e, i) => {
     const w = `${where} edit[${i}]`;
@@ -515,8 +529,52 @@ export async function checkBench(benchDir = HERE, { log = () => {}, group = null
   return problems;
 }
 
+/** Parse --flag value pairs (and bare boolean flags) for the model-in-the-loop verbs. */
+function parseFlags(rest, booleans) {
+  const out = {};
+  for (let i = 0; i < rest.length; i++) {
+    const k = rest[i];
+    if (!k.startsWith('--')) return null;
+    if (booleans.includes(k)) { out[k.slice(2)] = true; continue; }
+    if (!nonEmpty(rest[i + 1])) return null;
+    out[k.slice(2)] = rest[++i];
+  }
+  return out;
+}
+
+/** The plan, run, score, and report verbs. */
+async function modelVerb(verb, rest) {
+  const f = parseFlags(rest, ['--pilot']);
+  if (!f || !nonEmpty(f.run)) {
+    console.error(`usage: node evals/bench/bench.mjs ${verb} --run <dir> ...  (see the header comment)`);
+    return 2;
+  }
+  const runDir = resolve(f.run);
+  if (verb === 'plan') {
+    const { planBench } = await import('./lib/runner.mjs');
+    const plan = planBench({
+      runDir, pilot: Boolean(f.pilot), reps: Number(f.reps ?? (f.pilot ? 1 : 4)), target: f.target, taskIds: f.tasks, model: f.model ?? 'claude-opus-5-5',
+      capUsd: Number(f['cap-usd'] ?? 5), timeoutMs: Number(f['timeout-min'] ?? 60) * 60_000,
+      isolation: f.isolation ?? 'config-dir', permissionMode: f['permission-mode'] ?? 'bypassPermissions',
+    });
+    console.log(`plan: ${plan.units.length} units, cap ${plan.capUsd} each, ${runDir}`);
+    return 0;
+  }
+  if (verb === 'run') {
+    const { runBench } = await import('./lib/runner.mjs');
+    const r = await runBench({ runDir, limit: f.limit ? Number(f.limit) : Infinity });
+    console.log(`run: ${r.ran} unit(s) ran${r.stopped ? `; stopped: ${r.stopped}` : ''}`);
+    return r.stopped ? 1 : 0;
+  }
+  const { scoreRun, reportRun } = await import('./lib/report-run.mjs');
+  if (verb === 'score') { console.log(scoreRun({ runDir, benchDir: HERE })); return 0; }
+  console.log(reportRun({ runDir, benchDir: HERE }));
+  return 0;
+}
+
 async function main(argv) {
   const [verb, ...rest] = argv;
+  if (['plan', 'run', 'score', 'report'].includes(verb)) return modelVerb(verb, rest);
   const opts = { log: (line) => console.log(`ok   ${line}`), group: null, tasksFile: null };
   let bad = verb !== 'check';
   for (let i = 0; i < rest.length && !bad; i += 2) {
@@ -527,7 +585,7 @@ async function main(argv) {
     else bad = true;
   }
   if (bad) {
-    console.error('usage: node evals/bench/bench.mjs check [--group <name>] [--tasks <file>]');
+    console.error('usage: node evals/bench/bench.mjs check [--group <name>] [--tasks <file>] | plan | run | score | report');
     return 2;
   }
   const problems = await checkBench(HERE, opts);
@@ -537,5 +595,7 @@ async function main(argv) {
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  process.exitCode = await main(process.argv.slice(2));
+  // No top-level await: lib/ modules import this file, and a pending top-level await here would
+  // deadlock the dynamic import of lib/runner.mjs by the plan and run verbs.
+  main(process.argv.slice(2)).then((code) => { process.exitCode = code; }, (err) => { console.error(err); process.exitCode = 1; });
 }

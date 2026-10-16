@@ -1,11 +1,36 @@
 {
   "version": 1,
   "skills": [
-    { "id": "rigor:bug-hunt", "metric": "keyed-f05", "minDelta": 0.1, "tasks": 2 },
-    { "id": "code-ops-suite:codebase-audit", "metric": "keyed-f05", "minDelta": 0.1, "tasks": 2 },
-    { "id": "rigor:deep-review", "metric": "keyed-f05", "minDelta": 0.1, "tasks": 3 },
-    { "id": "code-ops-suite:debug", "metric": "resolved-rate", "minDelta": 0.2, "tasks": 3 },
-    { "id": "code-ops-suite:ship", "metric": "accepted-rate", "minDelta": 0.2, "tasks": 2 }
+    {
+      "id": "rigor:bug-hunt",
+      "metric": "keyed-f05",
+      "minDelta": 0.1,
+      "tasks": 4
+    },
+    {
+      "id": "code-ops-suite:codebase-audit",
+      "metric": "keyed-f05",
+      "minDelta": 0.1,
+      "tasks": 4
+    },
+    {
+      "id": "rigor:deep-review",
+      "metric": "keyed-f05",
+      "minDelta": 0.1,
+      "tasks": 6
+    },
+    {
+      "id": "code-ops-suite:debug",
+      "metric": "resolved-rate",
+      "minDelta": 0.2,
+      "tasks": 6
+    },
+    {
+      "id": "code-ops-suite:ship",
+      "metric": "accepted-rate",
+      "minDelta": 0.2,
+      "tasks": 4
+    }
   ],
   "targets": [
     {
@@ -14,6 +39,13 @@
       "commit": "2a4b96cc04ca0ac268596302667d39e2d505b560",
       "license": "MIT",
       "treeDigest": "sha256:eb372c5d01f8779bc6611f52916dca67cee0e72bddc1621e25c98d8f3fd64be9"
+    },
+    {
+      "name": "tau-prolog",
+      "upstream": "https://github.com/tau-prolog/tau-prolog",
+      "commit": "5bd606a255910d8e34ff1d721e80969af294b64c",
+      "license": "BSD-3-Clause",
+      "treeDigest": "sha256:5f18587b02cc9af5a264e34ba4ae2f8be20ada994c0b0568c99cfe1f2248e753"
     }
   ],
   "tasks": [
@@ -32,7 +64,13 @@
         "bh-intersect-advance-tie",
         "bh-projection-redundant-columns",
         "bh-query-return-await",
-        "bh-query-metadata-alias"
+        "bh-query-metadata-alias",
+        "bh-offset-index-fields",
+        "bh-delta-33bit-zigzag",
+        "bh-page-range-touch",
+        "bh-stats-gte-edge",
+        "bh-bloom-int64-wrap",
+        "bh-coalesce-touching"
       ],
       "change": null,
       "acceptance": null
@@ -52,7 +90,13 @@
         "bh-filter-limit-break",
         "bh-scan-offset-fallback",
         "bh-tojson-branch-order",
-        "bh-literal-condition-form"
+        "bh-literal-condition-form",
+        "bh-rle-width-bytes",
+        "bh-split-stream-layout",
+        "bh-column-start-zero",
+        "bh-prefetch-slice-edge",
+        "bh-bloom-min-size",
+        "bh-read-return-promise"
       ],
       "change": null,
       "acceptance": null
@@ -74,7 +118,15 @@
         "ca-intersect-tie",
         "ca-query-file-check",
         "ca-plan-index-flags",
-        "ca-bloom-int32-integer"
+        "ca-bloom-int32-integer",
+        "ca-metadata-fetch-margin",
+        "ca-wkb-unknown-type",
+        "ca-map-length-check",
+        "ca-cache-key-suffix",
+        "ca-zigzag-sign",
+        "ca-decimal-sign-edge",
+        "ca-wkb-zm-dim",
+        "ca-uint64-fill-length"
       ],
       "change": null,
       "acceptance": null
@@ -96,7 +148,15 @@
         "ca-ascii-bound",
         "ca-scan-offset-default",
         "ca-equals-bytes-length",
-        "ca-query-return-await"
+        "ca-query-return-await",
+        "ca-metadata-footer-clamp",
+        "ca-metadata-second-fetch-await",
+        "ca-rle-width-bytes",
+        "ca-delta-length-order",
+        "ca-head-length-missing",
+        "ca-asm-align-start",
+        "ca-list-long-form",
+        "ca-map-null-coalesce"
       ],
       "change": null,
       "acceptance": null
@@ -110,7 +170,10 @@
         "dr-1-rowend-clamp",
         "dr-1-read-await",
         "dr-1-slice-break",
-        "dr-1-file-guard"
+        "dr-1-file-guard",
+        "dr-1-nested-null-count",
+        "dr-1-whole-span",
+        "dr-1-empty-span"
       ],
       "change": "dr-1",
       "acceptance": null
@@ -124,7 +187,10 @@
         "dr-2-null-side",
         "dr-2-filter-nulls",
         "dr-2-index-tiebreak",
-        "dr-2-default-flags"
+        "dr-2-default-flags",
+        "dr-2-missing-undefined",
+        "dr-2-locale-collation",
+        "dr-2-flag-strict"
       ],
       "change": "dr-2",
       "acceptance": null
@@ -136,7 +202,9 @@
       "statement": "Review the most recent commit in this repository. Report what you find in it and whether it is ready to merge.",
       "seeds": [
         "dr-3-row-bound",
-        "dr-3-empty-rows"
+        "dr-3-empty-rows",
+        "dr-3-empty-group",
+        "dr-3-no-ranges"
       ],
       "change": "dr-3",
       "acceptance": null
@@ -145,9 +213,9 @@
       "id": "db-1",
       "skill": "code-ops-suite:debug",
       "target": "hyparquet",
-      "statement": "Bloom filter lookups drop rows that exist. The file data/bloom_filter.parquet has 4096 rows, one INT32 column named code, and two row groups of 2048 rows. Calling parquetQuery({ file, filter: { code: { $eq: 30 } } }) returns the 1024 rows where code is 30, as expected. Adding useBloomFilters: true to the same call returns an empty array. The same happens for the values 10, 70, and 90. A filter on a value that is not in the file, such as 50, correctly returns an empty array either way.\n\nFind the root cause of this behavior and fix it.",
+      "statement": "parquetQuery drops rows for a less-than-or-equal filter. The file data/bloom_filter.parquet has 4096 rows in two row groups of 2048 rows, with one INT32 column named code. The first row group holds the values 10 and 90, and the second holds 30 and 70, each in 1024 rows. Calling parquetQuery({ file, filter: { code: { $lte: 20 } } }) should return the 1024 rows where code is 10. It returns an empty array. The filter { code: { $gte: 30 } } returns its 3072 rows as expected. The same kind of call on data/geospatial.parquet, parquetReadObjects({ file, filter: { wkt: { $lt: 'H' } } }), should return the 4 rows whose wkt text starts with GEOMETRYCOLLECTION, and it also returns an empty array.\n\nFind the root cause of this behavior and fix it.",
       "seeds": [
-        "db-bloom-mask"
+        "db-stats-min"
       ],
       "change": null,
       "acceptance": null
@@ -156,9 +224,9 @@
       "id": "db-2",
       "skill": "code-ops-suite:debug",
       "target": "hyparquet",
-      "statement": "parquetScan returns an empty range at a row group boundary. The file data/bloom_filter.parquet has 4096 rows in two row groups of 2048 rows. Calling parquetScan({ file, rowStart: 0, rowEnd: 2048 }) and reading the ranges property should give one range, { rowStart: 0, rowEnd: 2048 }. It gives two: that range and a second one, { rowStart: 2048, rowEnd: 2048 }, which covers no rows. Our reader loops over the ranges and trips on the empty one. Starting a scan on a boundary, with rowStart: 2048 and rowEnd: 4096, gives the single range it should.\n\nFind the root cause of this behavior and fix it.",
+      "statement": "parquetReadObjects rejects a filter that uses $nor. The file data/dictionary_offset_indexed.parquet has 200 rows with an INT64 column named id and a string column named country. Calling parquetReadObjects({ file, filter: { $nor: [{ country: 'Canada' }, { id: { $lt: 5 } }] } }) should return the 162 rows that are not in Canada and have an id of 5 or more. It rejects with \"Error: parquet filter columns not found: $nor\". The same call with $or in place of $nor returns its 38 rows, and a filter on country alone returns its 35 rows.\n\nFind the root cause of this behavior and fix it.",
       "seeds": [
-        "db-scan-range"
+        "db-nor-columns"
       ],
       "change": null,
       "acceptance": null
@@ -167,9 +235,9 @@
       "id": "db-3",
       "skill": "code-ops-suite:debug",
       "target": "hyparquet",
-      "statement": "Reading a file through an asynchronous source fails when the footer is larger than the first fetch. The file data/datapage_v2.snappy.parquet has 5 rows. I wrap its bytes in an object with byteLength and an async slice(start, end) method that returns a promise, like a file behind a network request. parquetReadObjects({ file }) returns the 5 rows. To reproduce the case of a large footer with a small file, I pass initialFetchSize: 64 to the same call. It then rejects with \"TypeError: Cannot read properties of undefined (reading 'map')\" instead of returning the same 5 rows. Wrapping the bytes in an object whose slice returns the buffer directly, with no promise, gives the 5 rows with the same option.\n\nFind the root cause of this behavior and fix it.",
+      "statement": "Reading a small file through a range-checked source fails. The file data/bloom_filter.parquet is 522 bytes and has 4096 rows. I wrap its bytes in an object with byteLength and an async slice(start, end) method that rejects with a RangeError when start is negative, when end is past byteLength, or when start is past end, like a ranged read from disk or from a server. parquetReadObjects({ file }) with that object rejects with \"RangeError: slice start -523766 is outside the file\" instead of returning the 4096 rows. Reading the same bytes as a plain ArrayBuffer returns the 4096 rows.\n\nFind the root cause of this behavior and fix it.",
       "seeds": [
-        "db-meta-await"
+        "db-footer-start"
       ],
       "change": null,
       "acceptance": null
@@ -178,7 +246,7 @@
       "id": "sh-1",
       "skill": "code-ops-suite:ship",
       "target": "hyparquet",
-      "statement": "Add a `limit` option to `parquetRead` and `parquetReadObjects`. It caps how many rows are delivered to `onComplete`.\n\n- `limit` is a number. Rows are counted after `rowStart`, `rowEnd`, and `filter` have taken effect, in file order, so the result is the first `limit` rows of what the call would return without `limit`. With a `filter`, that means the first `limit` rows that match. This holds for both the `'array'` and `'object'` row formats, for reads that span several row groups, and for reads whose `columns` omit a filter column.\n- `limit: 0` delivers an empty array, and `onComplete` is still called exactly once.\n- An undefined `limit`, `Infinity`, or a value at or above the number of available rows changes nothing.\n- With `includeRowIndex`, each returned row keeps the physical row index it would have had without `limit`.\n- A `limit` that is negative, fractional, `NaN`, or not a number makes the returned promise reject with an `Error`, even when the file has fewer rows than the value.\n- Every other option behaves as before.",
+      "statement": "Add a `limit` option to `parquetRead`, `parquetReadObjects`, and `parquetQuery`. It caps how many rows are delivered to `onComplete` or returned by the query.\n\n- `limit` is a number. Rows are counted after `rowStart`, `rowEnd`, and `filter` have taken effect, in file order, so the result is the first `limit` rows of what the call would return without `limit`. With a `filter`, that means the first `limit` rows that match. This holds for both the `'array'` and `'object'` row formats, for reads that span several row groups, and for reads whose `columns` omit a filter column.\n- `limit: 0` delivers an empty array, and `onComplete` is still called exactly once.\n- An undefined `limit`, `Infinity`, or a value at or above the number of available rows changes nothing, including `Number.MAX_SAFE_INTEGER`.\n- With `includeRowIndex`, each returned row keeps the physical row index it would have had without `limit`.\n- A `limit` that is negative, fractional, `NaN`, `-Infinity`, or not a number (for example `null`, a string, a boolean, or a bigint) makes the returned promise reject with an `Error`, even when the file has fewer rows than the value.\n- A filter that matches no row gives an empty array for any valid `limit`.\n- `limit` only caps the rows passed to `onComplete`. The chunks that `onChunk` receives are the same with and without it, including `limit: 0`.\n- All of the above also holds when the file object returns promises from its `slice` method.\n- `parquetQuery` accepts `limit` with the same meaning and the same validity rules. Its result is the first `limit` rows of what the same call returns without `limit`, so the cap applies after `orderBy` sorting, after `filter`, and after `rowStart` and `rowEnd`. In `parquetQuery`, `rowStart` and `rowEnd` select positions in the filtered and sorted result, exactly as they do without `limit`.\n- `parquetQuery` with `limit: 0` returns an empty array, with or without `orderBy` and `filter`. An invalid `limit` rejects with an `Error` on every `parquetQuery` path, with or without `orderBy` and `filter`.\n- `parquetQuery` with `includeRowIndex` returns each row with its physical row index, also when `orderBy` has reordered the rows.\n- Every other option behaves as before.",
       "seeds": [],
       "change": "sh-limit-ref",
       "acceptance": "sh-limit.test.js"
@@ -187,10 +255,221 @@
       "id": "sh-2",
       "skill": "code-ops-suite:ship",
       "target": "hyparquet",
-      "statement": "Add and export a function `parquetColumnSummary(metadata)` from the package entry point. It takes the `FileMetaData` object that `parquetMetadata` returns, reads only the `row_groups[].columns[].meta_data` of that object, and returns a plain array with one entry per column. It does not modify its input.\n\nEach entry is an object with exactly these keys:\n\n- `name`: the column's `path_in_schema` joined with `.`.\n- `type`: the column's physical `type`, taken from the first chunk of that column.\n- `numValues`: the sum of `num_values` over every row group, as a JavaScript number.\n- `nullCount`: the sum of `statistics.null_count` over every row group, as a number, or `null` if any chunk of the column has no `statistics` or no `null_count` in them. A recorded null count of zero is a real count, not a missing one.\n- `compressedBytes`: the sum of `total_compressed_size` over every row group, as a number.\n- `uncompressedBytes`: the sum of `total_uncompressed_size` over every row group, as a number.\n\nChunks that share a dotted name are merged into one entry, including a column that is absent from some row groups. Entries appear in order of first appearance, scanning row groups in order and the columns of each group in order. Metadata with no row groups gives an empty array.",
+      "statement": "Add and export two functions from the package entry point: `parquetColumnSummary(metadata, options)` and `parquetColumnSummaryAsync(options)`.\n\n`parquetColumnSummary` takes the `FileMetaData` object that `parquetMetadata` returns, reads only the `row_groups[].columns[].meta_data` of that object, and returns a plain array with one entry per column. It does not modify its input, and changing the returned array, an entry, or an entry's arrays never changes the metadata or a later result.\n\nEach entry is an object with exactly these keys:\n\n- `name`: the column's `path_in_schema` joined with `.`.\n- `type`: the column's physical `type`, taken from the first chunk of that column.\n- `numValues`: the sum of `num_values` over every row group, as a JavaScript number.\n- `nullCount`: the sum of `statistics.null_count` over every row group, as a number, or `null` if any chunk of the column has no `statistics` or no `null_count` in them. A recorded null count of zero is a real count, not a missing one.\n- `compressedBytes`: the sum of `total_compressed_size` over every row group, as a number.\n- `uncompressedBytes`: the sum of `total_uncompressed_size` over every row group, as a number.\n- `chunks`: the number of column chunks merged into the entry.\n- `encodings`: the distinct values of `encodings` over the chunks of the column, sorted alphabetically.\n- `codecs`: the distinct values of `codec` over the chunks of the column, sorted alphabetically.\n\nChunks that share a dotted name are merged into one entry, including a column that is absent from some row groups. Entries appear in order of first appearance, scanning row groups in order and the columns of each group in order. A column chunk that has no `meta_data` is ignored, and a column with no chunk that has `meta_data` gets no entry. The counts and sizes in the metadata may be bigints or numbers. Metadata with no row groups gives an empty array.\n\nThe optional second argument `options.columns` is an array of top-level column names, meaning the first element of `path_in_schema`. When it is given, only chunks of those columns are summarized, and every sum covers only those chunks. The order of the names in the array does not matter. Names that match no top-level column, including a dotted path of a nested column, match nothing, and an empty array gives an empty result. An undefined `columns` keeps every column.\n\n`parquetColumnSummaryAsync` takes an options object with `file` (an `AsyncBuffer`), the optional `columns` described above, and the metadata options that `parquetMetadataAsync` accepts, such as `initialFetchSize`. It reads the footer of the file and resolves to the same array that `parquetColumnSummary` returns for that file's metadata. It works when the `slice` method of the file returns promises and when the footer is larger than the first fetch. It rejects with an `Error` when `file` is not a file object.",
       "seeds": [],
       "change": "sh-summary-ref",
       "acceptance": "sh-summary.test.js"
+    },
+    {
+      "id": "tp-bh-1",
+      "skill": "rigor:bug-hunt",
+      "target": "tau-prolog",
+      "statement": "Review the Prolog interpreter under modules/ for defects and report what you find.",
+      "seeds": [
+        "bh-succ-zero",
+        "bh-arg-last",
+        "bh-subatom-after-zero",
+        "bh-random-int-rounding",
+        "bh-rem-zero",
+        "bh-occurs-check-default",
+        "bh-catch-rethrow",
+        "bh-asserta-order",
+        "bh-numbervars-start",
+        "bh-forall-test-negation",
+        "bh-promise-answers-await",
+        "bh-subatom-sum-guard",
+        "bh-functor-arity-sign",
+        "bh-assertz-append",
+        "bh-nth1-lower-bound",
+        "bh-abolish-arity-limit"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-bh-2",
+      "skill": "rigor:bug-hunt",
+      "target": "tau-prolog",
+      "statement": "Look through the Prolog interpreter under modules/ for defects and report what you find.",
+      "seeds": [
+        "bh-functor-zero-arity",
+        "bh-random-between-upper",
+        "bh-replicate-count",
+        "bh-not-unify-inverted",
+        "bh-atom-concat-suffix-guard",
+        "bh-univ-number-head",
+        "bh-random-float-flag",
+        "bh-keysort-pair-error",
+        "bh-compare-args-swapped",
+        "bh-setof-as-bagof",
+        "bh-arith-compare-order",
+        "bh-number-codes-point",
+        "bh-keygroup-search-stop",
+        "bh-max-list-tie",
+        "bh-permutation-shuffle-bound",
+        "bh-list-to-set-compare"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-ca-1",
+      "skill": "code-ops-suite:codebase-audit",
+      "target": "tau-prolog",
+      "statement": "Audit the codebase under modules/ and report what you find.",
+      "seeds": [
+        "ca-take-short-list",
+        "ca-list-to-set-rescan",
+        "ca-foldr-order",
+        "ca-random-between-top",
+        "ca-set-seed-value",
+        "ca-epoch-stat",
+        "ca-get-prop-inherited",
+        "ca-apply-throws",
+        "ca-size-file-field",
+        "ca-future-done-state",
+        "ca-answer-limit-rejects",
+        "ca-await-suspend",
+        "ca-between-single",
+        "ca-sub-atom-length",
+        "ca-reverse-source",
+        "ca-mulberry-divisor",
+        "ca-future-all-count",
+        "ca-time-property-input",
+        "ca-consult-options",
+        "ca-compare-order-domain"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-ca-2",
+      "skill": "code-ops-suite:codebase-audit",
+      "target": "tau-prolog",
+      "statement": "Review the codebase under modules/ and report the problems you find.",
+      "seeds": [
+        "ca-reverse-bad-tail",
+        "ca-permutation-partial",
+        "ca-random-float-bound",
+        "ca-time-elapsed-sign",
+        "ca-json-prolog-pairs",
+        "ca-getenv-value-type",
+        "ca-future-any-fail",
+        "ca-consult-rejects",
+        "ca-answers-await",
+        "ca-arg-last",
+        "ca-abolish-zero-arity",
+        "ca-atomic-list-number",
+        "ca-time-weekday",
+        "ca-compare-equal-order",
+        "ca-list-to-set-countdown",
+        "ca-random-member-index",
+        "ca-getenv-text",
+        "ca-get-prop-defined",
+        "ca-sub-atom-total",
+        "ca-succ-positive"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-dr-1",
+      "skill": "rigor:deep-review",
+      "target": "tau-prolog",
+      "statement": "Review the most recent commit in this repository. Report what you find in it and whether it is ready to merge.",
+      "seeds": [
+        "dr-1-union-tail",
+        "dr-1-del-element",
+        "dr-1-list-type",
+        "dr-1-add-element",
+        "dr-1-mid-shift",
+        "dr-1-intersect-side",
+        "dr-1-subset-length"
+      ],
+      "change": "tp-dr-1",
+      "acceptance": null
+    },
+    {
+      "id": "tp-dr-2",
+      "skill": "rigor:deep-review",
+      "target": "tau-prolog",
+      "statement": "Review the most recent commit in this repository. Report what you find in it and whether it is ready to merge.",
+      "seeds": [
+        "dr-2-group-key",
+        "dr-2-keys-values-length",
+        "dr-2-nth-bound",
+        "dr-2-pair-var",
+        "dr-2-project-empty",
+        "dr-2-transpose-copy",
+        "dr-2-last-of"
+      ],
+      "change": "tp-dr-2",
+      "acceptance": null
+    },
+    {
+      "id": "tp-dr-3",
+      "skill": "rigor:deep-review",
+      "target": "tau-prolog",
+      "statement": "Review the most recent commit in this repository. Report what you find in it and whether it is ready to merge.",
+      "seeds": [
+        "dr-3-bounds-start",
+        "dr-3-split-cut",
+        "dr-3-rotate-empty",
+        "dr-3-range-end"
+      ],
+      "change": "tp-dr-3",
+      "acceptance": null
+    },
+    {
+      "id": "tp-db-1",
+      "skill": "code-ops-suite:debug",
+      "target": "tau-prolog",
+      "statement": "sort/2 leaves two compound terms out of order. In the Prolog interpreter under modules/, the query sort([point(1,5), point(1,3)], S) answers S = [point(1,5),point(1,3)]. The standard order of terms puts point(1,3) before point(1,5), because the terms have the same functor and the same first argument and 3 is less than 5. Two terms that differ in the first argument, such as sort([point(2,1), point(1,9)], S), come out in the right order, as [point(1,9),point(2,1)].\n\nFind the root cause of this behavior and fix it.",
+      "seeds": [
+        "db-compare-last-arg"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-db-2",
+      "skill": "code-ops-suite:debug",
+      "target": "tau-prolog",
+      "statement": "A query with a bound first argument skips a clause whose first argument is a variable. In the Prolog interpreter under modules/, a session consults the program kind(_, any). kind(a, letter). kind(b, letter). The query findall(K, kind(a, K), L) answers L = [letter]. It should answer L = [any,letter], because the first clause matches every first argument. The query findall(K, kind(c, K), L) correctly answers L = [any], and a query with an unbound first argument, findall(K, kind(X, K), L), answers L = [any,letter,letter].\n\nFind the root cause of this behavior and fix it.",
+      "seeds": [
+        "db-index-copy-count"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-db-3",
+      "skill": "code-ops-suite:debug",
+      "target": "tau-prolog",
+      "statement": "term_variables/2 lists the variables of a term in the wrong order. In the Prolog interpreter under modules/, the query term_variables(f(X, Y, X), L), L = [A, B] answers with A bound to Y and B bound to X, so the query term_variables(f(X, Y, X), L), L = [X, Y] fails. The order should follow the first occurrence of each variable in a left-to-right walk of the term, which gives L = [X,Y]. A term with one variable, such as term_variables(g(Z), L), answers L = [Z] as expected.\n\nFind the root cause of this behavior and fix it.",
+      "seeds": [
+        "db-nub-order"
+      ],
+      "change": null,
+      "acceptance": null
+    },
+    {
+      "id": "tp-sh-1",
+      "skill": "code-ops-suite:ship",
+      "target": "tau-prolog",
+      "statement": "Extend the Prolog interpreter under modules/ with three arithmetic functions, one predicate available without a library, and four list predicates.\n\nArithmetic functions, usable in `is/2` and in the arithmetic comparison predicates:\n\n- `lcm(X, Y)`: the least common multiple of two integers. The result is never negative, so `lcm(-4, 6)` is 12. It is 0 when either argument is 0.\n- `msb(X)`: the index of the highest set bit of the integer X, as an integer. `msb(1)` is 0, `msb(1023)` is 9, and `msb(1024)` is 10. For X below 1 it raises `evaluation_error(undefined)`.\n- `cot(X)`: the cotangent of X in radians, which is `1/tan(X)`, always as a float. For X equal to `0` or `0.0` it raises `evaluation_error(zero_divisor)`.\n- `lcm` and `msb` raise `type_error(integer, F)` for a float argument F. All three raise an instantiation error for an unbound argument.\n\nThe predicate `divmod(Dividend, Divisor, Quotient, Remainder)` does floored integer division. Quotient is the largest integer not above Dividend/Divisor, and Remainder is Dividend - Quotient*Divisor. So `divmod(-7, 2, Q, R)` gives Q = -4 and R = 1, and `divmod(7, -2, Q, R)` gives Q = -4 and R = -1. Quotient and Remainder may already be bound; the goal then succeeds only if both unify. The checks run in this order: an unbound Dividend or Divisor raises `instantiation_error`; a Dividend that is not an integer raises `type_error(integer, Dividend)`; a Divisor that is not an integer raises `type_error(integer, Divisor)`; a Divisor of 0 raises `evaluation_error(zero_divisor)`.\n\nThe library `lists`, loaded with `use_module(library(lists))`, gains these predicates:\n\n- `numlist(Low, High, List)`: List is the integers Low, Low+1, ..., High. It fails when Low is greater than High. An unbound Low or High raises `instantiation_error`, and this check comes before the type checks. Then a Low that is not an integer raises `type_error(integer, Low)`, and then a High that is not an integer raises `type_error(integer, High)`.\n- `max_member(Max, List)` and `min_member(Min, List)`: Max (Min) is the largest (smallest) element of List in the standard order of terms, the order that `compare/3` and `msort/2` use. They fail for the empty list and give exactly one answer, also when the extreme element occurs more than once. If Max (Min) is already bound, the goal succeeds only if it unifies with that element. An unbound List, or a list whose tail is unbound, raises `instantiation_error`. A List that is not a list raises `type_error(list, List)`.\n- `lcm_list(List, Lcm)`: Lcm is the least common multiple of the integers in List, combined with the `lcm` function above, so `lcm_list([], L)` gives 1 and a float element raises `type_error(integer, E)`. An unbound element raises `instantiation_error`.",
+      "seeds": [],
+      "change": "tp-sh-1-ref",
+      "acceptance": "sh-arith-lists.test.js"
+    },
+    {
+      "id": "tp-sh-2",
+      "skill": "code-ops-suite:ship",
+      "target": "tau-prolog",
+      "statement": "Make two additions to the Prolog interpreter under modules/.\n\n1. Session options. `pl.create` takes a number today, the inference limit. It must also take an options object with two optional properties:\n\n- `limit`: the inference limit, with the same meaning as the number form. A positive number sets it, and any other value means no limit.\n- `flags`: an object that maps Prolog flag names to value atom names given as strings, for example `{ double_quotes: 'atom', unknown: 'fail' }`. In the new session each named flag has the given value from the start, as if `set_prolog_flag/2` had run before the first goal. The parser, goal resolution, and `current_prolog_flag/2` all see the value. Other sessions, later `pl.create()` calls, and the global default flags are not changed.\n\n`pl.create` throws an `Error` before it returns a session in these cases: `flags` is defined and not null, and is not a plain object (an array, a string, a number, or a boolean); a key is not a Prolog flag; a flag cannot be modified, such as `bounded`; or a value is not a string that names an allowed value of that flag. For a bad key or value, the message of the `Error` contains the flag name. `pl.create(undefined)`, `pl.create(null)`, `pl.create({})`, `pl.create({ flags: null })`, and `pl.create(number)` behave as before.\n\n2. A new library `pairs`, in the new file `modules/pairs.js`, built like the other library modules: loaded with `require('../modules/pairs.js')(pl)` and then `use_module(library(pairs))`. It exports these predicates:\n\n- `pairs_keys_values(Pairs, Keys, Values)`: when Pairs is a proper list of `K-V` terms, Keys is the list of the K and Values the list of the V, in order. When Pairs is an unbound variable and Keys and Values are proper lists of the same length, Pairs is the list of the `Key-Value` terms. For proper lists of different lengths the goal fails. With an unbound Pairs and a Keys or Values that is not a proper list, it raises `instantiation_error`.\n- `pairs_keys(Pairs, Keys)` and `pairs_values(Pairs, Values)`: Keys (Values) is the list of the K (the V) of the proper list Pairs.\n- `transpose_pairs(Pairs, Transposed)`: every `K-V` becomes `V-K`, and the result is sorted by the new keys in the standard order of terms. Pairs whose new keys are equal keep their original relative order, and no pair is dropped.\n- `group_pairs_by_key(Pairs, Groups)`: each run of adjacent pairs with identical keys (identical as `==` decides) becomes one `K-Vs` term, where Vs lists the values of the run in order. The input is not sorted first, so equal keys that are not adjacent make separate groups. The empty list gives the empty list.\n\nThe Pairs argument of `pairs_keys/2`, `pairs_values/2`, `transpose_pairs/2`, and `group_pairs_by_key/2`, and the Pairs argument of `pairs_keys_values/3` when it is not an unbound variable, must be a proper list of `K-V` terms. The elements are checked in order, before the tail. An unbound element raises `instantiation_error`. An element that is not a `K-V` term raises `type_error(pair, Element)`. After the elements, an unbound tail, which includes an unbound Pairs for the first four predicates, raises `instantiation_error`, and any other tail that is not the empty list raises `type_error(list, Pairs)`.",
+      "seeds": [],
+      "change": "tp-sh-2-ref",
+      "acceptance": "sh-session-pairs.test.js"
     }
   ]
 }

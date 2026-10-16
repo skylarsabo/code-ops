@@ -1,0 +1,200 @@
+[
+  {
+    "id": "dr-1-union-tail",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "while( i < a.length ) out.push( a[i++] );",
+    "replace": "while( i < a.length - 1 ) out.push( a[i++] );",
+    "oracle": "dr-1-union-tail.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-del-element",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "if( pl.compare( set[i], elem ) !== 0 ) out.push( set[i] );",
+    "replace": "if( pl.compare( set[i], set[0] ) !== 0 ) out.push( set[i] );",
+    "oracle": "dr-1-del-element.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-list-type",
+    "kind": "defect",
+    "class": "swallowed-error",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "thread.throw_error( pl.error.type( \"list\", list, atom.indicator ) );\n\t\t\treturn null;",
+    "replace": "return [];",
+    "oracle": "dr-1-list-type.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-add-element",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "while( i < set.length && pl.compare( set[i], elem ) < 0 ) i++;",
+    "replace": "while( i < set.length && pl.compare( set[i], elem ) <= 0 ) i++;",
+    "oracle": "dr-1-add-element.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-mid-shift",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "var mid = ( low + high ) >> 1;",
+    "replace": "var mid = Math.floor( ( low + high ) / 2 );",
+    "oracle": "dr-1-mid-shift.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-intersect-side",
+    "kind": "decoy",
+    "class": "wrong-variable",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "else { out.push( a[i++] ); j++; }",
+    "replace": "else { out.push( b[j++] ); i++; }",
+    "oracle": "dr-1-intersect-side.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-1-subset-length",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "tp-dr-1",
+    "file": "modules/sets.js",
+    "find": "\t\tif( a.length > b.length ) return false;\n",
+    "replace": "",
+    "oracle": "dr-1-subset-length.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-group-key",
+    "kind": "defect",
+    "class": "wrong-variable",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "pl.compare( last.key, pair.args[0] ) === 0",
+    "replace": "pl.compare( groups[0].key, pair.args[0] ) === 0",
+    "oracle": "dr-2-group-key.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-keys-values-length",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "\t\t\t\t\tif( ks.length !== vs.length ) return;\n",
+    "replace": "",
+    "oracle": "dr-2-keys-values-length.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-nth-bound",
+    "kind": "defect",
+    "class": "off-by-one",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "index.value >= pairs.length",
+    "replace": "index.value > pairs.length",
+    "oracle": "dr-2-nth-bound.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-pair-var",
+    "kind": "defect",
+    "class": "missing-guard",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "\t\t\tif( pl.type.is_variable( p ) ) {\n\t\t\t\tthread.throw_error( pl.error.instantiation( atom.indicator ) );\n\t\t\t\treturn null;\n\t\t\t}\n",
+    "replace": "",
+    "oracle": "dr-2-pair-var.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-project-empty",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "\t\t\t\tif( pairs.length === 0 ) return give( thread, point, new pl.type.Term( \"[]\", [] ), atom.args[1] );\n",
+    "replace": "",
+    "oracle": "dr-2-project-empty.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-transpose-copy",
+    "kind": "decoy",
+    "class": "wrong-variable",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "swapped.slice().sort(",
+    "replace": "swapped.sort(",
+    "oracle": "dr-2-transpose-copy.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-2-last-of",
+    "kind": "decoy",
+    "class": "wrong-default",
+    "base": "tp-dr-2",
+    "file": "modules/pairs.js",
+    "find": "return groups.length > 0 ? groups[groups.length - 1] : null;",
+    "replace": "return groups[groups.length - 1] || null;",
+    "oracle": "dr-2-last-of.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-bounds-start",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": "tp-dr-3",
+    "file": "modules/ranges.js",
+    "find": "for( var i = 1; i < items.length; i++ ) {",
+    "replace": "for( var i = 0; i < items.length; i++ ) {",
+    "oracle": "dr-3-bounds-start.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-split-cut",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "tp-dr-3",
+    "file": "modules/ranges.js",
+    "find": "var cut = Math.min( count.value, items.length );",
+    "replace": "var cut = count.value;",
+    "oracle": "dr-3-split-cut.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-rotate-empty",
+    "kind": "decoy",
+    "class": "missing-guard",
+    "base": "tp-dr-3",
+    "file": "modules/ranges.js",
+    "find": "\t\tif( items.length === 0 ) return items;\n",
+    "replace": "",
+    "oracle": "dr-3-rotate-empty.test.js",
+    "symptom": null
+  },
+  {
+    "id": "dr-3-range-end",
+    "kind": "decoy",
+    "class": "off-by-one",
+    "base": "tp-dr-3",
+    "file": "modules/ranges.js",
+    "find": "for( var i = low.value; i <= high.value; i++ )",
+    "replace": "for( var i = low.value; i < high.value + 1; i++ )",
+    "oracle": "dr-3-range-end.test.js",
+    "symptom": null
+  }
+]
