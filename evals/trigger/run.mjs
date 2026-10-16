@@ -7,17 +7,19 @@
 // transcripts, the seeded stratified split, scoring, env scrubbing, and the spawn builder.
 // The model-in-the-loop runner is evals/trigger/trigger.mjs; it is never a merge gate.
 
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tally } from '../harness.mjs';
-import { buildSpawn, resolveClaude, scrubEnv } from './lib/env.mjs';
+import { buildSpawn, resolveClaude, scrubEnv, sessionEnv } from './lib/env.mjs';
 import { claudeArgs } from './lib/claude.mjs';
 import { parseQuerySet } from './lib/queries.mjs';
 import { renderMarkdown, sameSkill, scoreResults } from './lib/score.mjs';
 import { stratifiedSplit } from './lib/split.mjs';
 import { createDetector, detectTranscript } from './lib/stream.mjs';
-import { parseArgs } from './trigger.mjs';
+import { assertNoAnswerKeys, findAnswerKeys, makeSessionCopy, withSessionCopy } from './lib/target.mjs';
+import { DEFAULT_TARGET, parseArgs } from './trigger.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { fails, check } = tally();
@@ -137,8 +139,55 @@ check('stream: CRLF line endings parse', detectTranscript(fixture('skill-first.j
   check('spawn: the query is never an argument', !claudeArgs({ pluginDirs: [], budgetUsd: 1 }).some((a) => a.includes('query')));
 }
 
+// ---- session environment ------------------------------------------------------------------------
+check('env: the session env turns the routing card off', sessionEnv({ PATH: 'p' }).CODE_OPS_ROUTING_CARD === 'off');
+check('env: the session env overrides an ambient routing card and still scrubs', (() => {
+  const e = sessionEnv({ CODE_OPS_ROUTING_CARD: 'on', CLAUDECODE: '1', PATH: 'p' });
+  return e.CODE_OPS_ROUTING_CARD === 'off' && !('CLAUDECODE' in e) && e.PATH === 'p';
+})());
+check('env: scrubEnv keeps CODE_OPS_ROUTING_CARD', scrubEnv({ CODE_OPS_ROUTING_CARD: 'off' }).CODE_OPS_ROUTING_CARD === 'off');
+
+// ---- per-session target copy ----------------------------------------------------------------------
+{
+  const scratch = mkdtempSync(join(tmpdir(), 'trigger-eval-'));
+  try {
+    const src = join(scratch, 'src');
+    const put = (rel, text = 'x') => { const p = join(src, ...rel.split('/')); mkdirSync(dirname(p), { recursive: true }); writeFileSync(p, text); };
+    put('src/a.js'); put('LICENSE'); put('PROVENANCE.md'); put('ANSWER_KEY.seeds/s.json'); put('ANSWER_KEY.changes'); put('test/answer_key.oracles');
+    put('deep/ANSWER_KEY.x/y.txt'); put('node_modules/m/i.js');
+    const copy = makeSessionCopy(src);
+    try {
+      check('target: a planted answer key is left out of the copy', findAnswerKeys(copy).length === 0 && !existsSync(join(copy, 'ANSWER_KEY.seeds')) && !existsSync(join(copy, 'test', 'answer_key.oracles')) && !existsSync(join(copy, 'deep', 'ANSWER_KEY.x')));
+      check('target: source code and LICENSE are copied, PROVENANCE.md and node_modules are not', existsSync(join(copy, 'src', 'a.js')) && existsSync(join(copy, 'LICENSE')) && !existsSync(join(copy, 'PROVENANCE.md')) && !existsSync(join(copy, 'node_modules')));
+      writeFileSync(join(copy, 'ANSWER_KEY.late'), 'x');
+      check('target: the fail-closed check throws when an answer key is in a copy', throws(() => assertNoAnswerKeys(copy)) && findAnswerKeys(copy).join() === 'ANSWER_KEY.late');
+    } finally { rmSync(copy, { recursive: true, force: true }); }
+
+    const a = makeSessionCopy(src);
+    const b = makeSessionCopy(src);
+    try {
+      writeFileSync(join(a, 'src', 'a.js'), 'changed');
+      check('target: each session gets its own copy', a !== b && readFileSync(join(b, 'src', 'a.js'), 'utf8') === 'x' && readFileSync(join(src, 'src', 'a.js'), 'utf8') === 'x');
+    } finally { rmSync(a, { recursive: true, force: true }); rmSync(b, { recursive: true, force: true }); }
+
+    let seen = null;
+    await withSessionCopy(src, async (dir) => { seen = dir; });
+    check('target: the copy is removed after the session', seen !== null && !existsSync(seen));
+    let failed = null;
+    try { await withSessionCopy(src, async (dir) => { failed = dir; throw new Error('killed'); }); } catch { /* expected */ }
+    check('target: the copy is removed when the session throws', failed !== null && !existsSync(failed));
+  } finally { rmSync(scratch, { recursive: true, force: true }); }
+
+  const real = makeSessionCopy(DEFAULT_TARGET);
+  try {
+    check('target: the default copy has the hyparquet source and no answer key or provenance', existsSync(join(real, 'src', 'bloom.js')) && existsSync(join(real, 'LICENSE')) && !existsSync(join(real, 'PROVENANCE.md')) && findAnswerKeys(real).length === 0);
+  } finally { rmSync(real, { recursive: true, force: true }); }
+  check('target: a missing source throws before any copy is kept', throws(() => makeSessionCopy(join(tmpdir(), 'trigger-no-such-target'))));
+}
+
 // ---- argument parsing -----------------------------------------------------------------------
 check('args: defaults and required flags', (() => { const o = parseArgs(['--queries', 'q.json', '--out', 'o']); return o.runs === 3 && o.split === 'all' && o.budget === 0.5; })());
+check('args: --target is optional and takes a folder', parseArgs(['--queries', 'q', '--out', 'o']).target === null && parseArgs(['--queries', 'q', '--out', 'o', '--target', 'd']).target === 'd');
 check('args: a missing --out throws', throws(() => parseArgs(['--queries', 'q.json'])));
 check('args: an unknown flag throws', throws(() => parseArgs(['--queries', 'q', '--out', 'o', '--x'])));
 check('args: a bad number throws', throws(() => parseArgs(['--queries', 'q', '--out', 'o', '--runs', '0'])));
@@ -149,4 +198,4 @@ if (fails.length) {
   for (const f of fails) console.error(`  - ${f}`);
   process.exit(1);
 }
-console.log('PASS — trigger eval: the harness parses fail-closed, detects the first Skill, splits deterministically, scores, scrubs the env, and refuses unsafe shim arguments.');
+console.log('PASS — trigger eval: the harness parses fail-closed, detects the first Skill, splits deterministically, scores, scrubs the env, copies the target without answer keys per session, and refuses unsafe shim arguments.');

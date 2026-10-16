@@ -19,6 +19,11 @@ export function scrubEnv(env) {
   return out;
 }
 
+/** The session environment: scrubbed, with the routing card off so it cannot steer a query. */
+export function sessionEnv(env) {
+  return { ...scrubEnv(env), CODE_OPS_ROUTING_CARD: 'off' };
+}
+
 /** First existing claude executable on PATH, or null. On win32 prefer .exe over .cmd shims. */
 export function resolveClaude(env = process.env, platform = process.platform, exists = existsSync) {
   const pathVar = Object.entries(env).find(([k]) => k.toLowerCase() === 'path')?.[1] ?? '';

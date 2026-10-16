@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -102,12 +102,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 460,
+          "line": 464,
           "anchor": "const sessionId = typeof payload?.session_id === 'string' ? payload.session_id :"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 447,
+          "line": 451,
           "anchor": "'everything (broad/multi-domain) -> /code-ops-suite:everything',"
         },
         {
@@ -306,22 +306,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 392,
-          "anchor": "}"
+          "line": 411,
+          "anchor": "exact earlier detail: the summary is lossy, so call the MCP tool transcript_reca"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 443,
-          "anchor": "'audit/quality sweep -> /code-ops-suite:everything plugins: suite or plugins: ri"
+          "line": 438,
+          "anchor": "if (process.env.GROK_PLUGIN_ROOT || /^(off|0|false)$/i.test(process.env.CODE_OPS"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 291,
+          "line": 295,
           "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 306,
+          "line": 310,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
@@ -361,7 +361,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 414,
+          "line": 418,
           "anchor": "function stalePluginLine() {"
         },
         {
@@ -395,7 +395,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "f72318402da12e8060bae6b882b5d270402b86a3073ae2ab8c5cd137ff99fe13"
+      "verifiedDigest": "b72bfcb937919c34c412ad0fcfab8e8d07fb2d1dc78b3be3c0946ac159cde229"
     },
     {
       "slug": "gate-scripts",
@@ -404,7 +404,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -747,7 +747,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 340,
+          "line": 344,
           "anchor": "const { pendingAgents, formatLine } = await import(pathToFileURL(lib).href);"
         },
         {
@@ -1114,8 +1114,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
-      "verifiedDigest": "2a726a1f5b0b05f30a3227b0a16aec870a37e52aba600005f5ea5b75ec390cf3",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
+      "verifiedDigest": "b589818e6524ec90a2ae7b86dedf39a4521a7ea3ea1695e4b023b0d1fb21ccee",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1542,6 +1542,16 @@
           "anchor": "#!/usr/bin/env node"
         },
         {
+          "file": "evals/trigger/lib/target.mjs",
+          "line": 41,
+          "anchor": "export function assertNoAnswerKeys(dir) {"
+        },
+        {
+          "file": "evals/trigger/lib/env.mjs",
+          "line": 24,
+          "anchor": "return { ...scrubEnv(env), CODE_OPS_ROUTING_CARD: 'off' };"
+        },
+        {
           "file": "evals/skill-write-class/run.mjs",
           "line": 1,
           "anchor": "#!/usr/bin/env node"
@@ -1556,7 +1566,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1609,17 +1619,17 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 291,
+          "line": 295,
           "anchor": "} catch { return { state: 'unavailable' }; }"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 306,
+          "line": 310,
           "anchor": "Snapshot absent: rebuild it with co snapshot --session ${sessionId}"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
-          "line": 296,
+          "line": 300,
           "anchor": "function snapshotLines(snap, cwd, open, sessionId) {"
         },
         {
@@ -1683,7 +1693,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "b08186191b51cbb5c12c18e642ceea3507ccb44eed063e6ca1c11bb91768fed7"
+      "verifiedDigest": "0e60033a87ee040b99e329f11d5f69b4508ec8a4f96bdc4c7dc5862e208af078"
     },
     {
       "slug": "ci-workflows",
@@ -1817,7 +1827,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "68de428de363aa5d0ffe3ef3ec7d0582ef592008",
+      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1876,17 +1886,17 @@
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 969,
+          "line": 970,
           "anchor": "so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md cu"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 1137,
+          "line": 1138,
           "anchor": "- Running work (snapshot): ..."
         },
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
-          "line": 88,
+          "line": 89,
           "anchor": ", and the snapshot warning and seeding in"
         },
         {
@@ -1900,7 +1910,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "48c5162956d5e07aafae206b00c86e4a9d7a190f6ab1a5cf2ebbbaeb5c7e080b"
+      "verifiedDigest": "b41f7d1f70089c949b5fa4d0bf5e72a54f7d4bc2af4e19e23d7a5708e31a2499"
     },
     {
       "slug": "root-contracts",

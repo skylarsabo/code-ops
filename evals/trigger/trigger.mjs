@@ -4,15 +4,16 @@
 //
 //   node evals/trigger/trigger.mjs --queries evals/trigger/queries/research-verify.json --out <dir>
 //     [--runs 3] [--split all|train|test] [--seed 1] [--test-fraction 0.4]
-//     [--max-budget-usd 0.50] [--limit N] [--model <alias>] [--setting-sources project]
+//     [--max-budget-usd 0.50] [--limit N] [--model <alias>] [--setting-sources project] [--target <dir>]
 //
 // Each query runs --runs times as `claude -p` with every plugin under plugins/ loaded, so sibling
-// skills compete. The query goes on stdin, never into a command line. The first Skill tool_use
+// skills compete. Each session runs in its own fresh copy of --target (default
+// evals/bench/targets/hyparquet, minus every ANSWER_KEY path and PROVENANCE.md), removed afterwards,
+// so a query about code has code to read. The query goes on stdin, never into a command line. The first Skill tool_use
 // is recorded and the process is killed there (early stop). The output is a trigger table as
 // <out>/trigger-<skill>.json and .md. The harness reports only; it never edits a SKILL.md.
 
-import { mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { runQuery } from './lib/claude.mjs';
@@ -20,12 +21,14 @@ import { resolveClaude } from './lib/env.mjs';
 import { parseQuerySet } from './lib/queries.mjs';
 import { renderMarkdown, scoreResults } from './lib/score.mjs';
 import { stratifiedSplit } from './lib/split.mjs';
+import { withSessionCopy } from './lib/target.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+export const DEFAULT_TARGET = join(ROOT, 'evals', 'bench', 'targets', 'hyparquet');
 
 /** Parse argv into options. Throws on an unknown or malformed flag. */
 export function parseArgs(argv) {
-  const o = { runs: 3, split: 'all', seed: 1, testFraction: 0.4, budget: 0.5, limit: null, model: null, settingSources: 'project', queries: null, out: null };
+  const o = { runs: 3, split: 'all', seed: 1, testFraction: 0.4, budget: 0.5, limit: null, model: null, settingSources: 'project', target: null, queries: null, out: null };
   const num = (flag, v, min) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < min) throw new Error(`${flag} needs a number >= ${min}`);
@@ -46,6 +49,7 @@ export function parseArgs(argv) {
     else if (flag === '--limit') o.limit = num(flag, val(), 1);
     else if (flag === '--model') o.model = val();
     else if (flag === '--setting-sources') o.settingSources = val();
+    else if (flag === '--target') o.target = val();
     else if (flag === '--split') {
       o.split = val();
       if (!['all', 'train', 'test'].includes(o.split)) throw new Error('--split must be all, train, or test');
@@ -68,23 +72,19 @@ async function main() {
   if (o.limit) chosen = chosen.slice(0, o.limit);
   if (chosen.length === 0) throw new Error('the selected split has no queries');
 
-  const cwd = mkdtempSync(join(tmpdir(), 'trigger-'));
+  const target = o.target ? resolve(o.target) : DEFAULT_TARGET;
   const results = [];
   let failure = null;
-  try {
-    for (const q of chosen) {
-      const runs = [];
-      for (let n = 0; n < o.runs && !failure; n++) {
-        const r = await runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, cwd });
-        console.log(`${q.stratum} run ${n + 1}: ${r.skill ?? 'none'}${r.error ? ` ERROR ${r.error}` : ''}`);
-        if (r.error) failure = `session failed for "${q.query.slice(0, 60)}": ${r.error}`;
-        else runs.push({ skill: r.skill, costUsd: r.costUsd, toolsBefore: r.toolsBefore });
-      }
-      if (runs.length) results.push({ ...q, runs });
-      if (failure) break;
+  for (const q of chosen) {
+    const runs = [];
+    for (let n = 0; n < o.runs && !failure; n++) {
+      const r = await withSessionCopy(target, (cwd) => runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, cwd }));
+      console.log(`${q.stratum} run ${n + 1}: ${r.skill ?? 'none'}${r.error ? ` ERROR ${r.error}` : ''}`);
+      if (r.error) failure = `session failed for "${q.query.slice(0, 60)}": ${r.error}`;
+      else runs.push({ skill: r.skill, costUsd: r.costUsd, toolsBefore: r.toolsBefore });
     }
-  } finally {
-    rmSync(cwd, { recursive: true, force: true });
+    if (runs.length) results.push({ ...q, runs });
+    if (failure) break;
   }
 
   const table = scoreResults(set.skill, results);

@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.81.0
+## 2.82.0
 - The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
 - Workflow `agent()` calls to the `implementer` get the same anchors advisory: a literal or template prompt without `Anchors:` is named by call index, and a prompt the hook cannot read is reported as unchecked.
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.
@@ -38,6 +38,7 @@ The handoff draft now lists the open rows of PLAN.md, or warns when it cannot re
 - The compact-snapshot eval adds a planted multi-line key, terminated and unterminated, that fails if any body line reaches the snapshot. A mutant copy without the block pass must leak every body line.
 - The dispatch guard denies `git stash` (except `list` and `show`), `checkout`, `switch`, `reset`, `restore`, `clean`, `merge`, `rebase`, `pull`, `cherry-pick`, `am`, and any git verb with `--autostash` inside a subagent, because they rewrite the working tree the lead shares with other operatives. A verb with `--help` or `-h`, and `git clean` with `-n` or `--dry-run`, still pass. The `implementer` and `mech` definitions name the read-only alternatives for a baseline: `git show HEAD:<path>`, `git diff`, or a separate worktree. Off switch: `CODE_OPS_SUBAGENT_GIT=off`.
 Transcript recall: `co recall` and the `transcript_recall` MCP tool find and open exact earlier detail in the host transcript after compaction, with no model call. Every answer ends at the original bytes, checked by sha256, and fails closed on a rewritten file. The index holds masked labels and byte offsets only. The PreCompact and SessionEnd hooks start a detached incremental build; `CODE_OPS_RECALL=off` disables it.
+- The SessionStart routing card has a whole-card off switch, `CODE_OPS_ROUTING_CARD` (`off`, `0`, or `false`). It silences the card on every start source, compact restore included. The skill-trigger harness sets it so a measured session sees skill descriptions only.
 - `co handoff draft` refuses while the program ledger holds a stale open row: a row the two previous handoffs both carried, or whose `Hop:` is older than one handoff, with no `Forwarded-to:`, `Next:`, or close. `--allow-stale` drafts anyway and records an override line.
 - The routing card warns when the session loaded an older code-ops-suite than the host plugin cache holds, so the operator starts a new session. It is advisory and fails open.
 - `CODE_OPS_DIGEST_READ=lead` digests long `Read` results on the lead thread only and arms a `Write` guard: a whole-file `Write` to a path whose last `Read` was digested is denied until a ranged `Read` of that path. The `on` values behave as before. Off by default.
