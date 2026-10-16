@@ -5,11 +5,13 @@
 //   node evals/trigger/trigger.mjs --queries evals/trigger/queries/research-verify.json --out <dir>
 //     [--runs 3] [--split all|train|test] [--seed 1] [--test-fraction 0.4]
 //     [--max-budget-usd 0.50] [--limit N] [--model <alias>] [--setting-sources project] [--target <dir>]
+//     [--routing-card off|on]
 //
 // Each query runs --runs times as `claude -p` with every plugin under plugins/ loaded, so sibling
 // skills compete. Each session runs in its own fresh copy of --target (default
 // evals/bench/targets/hyparquet, minus every ANSWER_KEY path and PROVENANCE.md), removed afterwards,
-// so a query about code has code to read. The query goes on stdin, never into a command line. The first Skill tool_use
+// so a query about code has code to read. The code-ops routing card is off unless --routing-card on, so
+// default tables stay comparable. The query goes on stdin, never into a command line. The first Skill tool_use
 // is recorded and the process is killed there (early stop). A session that reaches --max-budget-usd
 // without a Skill call fired no skill within the cap: it is recorded as a non-fire with its cost
 // and capped: true, and the run continues. Any other session error ends the run. The output is a
@@ -30,7 +32,7 @@ export const DEFAULT_TARGET = join(ROOT, 'evals', 'bench', 'targets', 'hyparquet
 
 /** Parse argv into options. Throws on an unknown or malformed flag. */
 export function parseArgs(argv) {
-  const o = { runs: 3, split: 'all', seed: 1, testFraction: 0.4, budget: 0.5, limit: null, model: null, settingSources: 'project', target: null, queries: null, out: null };
+  const o = { runs: 3, split: 'all', seed: 1, testFraction: 0.4, budget: 0.5, limit: null, model: null, settingSources: 'project', target: null, routingCard: 'off', queries: null, out: null };
   const num = (flag, v, min) => {
     const n = Number(v);
     if (!Number.isFinite(n) || n < min) throw new Error(`${flag} needs a number >= ${min}`);
@@ -52,7 +54,10 @@ export function parseArgs(argv) {
     else if (flag === '--model') o.model = val();
     else if (flag === '--setting-sources') o.settingSources = val();
     else if (flag === '--target') o.target = val();
-    else if (flag === '--split') {
+    else if (flag === '--routing-card') {
+      o.routingCard = val();
+      if (!['off', 'on'].includes(o.routingCard)) throw new Error('--routing-card must be off or on');
+    } else if (flag === '--split') {
       o.split = val();
       if (!['all', 'train', 'test'].includes(o.split)) throw new Error('--split must be all, train, or test');
     } else throw new Error(`unknown argument ${flag}`);
@@ -105,12 +110,12 @@ async function main() {
 
   const target = o.target ? resolve(o.target) : DEFAULT_TARGET;
   const { results, failure } = await collectRuns(chosen, o.runs, (q) =>
-    withSessionCopy(target, (cwd) => runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, cwd })));
+    withSessionCopy(target, (cwd) => runQuery(bin, q.query, { pluginDirs, budgetUsd: o.budget, settingSources: o.settingSources, model: o.model, routingCard: o.routingCard, cwd })));
 
   const table = scoreResults(set.skill, results);
   mkdirSync(resolve(o.out), { recursive: true });
   const stem = join(resolve(o.out), `trigger-${set.skill.replace(':', '-')}`);
-  const meta = { split: o.split, seed: o.seed, runsPerQuery: o.runs, detail: results };
+  const meta = { split: o.split, seed: o.seed, runsPerQuery: o.runs, routingCard: o.routingCard, detail: results };
   writeFileSync(`${stem}.json`, `${JSON.stringify({ table, meta: { ...meta, detail: undefined }, results }, null, 2)}\n`);
   writeFileSync(`${stem}.md`, renderMarkdown(table, meta));
   console.log(`wrote ${stem}.json and ${stem}.md`);
