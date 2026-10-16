@@ -136,3 +136,5 @@ Explicit dispatch registration uses hashed working-directory and agent keys, ref
 `conform` checks surface 3 with `atlas-check.mjs check --gate --claims-gate`. A STALE section, or a claim that is MOVED, DRIFTED, or GONE, makes the surface DRIFTED, never CONFORMANT. The suite's atlas trust rule matches: a FRESH section does not vouch for a claim reported DRIFTED or GONE.
 
 `conform` installs the derived-file merge driver in an adopter repository and routes state-surface drift to `distill` (`plugins/code-ops-suite/skills/conform/SKILL.md:215`).
+
+Eleven skills that write no source declare `disallowed-tools`. A skill that writes nothing drops Edit, Write, and NotebookEdit, and a skill that writes only new run artifacts drops Edit and NotebookEdit. Bash stays for read-only probes. The reviewer, tracer, and claim-checker agents check four false-positive classes before they keep a finding; the verifier does not, because an executed repro outranks a class.

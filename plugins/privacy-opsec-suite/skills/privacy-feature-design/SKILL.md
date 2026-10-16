@@ -1,5 +1,6 @@
 ---
 description: "Use to find and specify high-value privacy and trust features, each gated against the anonymity model. Discovery and specification only."
+disallowed-tools: Edit, NotebookEdit
 ---
 
 # Privacy feature design: high-value, trust-building features

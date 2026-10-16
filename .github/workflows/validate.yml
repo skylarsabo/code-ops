@@ -234,6 +234,15 @@ jobs:
       - name: Branch-name rule and hook eval
         run: node evals/branch-name/run.mjs
 
+      - name: Refutation tally eval (fail-closed panel votes, tier and severity only fall)
+        run: node evals/refutation-tally/run.mjs
+
+      - name: Skill trigger harness eval (logic only; the model-in-the-loop runner is local)
+        run: node evals/trigger/run.mjs
+
+      - name: Skill write-class eval (disallowed-tools match what each skill writes)
+        run: node evals/skill-write-class/run.mjs
+
       - name: Direction gap-link advisory eval (accepted link, advisory note, never a failure)
         run: node evals/direction-alignment/run.mjs
 

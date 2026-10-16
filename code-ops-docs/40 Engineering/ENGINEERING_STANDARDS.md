@@ -39,7 +39,7 @@ Use `node scripts/benchmark-command.mjs --runs 7 --warmup 1 -- <executable> [arg
 
 Extract shared work when it removes measured duplication or closes behavioral drift. Keep public flow legible and reject abstractions that only move complexity. Performance work never weakens a quality gate, removes an eval case, or broadens agent context to save orchestration time.
 
-The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-35`.
+The vendor manifest declares the runtime script set. Evidence: `scripts/vendored-manifest.mjs:13-36`.
 
 The [code standard](Techniques/code-standard.md) owns the general rule: efficient by design, optimized only by measurement.
 

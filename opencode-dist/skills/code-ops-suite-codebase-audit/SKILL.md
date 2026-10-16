@@ -44,9 +44,12 @@ developer immediately** (`§3`). Apply confirmed NOW-SAFE fixes through the impl
 (`§11`), logging each one.
 
 At synthesis, route every **critical, high-severity, or fix-driving** finding through
-**independent refutation** (`§7`). A fresh sub-agent that did not find it tries to kill it by
-locating a dominating guard or handler in another function, file, or boundary. A majority-refuted
-finding drops, or downgrades to SPECULATIVE with the cited guard. Skip the panel only for a
+**independent refutation** (`§7`). Three fresh sub-agents that did not find it each try to kill it
+through one lens: reachability, impact, or defenses (a dominating guard or handler in another
+function, file, or boundary). Write their votes to the run folder and run
+`node <plugin-root>/scripts/refutation-tally.mjs <votes.json>` with `keepUnproven` true.
+Its outcome decides whether the finding stays, downgrades, or drops, and each downgrade cites
+the refuting guard. Skip the panel only for a
 finding already proven by an executed repro. Every reported finding quotes a verbatim **Anchor**
 of its cited line (`§9`).
 

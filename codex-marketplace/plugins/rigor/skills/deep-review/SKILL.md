@@ -75,9 +75,10 @@ It blocks only on an unrecorded dependency, and its other tells are leads for th
 than review comments on their own.
 
 For any concern you would mark Blocking whose severity rests on static reasoning rather than
-an executed repro, run an independent refutation (`§I`). A fresh refuter, one that did not
-raise the concern, tries to kill it by locating a dominating guard elsewhere, and a refuted
-concern is dropped or downgraded, citing the guard. Each comment carries a verbatim Anchor of
+an executed repro, run an independent refutation (`§I`). Three fresh refuters that did not
+raise the concern each try to kill it through one lens: reachability, impact, or defenses.
+`node <plugin-root>/scripts/refutation-tally.mjs <votes.json>` decides the outcome. A
+concern below PROBABLE is not Blocking, and each drop or downgrade cites the refuting guard. Each comment carries a verbatim Anchor of
 its cited line (`§E`).
 
 ## Output: the review

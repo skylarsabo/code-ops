@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"s1"}
+{"type":"assistant","message":{"content":[{"type":"text","text":"Plain answer."}]}}
+{"type":"result","subtype":"success","is_error":false,"total_cost_usd":0.03}
