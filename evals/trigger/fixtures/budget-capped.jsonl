@@ -1,0 +1,3 @@
+{"type":"system","subtype":"init","session_id":"s1"}
+{"type":"assistant","message":{"content":[{"type":"tool_use","name":"Read","input":{"file_path":"src/a.js"}}]}}
+{"type":"result","subtype":"error_max_budget_usd","is_error":true,"total_cost_usd":0.5093}

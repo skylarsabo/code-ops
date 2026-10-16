@@ -10,19 +10,21 @@ export function sameSkill(observed, expected) {
 }
 
 /**
- * results: [{ query, expect, stratum, runs: [{ skill|null, costUsd|null }] }]
+ * results: [{ query, expect, stratum, runs: [{ skill|null, costUsd|null, capped? }] }]
+ * A capped run (no Skill call within --max-budget-usd) scores as a non-fire.
  * Returns { skill, positiveRuns, hits, hitRate, negativeRuns, falseFires, falseFireRate,
- *           falseFiresBySibling, byStratum, runs, totalCostUsd }.
+ *           falseFiresBySibling, byStratum, runs, cappedRuns, totalCostUsd }.
  */
 export function scoreResults(skill, results) {
   const t = { skill, positiveRuns: 0, hits: 0, hitRate: null, negativeRuns: 0, falseFires: 0, falseFireRate: null,
-    falseFiresBySibling: {}, byStratum: {}, runs: 0, totalCostUsd: null };
+    falseFiresBySibling: {}, byStratum: {}, runs: 0, cappedRuns: 0, totalCostUsd: null };
   for (const r of results) {
     const positive = r.expect === skill;
     const s = (t.byStratum[r.stratum] ??= { runs: 0, correct: 0 });
     for (const run of r.runs) {
       t.runs += 1;
       s.runs += 1;
+      if (run.capped === true) t.cappedRuns += 1;
       if (typeof run.costUsd === 'number') t.totalCostUsd = (t.totalCostUsd ?? 0) + run.costUsd;
       const correct = r.expect === 'none' ? !run.skill : sameSkill(run.skill, r.expect);
       if (correct) s.correct += 1;
@@ -51,16 +53,16 @@ export function renderMarkdown(table, meta = {}) {
   const lines = [
     `# Trigger table: ${table.skill}`, '',
     ...(meta.split ? [`Split: ${meta.split}; seed ${meta.seed}; runs per query ${meta.runsPerQuery}; routing card ${meta.routingCard ?? 'off'}.`, ''] : []),
-    '| Skill | Hit rate | Hits / positive runs | False fires | False fires by sibling | Runs | Total cost (USD) |',
-    '| --- | --- | --- | --- | --- | --- | --- |',
-    `| ${table.skill} | ${pct(table.hitRate)} | ${table.hits} / ${table.positiveRuns} | ${table.falseFires} / ${table.negativeRuns} (${pct(table.falseFireRate)}) | ${sib} | ${table.runs} | ${table.totalCostUsd === null ? 'n/a' : table.totalCostUsd.toFixed(4)} |`,
+    '| Skill | Hit rate | Hits / positive runs | False fires | False fires by sibling | Runs | Capped runs (no skill) | Total cost (USD) |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- |',
+    `| ${table.skill} | ${pct(table.hitRate)} | ${table.hits} / ${table.positiveRuns} | ${table.falseFires} / ${table.negativeRuns} (${pct(table.falseFireRate)}) | ${sib} | ${table.runs} | ${table.cappedRuns ?? 0} | ${table.totalCostUsd === null ? 'n/a' : table.totalCostUsd.toFixed(4)} |`,
     '', '| Stratum | Runs | Correct |', '| --- | --- | --- |',
     ...Object.entries(table.byStratum).map(([k, v]) => `| ${k} | ${v.runs} | ${v.correct} |`),
   ];
   if (meta.detail?.length) {
     lines.push('', '| Query | Expect | Detected | Cost (USD) |', '| --- | --- | --- | --- |');
     for (const d of meta.detail)
-      lines.push(`| ${d.query.replace(/\|/g, '\\|').slice(0, 90)} | ${d.expect} | ${d.runs.map((r) => r.skill ?? 'none').join(', ')} | ${d.runs.map((r) => (typeof r.costUsd === 'number' ? r.costUsd.toFixed(4) : 'n/a')).join(', ')} |`);
+      lines.push(`| ${d.query.replace(/\|/g, '\\|').slice(0, 90)} | ${d.expect} | ${d.runs.map((r) => r.skill ?? (r.capped ? 'none (capped)' : 'none')).join(', ')} | ${d.runs.map((r) => (typeof r.costUsd === 'number' ? r.costUsd.toFixed(4) : 'n/a')).join(', ')} |`);
   }
   return `${lines.join('\n')}\n`;
 }
