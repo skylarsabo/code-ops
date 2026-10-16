@@ -50,7 +50,7 @@ export function renderMarkdown(table, meta = {}) {
   const sib = Object.entries(table.falseFiresBySibling).map(([k, v]) => `${k} x${v}`).join(', ') || 'none';
   const lines = [
     `# Trigger table: ${table.skill}`, '',
-    ...(meta.split ? [`Split: ${meta.split}; seed ${meta.seed}; runs per query ${meta.runsPerQuery}.`, ''] : []),
+    ...(meta.split ? [`Split: ${meta.split}; seed ${meta.seed}; runs per query ${meta.runsPerQuery}; routing card ${meta.routingCard ?? 'off'}.`, ''] : []),
     '| Skill | Hit rate | Hits / positive runs | False fires | False fires by sibling | Runs | Total cost (USD) |',
     '| --- | --- | --- | --- | --- | --- | --- |',
     `| ${table.skill} | ${pct(table.hitRate)} | ${table.hits} / ${table.positiveRuns} | ${table.falseFires} / ${table.negativeRuns} (${pct(table.falseFireRate)}) | ${sib} | ${table.runs} | ${table.totalCostUsd === null ? 'n/a' : table.totalCostUsd.toFixed(4)} |`,

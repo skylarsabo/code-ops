@@ -19,9 +19,12 @@ export function scrubEnv(env) {
   return out;
 }
 
-/** The session environment: scrubbed, with the routing card off so it cannot steer a query. */
-export function sessionEnv(env) {
-  return { ...scrubEnv(env), CODE_OPS_ROUTING_CARD: 'off' };
+/**
+ * The session environment: scrubbed, with the routing card set explicitly. Off (the default) keeps
+ * the card from steering a query; on measures the routing path that real sessions use.
+ */
+export function sessionEnv(env, routingCard = 'off') {
+  return { ...scrubEnv(env), CODE_OPS_ROUTING_CARD: routingCard };
 }
 
 /** First existing claude executable on PATH, or null. On win32 prefer .exe over .cmd shims. */

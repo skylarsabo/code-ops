@@ -1114,8 +1114,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "40bfcdc01d1dc24902c8ebbf5c508390ba192e00",
-      "verifiedDigest": "52225662765635432964e770e7b9035aca4a677f55ca17fc8e6a0891870ecf7f",
+      "verifiedAt": "96efb1f346c465bd0a9f7135940a341e80315962",
+      "verifiedDigest": "be58589c8ee37fe12b5a4f291f9612571a1346b4a4d9bfcfa7630f734b03d704",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1548,8 +1548,8 @@
         },
         {
           "file": "evals/trigger/lib/env.mjs",
-          "line": 24,
-          "anchor": "return { ...scrubEnv(env), CODE_OPS_ROUTING_CARD: 'off' };"
+          "line": 26,
+          "anchor": "export function sessionEnv(env, routingCard = 'off') {"
         },
         {
           "file": "evals/skill-write-class/run.mjs",
