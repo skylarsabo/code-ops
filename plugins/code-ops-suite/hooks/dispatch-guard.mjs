@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// NINE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// TEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -165,6 +165,18 @@
 //      read (a variable, a call) earns a note that the brief could not be checked. One note
 //      per Workflow lists the affected call indexes. With `CODE_OPS_WORKFLOW_ARGS=first` the
 //      prompt is not read and the check is skipped.
+//  10. LEAD INLINE-STREAK GUARD, on the main thread only (`agent_id` absent), for the hands-on tools
+//      (Bash, Read, Grep, Glob, Edit, Write, MultiEdit, NotebookEdit, run_terminal_command). Each such call
+//      adds one to a per-session streak; an allowed dispatch tool (not one the hook denies) or a new
+//      operator prompt resets it. An operator prompt is the latest `user` entry in the last 256 KB of
+//      the transcript that `isOperatorPrompt` (scripts/transcript-lib.mjs) accepts and whose uuid
+//      differs from the one in state, so task notifications, compact summaries, system reminders, and
+//      command output do not reset it; a tail with no such entry keeps the stored uuid. Every other tool neither counts nor resets. At the streak
+//      `CODE_OPS_LEAD_STREAK` (default 8) and every further multiple, it adds one advisory line that
+//      names the batch, probe, mech, or implementer alternative; `CODE_OPS_LEAD_GUARD=deny` denies
+//      instead. The line joins the call's other output, or a denial already on the call. Its off switch is `CODE_OPS_LEAD_GUARD`
+//      (`off`, `0`, or `false`); the default is `warn`, so the decision rows (gate `lead-streak`)
+//      measure how often it fires before anyone considers `deny`. Any error fails open.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -196,6 +208,9 @@
 // an integer of at least 150,000 overrides the default (200,000 on Grok, 300,000 elsewhere),
 // and anything else reads as the default (`contextCeiling` in scripts/transcript-lib.mjs,
 // shared with the handoff card).
+// `CODE_OPS_LEAD_GUARD` takes `off`, `0`, or `false` to disable only behaviour 10 and `deny` to make
+// its threshold hits denials; unset or `warn` is advisory. `CODE_OPS_LEAD_STREAK` sets the threshold
+// (a positive integer, default 8). `CODE_OPS_DISPATCH_GUARD=warn` downgrades `deny` to advisory.
 //
 // HOST COVERAGE. The ceiling gate and the dispatch review key on the dispatch tool names: Claude's
 // `Agent`, `Task`, and `Workflow`, and Grok's `spawn_subagent` (~/.grok/docs/user-guide
@@ -261,7 +276,7 @@
 // budget than the controller record intended. That denial, like an unavailable bound counter,
 // states the fix: report now, then re-dispatch under a new id bound with `register`.
 
-import { appendFileSync, closeSync, constants, copyFileSync, existsSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
+import { appendFileSync, closeSync, constants, copyFileSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { homedir } from 'node:os';
@@ -597,6 +612,7 @@ const GATES = [
   ['peer-note', /^(?:Collision|Surface) note/m, []],
   ['redispatch-note', /Redispatch note:/, []],
   ['anchors-note', /Anchors note:/, []],
+  ['lead-streak', /Lead inline streak:/, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
@@ -729,6 +745,87 @@ function gitGuardFor(payload) {
 // A denial no other output carried goes out alone.
 function finishLegacy() {
   if (legacy && !emitted) emit({ hookSpecificOutput: { hookEventName: 'PreToolUse' } });
+}
+
+// Behaviour 10. The lead's hands-on streak, kept per session in one small state file beside the
+// round counters: `{version, streak, uuid}`, uuid being the last real user prompt seen.
+const HANDS_ON_TOOLS = new Set(['Bash', 'Read', 'Grep', 'Glob', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit', 'run_terminal_command']);
+const PROMPT_TAIL_BYTES = 262_144;
+const DEFAULT_LEAD_STREAK = 8;
+
+// The uuid of the latest operator prompt in the transcript's last PROMPT_TAIL_BYTES, or null when
+// the tail holds none or the file cannot be read. A cheap inline filter (a non-meta, non-sidechain
+// `user` entry with string content or a text block and no tool_result) picks candidates. A candidate
+// that is the stored uuid ends the scan; any other goes to `isOperatorPrompt` (scripts/transcript-lib.mjs,
+// the one row test), so task notifications, compact summaries, system reminders, and command output
+// do not count. A failed import ends the scan with null.
+async function latestPromptUuid(path, stored) {
+  if (typeof path !== 'string' || !path.endsWith('.jsonl')) return null;
+  let isOperatorPrompt = null;
+  let fd;
+  try {
+    fd = openSync(path, 'r');
+    const size = fstatSync(fd).size;
+    const length = Math.min(size, PROMPT_TAIL_BYTES);
+    const buffer = Buffer.alloc(length);
+    const read = readSync(fd, buffer, 0, length, size - length);
+    const lines = buffer.subarray(0, read).toString('utf8').split('\n');
+    if (size > length) lines.shift();
+    for (let i = lines.length - 1; i >= 0; i--) {
+      if (!lines[i].includes('"user"')) continue;
+      let entry;
+      try { entry = JSON.parse(lines[i]); } catch { continue; }
+      const content = entry?.message?.content;
+      const real = typeof content === 'string' || (Array.isArray(content)
+        && content.some((block) => block?.type === 'text') && !content.some((block) => block?.type === 'tool_result'));
+      if (entry?.type !== 'user' || !real || entry.isMeta || entry.isSidechain || typeof entry.uuid !== 'string' || !entry.uuid) continue;
+      if (entry.uuid === stored) return entry.uuid;
+      isOperatorPrompt ??= (await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'transcript-lib.mjs')).href)).isOperatorPrompt;
+      if (isOperatorPrompt(entry)) return entry.uuid;
+    }
+  } catch { /* fail open */ } finally {
+    if (fd !== undefined) try { closeSync(fd); } catch { /* fail open */ }
+  }
+  return null;
+}
+
+// The one-line streak text when this call lands on a threshold multiple, else null. Called for the
+// lead only; the caller turns a throw into no output.
+async function leadStreakText(payload) {
+  const tool = payload.tool_name;
+  const sessionId = payload.session_id;
+  const hands = HANDS_ON_TOOLS.has(tool);
+  if (off('CODE_OPS_LEAD_GUARD') || !(hands || DISPATCH_TOOLS.has(tool)) || typeof sessionId !== 'string' || !SAFE_SESSION.test(sessionId)) return null;
+  const path = join(stateDir(typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd()), `${stateKey(sessionId)}.lead.json`);
+  let state = { streak: 0, uuid: null };
+  try {
+    const stored = JSON.parse(readFileSync(path, 'utf8'));
+    if (stored?.version === 1 && Number.isSafeInteger(stored.streak) && stored.streak >= 0) state = { streak: stored.streak, uuid: typeof stored.uuid === 'string' ? stored.uuid : null };
+  } catch { /* first call, or an unreadable record: start at zero */ }
+  const prompt = hands ? await latestPromptUuid(payload.transcript_path, state.uuid) : null;
+  const fresh = prompt !== null && prompt !== state.uuid;
+  const streak = hands ? (fresh ? 0 : state.streak) + 1 : 0;
+  const next = { version: 1, streak, uuid: fresh ? prompt : state.uuid };
+  if (streak !== state.streak || next.uuid !== state.uuid) {
+    mkdirSync(dirname(path), { recursive: true });
+    writeFileSync(path, JSON.stringify(next) + '\n');
+  }
+  const raw = Number(process.env.CODE_OPS_LEAD_STREAK);
+  const threshold = Number.isSafeInteger(raw) && raw > 0 ? raw : DEFAULT_LEAD_STREAK;
+  if (!hands || streak % threshold !== 0) return null;
+  return `Lead inline streak: ${streak} hands-on calls since the last dispatch or prompt. Batch independent reads into one `
+    + 'command, or hand the remaining steps to one code-ops-suite:probe (read-only shell), mech (exact edits or gates), '
+    + 'or implementer unit.';
+}
+
+// Behaviour 10, wired in. `deny`, or a denial already held for this call, carries the text in the
+// held denial; anything else joins the note.
+async function leadStreak(payload, hardStop) {
+  let text = null;
+  try { text = await leadStreakText(payload); } catch { return; }
+  if (!text) return;
+  if (legacy || (hardStop && /^deny$/i.test(process.env.CODE_OPS_LEAD_GUARD ?? ''))) legacy = legacy ? `${legacy} ${text}` : text;
+  else collision = { text: collision ? `${collision.text}\n${text}` : text, commit: collision?.commit ?? (() => {}) };
 }
 
 // A note no advisory carried goes out alone.
@@ -1525,6 +1622,7 @@ async function guardMainThread(payload, budget, hardStop) {
   emit({ hookSpecificOutput: hardStop && denials.length
     ? { hookEventName: 'PreToolUse', permissionDecision: 'deny', permissionDecisionReason: text }
     : { hookEventName: 'PreToolUse', additionalContext: text } });
+  return hardStop && denials.length > 0;
 }
 
 async function main() {
@@ -1565,7 +1663,12 @@ async function main() {
     finishCollision();
     return;
   }
-  await guardMainThread(payload, budget, hardStop);
+  // A hands-on call counts first, so its advisory rides the call's output. A dispatch resets the
+  // streak only once it is allowed: a denial leaves the streak as it was.
+  const dispatching = DISPATCH_TOOLS.has(payload.tool_name);
+  if (!dispatching) await leadStreak(payload, hardStop);
+  const denied = await guardMainThread(payload, budget, hardStop);
+  if (dispatching && !denied && !(hardStop && legacy)) await leadStreak(payload, hardStop);
   finishLegacy();
   finishCollision();
 }

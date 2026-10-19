@@ -1496,6 +1496,30 @@ One note per Workflow lists the affected call indexes, up to ten of each kind. W
 `anchors-note`. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`anchorsNote`) and
 `evals/dispatch-guard/run.mjs`.
 
+The lead inline-streak guard is a tenth behavior and ships in warn mode. On the main thread only
+(`agent_id` absent), each hands-on call (`Bash`, `Read`, `Grep`, `Glob`, `Edit`, `Write`,
+`MultiEdit`, `NotebookEdit`, `run_terminal_command`) adds one to a per-session streak kept in a
+small state file beside the round counters. A dispatch tool the hook allows resets it (a dispatch
+the ceiling gate or another check denies leaves the streak as it was), as does a new operator
+prompt: the latest `user` entry in the last 256 KB of the transcript that `isOperatorPrompt`
+(`scripts/transcript-lib.mjs`) accepts and whose uuid differs from the stored one. Task
+notifications, compact summaries, system reminders, and command output are not operator prompts.
+A tail with no such entry keeps the stored uuid. On Grok only a dispatch resets the streak,
+because the payload carries no `transcript_path` the hook reads and Grok writes prompts as
+`prompt_index` (Grok payload unverified). Every other tool neither counts nor resets. At the streak
+`CODE_OPS_LEAD_STREAK` (a positive integer, default 8) and at each further multiple, the hook adds
+one line: `Lead inline streak: <n> hands-on calls since the last dispatch or prompt`, with the
+batch, `probe`, `mech`, or `implementer` alternatives. It joins the call's other output, or a
+denial already on the call. The measured cause is the 2026-10-15 to 2026-10-19 lead thread, where
+streaks of 5 or more single-`Bash` turns held 52% of lead turns at about 159K context per turn
+(source: usage audit, run folder 2026-10-19-lead-inline-guard). `CODE_OPS_LEAD_GUARD`
+set to `deny` denies at those points instead, `off`, `0`, or `false` disables only this
+behavior, and `CODE_OPS_DISPATCH_GUARD=off` silences it while `warn` downgrades `deny` to
+advisory. The gate id is `lead-streak`; its decision rows carry counts only, so they measure how
+often it fires before anyone considers `deny`. Any error fails open. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`leadStreakText`, `latestPromptUuid`) and
+`evals/dispatch-guard/run.mjs`.
+
 Every output that denies or advises appends one decision row to `guard-decisions.jsonl`. The file
 sits beside the session-receipt ledger: in the directory of `CODE_OPS_RECEIPTS` when it names a
 path, else in `~/.claude/code-ops/`. A row is one JSON line holding ids and counts only, never

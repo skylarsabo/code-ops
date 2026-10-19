@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
+      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -58,7 +58,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 198,
-          "anchor": "// shared with the handoff card)."
+          "anchor": "// rounds, so a 120-round warning covers it with a third to spare, and the 180-c"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
@@ -113,47 +113,46 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 251,
-          "anchor": "// counter is attempted PreToolUse calls, including a call the hook denies. It i"
+          "anchor": "//   subagent's own context, rather than the lead's, is PROBABLE rather than con"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 260,
-          "anchor": "// controller binding instead fails closed for that id: it must never silently g"
+          "anchor": "<sha256 repository root>/<sha256 session id>.assessed.json"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1043,
-          "anchor": "if (c === '/' && (s[i + 1] === '/' || s[i + 1] === '*')) {"
+          "anchor": "const RUN_CONTRACT_LINE = /^[ \\t]*(?:\\/\\/+|\\/?\\*+)?[ \\t]*Run contract:[ \\t]*(\\S."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1026,
-          "anchor": "return null;"
+          "anchor": "${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-sui"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 13,
-          "anchor": "// NINE BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse comman"
+          "anchor": "// TEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 879,
-          "anchor": "try { recordAssessment(await assessmentRoot(process.cwd()), sessionId, band); }"
+          "anchor": "if (hardStop && (exceedsBoundAllowance || (!bound && used >= legacyCap))) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1450,
-          "anchor": "}"
+          "line": 1450
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1254,
-          "anchor": "routingLibs = {"
+          "anchor": "let nonLiteral = 0;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1408,
-          "anchor": "Route basis says surface=${basis.surface} but the Scope paths derive surface=${d"
+          "anchor": "const basis = briefValue(prompt, 'Route basis');"
         },
         {
           "file": "plugins/code-ops-suite/scripts/route-unit.mjs",
@@ -163,7 +162,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 539,
-          "anchor": "}"
+          "anchor": "^${key}:[ \\\\t]*[\"']?([A-Za-z0-9._-]+)[\"']?[ \\\\t]*$"
         },
         {
           "file": "scripts/collision-lib.mjs",
@@ -172,7 +171,8 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 549
+          "line": 549,
+          "anchor": "let text;"
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
@@ -187,7 +187,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1310,
-          "anchor": "function anchorsNote(prompt, advisories) {"
+          "anchor": "This Workflow script sets a frontier model on ${frontier} agent() call(s) and ${"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
+          "line": 794,
+          "anchor": "async function leadStreakText(payload) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -257,7 +262,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1393,
-          "anchor": "} else if (asked < given) {"
+          "anchor": "try {"
         },
         {
           "file": "plugins/code-ops-suite/agents/probe.md",
@@ -395,7 +400,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "b72bfcb937919c34c412ad0fcfab8e8d07fb2d1dc78b3be3c0946ac159cde229"
+      "verifiedDigest": "dd4fe936578a80701f160c5744bd46cfc720595743798e8a68aeee4c1382d166"
     },
     {
       "slug": "gate-scripts",
@@ -1114,8 +1119,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "d6836401f7feb62900bb1940fef4db4f87dd9f96",
-      "verifiedDigest": "555560758e4d9b68e0c28480e61b629abe71bdeef21a222a5a3c957a160436f0",
+      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
+      "verifiedDigest": "e722bdafcbac00058e0ea9a0cecd22bc76fe952dfafb30ee3b21bd9581d814aa",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1380,7 +1385,7 @@
         {
           "file": "evals/dispatch-guard/run.mjs",
           "line": 876,
-          "anchor": "the handoff skill call itself must be silent, got ${JSON.stringify(r.stdout)}"
+          "anchor": "out = parseOut(dispatchAt(310_000, { guard: 'warn' }));"
         },
         {
           "file": "evals/handoff-state/run.mjs",
@@ -1596,7 +1601,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
+      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1685,7 +1690,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 538,
-          "anchor": "return line.split(',').map((field) => field.trim()).filter(Boolean);"
+          "anchor": "const head = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---/.exec(readFileSync(path, 'utf8'))?.[1]"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -1723,7 +1728,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "0e60033a87ee040b99e329f11d5f69b4508ec8a4f96bdc4c7dc5862e208af078"
+      "verifiedDigest": "fb43460d238e73d5d76da3857603b8d600a076b32a4ccd0b4186b5f3fb735495"
     },
     {
       "slug": "ci-workflows",
@@ -1857,7 +1862,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
+      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1927,7 +1932,7 @@
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
           "line": 89,
-          "anchor": ", and the snapshot warning and seeding in"
+          "anchor": "pending-handoff line inside"
         },
         {
           "file": "plugins/code-ops-suite/hooks/session-receipt.mjs",
@@ -1940,7 +1945,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "b41f7d1f70089c949b5fa4d0bf5e72a54f7d4bc2af4e19e23d7a5708e31a2499"
+      "verifiedDigest": "e88688517707596870e69175e66a6d172b175e4885ca9a0c83406d765c1c0950"
     },
     {
       "slug": "root-contracts",
