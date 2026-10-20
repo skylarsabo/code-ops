@@ -75,6 +75,8 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_DIGEST_READ` | off unless `1`, `on`, `true`, `yes`, or `lead` | the `Read` path of `digest-post.mjs`, which keeps the first and last 40 lines of a result over the threshold; `lead` digests only the lead thread's unranged `Read` and arms the `Write` guard in `digest-rewrite.mjs` |
 | `CODE_OPS_WORKFLOW_ARGS` | not an off switch; `first` restores the earlier reading | where the dispatch guard reads a `Workflow` `agent()` call's options: the second argument by default, the first argument only under `first` |
 | `CODE_OPS_REDISPATCH_NOTE` | `off`, `0`, or `false` | the advisory redispatch note inside `dispatch-guard.mjs` (behaviour 8); `CODE_OPS_DISPATCH_GUARD=off` also silences it |
+| `CODE_OPS_LEAD_GUARD` | `off`, `0`, or `false`; `deny` makes it a denial | the lead inline-streak advisory inside `dispatch-guard.mjs` (behaviour 10), default warn; `CODE_OPS_DISPATCH_GUARD=off` also silences it and `warn` downgrades `deny` |
+| `CODE_OPS_LEAD_STREAK` | not an off switch | the hands-on call count at which behaviour 10 fires, and every multiple; a positive integer, default 8 |
 | `CODE_OPS_SNAPSHOT_RUN_FALLBACK` | `off`, `0`, or `false` | the inferred run folder fallback in `compact-snapshot.mjs`; with it off, a session no `SESSION.json` names gets the `not recorded` gap lines |
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |

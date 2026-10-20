@@ -49,6 +49,10 @@
 //     clean, or stash (any subcommand but list or show) in any command segment is denied; read-only
 //     git, echoed text, and other tools pass; `CODE_OPS_SUBAGENT_GIT` off values and the whole-hook
 //     switch silence it, `warn` makes it advisory, and a denied call counts a round;
+//   - the lead inline-streak guard (behaviour 10) counts main-thread hands-on calls per session,
+//     warns at CODE_OPS_LEAD_STREAK (8) and every multiple, never counts a subagent, resets on a
+//     dispatch or a new real user prompt in the transcript tail, ignores other tools, denies under
+//     CODE_OPS_LEAD_GUARD=deny, and goes silent under its off values or the whole-hook switch;
 //   - the off switch silences every branch, and bad JSON, another event name, empty stdin, and a
 //     missing agent id all fail open with no output and exit 0.
 //
@@ -101,6 +105,10 @@ function runHook(payload, { home, guard, budget, ceiling, grok = false, pluginRo
   delete env.CODE_OPS_LEGACY_PATHS;
   delete env.CODE_OPS_SUBAGENT_GIT;
   delete env.CODE_OPS_WORKFLOW_ARGS;
+  delete env.CODE_OPS_LEAD_GUARD;
+  // Cases for other branches make many main-thread hands-on calls in one home; the lead-streak
+  // section below passes its own threshold through `env`.
+  env.CODE_OPS_LEAD_STREAK = '100000';
   env.CODE_OPS_RECEIPTS = receiptsFile;
   Object.assign(env, extra);
   if (guard !== undefined) env.CODE_OPS_DISPATCH_GUARD = guard;
@@ -2041,6 +2049,130 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const r = runHook(subagentCall('agent-H'), { home: blocked, budget: 1 });
   expect(r.status === 0 && r.stdout === '', `an unwritable counter store must fail open, got ${r.status}/${JSON.stringify(r.stdout)}`);
   console.log('ok   an unwritable counter store fails open');
+  cleanup();
+}
+
+// ---------------------------------------------------------------- lead inline-streak guard
+
+{
+  const { home, cleanup } = fakeHome();
+  const transcript = join(home, 'lead.jsonl');
+  const userLine = (uuid, content) => JSON.stringify({ type: 'user', uuid, message: { role: 'user', content } });
+  const toolResult = JSON.stringify({ type: 'user', uuid: 'u-result', message: { role: 'user', content: [{ type: 'tool_result', tool_use_id: 't', content: 'x' }] } });
+  const lead = (tool = 'Bash', extra = {}) => ({
+    hook_event_name: 'PreToolUse', session_id: 'sess-lead', cwd: 'C:/fixture-project', transcript_path: transcript,
+    tool_name: tool, tool_input: { command: 'SECRET-LEAD-COMMAND' }, tool_use_id: 'tu-l', ...extra,
+  });
+  const streakOf = (r) => /Lead inline streak: (\d+) hands-on/.exec(contextOf(parseOut(r)) ?? '')?.[1];
+  // Runs `n` calls and returns the streak number each reported, or '-' for a silent call.
+  const run = (n, call = lead(), opts = {}) => Array.from({ length: n }, () => streakOf(runHook(call, { home, ...opts })) ?? '-');
+  writeFileSync(transcript, `${userLine('u-1', 'first prompt')}\n`);
+
+  let seen = run(8, lead(), { env: { CODE_OPS_LEAD_STREAK: '' } });
+  expect(seen.slice(0, 7).every((v) => v === '-') && seen[7] === '8', `the lead must warn at call 8 only, got ${seen}`);
+  const ninth = runHook(lead(), { home, env: { CODE_OPS_LEAD_STREAK: '' } });
+  expect(ninth.stdout === '' && !/SECRET-LEAD-COMMAND/.test(readFileSync(rowsFile, 'utf8')), 'call 9 is silent and no row carries command text');
+  console.log('ok   the lead warns at the eighth hands-on call and logs no command text');
+
+  const opts = { env: { CODE_OPS_LEAD_STREAK: '3' } };
+  seen = run(3, lead('Grep', { session_id: 'sess-rep' }), opts);
+  expect(seen.join() === '-,-,3', `CODE_OPS_LEAD_STREAK=3 must warn at call 3, got ${seen}`);
+  seen = run(3, lead('Read', { session_id: 'sess-rep' }), opts);
+  expect(seen.join() === '-,-,6', `the warning must repeat at 6, got ${seen}`);
+  console.log('ok   the threshold is configurable and the warning repeats every multiple');
+
+  const sub = run(6, { ...lead('Bash', { session_id: 'sess-agent' }), agent_id: 'agent-L', agent_type: 'implementer' }, { ...opts, budget: 99 });
+  expect(sub.every((v) => v === '-'), `a subagent must never see the lead guard, got ${sub}`);
+  expect(run(2, lead('Bash', { session_id: 'sess-agent' }), opts).join() === '-,-', 'a subagent call must not count toward the lead streak');
+  console.log('ok   a subagent neither sees nor feeds the lead streak');
+
+  const other = lead('Bash', { session_id: 'sess-other' });
+  run(2, other, opts);
+  for (const tool of ['update_plan', 'SendMessage', 'ToolSearch', 'Monitor', 'mcp__x__y']) runHook(lead(tool, { session_id: 'sess-other' }), { home, ...opts });
+  expect(streakOf(runHook(other, { home, ...opts })) === '3', 'other tools must neither count nor reset the streak');
+  console.log('ok   other tools neither count nor reset');
+
+  const dispatch = lead('Agent', { session_id: 'sess-reset', tool_input: { subagent_type: 'code-ops-suite:probe', prompt: FULL_BRIEF } });
+  run(2, lead('Bash', { session_id: 'sess-reset' }), opts);
+  runHook(dispatch, { home, ...opts });
+  seen = run(3, lead('Bash', { session_id: 'sess-reset' }), opts);
+  expect(seen.join() === '-,-,3', `a dispatch must reset the streak, got ${seen}`);
+  console.log('ok   a dispatch resets the streak');
+
+  const prompted = lead('Bash', { session_id: 'sess-turn' });
+  run(2, prompted, opts);
+  writeFileSync(transcript, `${userLine('u-1', 'first prompt')}\n${toolResult}\n${userLine('u-2', [{ type: 'text', text: 'next' }])}\n${toolResult}\n`);
+  seen = run(3, prompted, opts);
+  expect(seen.join() === '-,-,3', `a new real prompt must reset the streak (a tool result must not), got ${seen}`);
+  writeFileSync(transcript, `${userLine('u-2', 'next')}\n${toolResult}\n`);
+  expect(run(3, prompted, opts).join() === '-,-,6', 'a tail whose latest prompt is unchanged must keep the streak');
+  writeFileSync(transcript, `${toolResult}\n`);
+  expect(run(3, prompted, opts).join() === '-,-,9', 'a tail with no prompt must keep the stored uuid and the streak');
+  console.log('ok   a new user prompt in the transcript tail resets; tool results and an empty tail do not');
+
+  // Entries that sit in the transcript as `user` rows but are not operator prompts: none may reset.
+  const noise = {
+    'a task notification': JSON.stringify({ type: 'user', uuid: 'u-note', origin: { kind: 'task-notification' }, message: { role: 'user', content: '<task-notification>done</task-notification>' } }),
+    'a compact summary': JSON.stringify({ type: 'user', uuid: 'u-sum', isCompactSummary: true, message: { role: 'user', content: 'This session is being continued from a summary' } }),
+    'a system-reminder entry': userLine('u-rem', '<system-reminder>context</system-reminder>'),
+    'a local-command-stdout entry': userLine('u-out', '<local-command-stdout>ok</local-command-stdout>'),
+  };
+  for (const [name, line] of Object.entries(noise)) {
+    const call = lead('Bash', { session_id: `sess-noise-${name.replaceAll(' ', '-')}` });
+    writeFileSync(transcript, `${userLine('u-1', 'first prompt')}
+`);
+    run(2, call, opts);
+    writeFileSync(transcript, `${userLine('u-1', 'first prompt')}
+${line}
+${toolResult}
+`);
+    seen = run(1, call, opts);
+    expect(seen.join() === '3', `${name} must not reset the streak, got ${seen}`);
+  }
+  console.log('ok   task notifications, compact summaries, system reminders, and command output do not reset the streak');
+
+  // A denial already on the call carries the advisory (and its decision row) instead of dropping it.
+  {
+    const fixture = legacyRepo();
+    const write = lead('Write', { session_id: 'sess-legacy', cwd: fixture.repo, tool_input: { file_path: 'docs/old/a.md', content: 'x' } });
+    const held = parseOut(runHook(write, { home, env: { CODE_OPS_LEAD_STREAK: '1' } }))?.hookSpecificOutput;
+    expect(held?.permissionDecision === 'deny' && /Legacy path guard:/.test(held.permissionDecisionReason) && /Lead inline streak: 1/.test(held.permissionDecisionReason),
+      `a legacy-path denial must carry the streak line, got ${JSON.stringify(held)}`);
+    fixture.cleanup();
+    console.log('ok   a held denial carries the streak advisory');
+  }
+
+  // A dispatch the ceiling gate denies does not reset the streak.
+  {
+    const ceilingTranscript = transcriptAt(home, 310_000, 'ceiling.jsonl');
+    const sess = 'sess-ceil-streak';
+    run(2, lead('Bash', { session_id: sess }), opts);
+    const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
+    const blocked = parseOut(runHook(dispatchCall(clean, { cwd: 'C:/fixture-project', session_id: sess, transcript_path: ceilingTranscript }), { home, ...opts }));
+    expect(blocked?.hookSpecificOutput?.permissionDecision === 'deny', `the dispatch must be denied by the ceiling, got ${JSON.stringify(blocked)}`);
+    seen = run(1, lead('Bash', { session_id: sess }), opts);
+    expect(seen.join() === '3', `a denied dispatch must not reset the streak, got ${seen}`);
+    console.log('ok   a dispatch denied by the ceiling gate leaves the streak alone');
+  }
+
+  const deny = runHook(lead('Bash', { session_id: 'sess-deny' }), { home, env: { CODE_OPS_LEAD_STREAK: '1', CODE_OPS_LEAD_GUARD: 'deny' } });
+  expect(/"permissionDecision":"deny"/.test(deny.stdout) && /Lead inline streak: 1/.test(deny.stdout), `deny mode must deny at the threshold, got ${deny.stdout}`);
+  const warned = runHook(lead('Bash', { session_id: 'sess-deny2' }), { home, guard: 'warn', env: { CODE_OPS_LEAD_STREAK: '1', CODE_OPS_LEAD_GUARD: 'deny' } });
+  expect(!/permissionDecision/.test(warned.stdout) && /Lead inline streak: 1/.test(warned.stdout), 'CODE_OPS_DISPATCH_GUARD=warn must downgrade deny to an advisory');
+  console.log('ok   deny mode denies, and the whole-hook warn mode downgrades it');
+
+  const silenced = [['CODE_OPS_LEAD_GUARD=OFF', { env: { CODE_OPS_LEAD_GUARD: 'OFF' } }], ['CODE_OPS_LEAD_GUARD=0', { env: { CODE_OPS_LEAD_GUARD: '0' } }], ['CODE_OPS_DISPATCH_GUARD=off', { guard: 'off' }]];
+  for (const [name, o] of silenced) {
+    const r = runHook(lead('Bash', { session_id: `sess-${name}` }), { home, ...o, env: { CODE_OPS_LEAD_STREAK: '1', ...o.env } });
+    expect(r.status === 0 && r.stdout === '', `${name} must silence the lead guard, got ${r.stdout}`);
+  }
+  console.log('ok   the lead guard off values and the whole-hook switch silence it');
+
+  for (const bad of ['{"tool_name":"Bash","session_id":"s","transcript_path":5,"cwd":7}', '{"tool_name":"Bash","session_id":["x"]}', '[]']) {
+    const r = runHook(bad, { home, env: { CODE_OPS_LEAD_STREAK: '1' } });
+    expect(r.status === 0 && !/permissionDecision/.test(r.stdout), `a malformed payload must fail open, got ${r.status}/${r.stdout}`);
+  }
+  console.log('ok   a malformed payload fails open');
   cleanup();
 }
 
