@@ -226,7 +226,8 @@ const premiumPick = internals.pickPremiumModel('provider-a/claude-opus-5-5', pre
 expect(premiumPick === 'provider-b/gpt-5.6-terra', `premium picked ${premiumPick}, not the strong-class model that differs from strong`);
 expect(internals.pickPremiumModel('provider-a/claude-opus-5-5', ['provider-a/claude-opus-5-5', 'provider-b/gpt-6-luna'], {}) === null, 'premium bound a model that is not distinct and strong-class');
 
-// Context ceiling: past 300,000 tokens the lead assesses before it dispatches.
+// Context ceiling: off by default on a non-Grok model. With CODE_OPS_CONTEXT_CEILING=300000 the
+// lead assesses before it dispatches past 300,000 tokens.
 const setContext = (hooksFor, sessionID, input, id) => hooksFor.event({
   event: { type: 'message.updated', properties: { info: { role: 'assistant', sessionID, id, tokens: { input, output: 0, cache: { read: 0, write: 0 } } } } },
 });
@@ -238,11 +239,15 @@ const dispatch = async (hooksFor, sessionID) => {
     return String(error?.message ?? error);
   }
 };
+await setContext(hooks, 'ceil-default', 320000, 'cd1');
+let gate = await dispatch(hooks, 'ceil-default');
+expect(gate === null, `with the ceiling variable unset a non-Grok session was gated at 320,000 tokens: ${gate}`);
+process.env.CODE_OPS_CONTEXT_CEILING = '300000';
 await setContext(hooks, 'ceil', 320000, 'c1');
 const ceilTurn = { parts: [{ type: 'text', text: 'keep going' }] };
 await hooks['chat.message']({ sessionID: 'ceil', agent: 'build' }, ceilTurn);
 expect(ceilTurn.parts[0].text.includes('New dispatches are now gated until you run /code-ops-suite-handoff assess.'), 'the handoff note did not name the dispatch gate');
-let gate = await dispatch(hooks, 'ceil');
+gate = await dispatch(hooks, 'ceil');
 expect(gate?.startsWith('Dispatch guard:') && gate.includes('300,000-token context ceiling') && gate.includes('/code-ops-suite-handoff assess'), `past the ceiling a dispatch was not gated: ${gate}`);
 await hooks['tool.execute.before']({ tool: 'skill', sessionID: 'ceil', callID: 's' }, { args: { name: 'code-ops-suite-handoff' } });
 gate = await dispatch(hooks, 'ceil');
@@ -262,6 +267,7 @@ await restarted.config({ agent: {} });
 await setContext(restarted, 'ceil', 470000, 'c3');
 gate = await dispatch(restarted, 'ceil');
 expect(gate === null, `the assessment did not survive a restart: ${gate}`);
+delete process.env.CODE_OPS_CONTEXT_CEILING;
 
 const ceilingCase = async (value, sessionID, input) => {
   if (value === undefined) delete process.env.CODE_OPS_CONTEXT_CEILING; else process.env.CODE_OPS_CONTEXT_CEILING = value;
@@ -274,8 +280,8 @@ expect(await ceilingCase('off', 'env-off', 900000) === null, 'CODE_OPS_CONTEXT_C
 expect(await ceilingCase('0', 'env-zero', 900000) === null, 'CODE_OPS_CONTEXT_CEILING=0 still gated');
 expect(await ceilingCase('400000', 'env-under', 320000) === null, 'an override of 400000 gated at 320,000 tokens');
 expect((await ceilingCase('400000', 'env-over', 410000))?.includes('400,000-token context ceiling'), 'an override of 400000 did not gate at 410,000 tokens');
-expect((await ceilingCase('1000', 'env-small', 320000))?.includes('300,000-token context ceiling'), 'an override below 150000 did not fall back to the default');
-expect((await ceilingCase('lots', 'env-junk', 320000))?.includes('300,000-token context ceiling'), 'a junk override did not fall back to the default');
+expect(await ceilingCase('1000', 'env-small', 320000) === null, 'an override below 150000 gated a non-Grok session instead of falling back to off');
+expect(await ceilingCase('lots', 'env-junk', 320000) === null, 'a junk override gated a non-Grok session instead of falling back to off');
 
 // Grok prices double above 200,000 tokens, so a session on a Grok model gates there.
 const modelContext = (sessionID, input, modelID) => hooks.event({
@@ -289,11 +295,13 @@ gate = await dispatch(hooks, 'other-lead');
 expect(gate === null, `a non-Grok session was gated at 250,000 tokens: ${gate}`);
 
 process.env.CODE_OPS_DISPATCH_GUARD = 'warn';
+process.env.CODE_OPS_CONTEXT_CEILING = '300000';
 await setContext(hooks, 'warned', 320000, 'w1');
 gate = await dispatch(hooks, 'warned');
 const warnOut = { output: 'done' };
 await hooks['tool.execute.after']({ tool: 'task', sessionID: 'warned', callID: 'd' }, warnOut);
 delete process.env.CODE_OPS_DISPATCH_GUARD;
+delete process.env.CODE_OPS_CONTEXT_CEILING;
 expect(gate === null && warnOut.output.includes('context ceiling'), `warn mode did not downgrade the gate to a note: ${gate} / ${warnOut.output}`);
 
 // A subagent stops at 1.5 times its round budget, rounded down and at least one call

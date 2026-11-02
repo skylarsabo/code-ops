@@ -36,8 +36,8 @@
 //   - a malformed controller binding and an unavailable bound counter deny with the fix: report
 //     now, then re-dispatch under a new agent id bound by the exact `register` command;
 //   - a dispatch that names a narrow agent, no model, and a complete brief is silent;
-//   - at and past the context ceiling (300,000 by default, CODE_OPS_CONTEXT_CEILING overrides
-//     or disables it), a main-thread dispatch is denied until a handoff Skill call or the
+//   - at and past the context ceiling (on by default on Grok only; elsewhere CODE_OPS_CONTEXT_CEILING turns it on, and
+//     it overrides or disables it on Grok), a main-thread dispatch is denied until a handoff Skill call or the
 //     `assessed` CLI verb records the current 150,000-token band, and the next band re-gates;
 //   - an edit tool (Write, Edit, NotebookEdit, apply_patch, a camelCase search_replace) whose target
 //     lies under a manifest `removed` legacy path is denied with the root and the FORWARDING.json
@@ -853,14 +853,18 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
   const dispatchAt = (context, opts = {}, sessionId = session) => runHook(dispatchCall(clean, {
     cwd, session_id: sessionId, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
-  }), { home, ...opts });
+  }), { home, ceiling: '300000', ...opts });
   const skillAt = (context, skill) => runHook({
     hook_event_name: 'PreToolUse', cwd, session_id: session, tool_name: 'Skill', tool_use_id: 'tu-3',
     tool_input: { skill, args: 'assess' }, transcript_path: transcriptAt(dir, context, `s-${context}.jsonl`),
-  }, { home });
+  }, { home, ceiling: '300000' });
+
+  // With the variable unset the gate is off on a non-Grok host, whatever the context size.
+  let r = dispatchAt(320_000, { ceiling: undefined }, 'sess-default-off');
+  expect(r.status === 0 && r.stdout === '', `with CODE_OPS_CONTEXT_CEILING unset a 320,000-token dispatch must be allowed, got ${JSON.stringify(r.stdout)}`);
 
   // Under the ceiling a clean dispatch stays silent; at and past it, it denies.
-  let r = dispatchAt(290_000);
+  r = dispatchAt(290_000);
   expect(r.status === 0 && r.stdout === '', `a clean dispatch under the ceiling must be silent, got ${JSON.stringify(r.stdout)}`);
   let out = parseOut(dispatchAt(310_000));
   let reason = reasonOf(out) ?? '';
@@ -869,6 +873,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
     && reason.includes('/code-ops-suite:handoff assess (CONTINUE, COMPACT, or HANDOFF) before dispatching new work')
     && /unlocks dispatch until the next 150,000-token band/.test(reason),
   `the ceiling reason must name the overage, the assessment, and the band unlock, got ${reason}`);
+  expect(!/\/compact|stay blocked/i.test(reason), `a non-Grok ceiling reason must not tell the operator to run /compact, got ${reason}`);
   expect(reason.includes(`\`node "${hook}" assessed --session ${session} --band 1\`.`),
     `the ceiling reason must carry the exact CLI unlock command, got ${reason}`);
   out = parseOut(dispatchAt(300_000));
@@ -919,7 +924,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `another session must not inherit an assessment, got ${JSON.stringify(out)}`);
 
   // CODE_OPS_CONTEXT_CEILING: off values disable, an integer of at least 150,000 overrides, and
-  // anything else reads as the 300,000 default.
+  // anything else reads as the host default, which is off on a non-Grok host.
   for (const value of ['off', '0', 'false', 'OFF']) {
     expect(dispatchAt(900_000, { ceiling: value }, 'sess-env').stdout === '', `CODE_OPS_CONTEXT_CEILING=${value} must disable the gate`);
   }
@@ -929,15 +934,13 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   out = parseOut(dispatchAt(160_000, { ceiling: '150000' }, 'sess-env'));
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `the 150,000 minimum override must gate, got ${JSON.stringify(out)}`);
   for (const value of ['abc', '100000', '2.5', '-400000', '']) {
-    out = parseOut(dispatchAt(310_000, { ceiling: value }, 'sess-env'));
-    expect(/past the 300,000-token context ceiling/.test(reasonOf(out) ?? ''), `CODE_OPS_CONTEXT_CEILING=${value} must fall back to 300,000, got ${JSON.stringify(out)}`);
-    expect(dispatchAt(290_000, { ceiling: value }, 'sess-env').stdout === '', `CODE_OPS_CONTEXT_CEILING=${value} must not gate under 300,000`);
+    expect(dispatchAt(900_000, { ceiling: value }, 'sess-env').stdout === '', `CODE_OPS_CONTEXT_CEILING=${JSON.stringify(value)} must read as off on a non-Grok host`);
   }
 
   // The ceiling and a wide type deny together in one reason; the off switch silences both.
   out = parseOut(runHook(dispatchCall({ prompt: 'Round budget: 5', subagent_type: 'general-purpose' }, {
     cwd, session_id: 'sess-both', transcript_path: transcriptAt(dir, 310_000, 'both.jsonl'),
-  }), { home }));
+  }), { home, ceiling: '300000' }));
   reason = reasonOf(out) ?? '';
   expect(/context ceiling/.test(reason) && /general-purpose/.test(reason), `one deny must carry both reasons, got ${reason}`);
   expect(dispatchAt(900_000, { guard: 'off' }, 'sess-both').stdout === '', 'CODE_OPS_DISPATCH_GUARD=off must silence the ceiling gate');
@@ -963,7 +966,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   r = runHook(dispatchCall(clean, { cwd, session_id: 'sess-compact', transcript_path: compacted }), { home });
   expect(r.status === 0 && r.stdout === '', `a stale pre-compaction size must not gate, got ${JSON.stringify(r.stdout)}`);
   writeFileSync(compacted, readFileSync(compacted, 'utf8') + readFileSync(transcriptAt(dir, 310_000, 'post.jsonl'), 'utf8'));
-  out = parseOut(runHook(dispatchCall(clean, { cwd, session_id: 'sess-compact', transcript_path: compacted }), { home }));
+  out = parseOut(runHook(dispatchCall(clean, { cwd, session_id: 'sess-compact', transcript_path: compacted }), { home, ceiling: '300000' }));
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny', `a post-boundary usage record past the ceiling must deny, got ${JSON.stringify(out)}`);
 
   // Grok: camelCase keys and `spawn_subagent`, whose schema has no agent-type field. The
@@ -971,7 +974,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const grokSpawn = (context, sessionId, toolInput = { prompt: 'Round budget: 5' }) => runHook({
     hook_event_name: 'PreToolUse', hookEventName: 'pre_tool_use', sessionId, cwd,
     toolName: 'spawn_subagent', toolInput, transcriptPath: transcriptAt(dir, context, `g-${context}.jsonl`),
-  }, { home });
+  }, { home, ceiling: '300000' });
   out = parseOut(grokSpawn(310_000, 'sess-grok'));
   reason = reasonOf(out) ?? '';
   expect(out?.hookSpecificOutput?.permissionDecision === 'deny' && /context ceiling/.test(reason) && !/unnamed type/i.test(reason),
@@ -1009,14 +1012,14 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
   const dispatchFrom = (cwd, context = 310_000) => runHook(dispatchCall(clean, {
     cwd, session_id: session, transcript_path: transcriptAt(dir, context, `t-${context}.jsonl`),
-  }), { home });
+  }), { home, ceiling: '300000' });
   const denied = (r) => parseOut(r)?.hookSpecificOutput?.permissionDecision === 'deny';
 
   expect(denied(dispatchFrom(repoA)), 'a dispatch past the ceiling must deny before any assessment');
   const skill = runHook({
     hook_event_name: 'PreToolUse', cwd: sub, session_id: session, tool_name: 'Skill', tool_use_id: 'tu-root',
     tool_input: { skill: 'code-ops-suite:handoff', args: 'assess' }, transcript_path: transcriptAt(dir, 310_000, 's-310000.jsonl'),
-  }, { home });
+  }, { home, ceiling: '300000' });
   expect(skill.status === 0 && skill.stdout === '', `the handoff skill call from a subdirectory must be silent, got ${JSON.stringify(skill.stdout)}`);
   expect(dispatchFrom(repoA).stdout === '', 'an assessment recorded from a subdirectory must unlock a dispatch from the repository root');
   expect(dispatchFrom(sub).stdout === '', 'the same assessment must unlock a dispatch from the subdirectory itself');
@@ -1068,9 +1071,28 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   expect(r.status === 0 && r.stdout === '', `a Grok spawn under 200,000 must be silent, got ${JSON.stringify(r.stdout)}`);
   expect(spawnAt(210_000, { ceiling: '300000' }).stdout === '', 'CODE_OPS_CONTEXT_CEILING must override the Grok default');
   const lib = await import(pathToFileURL(join(root, 'scripts', 'transcript-lib.mjs')).href);
-  expect(lib.contextCeiling('', true) === 200_000 && lib.contextCeiling('', false) === 300_000
+  expect(lib.contextCeiling('', true) === 200_000 && lib.contextCeiling('', false) === null
+    && lib.contextCeiling('junk', false) === null && lib.contextCeiling('300000', false) === 300_000
     && lib.contextCeiling('250000', true) === 250_000 && lib.contextCeiling('off', true) === null,
-  'contextCeiling must default to 200,000 on Grok, 300,000 elsewhere, and honour the override');
+  'contextCeiling must default to 200,000 on Grok and off elsewhere, and honour the override');
+
+  // The resident size is the last main-model iteration when a server-side advisor call made the
+  // top-level usage a sum; a record without iterations keeps the top-level figure.
+  const usageTranscript = (name, usage) => {
+    const path = join(dir, name);
+    writeFileSync(path, JSON.stringify({ type: 'assistant', message: { id: 'msg_it', model: 'claude-test', usage } }) + '\n');
+    return { transcript_path: path };
+  };
+  const iter = (type, input, cacheRead, cacheCreate) => ({ type, input_tokens: input, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheCreate });
+  const flat = { input_tokens: 5, cache_read_input_tokens: 229_792, cache_creation_input_tokens: 0, output_tokens: 9 };
+  expect(lib.residentContext(usageTranscript('it-advisor.jsonl', { ...flat, iterations: [
+    iter('message', 3, 113_900, 61), iter('advisor_message', 900, 0, 0), iter('message', 5, 115_800, 28),
+  ] }), { home }) === 115_833, 'an advisor turn must report the last message iteration, not the summed top level');
+  expect(lib.residentContext(usageTranscript('it-flat.jsonl', flat), { home }) === 229_797, 'a record without iterations must keep the top-level sum');
+  expect(lib.residentContext(usageTranscript('it-only-advisor.jsonl', { ...flat, iterations: [iter('advisor_message', 1, 2, 3)] }), { home }) === 229_797,
+    'iterations with no message entry must keep the top-level sum');
+  expect(lib.residentContext(usageTranscript('it-partial.jsonl', { ...flat, iterations: [iter('message', 3, 113_900, 61), { type: 'message', input_tokens: 'x' }] }), { home }) === 113_964,
+    'a malformed last iteration must fall back to the last well-formed message iteration');
 
   // No agent_id on Grok: a subagent's tool call carries subagentType and its child sessionId,
   // which keys the round counter; the main thread (no subagentType) is never counted.
@@ -2148,7 +2170,7 @@ ${toolResult}
     const sess = 'sess-ceil-streak';
     run(2, lead('Bash', { session_id: sess }), opts);
     const clean = { description: 'build it', prompt: FULL_BRIEF, subagent_type: 'code-ops-suite:implementer', effort: 'high' };
-    const blocked = parseOut(runHook(dispatchCall(clean, { cwd: 'C:/fixture-project', session_id: sess, transcript_path: ceilingTranscript }), { home, ...opts }));
+    const blocked = parseOut(runHook(dispatchCall(clean, { cwd: 'C:/fixture-project', session_id: sess, transcript_path: ceilingTranscript }), { home, ceiling: '300000', ...opts }));
     expect(blocked?.hookSpecificOutput?.permissionDecision === 'deny', `the dispatch must be denied by the ceiling, got ${JSON.stringify(blocked)}`);
     seen = run(1, lead('Bash', { session_id: sess }), opts);
     expect(seen.join() === '3', `a denied dispatch must not reset the streak, got ${seen}`);

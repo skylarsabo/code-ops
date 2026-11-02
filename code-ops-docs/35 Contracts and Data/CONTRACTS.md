@@ -919,8 +919,10 @@ OpenCode has no port. Evidence: `plugins/code-ops-suite/hooks/subagent-report.mj
 ## Handoff card hook
 
 `hooks/handoff-card.mjs` runs at `UserPromptSubmit` on Claude and Codex and, SPECULATIVE pending
-calibration, nudges the operator and the lead once resident context crosses 150,000 tokens and
-again every further 150,000-token band. It is on by default. It does nothing when
+calibration, nudges the operator and the lead as resident context nears host auto-compaction.
+On Claude and Codex it fires at two stages, at 60 percent and at 80 percent of the
+auto-compaction window; on Grok it fires once context crosses 150,000 tokens and again every
+further 150,000-token band. It is on by default. It does nothing when
 `CODE_OPS_HANDOFF_CARD` is `off`, `0`, or `false`, set in the canonical environment; rendered
 hosts use their documented process environment. The change feed and the history read notice
 run in the same process under their own switches, `CODE_OPS_FEED` and `CODE_OPS_READ_NOTICE`. The Claude host contract
@@ -935,14 +937,22 @@ code blocks and erases the prompt on this event; a nudge is advisory only. Evide
 `plugins/code-ops-suite/hooks/hooks.json`.
 
 The context metric is the last assistant turn's usage record — input plus cache-read plus
-cache-creation tokens — read from only the last 256 KiB of the transcript, never the whole file,
-reusing `normalizeUsage`, `handoffMarkerPath`, and `handoffPeakBand` from
+cache-creation tokens — read from only the last 256 KiB of the transcript, never the whole file.
+On Claude, a turn with an advisor call writes a top-level `usage` that sums the main-model
+iterations, which roughly doubled the count (229,797 against a real 115,833 in one measured
+turn). `residentContext` reads the last `type: "message"` entry of `usage.iterations` when it
+has numeric counts, and the top-level figure otherwise. The hook reuses
+`normalizeUsage`, `handoffMarkerPath`, and `handoffPeakBand` from
 `scripts/transcript-lib.mjs` for the token math and the storage-path convention. A compaction
 marker newer than that record makes the metric unknown until the next turn records usage. A small
 per-session marker at `<host home>/code-ops/handoff/<project slug>/<session id>.json` records the
-band already nudged (`band = floor(context / 150000)`) and `peak`, the highest band the session
-ever reached; the hook nudges again only on a higher band, and re-arms (sets the band to 0, never
-the peak) once context falls back under 150,000, which a compaction typically causes. The session
+band already nudged and `peak`, the highest band the session ever reached. On Grok
+`band = floor(context / 150000)`. On Claude and Codex the band is the stage: 0 below 60 percent
+of the window W, 1 from 0.60 W, and 2 from 0.80 W. W is `CODE_OPS_COMPACT_WINDOW` (any non-Grok
+host), else `CLAUDE_CODE_AUTO_COMPACT_WINDOW` on Claude, else 200,000. Each stage fires once per
+arm. The hook nudges again only on a higher band, and re-arms (sets the band to 0, never the
+peak) once context falls back under the first threshold (150,000 on Grok, 0.60 W elsewhere),
+which a compaction typically causes. The session
 receipt reads the peak. Evidence: `plugins/code-ops-suite/hooks/handoff-card.mjs:62-110` and
 `scripts/transcript-lib.mjs:572-588`.
 
@@ -966,25 +976,32 @@ receipt, or cost proof. On Grok the host compacts near 184,000 tokens, at 72 per
 that compact. It does not ask the operator to type `/compact`. The next tool result after the
 compact names the newest compaction segment. A higher band, or a session that already
 compacted, says to start a new session pointed at that segment. On Claude and Codex (DEC-73) the card names host auto-compaction as the context relief
-and asks the lead to checkpoint, not to assess. Band 1 says: "Host auto-compaction is the relief,
-so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and append tagged
-lines to RUN_LOG.md: `Decision:` (id, choice, rejected options), `Grant:` (operator authority, verbatim),
-`In flight:` (file:line, done or partial), and `Next:` (the step in flight and its next command)."
-The Grok band 1 and already-compacted notes name the same four tags.
-It ends with "The PreCompact snapshot keeps operator words, running work, and peers." on Claude, or
-"Then run `co snapshot`, because the Codex PreCompact hook does not fire." on Codex. The hook has
-no Codex signal, so Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host
-reads as Codex. Band 2 and above says: "Finish the step in flight and checkpoint as above. If the
-host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean
-session that loads updated code-ops plugins." DEC-76 sets that handoff rule. It never says to hand off on a token count.
-On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line naming that
-setting (250000 recommended); a Codex or Grok card never carries it.
-At or above the dispatch guard's context ceiling, the note adds that new dispatches stay gated:
-on Claude and Codex until the lead runs `/code-ops-suite:handoff assess` or the host compacts, and on Grok until the
-operator runs `/compact` or `/code-ops-suite:handoff assess`. The OpenCode note says "New dispatches are now gated until you run
-/code-ops-suite-handoff assess." Every host carries the sentence, because the guard also gates Grok's
-`spawn_subagent`. A typed `/code-ops-suite:handoff` prompt on Claude or Codex expands without a `Skill` call,
-so this hook records the ceiling assessment for it.
+and asks the lead to checkpoint, not to assess, and never asks anyone to run /compact. Stage 1,
+the early checkpoint at 60 percent of the window, says: "Early checkpoint: host auto-compaction is
+near and is the relief, so no handoff is needed. At the next safe boundary, keep TASKS.md current
+and append tagged lines to RUN_LOG.md:" followed by the four tags: `Decision:` (id, choice,
+rejected options), `Grant:` (operator authority, verbatim), `In flight:` (file:line, done or
+partial), and `Next:` (the step in flight and its next command). Stage 2, the final checkpoint
+at 80 percent, says: "Final checkpoint before auto-compaction. Finish or park the step in flight,
+then" append the same tags "now." It ends with "The PreCompact snapshot carries these lines,
+operator words, running work, and peers." on Claude, or "Then run `co snapshot` to carry them,
+because the Codex PreCompact hook does not fire." on Codex. The hook has no Codex signal, so
+Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host reads as Codex.
+The Grok band 1 and already-compacted notes name the same four tags. DEC-76 sets the handoff
+rule: the card never says to hand off on a token count.
+On Claude, when `CLAUDE_CODE_AUTO_COMPACT_WINDOW` is unset, the card adds one line saying it
+assumes a 200,000-token window and naming that setting (250000 recommended); a Codex or Grok card
+never carries it.
+When the dispatch guard's context ceiling is on and context sits at or above it, the note adds that
+new dispatches stay gated. The ceiling is on by default on Grok only (200,000 tokens); on Claude,
+Codex, and OpenCode it is off unless `CODE_OPS_CONTEXT_CEILING` names an integer of at least
+150,000. On Claude and Codex the sentence names `/code-ops-suite:handoff assess` or the host
+compaction, and never `/compact`. On Grok it says the gate lasts until the operator runs
+`/compact` or `/code-ops-suite:handoff assess`. The OpenCode note says "New dispatches are now
+gated until you run /code-ops-suite-handoff assess." Every host carries the sentence when its gate
+is on, because the guard also gates Grok's `spawn_subagent`. A typed `/code-ops-suite:handoff`
+prompt on Claude or Codex expands without a `Skill` call, so this hook records the ceiling
+assessment for it.
 The marker proves only that the hook wrote a prior message. It does not prove that the host
 displayed it, that a boundary existed, or that any action was chosen. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs:12-13`.
@@ -1005,8 +1022,8 @@ latest `Continue-until: <N> tokens` or `Continue-until: <N> turns` line from the
 the run log named by the session record's `runDir`. It does so on Grok only. While that bound is
 open, the card stays quiet and a typed prompt is allowed. It fires once when context reaches N tokens or after N more hook
 calls. A malformed bound sets no bound. Claude and Codex ignore the line. On those hosts an
-autonomous session with no prompts sees no card until the dispatch guard's 300,000-token ceiling
-gates it. Only Grok has a size-based price line; the OpenCode note names none. Evidence:
+autonomous session with no prompts sees no card, because the hook fires at each prompt, and no
+ceiling gates it unless `CODE_OPS_CONTEXT_CEILING` opts in. Only Grok has a size-based price line; the OpenCode note names none. Evidence:
 `plugins/code-ops-suite/hooks/handoff-card.mjs` and `evals/handoff-card/run.mjs`.
 
 The hook fails open on every path: bad JSON, another event name, a missing `session_id` or
@@ -1393,7 +1410,10 @@ resident context from the transcript tail. At or above the ceiling it denies a n
 the session records a handoff assessment for the current band. The first band starts at the
 ceiling, and each further 150,000 tokens starts a new band that gates again.
 `CODE_OPS_CONTEXT_CEILING` of `off`, `0`, or `false` disables this gate, and an integer of at
-least 150,000 replaces the 300,000 default. A main-thread `Skill` tool call that loads
+least 150,000 turns the gate on at that size on any host. The gate is on by default on Grok only,
+at 200,000 tokens; on Claude, Codex, and OpenCode it is off by default, because host
+auto-compaction holds context. A denial there asks only for `/code-ops-suite:handoff assess`;
+the Grok denial keeps its `/compact` flow. A main-thread `Skill` tool call that loads
 `code-ops-suite:handoff` records the band current at that call, and the handoff card records a typed
 `/code-ops-suite:handoff` prompt. `assessed --session <id> --band <n>`, run from the project root, records it on a host without a skill tool. The marker lives at
 `<sha256 cwd>/<sha256 session id>.assessed.json` in the dispatch store. Unreadable context, a

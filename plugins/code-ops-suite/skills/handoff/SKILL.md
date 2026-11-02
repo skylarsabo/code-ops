@@ -58,8 +58,8 @@ context-pressure warning, repeated correction or failed compaction, before a lar
 request. Record the selected action, observed evidence, unknowns, the next safe checkpoint, and any
 pending versus completed host action in the existing run log. Create `HANDOFF.md` only for
 HANDOFF: startup discovery would misidentify it as a transfer. Invoking `handoff assess` also
-unlocks the dispatch guard's context ceiling (300,000 tokens by default, re-armed each further
-150,000-token band; `CODE_OPS_CONTEXT_CEILING` overrides or disables it).
+unlocks the dispatch guard's context ceiling when it is on (default 200,000 tokens on Grok only; elsewhere
+`CODE_OPS_CONTEXT_CEILING` set to 150000 or more opts in; each further 150,000-token band re-arms it).
 
 Explicit `write` and `resume <path>` skip assessment. Urgent observed context pressure or a required
 transfer or recovery outranks a short finish. On Grok Build, headless Grok, and the Grok ACP agent,
@@ -75,7 +75,7 @@ compacts near 184,000 tokens.
   token pressure. First persist decisions, rejected approaches, authority boundaries, dirty work,
   verification state, and worker or process ownership in run artifacts, with open items in
   `TASKS.md` and the log in `RUN_LOG.md`. Execute the host action only through a callable host
-  capability; otherwise report the documented `/compact` as pending, or let the host
+  capability; otherwise report the documented host compact as pending, or let the host
   auto-compact. Never run it in a shell or report advice as execution. Afterwards reload durable
   state and check drift; stable checks stand when their inputs did not move.
 - **HANDOFF** only to start new work, or to move to a clean session that loads updated code-ops
@@ -90,8 +90,8 @@ size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW` (250000 recommended); Codex compacts n
 handoff card names that setting when it is unset on Claude. A handoff cycle costs about 10.8M
 billed tokens, orphans running background agents, and grew the open items at every hop, so the
 quality and transfer triggers in the HANDOFF bullet select HANDOFF at any size. On Claude and
-Codex, the 150,000-token band asks the lead to checkpoint (`TASKS.md` current, a `Next:` line in
-`RUN_LOG.md`), not to assess or hand off. The 300,000-token ceiling forces an assessment on a
+Codex, the card asks the lead to checkpoint at 60 percent and again at 80 percent of the auto-compaction window (`TASKS.md` current, the tagged lines in
+`RUN_LOG.md`), not to assess or hand off. The opt-in ceiling, when set, forces an assessment on a
 session that chose CONTINUE and overran. Keep `TASKS.md` and `RUN_LOG.md` current before any
 compaction, and tag the `RUN_LOG.md` lines the compaction snapshot carries. `co snapshot --fields`
 prints them from `CARRIED_FIELDS` in `scripts/compact-snapshot.mjs`, the one list that maps each

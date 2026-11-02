@@ -1,27 +1,31 @@
 #!/usr/bin/env node
-// UserPromptSubmit hook: once a session's resident context crosses 150,000 tokens, and again
-// every further 150,000-token band, reminds the operator and the lead to checkpoint. On Claude
-// and Codex the relief is host auto-compaction. On Grok the relief is the host compact near
-// 184,000 tokens, before the 200,000-token price line. It is not a host limit or a cost claim.
-// The threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
+// UserPromptSubmit hook: reminds the operator and the lead to checkpoint as a session's resident
+// context nears host auto-compaction. On Claude and Codex the card fires twice per arm, at 60
+// percent and at 80 percent of the auto-compaction window, and the relief is host
+// auto-compaction. On Grok it fires once the context crosses 150,000 tokens, and again every
+// further 150,000-token band; the relief there is the host compact near 184,000 tokens, before
+// the 200,000-token price line. It is not a host limit or a cost claim.
+// The Grok threshold moved from 200k to 150k on 2026-09-18, when a transcript audit found 71% of
 // lead input-side tokens spent above 200k. The exact value stays SPECULATIVE until session
 // receipts calibrate it. See the "Handoff card" pre-registration in MEASUREMENTS.md.
 //
-// The message escalates with the band. On Claude and Codex a higher band asks the lead to finish
-// the step and checkpoint. On Grok a higher band says to start a new session pointed at the
+// The message escalates with the band. On Claude and Codex the second stage asks the lead to
+// write the final checkpoint now. On Grok a higher band says to start a new session pointed at the
 // newest compaction segment. The marker proves only that this hook wrote earlier advice, not that a
 // host displayed it or a boundary was available.
 //
 // ON BY DEFAULT, OFF PER REPOSITORY OR USER. The hook does nothing when `CODE_OPS_HANDOFF_CARD`
 // is `off`, `0`, or `false` (case-insensitive) in its environment, which the `env` block of a
 // the host environment supplies at user or repository scope; rendered hosts use their documented
-// process environment. The 150,000-token threshold is fixed by design, not tunable.
+// process environment. The Grok 150,000-token threshold is fixed by design, not tunable. The
+// Claude and Codex stages move with the window (see ONCE PER CROSSING).
 //
 // CEILING SENTENCE. When the nudge fires at or above the dispatch guard's context ceiling
-// (`contextCeiling` in scripts/transcript-lib.mjs: 200,000 on Grok and 300,000 elsewhere by
-// default, overridden or disabled by `CODE_OPS_CONTEXT_CEILING`), the message gains one
-// sentence saying new dispatches are gated. On Grok it names /compact or the handoff assessment.
-// Elsewhere it names the assessment. That variable changes only this sentence, never the bands.
+// (`contextCeiling` in scripts/transcript-lib.mjs: 200,000 on Grok, off elsewhere by default,
+// set or disabled by `CODE_OPS_CONTEXT_CEILING`), the message gains one sentence saying new
+// dispatches are gated. On Grok it names /compact or the handoff assessment. Elsewhere it names
+// the assessment and the host compaction, never /compact. That variable changes only this
+// sentence, never the stages or bands.
 //
 // METRIC. The context size is the last assistant turn's usage record: input plus cache-read
 // plus cache-creation tokens, read from only the last 256 KiB of the transcript the payload
@@ -31,10 +35,14 @@
 // `handoffMarkerPath` there owns the storage-path convention.
 //
 // ONCE PER CROSSING. A small per-session marker under `<host home>/code-ops/handoff/<project
-// slug>/<session id>.json` remembers the highest band already nudged, where
-// `band = floor(context / 150000)`. The hook nudges again only when the band goes up, and
-// re-arms (clears the marker) once context falls back under 150,000 tokens, which a
-// compaction typically causes.
+// slug>/<session id>.json` remembers the highest band already nudged. On Grok
+// `band = floor(context / 150000)`. On Claude and Codex the band is the stage: 0 below 60
+// percent of the window W, 1 from 0.60 W, and 2 from 0.80 W. W is `CODE_OPS_COMPACT_WINDOW`
+// when it is a positive integer; else on Claude `CLAUDE_CODE_AUTO_COMPACT_WINDOW` when it is a
+// positive safe integer; else 200,000. The hook nudges again only when the band goes up, so a
+// jump straight past 0.80 W shows stage 2 only. It re-arms (band 0) once context falls back
+// under the first threshold (150,000 tokens on Grok, 0.60 W elsewhere), which a compaction
+// typically causes. Marker `peak` keeps the highest band for the session receipt.
 //
 // HOST COVERAGE. Claude and Codex both document `UserPromptSubmit` with `session_id` on stdin;
 // every other hook this plugin ships also reads `transcript_path` there, but Codex's own hook
@@ -51,16 +59,18 @@
 // carries the note instead.
 //
 // COMPACTION IS THE DEFAULT RELIEF (DEC-73). On Claude and Codex, routine context relief is host
-// auto-compaction, never a handoff, and the card asks for a checkpoint, not an assessment. Band 1
-// says to keep TASKS.md current and append the four tagged RUN_LOG.md lines the compaction snapshot
-// reads: `Decision:`, `Grant:`, `In flight:`, and `Next:` (CHECKPOINT_TAGS). On Claude it ends by naming the PreCompact snapshot;
-// on Codex, where PreCompact does not fire, it says to run `co snapshot`. Band 2 and above
-// says to finish the step, checkpoint as above, ask the operator to run /compact if the host has
-// not, and hand off only for new work or a clean session that loads updated code-ops plugins
-// (DEC-76). No card says to hand off on a token count. The hook has no Codex signal, so Claude is
-// `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok host reads as Codex. Codex
-// compacts itself near the size in `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude with that variable
-// unset, the card adds one line naming it. Codex compacts natively and gets no line.
+// auto-compaction, never a handoff, and the card asks for a checkpoint, not an assessment. No
+// Claude or Codex card asks anyone to run /compact. Stage 1 (early checkpoint, from 60 percent of
+// the window) says compaction is near and is the relief, and to keep TASKS.md current and append
+// the four tagged RUN_LOG.md lines the compaction snapshot reads: `Decision:`, `Grant:`,
+// `In flight:`, and `Next:` (CHECKPOINT_TAGS). Stage 2 (final checkpoint before auto-compaction,
+// from 80 percent) says to finish or park the step in flight and write those lines now. The
+// PreCompact snapshot carries them on Claude; on Codex, where PreCompact does not fire, the card
+// says to run `co snapshot`. No card says to hand off on a token count (DEC-76). The hook has no
+// Codex signal, so Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` set and any other non-Grok
+// host reads as Codex. Codex compacts itself near the size in
+// `CLAUDE_CODE_AUTO_COMPACT_WINDOW`; on Claude with that variable unset, the card adds one line
+// naming it and the 200,000-token window it assumes. Codex gets no line.
 //
 // PRICE LINE, GROK ONLY. The host compacts near 184,000 tokens, 72 percent of the 256,000-token
 // window. Band 1 under the price line checkpoints and waits for that compact. It does not ask
@@ -124,7 +134,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const THRESHOLD = 150_000;
 const HANDOFF_POINT = 200_000; // Grok only; Claude and Codex compact instead (DEC-73)
-const RUN_LOG_TAIL = 64 * 1024;
+const DEFAULT_WINDOW = 200_000; // Claude and Codex auto-compaction window when none is set
+const STAGE_EARLY = 60; // percent of the window for the early checkpoint
+const STAGE_FINAL = 80; // percent of the window for the final checkpoint
+const RUN_LOG_TAIL =64 * 1024;
 const HANDOFF_COMMAND = /code-ops-suite[:-]handoff/;
 const BOUND_LINE = /^[ \t>*-]*Continue-until:[ \t]*(.*?)[ \t]*$/gm;
 const BOUND_VALUE = /^(\d{1,3}(?:,\d{3})+|\d+)\s+(tokens|turns)$/i;
@@ -151,6 +164,19 @@ function readMarker(path) {
 function writeMarker(path, state, peak) {
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, JSON.stringify({ v: 1, ...state, peak: Math.max(peak, state.band), ts: new Date().toISOString() }));
+}
+
+// The auto-compaction window the Claude and Codex stages measure against: on Claude the host's
+// own `CLAUDE_CODE_AUTO_COMPACT_WINDOW`, on any non-Grok host `CODE_OPS_COMPACT_WINDOW` first,
+// else 200,000. Only a positive safe integer counts; anything else falls through.
+function compactWindow(claude) {
+  const positive = (v) => { const n = /^\d+$/.test(v ?? '') ? Number(v) : 0; return Number.isSafeInteger(n) && n > 0 ? n : null; };
+  return positive(process.env.CODE_OPS_COMPACT_WINDOW) ?? (claude ? positive(process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW) : null) ?? DEFAULT_WINDOW;
+}
+
+// Stage 0 below 60 percent of the window, 1 from 60 percent, 2 from 80 percent.
+function checkpointStage(context, window) {
+  return context * 100 >= STAGE_FINAL * window ? 2 : context * 100 >= STAGE_EARLY * window ? 1 : 0;
 }
 
 // The latest `Continue-until:` line of the run's RUN_LOG.md, read from a bounded tail as latin1
@@ -331,7 +357,11 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   if (typeof context !== 'number') return null;
   const compactState = grok ? grokCompactState(payload, homedir()) : { count: 0, segment: null };
 
-  const band = Math.floor(context / THRESHOLD);
+  // The hook has no Codex signal of its own (the usage parser in transcript-lib.mjs does not
+  // report its host), so Claude is `CLAUDECODE=1` or `CLAUDE_PROJECT_DIR` and every other
+  // non-Grok host reads as Codex.
+  const claude = process.env.CLAUDECODE === '1' || Boolean(process.env.CLAUDE_PROJECT_DIR);
+  const band = grok ? Math.floor(context / THRESHOLD) : checkpointStage(context, compactWindow(claude));
   // A typed handoff command expands without a Skill tool call, so the dispatch guard never sees
   // it. Recording it here unlocks the context-ceiling gate the same way.
   if (!grok && typeof payload.prompt === 'string' && HANDOFF_COMMAND.test(payload.prompt)) {
@@ -391,18 +421,15 @@ async function card(payload, sessionId, cwd, grok, promptOnly) {
   let advice;
   if (!grok) {
     // Claude and Codex: host auto-compaction is the relief and the lead checkpoints; a token count
-    // never selects a handoff. The hook has no Codex signal of its own (the usage parser in
-    // transcript-lib.mjs does not report its host), so Claude is `CLAUDECODE=1` or
-    // `CLAUDE_PROJECT_DIR` and every other non-Grok host reads as Codex.
-    const claude = process.env.CLAUDECODE === '1' || Boolean(process.env.CLAUDE_PROJECT_DIR);
+    // never selects a handoff and no card asks anyone to run /compact. `band` is the stage here.
     const setting = claude && !process.env.CLAUDE_CODE_AUTO_COMPACT_WINDOW
-      ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000 recommended) in the env block of your Codex settings so the host compacts near that size.' : '';
+      ? ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset, so this card assumes a 200,000-token window; set it (250000 recommended) in the env block of your Codex settings so the host compacts near that size.' : '';
     const snapshot = claude
-      ? 'The PreCompact snapshot keeps operator words, running work, and peers.'
-      : 'Then run `co snapshot`, because the Codex PreCompact hook does not fire.';
+      ? 'The PreCompact snapshot carries these lines, operator words, running work, and peers.'
+      : 'Then run `co snapshot` to carry them, because the Codex PreCompact hook does not fire.';
     advice = band === 1
-      ? `Host auto-compaction is the relief, so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md current and ${CHECKPOINT_TAGS}. ${snapshot}${setting}`
-      : `Finish the step in flight and checkpoint as above. If the host has not compacted, ask the operator to run /compact. Hand off only for new work or a clean session that loads updated code-ops plugins.${setting}`;
+      ? `Early checkpoint: host auto-compaction is near and is the relief, so no handoff is needed. At the next safe boundary, keep TASKS.md current and ${CHECKPOINT_TAGS}.${setting}`
+      : `Final checkpoint before auto-compaction. Finish or park the step in flight, then ${CHECKPOINT_TAGS} now. ${snapshot}${setting}`;
   } else if (autonomous) {
     advice = `This session is past the 200,000-token price line, and no operator prompt has arrived since the last card. At the next phase boundary, checkpoint and stop new work so the operator can run /compact. Do not write a handoff for the token count.`;
   } else if (band === 1 && pastPoint && again) {

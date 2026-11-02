@@ -23,7 +23,7 @@ floors, digest, index, routing, native compaction with a push of the open items 
 subagent-start callback, transcript path, or pre-tool `agent_id`. The lifecycle plugin covers
 those outcomes, including the implementer ladder, handoff and dispatch notes, a pending-handoff
 list by session name, a cost ledger, and dispatch-guard denials for the round stop at 1.5 times the budget, rounded down, a non-suite Task dispatch, a model the operator has not enabled, and
-an unassessed dispatch past the context ceiling (opencode-dist/PLATFORM_COMPATIBILITY.md:39). The compatibility record
+an unassessed dispatch past an opted-in context ceiling (opencode-dist/PLATFORM_COMPATIBILITY.md:43). The compatibility record
 names every remaining gap instead of claiming parity. The Codex projection drops hook matchers, so the
 projected `peer-guard.mjs` filters its two messaging tools itself, and OpenCode does not port it
 (plugins/code-ops-suite/hooks/peer-guard.mjs:10).
