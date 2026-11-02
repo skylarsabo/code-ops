@@ -55,9 +55,7 @@ At the round budget, an operative checkpoints to the report path and finishes if
 the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
 its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
 
-At 150,000 tokens of context the lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`.
-
-On Claude and Codex, host auto-compaction is the context relief, not a handoff.
+On Claude and Codex, host auto-compaction is the context relief, not a handoff. The handoff card asks the lead to checkpoint twice per window: an early checkpoint at 60 percent of the auto-compaction window and a final checkpoint at 80 percent. At each, keep `TASKS.md` current and append the `Decision:`, `Grant:`, `In flight:`, and `Next:` lines to `RUN_LOG.md`. No manual compaction or handoff is needed. Set `CODE_OPS_COMPACT_WINDOW` to move the stages when the window is not the default 200,000 tokens.
 
 Codex auto-compacts near 215,000 tokens of its 258,000-token window.
 
@@ -65,8 +63,7 @@ Hand off only to start new work, or to move to a clean session that loads update
 
 A unit too small to repay an operative's startup context stays inline, with the reason recorded.
 
-Past 300,000 tokens of context, run `code-ops-suite:handoff` assess before any new
-dispatch; do not raise or disable the ceiling to avoid it.
+The context-ceiling dispatch gate is off by default on Claude and Codex, because host auto-compaction holds context under the window. To opt in, set `CODE_OPS_CONTEXT_CEILING` to an integer of at least 150000. Past that size the code-ops dispatch guard then blocks new dispatches until `code-ops-suite:handoff` assess runs. A handoff assessment unlocks one 150,000-token band, and the next band blocks again. Off switch: `CODE_OPS_CONTEXT_CEILING=off`.
 
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.

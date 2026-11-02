@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -43,12 +43,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 2,
-          "anchor": "// UserPromptSubmit hook: once a session's resident context crosses 150,000 toke"
+          "anchor": "// UserPromptSubmit hook: reminds the operator and the lead to checkpoint as a s"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 13,
-          "anchor": "// host displayed it or a boundary was available."
+          "anchor": "// write the final checkpoint now. On Grok a higher band says to start a new ses"
         },
         {
           "file": "plugins/code-ops-suite/scripts/transcript-lib.mjs",
@@ -58,47 +58,52 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 198,
-          "anchor": "// rounds, so a 120-round warning covers it with a third to spare, and the 180-c"
+          "anchor": "// binds one only inside the unregistered stop, and says so on stderr when it ca"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 411,
+          "line": 438,
           "anchor": "advice = 'This session is past the 200,000-token price line, where input is bill"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 404,
-          "anchor": "Host auto-compaction is the relief, so no handoff is needed. At the next safe bo"
+          "line": 172,
+          "anchor": "function compactWindow(claude) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 415,
-          "anchor": "At the next safe boundary, checkpoint before the 200,000-token price line: keep"
+          "line": 431,
+          "anchor": "Early checkpoint: host auto-compaction is near and is the relief, so no handoff"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 419,
-          "anchor": "advice = 'Finish the step in flight and checkpoint. Start a new session and poin"
+          "line": 178,
+          "anchor": "function checkpointStage(context, window) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 307,
+          "line": 444,
+          "anchor": "advice = 'Finish the step in flight and checkpoint. This session already compact"
+        },
+        {
+          "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
+          "line": 333,
           "anchor": "function grokRestoreLine(state) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 407,
+          "line": 434,
           "anchor": "This session is past the 200,000-token price line, and no operator prompt has ar"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 91,
-          "anchor": "// feed, so no hook process is added. On PostToolUse of a Bash"
+          "anchor": "//"
         },
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
-          "line": 385,
-          "anchor": "? (grok ? ' New dispatches are now gated until you run /compact or /code-ops-sui"
+          "line": 414,
+          "anchor": "const gated = ceiling !== null && context >= ceiling"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -113,12 +118,12 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 251,
-          "anchor": "//   subagent's own context, rather than the lead's, is PROBABLE rather than con"
+          "anchor": "on an allowed subagent tool call lands in the"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 260,
-          "anchor": "<sha256 repository root>/<sha256 session id>.assessed.json"
+          "anchor": "// brief text), and"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -128,7 +133,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 1026,
-          "anchor": "${gate.ceiling.toLocaleString('en-US')}-token context ceiling. Run /code-ops-sui"
+          "anchor": "This session holds about ${tokens(gate.context - gate.ceiling)} tokens past the"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -138,7 +143,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 879,
-          "anchor": "if (hardStop && (exceedsBoundAllowance || (!bound && used >= legacyCap))) {"
+          "anchor": "const exceedsBoundAllowance = bound && used > limits.permitted;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -162,7 +167,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 539,
-          "anchor": "^${key}:[ \\\\t]*[\"']?([A-Za-z0-9._-]+)[\"']?[ \\\\t]*$"
+          "anchor": "const head = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---/.exec(readFileSync(path, 'utf8'))?.[1]"
         },
         {
           "file": "scripts/collision-lib.mjs",
@@ -172,7 +177,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 549,
-          "anchor": "let text;"
+          "anchor": "if (!path) return [];"
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
@@ -182,7 +187,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 133,
-          "anchor": "//      for a shell tool (the shell names behaviour 5 lists, plus PowerShell). A"
+          "anchor": "//   7. SUBAGENT GIT GUARD, inside a subagent only ("
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
@@ -192,7 +197,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 794,
-          "anchor": "async function leadStreakText(payload) {"
+          "anchor": "// lead only; the caller turns a throw into no output."
         },
         {
           "file": "plugins/code-ops-suite/hooks/agent-ledger.mjs",
@@ -400,7 +405,7 @@
           "anchor": "## Derived-file merge driver: install"
         }
       ],
-      "verifiedDigest": "dd4fe936578a80701f160c5744bd46cfc720595743798e8a68aeee4c1382d166"
+      "verifiedDigest": "129260ede266a3acf1572380e32221930f97dabb5d8c9426dde4a5a266cc56dd"
     },
     {
       "slug": "gate-scripts",
@@ -409,7 +414,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6b3658281e67b8dd0d35bd67540be4d74bb219ae",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -648,8 +653,13 @@
         },
         {
           "file": "scripts/transcript-lib.mjs",
+          "line": 1031,
+          "anchor": "const iterations = o.message.usage?.iterations;"
+        },
+        {
+          "file": "scripts/transcript-lib.mjs",
           "line": 1024,
-          "anchor": "if (o.type === 'compacted') return null;"
+          "anchor": "if (!o || typeof o !== 'object') continue;"
         },
         {
           "file": "scripts/citation-lib.mjs",
@@ -898,7 +908,7 @@
         {
           "file": "scripts/opencode-lifecycle.js",
           "line": 925,
-          "anchor": "// Disabled or stale bindings require a reload. It runs for every dispatch call,"
+          "anchor": "// current refresh is authoritative; a cache only seeds launch-time bindings."
         },
         {
           "file": "scripts/route-unit.mjs",
@@ -1068,17 +1078,17 @@
         {
           "file": "scripts/opencode-lifecycle.js",
           "line": 656,
-          "anchor": "// The CLI sorts model IDs, so its order cannot resolve desktop ties."
+          "anchor": "if (!info || typeof info !== 'object' || Array.isArray(info)) throw new Error('i"
         },
         {
           "file": "scripts/opencode-lifecycle.js",
           "line": 873,
-          "anchor": "const group = JSON.stringify([id.slice(0, id.indexOf('/')), info.family ?? null]"
+          "anchor": "if (!date || !(+date <= +now ? +now < +sixMonthsAfter(date) : +date < +sixMonths"
         },
         {
           "file": "scripts/opencode-lifecycle.js",
           "line": 927,
-          "anchor": "async function assertDispatchModel({ agent, bound, lead, live, switches, profile"
+          "anchor": "// whatever the routing switch says, so the model cannot reach a disabled model."
         },
         {
           "file": "scripts/run-runtime.mjs",
@@ -1111,7 +1121,7 @@
           "anchor": "{ name: 'refutation-tally.mjs', plugins: ['code-ops-suite', 'rigor'] },"
         }
       ],
-      "verifiedDigest": "6a747fb5e982cd5c6080d1ed21e09fa447a892e8ac98e302d5deb1dbb832d5d4"
+      "verifiedDigest": "30613b375bc3613e61bcbf24d39d55517a9b5588ce3ff1c63afc2a201b010855"
     },
     {
       "slug": "evals-and-calibration",
@@ -1119,8 +1129,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
-      "verifiedDigest": "e722bdafcbac00058e0ea9a0cecd22bc76fe952dfafb30ee3b21bd9581d814aa",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
+      "verifiedDigest": "e29b8fb48107db2368fb692ba053e1a3d42a5797404b1d18ac4834b27d688435",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1240,12 +1250,12 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 590,
-          "anchor": "expect(pushed.includes('D-001 implementer@gpt-6-sol: build unit 1 -> report-1.md"
+          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 595,
-          "anchor": "const withSnapshot = await compact(compactHooks, 'cc-1');"
+          "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
         },
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1300,7 +1310,7 @@
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 1022,
-          "anchor": "line per live session of another program on the presence board, from the board"
+          "anchor": "writeRecord({});"
         },
         {
           "file": "evals/handoff-check/run.mjs",
@@ -1385,7 +1395,7 @@
         {
           "file": "evals/dispatch-guard/run.mjs",
           "line": 876,
-          "anchor": "out = parseOut(dispatchAt(310_000, { guard: 'warn' }));"
+          "anchor": "a non-Grok ceiling reason must not tell the operator to run /compact, got ${reas"
         },
         {
           "file": "evals/handoff-state/run.mjs",
@@ -1429,48 +1439,46 @@
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 311,
+          "line": 322,
           "anchor": "// ---------------------------------------------------------------- lifecycle as"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 425,
-          "anchor": "// ---------------------------------------------------------------- Codex token-"
+          "line": 516,
+          "anchor": "a Codex token_count transcript must receive the exact stage 2 card with the gate"
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 360,
-          "anchor": "// ---------------------------------------------------------------- context ceil"
+          "anchor": "// The setting line: Claude only, only while CLAUDE_CODE_AUTO_COMPACT_WINDOW is"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 366,
-          "anchor": "const gatedGrok = /New dispatches are now gated until you run \\/compact or \\/cod"
+          "line": 366
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 125,
-          "anchor": "const BAND1 = 'Host auto-compaction is the relief, so no handoff is needed. At t"
+          "anchor": "}"
         },
         {
           "file": "evals/handoff-card/run.mjs",
-          "line": 126,
-          "anchor": "const SNAPSHOT_CLAUDE = 'The PreCompact snapshot keeps operator words, running w"
+          "line": 126
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 128,
-          "anchor": "const BAND2 = 'Finish the step in flight and checkpoint as above. If the host ha"
+          "anchor": "This session holds approximately ${approx} tokens of context."
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 129,
-          "anchor": "const SETTING_LINE = ' CLAUDE_CODE_AUTO_COMPACT_WINDOW is unset; set it (250000"
+          "anchor": "const TAGS = 'append tagged lines to RUN_LOG.md:"
         },
         {
           "file": "evals/handoff-card/run.mjs",
           "line": 197,
-          "anchor": "// A lead whose shell changes directory reports a different payload cwd on each"
+          "anchor": "transcript = writeTranscript(dir, assistantLine(125_000));"
         },
         {
           "file": "evals/compact-snapshot/run.mjs",
@@ -1485,12 +1493,11 @@
         {
           "file": "evals/opencode-lifecycle/run.mjs",
           "line": 605,
-          "anchor": "const tagLines = tagged.split('\\n');"
+          "anchor": "a written snapshot was not named by path: ${withSnapshot.slice(-200)}"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 285,
-          "anchor": "gate = await dispatch(hooks, 'grok-lead');"
+          "line": 285
         },
         {
           "file": "evals/distill-check/run.mjs",
@@ -1509,7 +1516,8 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 337
+          "line": 337,
+          "anchor": "tokens: { input: 1000, output: 20, reasoning: 0, cache: { read: 159000, write: 0"
         },
         {
           "file": "evals/run-runtime/run.mjs",
@@ -1601,7 +1609,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1650,7 +1658,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 402,
-          "anchor": ", because the Codex PreCompact hook does not fire.';"
+          "anchor": "const snapLib = await import(pathToFileURL(join(dirname(fileURLToPath(import.met"
         },
         {
           "file": "plugins/code-ops-suite/hooks/routing-card.mjs",
@@ -1674,8 +1682,8 @@
         },
         {
           "file": "opencode-dist/PLATFORM_COMPATIBILITY.md",
-          "line": 39,
-          "anchor": "- **The typed subagent-start callback, transcript path, and pre-tool"
+          "line": 43,
+          "anchor": "context ceiling (opt-in; on by default only for a Grok model) until the handoff"
         },
         {
           "file": "plugins/code-ops-suite/hooks/peer-guard.mjs",
@@ -1690,7 +1698,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
           "line": 538,
-          "anchor": "const head = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---/.exec(readFileSync(path, 'utf8'))?.[1]"
+          "anchor": "try {"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/CONVENTIONS.md",
@@ -1705,7 +1713,7 @@
         {
           "file": "codex-marketplace/plugins/code-ops-suite/PLATFORM_COMPATIBILITY.md",
           "line": 20,
-          "anchor": ": prompts the lead to checkpoint durable state at a safe boundary when resident"
+          "anchor": ": prompts the lead to checkpoint durable state at a safe boundary at 60 and 80 p"
         },
         {
           "file": "opencode-dist/skills/code-ops-suite-handoff/SKILL.md",
@@ -1715,7 +1723,7 @@
         {
           "file": "opencode-dist/plugins/code-ops-lifecycle.js",
           "line": 88,
-          "anchor": "'code-ops handoff assess: CONTINUE, COMPACT, or HANDOFF at a phase or workstream"
+          "anchor": "const ASSESS_CARD = ["
         },
         {
           "file": "scripts/build-opencode-dist.mjs",
@@ -1728,7 +1736,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "fb43460d238e73d5d76da3857603b8d600a076b32a4ccd0b4186b5f3fb735495"
+      "verifiedDigest": "3c60092d3633f165352462e97aaa57afa00ca8de30f58d797efc173e0ae3087a"
     },
     {
       "slug": "ci-workflows",
@@ -1862,7 +1870,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "0cc66a503e4cfca54205b42a066f4e2aada6963b",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -1902,7 +1910,7 @@
         {
           "file": "plugins/code-ops-suite/hooks/handoff-card.mjs",
           "line": 13,
-          "anchor": "// host displayed it or a boundary was available."
+          "anchor": "// write the final checkpoint now. On Grok a higher band says to start a new ses"
         },
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
@@ -1922,12 +1930,12 @@
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
           "line": 970,
-          "anchor": "so no handoff is needed. At the next safe boundary, checkpoint: keep TASKS.md cu"
+          "anchor": "names host auto-compaction as the context relief. Evidence:"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
           "line": 1138,
-          "anchor": "- Running work (snapshot): ..."
+          "anchor": "also refuses with exit 1 while a stale open row remains. A"
         },
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
@@ -1945,7 +1953,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "e88688517707596870e69175e66a6d172b175e4885ca9a0c83406d765c1c0950"
+      "verifiedDigest": "bc0fff711c1de8c6090edf9f60d97b30e4aca497e19e37dc7673dd153ef2836f"
     },
     {
       "slug": "root-contracts",
@@ -1960,17 +1968,17 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "d6836401f7feb62900bb1940fef4db4f87dd9f96",
+      "verifiedAt": "b17ac33d4ee5834773654ce0a2301a1060c39def",
       "claims": [
         {
           "file": "global-contracts/AGENTS.claude.md",
           "line": 63,
-          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
+          "anchor": "On Claude and Codex, host auto-compaction is the context relief, not a handoff."
         },
         {
           "file": "global-contracts/AGENTS.codex.md",
           "line": 58,
-          "anchor": "At 150,000 tokens of context the lead checkpoints: keep"
+          "anchor": "On Claude and Codex, host auto-compaction is the context relief, not a handoff."
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
@@ -1985,17 +1993,17 @@
         {
           "file": "global-contracts/AGENTS.claude.md",
           "line": 149,
-          "anchor": "## Compact Instructions"
+          "anchor": "When the host compacts this session, keep these items in the summary:"
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
           "line": 161,
-          "anchor": "- The next command."
+          "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
           "line": 163,
-          "anchor": "After a compaction, read the newest compaction segment before the host summary."
+          "anchor": "## Change and publishing standards"
         },
         {
           "file": "global-contracts/AGENTS.grok.md",
@@ -2003,7 +2011,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "a01a011cb19d22c49d007dd4861310a59c3c8c7e4400d40ffebbca91b10e4b4f"
+      "verifiedDigest": "50880b798f88d8f5d26b6a33364f7031b3c32faa37b91652dcae925280ad3dbc"
     },
     {
       "slug": "runtime-toolchain",

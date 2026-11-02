@@ -32,7 +32,8 @@
 //   3. CONTEXT CEILING GATE, on the main thread only (`agent_id` absent), for the dispatch tools
 //      `Agent`, `Task` (its name before the host renamed it), and `Workflow`. Resident context
 //      comes from `residentContext` (scripts/transcript-lib.mjs), the bounded transcript-tail
-//      read hooks/handoff-card.mjs shares. At and past the ceiling the gate band is
+//      read hooks/handoff-card.mjs shares. The gate is on by default on Grok only; elsewhere
+//      it runs when `CODE_OPS_CONTEXT_CEILING` names a size. At and past the ceiling the gate band is
 //      `1 + floor((context - ceiling) / 150000)`, and a dispatch is denied until a handoff
 //      assessment has recorded that band. A main-thread `Skill` call whose skill matches
 //      `code-ops-suite:handoff` records the band current at that call; so does the CLI verb
@@ -205,9 +206,9 @@
 // unavailable controller binding into advisory text. One variable carries both so an
 // operator has one name to remember; the default is on, with every denial.
 // `CODE_OPS_CONTEXT_CEILING` sets the ceiling: `off`, `0`, or `false` disables only the gate,
-// an integer of at least 150,000 overrides the default (200,000 on Grok, 300,000 elsewhere),
-// and anything else reads as the default (`contextCeiling` in scripts/transcript-lib.mjs,
-// shared with the handoff card).
+// an integer of at least 150,000 turns it on at that size on any host, and anything else
+// reads as the host default: 200,000 on Grok, off elsewhere, where host auto-compaction holds
+// the context (`contextCeiling` in scripts/transcript-lib.mjs, shared with the handoff card).
 // `CODE_OPS_LEAD_GUARD` takes `off`, `0`, or `false` to disable only behaviour 10 and `deny` to make
 // its threshold hits denials; unset or `warn` is advisory. `CODE_OPS_LEAD_STREAK` sets the threshold
 // (a positive integer, default 8). `CODE_OPS_DISPATCH_GUARD=warn` downgrades `deny` to advisory.
@@ -1029,8 +1030,7 @@ function ceilingReason(gate) {
     + `command from the project root: \`node "${HOOK_PATH}" assessed --session ${gate.sessionId} --band ${gate.band}\`.`;
   return process.env.GROK_PLUGIN_ROOT
     ? `Run /compact. It records this ceiling band and unlocks dispatch. ${reason}`
-    : `Host compaction has not run, so this session outgrew its window. ${reason}`
-      + ' If the operator runs /compact, the context drops below the ceiling and dispatch reopens.';
+    : reason;
 }
 
 const AGENT_CALL = /\bagent\s*\(/g;

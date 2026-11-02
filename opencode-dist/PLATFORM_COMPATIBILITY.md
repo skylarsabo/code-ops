@@ -40,7 +40,7 @@ Rebuild it there with `node scripts/build-opencode-dist.mjs`; CI uses `--check` 
   intentionally unavailable here.** `plugins/code-ops-lifecycle.js` covers those outcomes
   on the events OpenCode does expose: a stable system prefix, the ladder on the implementer,
   handoff and dispatch notes on the next tool result or user turn, a Task gate past the
-  context ceiling until the handoff assessment, a Task deny for a model the operator has
+  context ceiling (opt-in; on by default only for a Grok model) until the handoff assessment, a Task deny for a model the operator has
   not enabled, a push of open items and pending dispatches at compaction, a pending-handoff
   line on the first lead system transform, and a cost ledger at session idle.
 - **The `code-ops-docs` and `code-ops-query` MCP servers are auto-configured.** The plugin

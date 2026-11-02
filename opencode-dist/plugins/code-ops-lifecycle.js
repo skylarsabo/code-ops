@@ -47,7 +47,8 @@ const stopCall = (budget) => Math.max(budget + 1, Math.floor(budget * STOP_MULTI
 // Past this context size the lead must run the handoff assessment before it
 // dispatches new work. Each later THRESHOLD-sized band gates again. Grok
 // prices double above 200,000 tokens, so a session on a Grok model gates there.
-const CEILING = 300_000;
+// Other models gate only when CODE_OPS_CONTEXT_CEILING names a size, since host
+// auto-compaction holds their context.
 const GROK_CEILING = 200_000;
 const GROK_MODEL = /(^|\/)grok-/i;
 const PENDING_DAYS = 14;
@@ -409,16 +410,16 @@ function contextThreshold(profile) {
 }
 
 // CODE_OPS_CONTEXT_CEILING: off|0|false disables the gate, an integer of at
-// least THRESHOLD overrides it, anything else keeps the default for the
-// session's latest model. The ceiling never sits below the handoff band the
-// profile set.
+// least THRESHOLD turns it on at that size, anything else keeps the default for
+// the session's latest model: the Grok ceiling on a Grok model, off elsewhere.
+// The ceiling never sits below the handoff band the profile set.
 function contextCeiling(profile, row) {
   const raw = String(process.env.CODE_OPS_CONTEXT_CEILING ?? '').trim();
   if (/^(off|0|false)$/i.test(raw)) return null;
   const n = Number(raw);
   const ceiling = raw && Number.isSafeInteger(n) && n >= THRESHOLD ? n
-    : GROK_MODEL.test(row?.model ?? '') ? GROK_CEILING : CEILING;
-  return Math.max(ceiling, contextThreshold(profile));
+    : GROK_MODEL.test(row?.model ?? '') ? GROK_CEILING : null;
+  return ceiling === null ? null : Math.max(ceiling, contextThreshold(profile));
 }
 
 function gateBand(context, ceiling) {

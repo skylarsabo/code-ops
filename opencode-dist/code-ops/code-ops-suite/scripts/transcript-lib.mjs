@@ -898,9 +898,11 @@ export function handoffPeakBand(path) {
 // Context ceiling shared by `hooks/dispatch-guard.mjs`, which gates new dispatches at and past
 // it, and `hooks/handoff-card.mjs`, which says so in its band nudge. `CODE_OPS_CONTEXT_CEILING`
 // takes `off`, `0`, or `false` (case-insensitive) to disable the gate (null), an integer of at
-// least 150,000 to override the default, and anything else reads as the host default: 200,000
-// under Grok (`GROK_PLUGIN_ROOT` set, the sibling hooks' host test), whose price doubles above
-// that line, and 300,000 elsewhere. The 150,000-token band rule is the same on every host.
+// least 150,000 to turn it on at that size, and anything else reads as the host default:
+// 200,000 under Grok (`GROK_PLUGIN_ROOT` set, the sibling hooks' host test), whose price
+// doubles above that line, and off (null) elsewhere, where host auto-compaction holds the
+// context. CONTEXT_CEILING_DEFAULT is the suggested size for an explicit opt-in. The
+// 150,000-token band rule is the same on every host.
 export const CONTEXT_CEILING_DEFAULT = 300_000;
 export const CONTEXT_CEILING_GROK = 200_000;
 export const CONTEXT_CEILING_MIN = 150_000;
@@ -909,7 +911,7 @@ export function contextCeiling(raw = process.env.CODE_OPS_CONTEXT_CEILING, grok 
   if (/^(off|0|false)$/i.test(value)) return null;
   const n = /^[0-9]+$/.test(value) ? Number(value) : NaN;
   if (Number.isSafeInteger(n) && n >= CONTEXT_CEILING_MIN) return n;
-  return grok ? CONTEXT_CEILING_GROK : CONTEXT_CEILING_DEFAULT;
+  return grok ? CONTEXT_CEILING_GROK : null;
 }
 
 // The ceiling band a context sits in: 0 below the ceiling, then 1 plus one per further
@@ -1008,7 +1010,10 @@ function readTail(path) {
 // in `compactMetadata.postTokens`, which stands in with source `compaction` until the first
 // post-compaction turn records usage. A boundary without it, and Codex's `compacted` row,
 // return null: the size is unknown. The result is `{ tokens, source }`, source `usage` or
-// `compaction`.
+// `compaction`. A turn with a server-side advisor call writes a top-level `usage` that sums
+// the main-model iterations, so the resident size is the last `type: 'message'` entry of
+// `usage.iterations` when one has numeric counts; otherwise the top-level figure stands.
+// normalizeUsage keeps the summed figure, which is right for billing.
 function lastContextSize(text) {
   const lines = text.split('\n');
   for (let i = lines.length - 1; i >= 0; i--) {
@@ -1023,6 +1028,13 @@ function lastContextSize(text) {
     }
     if (o.type === 'compacted') return null;
     if (o.type === 'assistant' && o.message && typeof o.message === 'object') {
+      const iterations = o.message.usage?.iterations;
+      const last = Array.isArray(iterations)
+        ? iterations.findLast((it) => it?.type === 'message' && [it.input_tokens, it.cache_read_input_tokens, it.cache_creation_input_tokens].every(Number.isFinite))
+        : undefined;
+      if (last) {
+        return { tokens: last.input_tokens + last.cache_read_input_tokens + last.cache_creation_input_tokens, source: 'usage' };
+      }
       const u = normalizeUsage(o.message.usage);
       if (u && typeof u.input === 'number' && typeof u.cacheRead === 'number' && typeof u.cacheCreate === 'number') {
         return { tokens: u.input + u.cacheRead + u.cacheCreate, source: 'usage' };

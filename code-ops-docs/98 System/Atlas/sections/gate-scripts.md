@@ -54,7 +54,9 @@ repository tree. Each row counts skill invocations by id, and `context-audit.mjs
 supports a causal claim.
 
 The resident-context reader shared by the handoff card and the dispatch guard reads only the
-newest usage record. When a compaction marker sits after that record, a pre-compaction size
+newest usage record. On a Claude turn with an advisor call, the top-level usage sums the
+main-model iterations, so the reader takes the last `type: 'message'` entry of
+`usage.iterations` instead (`scripts/transcript-lib.mjs:1031`). When a compaction marker sits after that record, a pre-compaction size
 never reaches either hook. A Claude `compact_boundary` row with a numeric
 `compactMetadata.postTokens` yields that size, labeled with source `compaction`, until a newer
 usage record replaces it. A boundary without it, or a Codex `compacted` row, reads as unknown

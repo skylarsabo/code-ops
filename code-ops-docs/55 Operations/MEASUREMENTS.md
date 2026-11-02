@@ -230,6 +230,16 @@ transcript evidence, not the matched on/off comparison the rule names, so the va
 that, so the comparison starts from the rows written after this change, and the rule's removal
 clause applies once enough of them exist.
 
+**Note, 2026-11-02.** Two corrections follow from a measured miscount. On Claude, a turn with an
+advisor call writes a top-level usage that sums the main-model iterations, and the resident count
+read 229,797 where the last main-model iteration held 115,833. That doubled count raised false
+cards. `residentContext` now reads the last `message` entry of `usage.iterations`. Rows written
+before the fix can carry an inflated `band`. On Claude and Codex the card also stopped using the
+fixed 150,000-token bands: it fires at 60 percent and at 80 percent of the auto-compaction window
+and asks only for a checkpoint. The 150,000-token threshold above now describes Grok. Both changes
+are **SPECULATIVE** until receipts from the new stages exist, and the amendment above stands as
+history.
+
 **Decision rule, fixed before any row exists.** The threshold stays where it is when sessions
 that received at least one nudge show a higher share of turns starting a `/code-ops-suite:handoff`
 within one further band than sessions with the switch off, with no rise in sessions abandoned
@@ -331,6 +341,12 @@ Gated sessions that record the assessment and then run on unchanged refute the g
 clicked through, and the ceiling moves down or the gate goes. The wide-type deny stays when the
 wide-surface share of operative input falls with no rise in failed units. A deny that most briefs
 answer with a boilerplate `Wide-surface reason:` refutes it.
+
+**Note, 2026-11-02.** The ceiling gate is now off by default on Claude, Codex, and OpenCode, where
+host auto-compaction holds context, and `CODE_OPS_CONTEXT_CEILING` set to an integer of at least
+150,000 opts in. Grok keeps its 200,000-token default. The 300,000 figure above is the baseline
+the audit measured, and the advisor-turn miscount in the handoff-card note above inflated some
+ceiling denials. Rows with `arms.dispatchGuard` on before this change reflect the old default.
 
 ## Handoff cost and the handoff line, 2026-09-24
 
