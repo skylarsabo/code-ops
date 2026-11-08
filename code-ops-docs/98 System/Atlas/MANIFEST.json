@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8cf08de9d75b39235b5b29006b00eed087866700",
+      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -440,7 +440,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "f8d827536dadeea55948e27d9f8945d7ce4d3621923c28b139f8a58169cb99e2"
+      "verifiedDigest": "358c8a64a60b17a14dcffa15e8241c2143f5eb5b9f39a8c433249bd7359ed5eb"
     },
     {
       "slug": "gate-scripts",
@@ -449,7 +449,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8cf08de9d75b39235b5b29006b00eed087866700",
+      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1191,7 +1191,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "929c79ca7db3bd467e5031800cd0e88f2ec28937e09f0fda82dabbb8ef49950b"
+      "verifiedDigest": "42fe86198321b631eadb6e254c012bd3ff51f7a0c45a1642c5b2e6f077b13098"
     },
     {
       "slug": "evals-and-calibration",
@@ -1199,8 +1199,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "8cf08de9d75b39235b5b29006b00eed087866700",
-      "verifiedDigest": "af1920dbfacaefb8df36e22a2dd5d1e4289c91871e8d52b828d26f740881f917",
+      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
+      "verifiedDigest": "50aebb58e8762261d98c83534d0b095990edd6d49e95a1cdd5775cd4f1e271b2",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1704,7 +1704,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8cf08de9d75b39235b5b29006b00eed087866700",
+      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1831,7 +1831,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "f39e0750687e97e17b5fe210191673ffe587ad6e8108e6e1cd4a845dea3a0b46"
+      "verifiedDigest": "f0174c903f2a4089ced64a4e7a28ab4723155a9b1c5574bd4612ce3741b8025f"
     },
     {
       "slug": "ci-workflows",
