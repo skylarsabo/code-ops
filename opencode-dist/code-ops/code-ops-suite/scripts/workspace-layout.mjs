@@ -86,6 +86,8 @@ function within(root, target) {
  */
 export function resolveLayout(cwd, host = detectHost()) {
   try {
+    // A relative cwd would resolve against this process's directory, some other repository.
+    if (!isAbsolute(cwd)) return null;
     const name = Object.hasOwn(HOST_FOLDERS, host) ? host : 'other';
     let dir = resolve(cwd);
     for (let i = 0; i < GIT_WALK_LIMIT; i++) {
@@ -267,7 +269,7 @@ function worktreeAddTarget(command, cwd, powershell) {
  */
 export function adviseCommand(command, ctx) {
   try {
-    if (typeof command !== 'string') return null;
+    if (typeof command !== 'string' || !isAbsolute(ctx.cwd)) return null;
     const found = worktreeAddTarget(command, ctx.cwd, Boolean(ctx.powershell));
     if (!found) return null;
     const layout = resolveLayout(found.dir, ctx.host ?? detectHost(ctx.env ?? process.env));

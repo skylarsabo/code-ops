@@ -128,6 +128,12 @@ mkdirSync(plain, { recursive: true });
 check('a directory outside git has no layout and no advice', resolveLayout(plain, 'claude') === null && adviseWrite(join(elsewhere, 'x'), { cwd: plain }) === null
   && adviseCommand('git worktree add ../x', { cwd: plain }) === null, '');
 
+// A relative cwd (a drive path reads as one on POSIX) would resolve against this process's directory.
+check('a relative cwd has no layout and no advice, whatever repository this process runs in',
+  ['fixture-project', join('..', 'fixture-project')].every((cwd) => resolveLayout(cwd, 'claude') === null
+    && adviseWrite(join(elsewhere, 'x'), { cwd, host: 'claude' }) === null
+    && adviseCommand('git worktree add ../scratch HEAD', { cwd, host: 'claude' }) === null), '');
+
 // A linked worktree whose main checkout cannot be established must not nest worktrees or invent a home.
 const sepMain = join(base, 'repos', 'sep-main');
 const sepGit = join(base, 'repos', 'sep.git');
