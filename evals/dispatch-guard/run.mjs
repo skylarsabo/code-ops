@@ -2205,7 +2205,9 @@ ${toolResult}
 // evals/workspace-layout/run.mjs; this block keeps the gate table's "every gate fires" rule honest.
 {
   const { home, cleanup } = fakeHome();
-  const outside = join(dirname(root), 'ws-outside', 'note.md');
+  // Beside the main checkout: from a linked worktree, dirname(root) can still lie inside that checkout.
+  const { resolveLayout } = await import('../../scripts/workspace-layout.mjs');
+  const outside = join(dirname(resolveLayout(root, 'claude')?.mainTop ?? root), 'ws-outside', 'note.md');
   const write = (file, session = 'sess-ws', env = {}) => runHook({ hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: file }, session_id: session, cwd: root },
     { home, env: { CODE_OPS_WORKSPACE_GUARD: '', ...env } });
   const first = write(outside);
@@ -2218,7 +2220,12 @@ ${toolResult}
   expect(write(join(root, 'README.md'), 'sess-ws-in').stdout === '', 'a write inside the repository must be silent');
   const patch = runHook({ hook_event_name: 'PreToolUse', tool_name: 'apply_patch', tool_input: { input: `*** Begin Patch\n*** Add File: ${outside}\n+x\n*** End Patch` }, session_id: 'sess-ws-patch', cwd: root },
     { home, env: { CODE_OPS_WORKSPACE_GUARD: '' } });
-  expect(patch.stdout === '', `apply_patch stays silent (the hook has no patch reader), got ${patch.stdout}`);
+  const patchBody = parseOut(patch)?.hookSpecificOutput;
+  expect(patch.status === 0 && /Workspace note:/.test(patchBody?.additionalContext ?? '') && patchBody.permissionDecision === undefined && patchBody.updatedInput === undefined,
+    `an apply_patch target outside the repository must earn the note and only the note, got ${patch.stdout}`);
+  const relativePatch = runHook({ hook_event_name: 'PreToolUse', tool_name: 'apply_patch', tool_input: { input: '*** Begin Patch\n*** Add File: ../ws-outside/rel.md\n+x\n*** End Patch' }, session_id: 'sess-ws-patch-rel', cwd: root },
+    { home, env: { CODE_OPS_WORKSPACE_GUARD: '' } });
+  expect(relativePatch.stdout === '', `a relative apply_patch target stays silent, got ${relativePatch.stdout}`);
   console.log('ok   a write outside the repository earns one workspace note, with no decision or rewrite');
   cleanup();
 }

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
+      "verifiedAt": "a6257c5d236eedfa4433b3a2e2d265c85b6aa8f4",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -57,7 +57,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 212,
+          "line": 214,
           "anchor": "// binds one only inside the unregistered stop, and says so on stderr when it ca"
         },
         {
@@ -117,22 +117,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 266,
+          "line": 268,
           "anchor": "on an allowed subagent tool call lands in the"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 275,
+          "line": 277,
           "anchor": "// brief text), and"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1119,
+          "line": 1141,
           "anchor": "const RUN_CONTRACT_LINE = /^[ \\t]*(?:\\/\\/+|\\/?\\*+)?[ \\t]*Run contract:[ \\t]*(\\S."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1102,
+          "line": 1124,
           "anchor": "This session holds about ${tokens(gate.context - gate.ceiling)} tokens past the"
         },
         {
@@ -142,21 +142,21 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 955,
+          "line": 977,
           "anchor": "const exceedsBoundAllowance = bound && used > limits.permitted;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1450
+          "line": 1472
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1330,
+          "line": 1352,
           "anchor": "let nonLiteral = 0;"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1484,
+          "line": 1506,
           "anchor": "const basis = briefValue(prompt, 'Route basis');"
         },
         {
@@ -166,7 +166,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 554,
+          "line": 556,
           "anchor": "const head = /^---\\r?\\n([\\s\\S]*?)\\r?\\n---/.exec(readFileSync(path, 'utf8'))?.[1]"
         },
         {
@@ -176,12 +176,12 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 564,
+          "line": 566,
           "anchor": "if (!path) return [];"
         },
         {
           "file": "scripts/legacy-paths-lib.mjs",
-          "line": 148,
+          "line": 149,
           "anchor": "export function legacyDenial(cwd, input) {"
         },
         {
@@ -191,22 +191,22 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1386,
+          "line": 1408,
           "anchor": "This Workflow script sets a frontier model on ${frontier} agent() call(s) and ${"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 870,
+          "line": 892,
           "anchor": "// lead only; the caller turns a throw into no output."
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 790,
+          "line": 794,
           "anchor": "async function workspaceFor(payload) {"
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 753,
+          "line": 755,
           "anchor": "async function worktreeFolder(payload) {"
         },
         {
@@ -276,7 +276,7 @@
         },
         {
           "file": "plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 1645,
+          "line": 1667,
           "anchor": "+ 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher"
         },
         {
@@ -440,7 +440,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "358c8a64a60b17a14dcffa15e8241c2143f5eb5b9f39a8c433249bd7359ed5eb"
+      "verifiedDigest": "7de6094cec38f1285681e5b6fdfb05fe1727023e7ba802b96cb3f923d5008cf3"
     },
     {
       "slug": "gate-scripts",
@@ -449,7 +449,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
+      "verifiedAt": "a6257c5d236eedfa4433b3a2e2d265c85b6aa8f4",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -678,7 +678,7 @@
         },
         {
           "file": "scripts/branch-name.mjs",
-          "line": 183,
+          "line": 192,
           "anchor": "export function commandBranchViolations(command, cwd, current = currentBranch) {"
         },
         {
@@ -1191,7 +1191,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "42fe86198321b631eadb6e254c012bd3ff51f7a0c45a1642c5b2e6f077b13098"
+      "verifiedDigest": "a025387f24934aa91ace7615589d3204420044e4a0d3ea833c30dbe71fbdaa65"
     },
     {
       "slug": "evals-and-calibration",
@@ -1199,8 +1199,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
-      "verifiedDigest": "50aebb58e8762261d98c83534d0b095990edd6d49e95a1cdd5775cd4f1e271b2",
+      "verifiedAt": "a6257c5d236eedfa4433b3a2e2d265c85b6aa8f4",
+      "verifiedDigest": "5b7198049dd5ec0088969a1785ff03ee908b38226a6f3e1f3a63774f9c5060af",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1704,7 +1704,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "6209ade398df05f9486e40d68801c13967a3a6d4",
+      "verifiedAt": "a6257c5d236eedfa4433b3a2e2d265c85b6aa8f4",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1792,7 +1792,7 @@
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/hooks/dispatch-guard.mjs",
-          "line": 700,
+          "line": 702,
           "anchor": "async function collisionFor(payload, agentId) {"
         },
         {
@@ -1831,7 +1831,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "f0174c903f2a4089ced64a4e7a28ab4723155a9b1c5574bd4612ce3741b8025f"
+      "verifiedDigest": "4dfc85e30b94f1b2d873eb10f5c67983fbe5a9dfbfd51158e48731df082fc5be"
     },
     {
       "slug": "ci-workflows",
@@ -1980,7 +1980,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "8cf08de9d75b39235b5b29006b00eed087866700",
+      "verifiedAt": "a6257c5d236eedfa4433b3a2e2d265c85b6aa8f4",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2063,7 +2063,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "2ea7e119c558489d9cb63f91d829176b26851f6f57f74f19e402da6fec0d4ee1"
+      "verifiedDigest": "d1f8efa3b047a00f821d3dd4454c2a458d4c1a418e768ffe789a37f16ff79ce3"
     },
     {
       "slug": "root-contracts",

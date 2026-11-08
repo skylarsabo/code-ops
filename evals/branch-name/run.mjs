@@ -13,7 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { branchNameProblems, commandBranchViolations } from '../../scripts/branch-name.mjs';
+import { branchNameProblems, commandBranchViolations, worktreeAddPositionals } from '../../scripts/branch-name.mjs';
 import { tally } from '../harness.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -76,6 +76,15 @@ const READER_CLEAN = [
   'git commit -m "Move off claude/foo"', 'gh pr view claude/foo',
 ];
 const onBranch = (name) => () => name;
+// The reader scripts/workspace-layout.mjs shares: value options, a dash word, and `--`.
+for (const [args, want] of [
+  [['../wt'], ['../wt']], [['-b', 'eng/a', '../wt', 'main'], ['../wt', 'main']], [['--reason', 'why', '--lock', '-B', 'eng/a', '../wt'], ['../wt']],
+  [['--reason=why', '../wt'], ['../wt']], [['--detach', '../wt', 'HEAD'], ['../wt', 'HEAD']], [['../wt', '--', 'main'], ['../wt', 'main']],
+  [['--', '-odd', 'main'], ['-odd', 'main']], [['--'], []], [['-b'], []], [[], []],
+]) {
+  const got = worktreeAddPositionals(args);
+  check(`worktree add positionals of ${JSON.stringify(args)}`, JSON.stringify(got) === JSON.stringify(want), `got ${JSON.stringify(got)}`);
+}
 for (const [command, want] of READER_CASES) {
   const got = commandBranchViolations(command, CWD, onBranch('eng/ok')).map((v) => v.name);
   check(`reader flags ${command}`, got.length === 1 && got[0] === want, `got ${JSON.stringify(got)}`);

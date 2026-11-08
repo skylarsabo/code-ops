@@ -156,6 +156,15 @@ function positionals(args, valueOptions = []) {
   return out;
 }
 
+/**
+ * The words after `git worktree add` that are no option or option value: the path, then any commit-ish.
+ * scripts/workspace-layout.mjs reads the path here too. Only this part is shared: its advisory stays
+ * silent on an env prefix, --git-dir, and a backslash, which this gate must read, so one tokenizer
+ * or global-option loop would widen the advisory or narrow the gate.
+ * @param {string[]} args @returns {string[]}
+ */
+export const worktreeAddPositionals = (args) => positionals(args, ['-b', '-B', '--reason']);
+
 // `git [global options] <sub> <args>` -> { sub, args, dir }, or null when the segment is not git.
 function parseGit(tokens, dir) {
   let i = 0;
@@ -262,7 +271,7 @@ export function commandBranchViolations(command, cwd, current = currentBranch) {
       const rest = args.slice(1);
       const named = optionValues(rest, ['-b', '-B']);
       for (const name of named) add(name, 'git worktree add -b');
-      const [path, commitish] = positionals(rest, ['-b', '-B', '--reason']);
+      const [path, commitish] = worktreeAddPositionals(rest);
       // With no -b, -B, or --detach and no commit-ish, git names the new branch after the path.
       if (!named.length && !rest.includes('--detach') && !rest.includes('-d') && path && !commitish) {
         add(basename(path.replace(/[/\\]+$/, '')), 'git worktree add (branch named after the path)');

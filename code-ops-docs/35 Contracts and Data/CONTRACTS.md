@@ -520,7 +520,7 @@ when its first segment is an AI tool name (`AI_PREFIXES` at `scripts/branch-name
 its last token is a generated mix of six or more letters and digits
 (`branchNameProblems` at `scripts/branch-name.mjs:48`). The hook checks the branch a command
 creates, renames, commits on, pushes, or opens a pull request from
-(`commandBranchViolations` at `scripts/branch-name.mjs:183`) and exits `2` on a problem. The
+(`commandBranchViolations` at `scripts/branch-name.mjs:192`) and exits `2` on a problem. The
 tracked `.githooks/pre-commit` checks the current branch, and `.githooks/pre-push` checks each
 pushed branch, so a host without the tool hook is covered. The fail-closed backstop is the
 same CI step, which checks the pull request head ref passed through the environment
@@ -1295,9 +1295,9 @@ Before this change the hook read a workflow agent's transcript as absent, so suc
 under the default budget of 40 rounds and stopped at 60, whatever its brief said. A brief that
 states a larger or smaller budget now changes that stop. The warning names the layout the budget
 came from (`flat` or `workflow`). A missing directory fails open to the default. Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:411-429`,
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:431-447`, and
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:792`.
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:413-431`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:433-449`, and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:796`.
 
 `register --agent-id <id> --budget <calls> [--allowance <calls>]` binds an exact controller-known
 identity from the worker's working directory. It never infers correlation from timing, role, or
@@ -1331,10 +1331,10 @@ first argument, so a long first argument (a prompt string) does not hide the opt
 with neither an object-literal second argument nor an inline-object first argument is unreadable,
 which earns the advisory above. `CODE_OPS_WORKFLOW_ARGS=first` restores the earlier reading, first argument only. The
 `Workflow` decision row records the mode as `workflowArgs` (`second` or `first`). Evidence:
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1016-1020`,
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1022-1045`,
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1050-1075`, and
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1147`.
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1038-1042`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1044-1067`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1072-1097`, and
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1169`.
 
 The brief-contract gate reads the target agent's own contract. A `subagent_type` of the form
 `<plugin>:<agent>` resolves when the plugin is `code-ops-suite`, `rigor`,
@@ -1497,8 +1497,8 @@ without a `scopeHash` never matches, a failed prior row earns no note and keeps 
 route, and the note never denies. The guard and the ledger each carry a copy of the Scope rules,
 and the dispatch-guard eval pins their parity. `CODE_OPS_REDISPATCH_NOTE` set to `off`, `0`, or
 `false` turns the note off. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs:149-156`,
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:587`,
-`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1259-1282`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:589`,
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs:1281-1304`,
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:146-181`, and
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:226`.
 
@@ -1753,8 +1753,9 @@ every existing deny decision unchanged. One deny text changed: the subagent git 
 names the host worktrees folder in its baseline-worktree advice (`worktreeFolder`). The layout it
 enforces is in the [workspace layout technique](../40%20Engineering/Techniques/workspace-layout.md).
 Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (behaviour 11 header comment,
-`workspaceFor`, `worktreeFolder`) and `scripts/workspace-layout.mjs` (`resolveLayout`,
-`ensureLayout`, `adviseWrite`, `adviseCommand`). These anchors are symbols, not lines, because
+`workspaceFor`, `worktreeFolder`), `scripts/workspace-layout.mjs` (`resolveLayout`,
+`ensureLayout`, `adviseWrite`, `adviseCommand`), `scripts/legacy-paths-lib.mjs` (`editTargets`),
+and `scripts/branch-name.mjs` (`worktreeAddPositionals`). These anchors are symbols, not lines, because
 the code is still changing.
 
 **Layout.** `resolveLayout()` in `scripts/workspace-layout.mjs` returns the host, the host folder, the
@@ -1784,6 +1785,9 @@ directory:
   `~/.config/opencode`, `~/.copilot`, `CODE_OPS_HOME`, and `CLAUDE_CODE_TMPDIR`. The path field is `file_path` or
   `notebook_path` on Claude `Write`, `Edit`, `MultiEdit`, and `NotebookEdit`. The advice names the
   scratch path and says the path is fine when the user asked for it.
+- An `apply_patch` names such a path as an absolute `Add File`, `Update File`, or `Move to` target
+  (`editTargets` in `scripts/legacy-paths-lib.mjs`). The advice is the same. One call says one line, the
+  first not yet given, and the guard checks at most 32 absolute targets outside the working directory.
 - A `git worktree add` places a worktree outside the host worktrees folder. The advice gives
   `git worktree add <worktrees>/<topic> -b eng/<topic>`, because `scripts/branch-name.mjs` names a
   branch after the path basename when `-b` is absent.
@@ -1791,7 +1795,7 @@ directory:
 **Silent cases.** The guard stays silent whenever it cannot be certain. It is silent for a write inside
 the repository, a write to the host-required scratchpad under the temp directory, a command it
 cannot parse with certainty (a variable, a subshell, or a `cd` that is not a single leading
-`cd <dir> &&`), Codex `apply_patch` (no path field), an unknown tool, a malformed payload, a
+`cd <dir> &&`), a relative `apply_patch` target, an `apply_patch` `Delete File` target, an unknown tool, a malformed payload, a
 directory outside a git repository, and a repeat of an advisory already given. Any thrown error also
 yields no output. The guard reads git state only for a command that already matched
 `git worktree add`, and it spawns no process on the hot path.
@@ -1811,7 +1815,8 @@ suite leaves `TMPDIR` alone on purpose. Evidence: `evals/workspace-layout/run.mj
 
 **Per-host coverage.** Claude gets the note and the session setup. Codex gets the note for shell
 tools and for path tools that carry `file_path` or `notebook_path`, and the session setup through
-the projected card. Codex `apply_patch` has no path field, so it stays silent. Grok maps its camelCase
+the projected card. Codex `apply_patch` gets the note for an absolute patch target, and a relative
+target stays silent. Grok maps its camelCase
 `toolName` and `toolInput` for the note, and the card hook runs the session setup there with no
 card line. The Grok write-tool names and path key are UNVERIFIED. OpenCode does not run these hooks,
 and its baked card carries no workspace line, so it gets neither. On OpenCode, the agent runs

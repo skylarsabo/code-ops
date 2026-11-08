@@ -89,8 +89,9 @@ function repoRel(root, cwd, file) {
 const inputOf = (input) => (input && typeof input === 'object' ? input : {});
 const firstString = (input, keys) => keys.map((key) => input[key]).find((value) => typeof value === 'string' && value.trim());
 
-// The file paths an edit tool call names. A patch body names its own targets.
-function editTargets(input) {
+// The file paths an edit tool call names. A patch body names its own targets. The workspace note in
+// hooks/dispatch-guard.mjs reads a patch's targets through this too.
+export function editTargets(input) {
   const direct = firstString(input, KEYS);
   if (direct) return [direct];
   const patch = firstString(input, PATCH_KEYS);
