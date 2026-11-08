@@ -1,6 +1,7 @@
 # Changelog — rigor
 
-## 3.7.0
+## 3.7.1
+- Point verifier scratch at the host folder's `.tmp`; refresh vendored scripts.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
 - The `tracer` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional. The `verifier` agent is unchanged, because an executed repro outranks a class.

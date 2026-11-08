@@ -35,7 +35,7 @@ Size discipline: <implementer briefs only: correctness and the safety floor, the
   deferred(<ceiling>, <upgrade path>)>
 Escalation: <what counts as blocked or ambiguous for this task, and that it must escalate
   rather than guess>
-Constraints: <do-not-touch list; no commits unless this brief explicitly says so>
+Constraints: <do-not-touch list; no commits unless this brief explicitly says so; scratch files go in the host folder's `.tmp`>
 Independence: <unit ids this operative validates but did not discover; empty for discovery>
 ```
 

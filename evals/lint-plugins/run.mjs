@@ -1177,6 +1177,76 @@ No completion heading here on purpose (case 3 mutation).
   check('22c. an indented continuation line is not read as a key and exits 0', r22c.status === 0);
   const r22d = withFrontmatterLine('case22d-not-a-key', 'stray text');
   check('22d. a column-zero line that is not a key exits 1', r22d.status === 1 && r22d.all.includes('rigor/bug-hunt: frontmatter line is not a "key:" entry'));
+
+  // 23a-23h. TREE WALKERS AND NESTED CHECKOUTS — host folders keep linked worktrees at
+  // `<host>/worktrees/<topic>` and scratch at `<host>/.tmp`. The whole-repo walkers (check-no-deps
+  // and the citation resolver's file index) skip a directory holding a `.git` FILE, and a host
+  // folder's `.tmp`, while still seeing every tracked file, `.claude/` included. Each skip case has
+  // a positive twin that proves the gate still fires on the same offender in a walked path.
+  const BARE_IMPORT = "import lodash from 'lodash';\n";
+  // A host-folder .tmp is skipped only while git tracks nothing under it, so the sandbox is a git
+  // repository; `tracked` lists the paths force-added to its index (no commit needed).
+  const gitSandbox = (sb, tracked = []) => {
+    execFileSync('git', ['init', '-q', sb], { stdio: 'ignore' });
+    for (const rel of tracked) execFileSync('git', ['add', '-f', '--', rel], { cwd: sb, stdio: 'ignore' });
+  };
+  const noDepsSandbox = (label, files, { tracked = null } = {}) => {
+    const sb = join(work, label);
+    put(sb, 'scripts/check-no-deps.mjs', readFileSync(join(REPO, 'scripts', 'check-no-deps.mjs'), 'utf8'));
+    put(sb, 'scripts/ok.mjs', "import { readFileSync } from 'node:fs';\nexport { readFileSync };\n");
+    put(sb, '.claude/settings.json', '{}\n');
+    for (const [rel, content] of Object.entries(files)) put(sb, rel, content);
+    if (tracked) gitSandbox(sb, tracked);
+    return sb;
+  };
+  const runNoDeps = (sb) => {
+    try {
+      return { status: 0, all: execFileSync(process.execPath, [join(sb, 'scripts', 'check-no-deps.mjs')], { encoding: 'utf8', timeout: 15000, cwd: sb }) };
+    } catch (e) { return { status: e.status ?? 1, all: (e.stdout || '') + (e.stderr || '') }; }
+  };
+  const WORKTREE_GITFILE = 'gitdir: /repo/.git/worktrees/topic\n';
+  const r23base = runNoDeps(noDepsSandbox('case23-clean', {}));
+  check('23a. a clean tree with a tracked .claude/settings.json exits 0', r23base.status === 0);
+  const r23b = runNoDeps(noDepsSandbox('case23b-worktree', { '.claude/worktrees/topic/.git': WORKTREE_GITFILE, '.claude/worktrees/topic/scripts/bad.mjs': BARE_IMPORT }));
+  check('23b. a bare import inside a nested worktree (.git file) is not scanned', r23b.status === 0);
+  const r23c = runNoDeps(noDepsSandbox('case23c-worktree-twin', { '.claude/worktrees/topic/.git': WORKTREE_GITFILE, '.claude/worktrees/topic/scripts/bad.mjs': BARE_IMPORT, '.claude/hook.mjs': BARE_IMPORT, 'scripts/bad.mjs': BARE_IMPORT }));
+  check('23c. the same import in tracked .claude/ and scripts/ paths still exits 1, and the worktree copy is not listed',
+    r23c.status === 1 && r23c.all.includes('.claude') && r23c.all.includes('hook.mjs -> lodash') && r23c.all.includes('bad.mjs -> lodash') && !r23c.all.includes('worktrees'));
+  const r23d = runNoDeps(noDepsSandbox('case23d-no-marker', { '.claude/worktrees/topic/scripts/bad.mjs': BARE_IMPORT }));
+  check('23d. a worktrees folder with no .git file is walked by content, not by name', r23d.status === 1 && r23d.all.includes('bad.mjs -> lodash'));
+  const r23e = runNoDeps(noDepsSandbox('case23e-host-tmp', { '.claude/.tmp/scratch.mjs': BARE_IMPORT, '.grok/.tmp/scratch.mjs': BARE_IMPORT }, { tracked: ['.claude/settings.json'] }));
+  check('23e. an untracked host folder .tmp scratch folder is not scanned', r23e.status === 0);
+  const r23e2 = runNoDeps(noDepsSandbox('case23e2-tracked-tmp', { 'plugins/rigor/.claude/.tmp/evil.mjs': BARE_IMPORT, '.claude/.tmp/scratch.mjs': BARE_IMPORT }, { tracked: ['plugins/rigor/.claude/.tmp/evil.mjs'] }));
+  check('23e2. a tracked (force-added) file in a host .tmp still fails the gate, the untracked one beside it stays skipped',
+    r23e2.status === 1 && r23e2.all.includes('evil.mjs -> lodash') && !r23e2.all.includes('scratch.mjs'));
+  const r23e3 = runNoDeps(noDepsSandbox('case23e3-no-git', { '.claude/.tmp/scratch.mjs': BARE_IMPORT }));
+  check('23e3. with no git repository a host .tmp is scanned, not skipped (fail closed)', r23e3.status === 1 && r23e3.all.includes('scratch.mjs -> lodash'));
+  const r23f = runNoDeps(noDepsSandbox('case23f-other-tmp', { 'tools/.tmp/scratch.mjs': BARE_IMPORT }));
+  check('23f. a .tmp folder outside a host folder is still scanned', r23f.status === 1 && r23f.all.includes('scratch.mjs -> lodash'));
+  const r23g = runNoDeps(noDepsSandbox('case23g-root-gitfile', { '.git': WORKTREE_GITFILE, 'scripts/bad.mjs': BARE_IMPORT }));
+  check('23g. a root that is itself a linked worktree (.git file) is still scanned', r23g.status === 1 && r23g.all.includes('bad.mjs -> lodash'));
+  const r23h = runNoDeps(noDepsSandbox('case23h-submodule', { 'vendor/lib/.git': 'gitdir: ../../.git/modules/lib\n', 'vendor/lib/bad.mjs': BARE_IMPORT }));
+  check('23h. a submodule (gitfile under .git/modules) is still scanned', r23h.status === 1 && r23h.all.includes('bad.mjs -> lodash'));
+
+  // 23i-23j. The citation resolver's bare-name index: a copy of the repo in a nested worktree would
+  // make every bare filename match twice.
+  const { createResolver } = await import('../../scripts/citation-lib.mjs');
+  const cite = join(work, 'case23-citation');
+  put(cite, 'notes/plan.md', 'plan\n');
+  put(cite, '.claude/worktrees/topic/.git', WORKTREE_GITFILE);
+  put(cite, '.claude/worktrees/topic/notes/plan.md', 'plan\n');
+  put(cite, '.claude/.tmp/plan.md', 'scratch\n');
+  put(cite, '.claude/settings.json', '{}\n');
+  put(cite, 'sub/.claude/.tmp/kept.md', 'tracked\n');
+  gitSandbox(cite, ['sub/.claude/.tmp/kept.md']);
+  put(cite, 'plain/worktrees/other/plan.md', 'plan\n');
+  const found = createResolver(cite).findByName('plan.md').map((f) => f.slice(cite.length + 1).replace(/\\/g, '/')).sort();
+  check('23i. a bare filename resolves outside a nested worktree and a host .tmp, and still sees a plain worktrees/ folder',
+    JSON.stringify(found) === JSON.stringify(['notes/plan.md', 'plain/worktrees/other/plan.md']), found.join(','));
+  const resolver23 = createResolver(cite);
+  check('23i2. a host .tmp holding a tracked file is indexed (the skip is per folder)', resolver23.findByName('kept.md').length === 1);
+  const indexed = createResolver(cite).indexFiles().map((f) => f.slice(cite.length + 1).replace(/\\/g, '/'));
+  check('23j. the index still holds tracked files in a host folder', indexed.includes('.claude/settings.json'));
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

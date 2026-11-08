@@ -2198,6 +2198,31 @@ ${toolResult}
   cleanup();
 }
 
+// ---------------------------------------------------------------- workspace note (behaviour 11)
+
+// A write outside the repository, the temp directory, and every host home earns one advisory line
+// under the workspace-note gate, once per session and directory. The full contract is pinned in
+// evals/workspace-layout/run.mjs; this block keeps the gate table's "every gate fires" rule honest.
+{
+  const { home, cleanup } = fakeHome();
+  const outside = join(dirname(root), 'ws-outside', 'note.md');
+  const write = (file, session = 'sess-ws', env = {}) => runHook({ hook_event_name: 'PreToolUse', tool_name: 'Write', tool_input: { file_path: file }, session_id: session, cwd: root },
+    { home, env: { CODE_OPS_WORKSPACE_GUARD: '', ...env } });
+  const first = write(outside);
+  const body = parseOut(first)?.hookSpecificOutput;
+  expect(first.status === 0 && /Workspace note:/.test(body?.additionalContext ?? ''), `a write outside the repository must earn a workspace note, got ${first.stdout}`);
+  expect(body && body.permissionDecision === undefined && body.updatedInput === undefined && !/permissionDecision|updatedInput/.test(first.stdout),
+    `the workspace note must carry no permissionDecision or updatedInput, got ${first.stdout}`);
+  expect(write(join(dirname(outside), 'again.md')).stdout === '', 'a second write to the same directory in the session must be silent');
+  expect(write(outside, 'sess-ws-off', { CODE_OPS_WORKSPACE_GUARD: 'off' }).stdout === '', 'CODE_OPS_WORKSPACE_GUARD=off must silence the note');
+  expect(write(join(root, 'README.md'), 'sess-ws-in').stdout === '', 'a write inside the repository must be silent');
+  const patch = runHook({ hook_event_name: 'PreToolUse', tool_name: 'apply_patch', tool_input: { input: `*** Begin Patch\n*** Add File: ${outside}\n+x\n*** End Patch` }, session_id: 'sess-ws-patch', cwd: root },
+    { home, env: { CODE_OPS_WORKSPACE_GUARD: '' } });
+  expect(patch.stdout === '', `apply_patch stays silent (the hook has no patch reader), got ${patch.stdout}`);
+  console.log('ok   a write outside the repository earns one workspace note, with no decision or rewrite');
+  cleanup();
+}
+
 // ---------------------------------------------------------------- decision rows
 
 // Every case above wrote rows to the shared file. One row per deny or advisory output, ids and

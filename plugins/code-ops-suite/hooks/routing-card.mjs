@@ -74,6 +74,15 @@
 // deny. Any other layout (Codex, Grok, OpenCode, a repo checkout), a non-semver sibling, or any error
 // prints nothing. It prints on every live source, never in the baked dist (empty stdin).
 //
+// WORKSPACE LINE. On a live payload (never the baked dist, whose stdin is empty) inside a git
+// repository, the hook creates the host's scratch and worktree folders, each holding a `*` ignore
+// file, and adds one line naming them (`../scripts/workspace-layout.mjs`, no spawned process). The
+// line says "git-ignored" only when every folder it names is ready, and omits the worktrees part when
+// the main checkout is unknown (a bare or separate-git-dir repository). Grok ignores hook stdout and
+// its stdin is unverified, so Grok gets the setup alone, from the process working directory, with no
+// stdin read and no line. `CODE_OPS_WORKSPACE_GUARD` set to `off`, `0`, or `false` skips the setup
+// and the line; setup never adds output, and any error prints nothing.
+//
 //   node hooks/routing-card.mjs
 
 import { spawnSync } from 'node:child_process';
@@ -434,8 +443,38 @@ function stalePluginLine() {
   } catch { return []; }
 }
 
+// Inside a git repository, creates this host's scratch and worktree folders (each with a `*`
+// ignore file). scripts/workspace-layout.mjs does the work with no spawned process. Returns the
+// layout and the folders that are ready, or null outside a repository, with
+// `CODE_OPS_WORKSPACE_GUARD` off, or on any error. It never throws and prints nothing.
+async function workspaceSetup(cwd) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_WORKSPACE_GUARD ?? '')) return null;
+    const lib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'workspace-layout.mjs')).href);
+    const layout = lib.resolveLayout(cwd, lib.detectHost(process.env));
+    return layout ? { layout, ready: lib.ensureLayout(layout) } : null;
+  } catch { return null; }
+}
+
+// The card line for a setup result: the folders it names, and "git-ignored" only when every one of
+// them is ready. `worktrees` is null when the main checkout is unknown, so that part is omitted.
+function workspaceLine(setup) {
+  try {
+    if (!setup) return [];
+    const { layout, ready } = setup;
+    const fwd = (path) => path.replace(/\\/g, '/');
+    const named = layout.worktrees ? 2 : 1;
+    const trees = layout.worktrees ? `; worktrees in ${fwd(layout.worktrees)} (git worktree add <that folder>/<topic> -b eng/<topic>)` : '';
+    const ignored = ready.length === named ? `; ${named === 2 ? 'both are' : 'it is'} git-ignored` : '';
+    return [`workspace: scratch files in ${fwd(layout.tmp)}${trees}${ignored}`];
+  } catch { return []; }
+}
+
 async function main() {
-  if (process.env.GROK_PLUGIN_ROOT || /^(off|0|false)$/i.test(process.env.CODE_OPS_ROUTING_CARD ?? '')) return 0;
+  if (/^(off|0|false)$/i.test(process.env.CODE_OPS_ROUTING_CARD ?? '')) return 0;
+  // Grok ignores hook stdout and its stdin is unverified: set up the folders from the process
+  // working directory without reading stdin, and print nothing.
+  if (process.env.GROK_PLUGIN_ROOT) { await workspaceSetup(process.cwd()); return 0; }
   let raw = '';
   try { raw = readFileSync(0, 'utf8').replace(/^\uFEFF/, ''); } catch { /* no stdin */ }
   let payload = {};
@@ -460,7 +499,7 @@ async function main() {
   ];
   // build-opencode-dist.mjs runs this hook with empty stdin and bakes the card into the dist, so
   // the platform lines print only for a live host payload and the dist stays machine-independent.
-  if (raw.trim()) lines.push(...shellLines(), ...stalePluginLine());
+  if (raw.trim()) lines.push(...shellLines(), ...stalePluginLine(), ...workspaceLine(await workspaceSetup(typeof payload?.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd())));
   const sessionId = typeof payload?.session_id === 'string' ? payload.session_id : '';
   const shortId = sessionId.slice(0, 8);
   if (/^[A-Za-z0-9_-]+$/.test(shortId)) lines.push(`this session: ${shortId}`);

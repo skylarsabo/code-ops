@@ -4,7 +4,8 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.84.0
+## 2.85.0
+- Add a per-host workspace layout. Each host keeps worktrees and scratch in one self-ignored folder at the repository top, as the workspace-layout technique lists. Add `scripts/workspace-layout.mjs` and `co workspace`. The dispatch guard gives a once-per-directory advisory for a write outside the repository or a `git worktree add` outside the host folder, and never denies or rewrites. Off switch: `CODE_OPS_WORKSPACE_GUARD`. Session start creates the folders. `conform` runs `ensure` and `check` and reports stray worktrees. The subagent git guard denial now names the host worktrees folder. `check-no-deps` and the citation index skip linked worktrees and untracked host scratch, and still scan tracked files there.
 - The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
 - Workflow `agent()` calls to the `implementer` get the same anchors advisory: a literal or template prompt without `Anchors:` is named by call index, and a prompt the hook cannot read is reported as unchecked.
 - The `atlas` domain digest in `DOCS_MANIFEST.json` ignores the per-section stamp fields `atlas-check.mjs stamp` writes (`verifiedAt`, `verifiedDigest`, `claims`), so a restamp no longer forces a second manifest sync. Section prose, slug, file and scope still change the digest, and an unexpected manifest shape is hashed raw. The docs-manifest eval adds stamp-only, prose, scope and slug cases with three mutants.

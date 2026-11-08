@@ -151,6 +151,10 @@ const TABLE = {
   // reports re-fixes, reverts, fix-of-fix commits per merged PR, repeated Next lines, and reopened
   // items over a git window and the run folders. Report-only.
   churn: 'churn.mjs',
+  // A command: `co workspace <path [tmp|worktrees]|ensure|check [--strict]> [--host <h>] [--cwd <dir>]`
+  // prints or creates the host's scratch and worktree folders for this repository, and lists
+  // worktrees as in-layout, host-managed, or stray. Never blocks anything.
+  workspace: 'workspace-layout.mjs',
   // A command: `co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> [--scope <path>]...
   // [--attempt <n>] [--agent <plugin:agent>] [--json]` prints the paste-ready Tier, Effort, and
   // Route basis lines for one unit and its binding on each host. Read-only.

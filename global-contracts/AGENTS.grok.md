@@ -184,6 +184,11 @@ authority. When publishing is authorized, use atomic changes and professional tr
 prose: no AI attribution, assistant voice, emoji, or generated-by trailers. Name each branch
 for its topic, such as `eng/<topic>`, never with an AI tool prefix or a generated name.
 
+Put scratch files in `.tmp` and worktrees in `worktrees/`, both inside the host folder at the
+repository top: `.claude`, `.codex-work`, `.grok`, `.opencode`, `.copilot`, else `.agent-work`.
+Leave no file elsewhere on the machine unless the user names the place. A scratchpad the host
+requires stays allowed. If `.tmp` is missing, run `co workspace ensure`.
+
 At safe phase boundaries or observed context pressure, assess whether to continue, compact, or
 hand off. Checkpoint durable state first. A pending host command is not execution, and existing
 same-task authority does not grant broader authority.

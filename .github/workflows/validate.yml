@@ -308,6 +308,9 @@ jobs:
       - name: Peer guard hook eval (handed-off peer redirect)
         run: node evals/peer-guard/run.mjs
 
+      - name: Workspace layout eval (per-host folders, advisory-only note, SessionStart setup)
+        run: node evals/workspace-layout/run.mjs
+
       - name: Collision note eval (warn-only peer collision context)
         run: node evals/collision/run.mjs
 

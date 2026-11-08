@@ -62,6 +62,10 @@ already reported.
 Surface 5 is off by default and is never assessed without asking. The global file is user-scope,
 so it governs every other repo on the machine, and a repo-scoped run has no mandate over it.
 
+Inside a git repository, also run `node ${CLAUDE_PLUGIN_ROOT}/scripts/workspace-layout.mjs check`. It
+reads state only. Report each worktree it labels stray as a finding in the report's notes, not as a
+surface row, and never move or remove one, because a stray worktree can hold uncommitted work.
+
 Write `CONFORMANCE_REPORT.md` to the vault's `80 Runs/YYYY-MM-DD slug/` when the repo carries a
 vault, and to the repo's dated-docs convention when it does not (`§12`). A repo that fails
 surface 2 has no vault to write into, so the report lands under the dated-docs convention and
@@ -75,6 +79,10 @@ Run only the approved surfaces, in table order, and delegate each to its own ski
 delegated skill the assessment it needs rather than making it re-derive the state: the parity
 mode and vault path for surface 1, the vault mode and manifest version and collection verdicts
 for surface 2, the STALE section list for surface 3, and the drift signals for surface 4.
+
+Before the first repair, run `node ${CLAUDE_PLUGIN_ROOT}/scripts/workspace-layout.mjs ensure`. It creates the
+host folder's ignored `.tmp` and `worktrees/` folders, so the run's scratch files and worktrees have a
+place to land.
 
 **Checkpoint between surfaces.** Repairing the contract changes what the vault check reads, and
 repairing the vault changes what doc alignment reconciles, so each surface starts from the state
@@ -91,6 +99,7 @@ Re-write `CONFORMANCE_REPORT.md` with the closing verdicts. The file keeps one r
 updated in place, with the Phase A verdict noted in that row's evidence cell. Never write a
 second row per surface, which the grammar counts as unparseable. A repair that reports success
 but leaves its checker failing is a failed repair, and only the re-run distinguishes the two.
+Re-run the workspace layout check too, and list any stray worktree it still reports.
 List anything still DRIFTED or ABSENT with the reason it was deferred.
 
 ## Fleet mode: many repos, one standard

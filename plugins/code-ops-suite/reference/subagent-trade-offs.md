@@ -186,7 +186,7 @@ The strong floor here is a deliberate decision, not a token-saving candidate. A 
 
 Hard rules in the agent definition fence its extra power:
 
-- **It never edits the source under evaluation.** Repro and scratch files go to a temporary or test location, kept clearly separate. `Bash` and `Write` serve repros, tests, and benchmarks only, and the agent never commits.
+- **It never edits the source under evaluation.** Repro and scratch files go to the host folder's `.tmp` or a test location, kept clearly separate ([workspace layout](workspace-layout.md)). `Bash` and `Write` serve repros, tests, and benchmarks only, and the agent never commits.
 - **It reports only what it actually ran:** the real command and the real output, never a claimed result. A candidate it could not reproduce is reported as PROBABLE or SPECULATIVE, never quietly upgraded.
 - **It records every run.** Each repro, mutation, and benchmark runs through `node ${CLAUDE_PLUGIN_ROOT}/scripts/run-proof.mjs record -- <cmd>`, which leaves a replayable receipt in `RUN_RECEIPTS.md`. A claimed result with no receipt is narration, not proof.
 

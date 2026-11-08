@@ -19,6 +19,16 @@ code-ops-docs/80 Runs/
 tmp/
 .tmp/
 
+# host worktrees and scratch (each host folder keeps its checkouts and temp files here, never tracked)
+.claude/worktrees/
+.codex-work/
+.grok/worktrees/
+.grok/.tmp/
+.opencode/worktrees/
+.opencode/.tmp/
+.copilot/
+.agent-work/
+
 # Retired local-only documentation locations remain ignored for compatibility (ADR 0001).
 docs/specs/
 docs/superpowers/
