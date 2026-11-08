@@ -183,8 +183,10 @@
 //      `<main checkout>/<host folder>/worktrees` for worktrees). A `Write`, `Edit`, `MultiEdit`, or
 //      `NotebookEdit` whose path is outside the working directory is checked: outside the repository,
 //      the temp directory, and each host home, it earns one line saying the path is fine if the user
-//      asked for it and otherwise naming the scratch folder. A shell command that is one `git worktree
-//      add`, after at most one leading `cd <dir> &&`, with a path outside the worktrees folder earns
+//      asked for it and otherwise naming the scratch folder. An `apply_patch` gets the same check for its
+//      first 32 absolute targets outside the working directory (`editTargets` in
+//      scripts/legacy-paths-lib.mjs); a relative target is silent, and one line speaks per call. A shell
+//      command that is one `git worktree add`, after at most one leading `cd <dir> &&`, with a path outside the worktrees folder earns
 //      one line giving `git worktree add <worktrees>/<topic> -b eng/<topic>`. A command the parse cannot
 //      read with certainty is silent. Each distinct line is said once per session, kept in
 //      `<session>.workspace.json` beside the other state. The note rides the collision note's path, so
@@ -777,6 +779,8 @@ async function gitGuardFor(payload) {
 // state read come after, and every failure is silence. The returned `commit` records the mark, and
 // only an emitted note calls it.
 const WORKSPACE_WRITE_TOOLS = /^(?:Write|Edit|MultiEdit|NotebookEdit)$/;
+const WORKSPACE_PATCH_TOOLS = /(?:^|\.)apply_patch$/i;
+const WORKSPACE_PATCH_TARGETS = 32;
 const WORKTREE_ADD_HINT = /\bgit\b[\s\S]*\bworktree\b[\s\S]*\badd\b/;
 const WORKSPACE_SEEN_MAX = 64;
 
@@ -793,30 +797,48 @@ async function workspaceFor(payload) {
   const sessionId = payload.session_id;
   if (off('CODE_OPS_WORKSPACE_GUARD') || !input || typeof sessionId !== 'string' || !SAFE_SESSION.test(sessionId)) return null;
   const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
-  let path = null;
+  const outsideCwd = (path) => {
+    const rel = relative(cwd, resolve(cwd, path));
+    return !(rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)));
+  };
+  let paths = null;
   let command = null;
   if (WORKSPACE_WRITE_TOOLS.test(tool)) {
-    path = typeof input.file_path === 'string' ? input.file_path : input.notebook_path;
-    if (typeof path !== 'string' || !path) return null;
-    const rel = relative(cwd, resolve(cwd, path));
-    if (rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) return null;
+    const path = typeof input.file_path === 'string' ? input.file_path : input.notebook_path;
+    if (typeof path !== 'string' || !path || !outsideCwd(path)) return null;
+    paths = [path];
+  } else if (WORKSPACE_PATCH_TOOLS.test(tool)) {
+    // A relative patch target is silent.
+    const { editTargets } = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'legacy-paths-lib.mjs')).href);
+    paths = [...new Set(editTargets(input))].filter((path) => isAbsolute(path) && outsideCwd(path)).slice(0, WORKSPACE_PATCH_TARGETS);
+    if (!paths.length) return null;
   } else if (SHELL_TOOLS.test(tool)) {
     command = typeof input.command === 'string' ? input.command : input.cmd;
     if (typeof command !== 'string' || !WORKTREE_ADD_HINT.test(command)) return null;
   } else return null;
   const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'workspace-layout.mjs')).href);
-  const text = path !== null ? lib.adviseWrite(path, { cwd }) : lib.adviseCommand(command, { cwd, powershell: /powershell/i.test(tool) });
-  if (!text) return null;
-  const file = join(stateDir(cwd), `${stateKey(sessionId)}.workspace.json`);
-  const mark = stateKey(text).slice(0, 16);
-  if (workspaceSeen(file).includes(mark)) return null;
-  return {
-    text,
-    commit: () => {
-      mkdirSync(dirname(file), { recursive: true });
-      writeFileSync(file, JSON.stringify({ version: 1, seen: [...workspaceSeen(file), mark].slice(-WORKSPACE_SEEN_MAX) }) + '\n');
-    },
-  };
+  const advisers = paths !== null
+    ? paths.map((path) => () => lib.adviseWrite(path, { cwd }))
+    : [() => lib.adviseCommand(command, { cwd, powershell: /powershell/i.test(tool) })];
+  let file = null;
+  let seen = null;
+  // A patch may name several directories: the first line not yet given speaks, and only its mark is spent.
+  for (const advise of advisers) {
+    const text = advise();
+    if (!text) continue;
+    file ??= join(stateDir(cwd), `${stateKey(sessionId)}.workspace.json`);
+    seen ??= workspaceSeen(file);
+    const mark = stateKey(text).slice(0, 16);
+    if (seen.includes(mark)) continue;
+    return {
+      text,
+      commit: () => {
+        mkdirSync(dirname(file), { recursive: true });
+        writeFileSync(file, JSON.stringify({ version: 1, seen: [...workspaceSeen(file), mark].slice(-WORKSPACE_SEEN_MAX) }) + '\n');
+      },
+    };
+  }
+  return null;
 }
 
 // A denial no other output carried goes out alone.

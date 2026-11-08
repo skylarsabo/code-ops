@@ -64,13 +64,13 @@ The guard speaks in two cases:
 
 - A write tool targets a path outside the repository, outside the temp directory, and outside the host
   home folders. The advice names the host scratch folder. It adds that the path is fine when the user
-  asked for it.
+  asked for it. An absolute `apply_patch` target counts as a write target. A relative one does not.
 - A `git worktree add` places a worktree outside the host worktrees folder. The advice gives the exact
   form `git worktree add <worktrees>/<topic> -b eng/<topic>`. Without `-b`, git names the branch after
   the path, so the form carries the branch name.
 
 The guard stays silent whenever it cannot be certain. That covers a command it cannot parse with
-certainty, a variable in the path, a subshell, a tool without a path field, and an unknown tool.
+certainty, a variable in the path, a subshell, a relative patch target, and an unknown tool.
 It says each advisory once per session for each directory, so it cannot nag.
 
 On Claude and Codex, `routing-card.mjs` creates the folders at session start in a git repository and
@@ -93,8 +93,8 @@ Three limits apply, and each comes from the host vendor's own documentation.
   project settings, so a repository cannot set it. The scratchpad that a host requires for its own
   session stays allowed. The suite stores under `~/.claude/code-ops/` do not move.
 - **Coverage differs by host.** Claude gets the advisory and the session setup. Codex gets the advisory
-  for shell commands and for path tools, and the session setup. Codex `apply_patch` has no path field,
-  so it stays silent. Grok gets the session setup when a session starts but no card line, because it
+  for shell commands, for path tools, and for an absolute `apply_patch` target, and the session setup.
+  A relative patch target stays silent. Grok gets the session setup when a session starts but no card line, because it
   ignores hook output and its stdin is unverified, so the hook uses the process working directory.
   OpenCode gets no setup from the routing card: run `co workspace ensure`. OpenCode also runs none of
   the hooks, so it relies on the written rule.

@@ -1,0 +1,1 @@
+- Extend the workspace note to `apply_patch`. An absolute patch target outside the repository earns the once-per-directory note, and a relative target stays silent. `legacy-paths-lib.mjs` now exports `editTargets`, and `branch-name.mjs` exports the `git worktree add` argument reader that `workspace-layout.mjs` shares.

@@ -34,6 +34,7 @@ import { spawnSync } from 'node:child_process';
 import { basename, dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir, tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
+import { worktreeAddPositionals } from './branch-name.mjs';
 
 // Codex differs: it keeps `.codex` read-only under workspace-write, even inside writable_roots
 // (https://learn.chatgpt.com/docs/agent-approvals-security), so its folder cannot be `.codex`.
@@ -249,15 +250,7 @@ function worktreeAddTarget(command, cwd, powershell) {
       else if (/^--(?:git-dir|work-tree|namespace|super-prefix|config-env)/.test(tokens[at])) return null;
     }
     if (tokens[at] !== 'worktree' || tokens[at + 1] !== 'add') return null;
-    const rest = tokens.slice(at + 2);
-    let path = null;
-    for (let j = 0; j < rest.length; j++) {
-      if (rest[j] === '--') { path ??= rest[j + 1] ?? null; break; }
-      if (rest[j] === '-b' || rest[j] === '-B' || rest[j] === '--reason') { j++; continue; }
-      if (rest[j].startsWith('-')) continue;
-      path ??= rest[j];
-    }
-    const target = literalPath(dir, path);
+    const target = literalPath(dir, worktreeAddPositionals(tokens.slice(at + 2))[0]);
     return target ? { target, dir } : null;
   }
   return null;

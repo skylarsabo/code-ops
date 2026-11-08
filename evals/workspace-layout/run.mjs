@@ -8,8 +8,9 @@
 //   - ensure is idempotent, never overwrites an ignore file, never writes one into the host folder,
 //     and git ignores both folders;
 //   - a write inside the repository, the temp directory, a host home, or CODE_OPS_HOME, a Read, an
-//     unknown tool, a non-git directory, and a command the parse cannot read with certainty are
-//     silent; a write elsewhere and a `git worktree add` outside the worktrees folder earn one line;
+//     unknown tool, a non-git directory, a relative patch target, and a command the parse cannot read
+//     with certainty are silent; a write elsewhere, an absolute patch target elsewhere, and a
+//     `git worktree add` outside the worktrees folder earn one line;
 //   - each distinct line is said once per session, the off switch silences it, a malformed payload
 //     and a missing library fail open, and no output ever carries `permissionDecision` (outside an
 //     existing denial) or `updatedInput`;
@@ -241,7 +242,27 @@ check('the same directory in a new session is told', Boolean(speaks(hook(write(r
 check('the advisory is the same for Edit, MultiEdit, and NotebookEdit', ['Edit', 'MultiEdit'].every((tool) => Boolean(speaks(hook(write(repo, join(elsewhere, tool, 'f.md'), undefined, tool)))))
   && Boolean(speaks(hook(call(repo, 'NotebookEdit', { notebook_path: join(elsewhere, 'nb', 'f.ipynb') })))), '');
 check('a Read outside the repository is silent', silent(hook(call(repo, 'Read', { file_path: join(elsewhere, 'r.md') }))), '');
-check('apply_patch and an unknown tool are silent', silent(hook(call(repo, 'apply_patch', { input: '*** Begin Patch' }))) && silent(hook(call(repo, 'mcp__x__save', { file_path: join(elsewhere, 'm.md') }))), '');
+check('an apply_patch with no target and an unknown tool are silent', silent(hook(call(repo, 'apply_patch', { input: '*** Begin Patch' }))) && silent(hook(call(repo, 'mcp__x__save', { file_path: join(elsewhere, 'm.md') }))), '');
+const patchOf = (...lines) => `*** Begin Patch\n${lines.join('\n')}\n*** End Patch`;
+const patch = (lines, session, key = 'input', tool = 'apply_patch') => call(repo, tool, { [key]: patchOf(...lines) }, session);
+const patchSession = 'ws-patch-once';
+r = hook(patch([`*** Add File: ${join(elsewhere, 'pa', 'one.md')}`, '+x'], patchSession));
+const patchNote = speaks(r);
+check('an absolute apply_patch target outside the repository earns the write line', Boolean(patchNote) && patchNote.split('\n').length === 1 && patchNote.includes(fwd(L.tmp)) && /fine if the user asked/.test(patchNote), r.stdout + r.stderr);
+check('an apply_patch and a Write to a told directory are silent', silent(hook(patch([`*** Update File: ${join(elsewhere, 'pa', 'two.md')}`, '@@'], patchSession)))
+  && silent(hook(write(repo, join(elsewhere, 'pa', 'three.md'), patchSession))), '');
+check('a relative apply_patch target is silent, even one that leaves the repository', ['*** Add File: src/a.md', '*** Update File: ../rel-out/a.md', '*** Add File: ~/a.md'].every((line) => silent(hook(patch([line, '+x'])))), '');
+check('an absolute apply_patch target in the repository or an allowed root is silent', [join(repo, 'src', 'a.md'), join(L.tmp, 'n.md'), join(hosttmp, 'p.md'), join(home, '.codex', 'x.md')].every((file) => silent(hook(patch([`*** Add File: ${file}`, '+x'])))), '');
+check('a Move to target is read', Boolean(speaks(hook(patch(['*** Update File: src/a.md', `*** Move to: ${join(elsewhere, 'moved', 'a.md')}`, '@@'])))), '');
+check('a Delete File target is not a write', silent(hook(patch([`*** Delete File: ${join(elsewhere, 'gone', 'a.md')}`]))), '');
+check('every patch field and a namespaced tool name are read', ['patch', 'patchText', 'command'].every((key) => Boolean(speaks(hook(patch([`*** Add File: ${join(elsewhere, key, 'a.md')}`, '+x'], undefined, key)))))
+  && Boolean(speaks(hook(patch([`*** Add File: ${join(elsewhere, 'ns', 'a.md')}`, '+x'], undefined, 'input', 'functions.apply_patch')))), '');
+const severalSession = 'ws-patch-several';
+const several = () => hook(patch([`*** Add File: ${join(elsewhere, 'p1', 'a.md')}`, '+x', `*** Add File: ${join(elsewhere, 'p2', 'a.md')}`, '+x'], severalSession));
+const severalFirst = speaks(several());
+const severalSecond = speaks(several());
+check('a patch with two directories says one line per call, each once', severalFirst?.includes(fwd(join(elsewhere, 'p1'))) === true && severalSecond?.includes(fwd(join(elsewhere, 'p2'))) === true && silent(several()), `${severalFirst} ${severalSecond}`);
+check('the off switch silences the apply_patch line', silent(hook(patch([`*** Add File: ${join(elsewhere, 'psw', 'a.md')}`, '+x']), { CODE_OPS_WORKSPACE_GUARD: 'off' })), '');
 check('a write from a directory outside git is silent', silent(hook(write(plain, join(elsewhere, 'p', 'f.md')))), '');
 check('a call with no session id is silent', silent(hook({ ...write(repo, join(elsewhere, 'ns', 'f.md')), session_id: undefined })), '');
 r = hook({ toolName: 'Write', toolInput: { file_path: join(elsewhere, 'grok', 'f.md') }, sessionId: 'ws-grok', cwd: repo }, { GROK_PLUGIN_ROOT: suite });
@@ -278,7 +299,7 @@ const unparseable = [
   'git worktree add $WT/x -b eng/x', 'git worktree add "$(pwd)/x" -b eng/x', 'git worktree add `pwd`/x', '(cd x && git worktree add ../y)', 'git worktree add ../y; echo done',
   'cd a && cd b && git worktree add ../y', 'cd $D && git worktree add ../z', 'echo hi && git worktree add ../y', 'git worktree add ../y | cat', 'git worktree add ../y &',
   'git worktree add ../*', 'git worktree add "../open', 'git worktree add\n../y', 'git --git-dir=x worktree add ../y', 'git worktree add ..\\y -b eng/y', 'cd - && git worktree add ../y',
-  'git worktree add ~other/y', 'cd && git worktree add ../y',
+  'git worktree add ~other/y', 'cd && git worktree add ../y', 'FOO=1 git worktree add ../y', 'git --work-tree x worktree add ../y',
 ];
 for (const command of unparseable) check(`an unparseable command is silent: ${JSON.stringify(command).slice(0, 48)}`, silent(hook(shell(repo, command))), hook(shell(repo, command)).stdout);
 check('other git commands and other tools are silent', ['git status', 'git worktree list', 'git worktree remove ../x', 'git add .', 'ls'].every((c) => silent(hook(shell(repo, c))))
@@ -295,6 +316,15 @@ check('a subagent git denial is unchanged and its text names the worktrees folde
   && (denied.permissionDecisionReason ?? '').includes(`git worktree add ${inTrees}/<topic> HEAD`), r.stdout);
 r = hook(subagent('git worktree add ../deny-wt -b eng/deny', 'ws-deny'));
 check('a denial leaves the once-only mark unspent', Boolean(speaks(r)), r.stdout);
+const hubbed = makeRepo('hubbed');
+mkdirSync(join(hubbed, 'hub', '98 System'), { recursive: true });
+writeFileSync(join(hubbed, 'hub', '98 System', 'DOCS_MANIFEST.json'), JSON.stringify({ version: 2, hub: 'hub', runs: { tracking: 'ignored' }, recordCollections: [], legacyPaths: [{ path: 'gen-out/', disposition: 'derived' }] }));
+const outsidePatch = `*** Add File: ${join(elsewhere, 'mixed', 'a.md')}`;
+r = hook(call(hubbed, 'apply_patch', { input: patchOf('*** Update File: gen-out/c.md', '@@', outsidePatch, '+x') }, 'ws-mixed'));
+const mixed = out(r);
+check('an apply_patch denial is unchanged by an outside target, and the note is dropped',
+  mixed?.permissionDecision === 'deny' && mixed.updatedInput === undefined && /Derived path guard:/.test(mixed.permissionDecisionReason ?? '') && !/Workspace note:/.test(r.stdout), r.stdout);
+check('that denial leaves the patch mark unspent', Boolean(speaks(hook(call(hubbed, 'apply_patch', { input: patchOf(outsidePatch, '+x') }, 'ws-mixed')))), '');
 r = hook({ ...subagent(both, 'ws-deny-plain'), cwd: plain });
 check('the denial text keeps the placeholder outside a repository', (out(r)?.permissionDecisionReason ?? '').includes('git worktree add <scratch dir> HEAD'), r.stdout);
 const spaced = makeRepo('with space');
