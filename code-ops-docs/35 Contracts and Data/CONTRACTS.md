@@ -39,6 +39,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Dispatch guard hook](#dispatch-guard-hook)
 - [Agent state machine](#agent-state-machine)
 - [Peer guard hook](#peer-guard-hook)
+- [Workspace guard hook](#workspace-guard-hook)
 - [Change feed](#change-feed)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
@@ -1741,6 +1742,80 @@ recorded. Evidence: `scripts/build-opencode-dist.mjs:401,452-461,685-687` and
 `evals/opencode-dist/run.mjs`.
 
 **Cost.** MEASUREMENTS.md, "Presence board hook latency, 2026-09-28", records the added latency.
+
+## Workspace guard hook
+
+The workspace guard is advisory only. It runs inside `hooks/dispatch-guard.mjs`, so it adds no hook
+process. It places no `permissionDecision` and no `updatedInput` in its output, and it never denies
+or rewrites a call. Its text reaches the model as `additionalContext`, merged with any other
+advisory the dispatch guard emits. It does not count toward the lead inline streak, and it leaves
+every existing deny decision unchanged. One deny text changed: the subagent git guard denial now
+names the host worktrees folder in its baseline-worktree advice (`worktreeFolder`). The layout it
+enforces is in the [workspace layout technique](../40%20Engineering/Techniques/workspace-layout.md).
+Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (behaviour 11 header comment,
+`workspaceFor`, `worktreeFolder`) and `scripts/workspace-layout.mjs` (`resolveLayout`,
+`ensureLayout`, `adviseWrite`, `adviseCommand`). These anchors are symbols, not lines, because
+the code is still changing.
+
+**Layout.** `resolveLayout()` in `scripts/workspace-layout.mjs` returns the host, the host folder, the
+checkout top, the main checkout top, the scratch path, and the worktrees path. It returns null
+outside a git repository. The host folder is `.claude` for Claude, `.codex-work` for Codex, `.grok`
+for Grok, `.opencode` for OpenCode, `.copilot` for Copilot, and `.agent-work` for any other host.
+Codex differs because it keeps `.codex/` read-only under workspace-write, even inside
+`writable_roots`. The scratch path is `<top>/<host folder>/.tmp`, so each worktree has its own. The
+worktrees path is `<main checkout>/<host folder>/worktrees`, so worktrees never nest. `ensureLayout()`
+creates both folders and a `.gitignore` holding `*` in each. It is idempotent, never overwrites, and
+never throws. For a linked worktree whose main checkout cannot be established (a bare or
+`--separate-git-dir` repository, or a stale gitfile), the main checkout top and the worktrees path
+are null, so the advice stays silent and no folder is created for them.
+
+**Command line.** `node scripts/workspace-layout.mjs path [tmp|worktrees]` prints a path.
+`ensure` runs `ensureLayout()`. `check [--strict]` lists the `git worktree list --porcelain`
+entries. It labels each in-layout, host-managed, or stray, and it reports a host folder without its
+ignore file. Host-managed means a path under `worktrees/` in `CODEX_HOME` (else `~/.codex`) or in `GROK_HOME`
+(else `~/.grok`) (`hostManagedRoots`). `check` exits 0 unless `--strict` is set, and it never
+moves a worktree. `co workspace <command>` runs the same script.
+
+**Advisories.** The guard speaks in two cases and says each advisory once per session for each target
+directory:
+
+- A write tool with a path field targets a path outside the repository and outside every allowed
+  location: the temp directory, `~/.claude`, `~/.codex` and `CODEX_HOME`, `~/.grok` and `GROK_HOME`,
+  `~/.config/opencode`, `~/.copilot`, `CODE_OPS_HOME`, and `CLAUDE_CODE_TMPDIR`. The path field is `file_path` or
+  `notebook_path` on Claude `Write`, `Edit`, `MultiEdit`, and `NotebookEdit`. The advice names the
+  scratch path and says the path is fine when the user asked for it.
+- A `git worktree add` places a worktree outside the host worktrees folder. The advice gives
+  `git worktree add <worktrees>/<topic> -b eng/<topic>`, because `scripts/branch-name.mjs` names a
+  branch after the path basename when `-b` is absent.
+
+**Silent cases.** The guard stays silent whenever it cannot be certain. It is silent for a write inside
+the repository, a write to the host-required scratchpad under the temp directory, a command it
+cannot parse with certainty (a variable, a subshell, or a `cd` that is not a single leading
+`cd <dir> &&`), Codex `apply_patch` (no path field), an unknown tool, a malformed payload, a
+directory outside a git repository, and a repeat of an advisory already given. Any thrown error also
+yields no output. The guard reads git state only for a command that already matched
+`git worktree add`, and it spawns no process on the hot path.
+
+**Session setup.** `workspaceSetup` in `hooks/routing-card.mjs` calls `ensureLayout()` at `SessionStart`
+in a git repository, and `workspaceLine` adds one card line that names the scratch and worktrees paths.
+The line says "git-ignored" only when every folder it names is ready, and omits the worktrees part when
+the main checkout is unknown. It runs only for a live host payload, because `build-opencode-dist.mjs`
+bakes the card with empty stdin. It spawns no process and fails open. When `GROK_PLUGIN_ROOT` is set,
+the hook runs the setup alone from `process.cwd()`, reads no stdin, and prints nothing, because Grok
+ignores hook output and whether it passes stdin to this hook is unverified. `CODE_OPS_ROUTING_CARD`
+off and `CODE_OPS_WORKSPACE_GUARD` off skip the setup.
+
+**Switch coverage.** `CODE_OPS_WORKSPACE_GUARD` of `off`, `0`, or `false` turns off the advisories
+and the session setup. A host-created worktree follows the host, so the guard never steers it. The
+suite leaves `TMPDIR` alone on purpose. Evidence: `evals/workspace-layout/run.mjs`.
+
+**Per-host coverage.** Claude gets the note and the session setup. Codex gets the note for shell
+tools and for path tools that carry `file_path` or `notebook_path`, and the session setup through
+the projected card. Codex `apply_patch` has no path field, so it stays silent. Grok maps its camelCase
+`toolName` and `toolInput` for the note, and the card hook runs the session setup there with no
+card line. The Grok write-tool names and path key are UNVERIFIED. OpenCode does not run these hooks,
+and its baked card carries no workspace line, so it gets neither. On OpenCode, the agent runs
+`co workspace ensure` and follows the written rule.
 
 ## Change feed
 

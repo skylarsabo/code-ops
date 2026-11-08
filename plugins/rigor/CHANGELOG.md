@@ -1,5 +1,8 @@
 # Changelog — rigor
 
+## 3.7.1
+- Point verifier scratch at the host folder's `.tmp`; refresh vendored scripts.
+
 ## 3.6.2
 - The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.
 

@@ -4,6 +4,9 @@ All notable changes to this plugin are documented here. Versions track
 `.claude-plugin/plugin.json` and the matching entry in the marketplace.
 
 
+## 2.85.0
+- Add a per-host workspace layout. Each host keeps worktrees and scratch in one self-ignored folder at the repository top, as the workspace-layout technique lists. Add `scripts/workspace-layout.mjs` and `co workspace`. The dispatch guard gives a once-per-directory advisory for a write outside the repository or a `git worktree add` outside the host folder, and never denies or rewrites. Off switch: `CODE_OPS_WORKSPACE_GUARD`. Session start creates the folders. `conform` runs `ensure` and `check` and reports stray worktrees. The subagent git guard denial now names the host worktrees folder. `check-no-deps` and the citation index skip linked worktrees and untracked host scratch, and still scan tracked files there.
+
 ## 2.80.0
 - Reconcile Grok stored-turn usage with session and model counters, preserving real cancelled work and marking incomplete coverage UNKNOWN. Count Codex descendant files once in directory totals.
 - Link task usage to explicit attempts, retries, repairs and exact source records. Deduplicate repeated imports, reject overlapping attribution and resolve custom acceptance/result paths through bound runtime receipts. Preserve legacy records and unknown complete-task costs.

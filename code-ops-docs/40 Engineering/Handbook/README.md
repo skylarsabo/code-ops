@@ -114,9 +114,10 @@ Every page below sits under `code-ops-docs/` and is tracked in the repo.
 - [../Techniques/shell-discipline.md](../Techniques/shell-discipline.md): the two quiet shell failures: a hook-gated command chained into a compound call loses every operation in it, and a broad `git add` stages local state the repo was never meant to carry.
 - [../Techniques/vault-standard.md](../Techniques/vault-standard.md): the SSOT for the per-repo Obsidian vault: the numbered folder layout, the product and research profiles, where suite artifacts land, and the promotion rule that keeps the vault and the tracked repo docs from drifting into copies.
 - [../Techniques/fleet-standard.md](../Techniques/fleet-standard.md): the SSOT for standardizing several repos together: the `FLEET.json` manifest, the two-sided consent rule that lets a named repo decline, and the `check-fleet.mjs` report that lands one conformance row per member per surface.
+- [../Techniques/workspace-layout.md](../Techniques/workspace-layout.md): where each host puts worktrees and scratch files: one host folder at the repository top, the `worktrees/` and `.tmp/` folders inside it, the resolver and the advisory guard, and the limits the suite cannot control.
 
 ## The handbook is complete
 
-This is the full handbook: twelve chapters, the command reference, one standard, nine guides, and nineteen techniques, all under `code-ops-docs/` and tracked in the repo. Every link above resolves to a written page. Nothing is deferred.
+This is the full handbook: twelve chapters, the command reference, one standard, nine guides, and twenty techniques, all under `code-ops-docs/` and tracked in the repo. Every link above resolves to a written page. Nothing is deferred.
 
 *Verified-at: b0ffede*

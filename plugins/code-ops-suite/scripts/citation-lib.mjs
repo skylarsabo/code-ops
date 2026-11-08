@@ -12,6 +12,7 @@
 // `./citation-lib.mjs` so a vendored copy under plugins/<name>/scripts/ resolves the sibling
 // copy rather than a repository-root path that does not ship.
 
+import { execFileSync } from 'node:child_process';
 import { readFileSync, existsSync, statSync, readdirSync, realpathSync } from 'node:fs';
 import { resolve, join, sep, basename } from 'node:path';
 
@@ -244,6 +245,26 @@ export function createResolver(root) {
   let fileIndex = null;
   // Walk the repo once (excluding .git/node_modules) so a bare-filename ref (cited without its
   // directory) can be resolved to its real location instead of being falsely reported GONE.
+  // A directory holding a `.git` FILE is a linked worktree or nested clone: its copy of the repo
+  // would make every bare name AMBIGUOUS, so it is skipped. A submodule's gitfile points under
+  // `.git/modules/` and its files are tracked here, so it stays indexed. A host folder's `.tmp` scratch
+  // folder is skipped while git tracks nothing under it; git runs only when one is reached, and a git
+  // failure skips nothing. Tracked files in the host folder itself are always indexed.
+  const hostFolders = new Set(['.claude', '.codex-work', '.grok', '.opencode', '.copilot', '.agent-work']);
+  /** @type {(dir: string) => boolean} */
+  const isNestedCheckout = (dir) => {
+    try {
+      const gitfile = join(dir, '.git');
+      return statSync(gitfile).isFile() && !/[\\/]modules[\\/]/.test(readFileSync(gitfile, 'utf8'));
+    } catch { return false; }
+  };
+  /** @type {(parent: string, name: string, dir: string) => boolean} */
+  const isUntrackedScratch = (parent, name, dir) => {
+    if (name !== '.tmp' || !hostFolders.has(basename(parent))) return false;
+    try {
+      return execFileSync('git', ['ls-files', '--', '.'], { cwd: dir, timeout: 10000, stdio: ['ignore', 'pipe', 'ignore'] }).length === 0;
+    } catch { return false; }
+  };
   const indexFiles = () => {
     if (fileIndex) return fileIndex;
     /** @type {string[]} */
@@ -257,8 +278,9 @@ export function createResolver(root) {
       for (const e of entries) {
         if (e.name === '.git' || e.name === 'node_modules') continue;
         const full = join(dir, e.name);
-        if (e.isDirectory()) walk(full, depth + 1);
-        else if (e.isFile()) files.push(full);
+        if (e.isDirectory()) {
+          if (!isNestedCheckout(full) && !isUntrackedScratch(dir, e.name, full)) walk(full, depth + 1);
+        } else if (e.isFile()) files.push(full);
       }
     };
     walk(abs, 0);

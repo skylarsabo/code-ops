@@ -10,7 +10,7 @@
 // tokens on turns above 300,000 tokens of context, with the 150,000-token handoff nudge
 // advisory and ignored, and reviewers averaging about 90 tool rounds, under the old 3x stop.
 //
-// TEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
+// ELEVEN BEHAVIOURS, ONE REGISTRATION, because every registered PreToolUse command spawns a
 // process per tool call on every thread:
 //   1. BOUND ROUND COUNTER, inside a subagent whose exact `agent_id` was registered by a
 //      controller. The host dispatch event does not expose the eventual child `agent_id`, so
@@ -178,6 +178,20 @@
 //      instead. The line joins the call's other output, or a denial already on the call. Its off switch is `CODE_OPS_LEAD_GUARD`
 //      (`off`, `0`, or `false`); the default is `warn`, so the decision rows (gate `lead-streak`)
 //      measure how often it fires before anyone considers `deny`. Any error fails open.
+//  11. WORKSPACE NOTE (advisory only), on every thread. scripts/workspace-layout.mjs, imported lazily and
+//      only for a call that can matter, holds the per-host layout (`<top>/<host folder>/.tmp` for scratch,
+//      `<main checkout>/<host folder>/worktrees` for worktrees). A `Write`, `Edit`, `MultiEdit`, or
+//      `NotebookEdit` whose path is outside the working directory is checked: outside the repository,
+//      the temp directory, and each host home, it earns one line saying the path is fine if the user
+//      asked for it and otherwise naming the scratch folder. A shell command that is one `git worktree
+//      add`, after at most one leading `cd <dir> &&`, with a path outside the worktrees folder earns
+//      one line giving `git worktree add <worktrees>/<topic> -b eng/<topic>`. A command the parse cannot
+//      read with certainty is silent. Each distinct line is said once per session, kept in
+//      `<session>.workspace.json` beside the other state. The note rides the collision note's path, so
+//      it never denies, never changes a decision, never carries `updatedInput`, is dropped (mark unspent)
+//      beside a denial, and does not count toward the lead streak. Its off switch is
+//      `CODE_OPS_WORKSPACE_GUARD` (`off`, `0`, or `false`), which also stops the SessionStart folder
+//      setup in hooks/routing-card.mjs. Any error fails open.
 //
 // DECISION ROWS. Every output that denies or advises, from any behaviour above, appends one row
 // to `guard-decisions.jsonl` beside the session-receipt ledger (`dirname` of `CODE_OPS_RECEIPTS`,
@@ -212,6 +226,7 @@
 // `CODE_OPS_LEAD_GUARD` takes `off`, `0`, or `false` to disable only behaviour 10 and `deny` to make
 // its threshold hits denials; unset or `warn` is advisory. `CODE_OPS_LEAD_STREAK` sets the threshold
 // (a positive integer, default 8). `CODE_OPS_DISPATCH_GUARD=warn` downgrades `deny` to advisory.
+// `CODE_OPS_WORKSPACE_GUARD` takes `off`, `0`, or `false` to disable only behaviour 11.
 //
 // HOST COVERAGE. The ceiling gate and the dispatch review key on the dispatch tool names: Claude's
 // `Agent`, `Task`, and `Workflow`, and Grok's `spawn_subagent` (~/.grok/docs/user-guide
@@ -279,7 +294,7 @@
 
 import { appendFileSync, closeSync, constants, copyFileSync, existsSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, statSync, writeFileSync, writeSync } from 'node:fs';
 import { createHash } from 'node:crypto';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { agentFile } from './agent-file.mjs';
@@ -614,6 +629,7 @@ const GATES = [
   ['redispatch-note', /Redispatch note:/, []],
   ['anchors-note', /Anchors note:/, []],
   ['lead-streak', /Lead inline streak:/, []],
+  ['workspace-note', /Workspace note:/, []],
 ];
 const TOOL_ID = /^[A-Za-z0-9_.:-]{1,64}$/;
 
@@ -732,15 +748,75 @@ function rewritingGitVerb(command) {
   return null;
 }
 
-function gitGuardFor(payload) {
+// The folder the denial points a baseline worktree at: the host worktrees folder, else the old
+// placeholder when the layout is off, unreadable, or the working directory is not in a repository.
+async function worktreeFolder(payload) {
+  if (off('CODE_OPS_WORKSPACE_GUARD')) return '<scratch dir>';
+  try {
+    const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'workspace-layout.mjs')).href);
+    const layout = lib.resolveLayout(typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd(), lib.detectHost(process.env));
+    if (!layout?.worktrees) return '<scratch dir>';
+    const folder = `${layout.worktrees.replace(/\\/g, '/')}/<topic>`;
+    return /\s/.test(folder) ? `"${folder}"` : folder;
+  } catch { return '<scratch dir>'; }
+}
+
+async function gitGuardFor(payload) {
   if (off('CODE_OPS_SUBAGENT_GIT') || !SHELL_TOOLS.test(String(payload.tool_name ?? ''))) return null;
   const input = payload.tool_input;
   const command = typeof input?.command === 'string' ? input.command : input?.cmd;
   const verb = typeof command === 'string' ? rewritingGitVerb(command) : null;
   return verb && `Subagent git guard: \`git ${verb}\` rewrites the shared working tree or index that the lead and other `
     + 'operatives use, so a subagent may not run it. For a baseline, read `git show HEAD:<path>` or `git diff`, '
-    + 'or compare in a separate worktree (`git worktree add <scratch dir> HEAD`). If the brief needs the command, '
+    + `or compare in a separate worktree (\`git worktree add ${await worktreeFolder(payload)} HEAD\`). If the brief needs the command, `
     + 'return the open question to the lead.';
+}
+
+// Behaviour 11. Cheapest checks first: the tool, a path outside the working directory or a command
+// that names `git worktree add`, a safe session id. The library import and the once-per-session
+// state read come after, and every failure is silence. The returned `commit` records the mark, and
+// only an emitted note calls it.
+const WORKSPACE_WRITE_TOOLS = /^(?:Write|Edit|MultiEdit|NotebookEdit)$/;
+const WORKTREE_ADD_HINT = /\bgit\b[\s\S]*\bworktree\b[\s\S]*\badd\b/;
+const WORKSPACE_SEEN_MAX = 64;
+
+const workspaceSeen = (path) => {
+  try {
+    const stored = JSON.parse(readFileSync(path, 'utf8'));
+    return stored?.version === 1 && Array.isArray(stored.seen) ? stored.seen.filter((mark) => typeof mark === 'string') : [];
+  } catch { return []; }
+};
+
+async function workspaceFor(payload) {
+  const tool = String(payload.tool_name ?? '');
+  const input = payload.tool_input && typeof payload.tool_input === 'object' ? payload.tool_input : null;
+  const sessionId = payload.session_id;
+  if (off('CODE_OPS_WORKSPACE_GUARD') || !input || typeof sessionId !== 'string' || !SAFE_SESSION.test(sessionId)) return null;
+  const cwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
+  let path = null;
+  let command = null;
+  if (WORKSPACE_WRITE_TOOLS.test(tool)) {
+    path = typeof input.file_path === 'string' ? input.file_path : input.notebook_path;
+    if (typeof path !== 'string' || !path) return null;
+    const rel = relative(cwd, resolve(cwd, path));
+    if (rel === '' || (rel !== '..' && !rel.startsWith(`..${sep}`) && !isAbsolute(rel))) return null;
+  } else if (SHELL_TOOLS.test(tool)) {
+    command = typeof input.command === 'string' ? input.command : input.cmd;
+    if (typeof command !== 'string' || !WORKTREE_ADD_HINT.test(command)) return null;
+  } else return null;
+  const lib = await import(pathToFileURL(join(dirname(HOOK_PATH), '..', 'scripts', 'workspace-layout.mjs')).href);
+  const text = path !== null ? lib.adviseWrite(path, { cwd }) : lib.adviseCommand(command, { cwd, powershell: /powershell/i.test(tool) });
+  if (!text) return null;
+  const file = join(stateDir(cwd), `${stateKey(sessionId)}.workspace.json`);
+  const mark = stateKey(text).slice(0, 16);
+  if (workspaceSeen(file).includes(mark)) return null;
+  return {
+    text,
+    commit: () => {
+      mkdirSync(dirname(file), { recursive: true });
+      writeFileSync(file, JSON.stringify({ version: 1, seen: [...workspaceSeen(file), mark].slice(-WORKSPACE_SEEN_MAX) }) + '\n');
+    },
+  };
 }
 
 // A denial no other output carried goes out alone.
@@ -1651,8 +1727,18 @@ async function main() {
     ?? (typeof payload.subagentType === 'string' && payload.subagentType ? payload.session_id : undefined);
   current = { tool_name: payload.tool_name, session_id: payload.session_id, subagent: typeof agentId === 'string' && agentId !== '' };
   collision = await collisionFor(payload, agentId);
+  // Behaviour 11 joins the note, keeping both once-only marks: leadStreak and the warn path below
+  // keep only `collision.commit`.
+  const workspace = await workspaceFor(payload).catch(() => null);
+  if (workspace) {
+    const prior = collision;
+    collision = {
+      text: prior ? `${prior.text}\n${workspace.text}` : workspace.text,
+      commit: prior ? () => { try { prior.commit(); } catch { /* fail open */ } workspace.commit(); } : workspace.commit,
+    };
+  }
   const hasAgent = typeof agentId === 'string' && agentId !== '';
-  const denial = [await legacyFor(payload), hasAgent ? gitGuardFor(payload) : null].filter(Boolean).join(' ') || null;
+  const denial = [await legacyFor(payload), hasAgent ? await gitGuardFor(payload) : null].filter(Boolean).join(' ') || null;
   if (denial && hardStop) legacy = denial;
   // Warn mode lifts the denial: the text joins the note, which reaches the model as context.
   else if (denial) collision = { text: collision ? `${denial}\n${collision.text}` : denial, commit: collision?.commit ?? (() => {}) };
