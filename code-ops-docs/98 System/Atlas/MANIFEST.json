@@ -1982,7 +1982,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "356b1d9a536c94760e36ba0d2a3833563b1f4ac9",
+      "verifiedAt": "71c5e732a41a712f74df92050c3fe8b33058ddb2",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2065,7 +2065,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "c8be661c4159ba3c85140e9cfa527e7fd8fac7e189bf5cef0148f80f57b3ed61"
+      "verifiedDigest": "b2ab7a31a6f1a287abf19ea28ea73acf55f0347f4196de7efaad425bab18aef7"
     },
     {
       "slug": "root-contracts",
