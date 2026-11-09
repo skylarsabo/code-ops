@@ -989,7 +989,9 @@ No completion heading here on purpose (case 3 mutation).
   check('15e. a non-haiku agent with no effort exits 1', r15eN.status === 1 && r15eN.all.includes('declares no effort'));
   const r15eH = verifierWith('case15e-haiku-effort-missing', 'haiku', null);
   check('15e. a haiku agent with no effort exits 1', r15eH.status === 1 && r15eH.all.includes('declares no effort'));
-  check('15e. claude-sonnet-5-5 meets a strong floor at effort high', verifierWith('case15e-sonnet-strong', 'claude-sonnet-5-5', 'high').status === 0);
+  check('15e. claude-opus-5-5 meets a strong floor at effort high', verifierWith('case15e-opus-strong', 'claude-opus-5-5', 'high').status === 0);
+  const r15eS = verifierWith('case15e-sonnet-strong', 'claude-sonnet-5-5', 'high');
+  check('15e. claude-sonnet-5-5 fails a strong floor: it is the mid binding, not a tier alias', r15eS.status === 1 && r15eS.all.includes('model "claude-sonnet-5-5" is not a known tier alias'));
 
   const r15a = mechWith('case15a-no-contract', '');
   check('15a. an agent with no Contract section exits 1', r15a.status === 1 && r15a.all.includes('plugins/code-ops-suite/agents/mech.md: agent has no "## Contract" section'));
@@ -1134,11 +1136,11 @@ No completion heading here on purpose (case 3 mutation).
     put(dir, 'scripts/model-tiers.mjs', after);
     return { ...runLint(dir), changed: after !== before };
   };
-  const r20a = withTiers('case20a-premium-light', (t) => t.replace("premium: 'claude-opus-5-5'", "premium: 'claude-haiku-4-5-20251001'"));
+  const r20a = withTiers('case20a-premium-light', (t) => t.replace("premium: 'claude-fable-5-2'", "premium: 'claude-haiku-4-5-20251001'"));
   check('20a. a premium id that only serves the light rung exits 1', r20a.changed && r20a.status === 1 && r20a.all.includes('model-tiers anthropic: premium "claude-haiku-4-5-20251001" does not satisfy the strong rung'));
-  const r20b = withTiers('case20b-premium-missing', (t) => t.replace("      premium: 'claude-opus-5-5',\n", ''));
+  const r20b = withTiers('case20b-premium-missing', (t) => t.replace("      premium: 'claude-fable-5-2',\n", ''));
   check('20b. a provider with no premium model exits 1', r20b.changed && r20b.status === 1 && r20b.all.includes('model-tiers anthropic: no premium model pinned'));
-  const r20c = withTiers('case20c-premium-unplaced', (t) => t.replace("premium: 'claude-opus-5-5'", "premium: 'not-a-pinned-model'"));
+  const r20c = withTiers('case20c-premium-unplaced', (t) => t.replace("premium: 'claude-fable-5-2'", "premium: 'not-a-pinned-model'"));
   check('20c. a premium id absent from every ladder exits 1', r20c.changed && r20c.status === 1 && r20c.all.includes('premium "not-a-pinned-model" does not satisfy the strong rung'));
 
   // 21a-21c. STANDARDS ALIGNMENT (check 32) — the rule has its own eval (evals/docs-alignment),

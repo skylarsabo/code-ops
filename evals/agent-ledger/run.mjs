@@ -38,7 +38,7 @@ import { tally } from '../harness.mjs';
 const repo = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const hook = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'agent-ledger.mjs');
 const co = join(repo, 'scripts', 'co.mjs');
-const { MIN_OVERUSE_DISPATCHES, attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload, scopeHashOf } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
+const { MIN_OVERUSE_DISPATCHES, attemptOf, captureKeys, captureOn, ledgerRows: readLedgerRows, markSessionEnded, pendingAgents, pendingReport, routingSummary, rowsFromPayload, rungOfModel, scopeHashOf } = await import(pathToFileURL(join(repo, 'scripts', 'agent-ledger.mjs')).href);
 const { fails, check } = tally((name, detail) => `${name} - ${String(detail).slice(0, 300)}`);
 
 const home = mkdtempSync(join(tmpdir(), 'agent-ledger-eval-'));
@@ -297,9 +297,9 @@ try {
   const fmFile = readFileSync(join(repo, 'plugins', 'code-ops-suite', 'agents', 'implementer.md'), 'utf8');
   const fmModel = /^model:\s*(\S+)/m.exec(fmFile)?.[1];
   const fmEffort = /^effort:\s*(\S+)/m.exec(fmFile)?.[1];
-  const full = routed('r1', 'rt1', 'Scope: x\nUnit: U3\nTier: premium\nEffort: high\nREPORT-SECRET-BODY', { model: 'opus' });
+  const full = routed('r1', 'rt1', 'Scope: x\nUnit: U3\nTier: premium\nEffort: high\nREPORT-SECRET-BODY', { model: 'fable' });
   check('p. the unit, requested tier and effort, applied model, frontmatter effort, and flag round-trip through the hook',
-    full?.unit === 'U3' && full.requestedTier === 'premium' && full.requestedEffort === 'high' && full.appliedModel === 'opus'
+    full?.unit === 'U3' && full.requestedTier === 'premium' && full.requestedEffort === 'high' && full.appliedModel === 'fable'
     && full.appliedEffort === fmEffort && full.effortSource === 'frontmatter' && full.flag === 'ok', JSON.stringify(full));
   check('p2. no brief text beyond the three label values is stored', !readFileSync(join(stateDir, files().find((f) => readFileSync(join(stateDir, f), 'utf8').includes('"session_id":"r1"'))), 'utf8').includes('REPORT-SECRET-BODY'), '');
   const under = routed('r2', 'rt2', 'Unit: U4\nTier: premium\nEffort: high');
@@ -320,6 +320,17 @@ try {
   const junk = routed('r8', 'rt8', 'Unit:\nTier: ultra\nEffort: 11');
   check('p9. an empty unit and an unknown tier or effort word record null', junk?.unit === null && junk.requestedTier === null && junk.requestedEffort === null, JSON.stringify(junk));
 
+  // The route kind: the first field of the brief's Route basis line, left off the row when absent or malformed.
+  const kinded = routed('r10', 'rt10', 'Unit: U9\nTier: premium\nRoute basis: judgment; surface=gate-script; ambiguity=medium; reversible=yes', { model: 'fable' });
+  check('p12. the route kind is the first Route basis field and the premium request on Fable is ok', kinded?.routeKind === 'judgment' && kinded.flag === 'ok', JSON.stringify(kinded));
+  const unkinded = routed('r11', 'rt11', 'Unit: U10\nTier: strong\nRoute basis: ; surface=none');
+  const garbled = routed('r12', 'rt12', 'Unit: U11\nRoute basis: Review This Now; surface=x');
+  check('p13. a brief with no Route basis line, an empty kind, or a non-kind word leaves the field off the row', !('routeKind' in bare) && !('routeKind' in unkinded) && !('routeKind' in garbled) && bare.unit === null, JSON.stringify([bare, unkinded, garbled]));
+  const rungs = Object.fromEntries(['haiku', 'sonnet', 'claude-sonnet-5-5', 'opus', 'claude-opus-5-5', 'fable', 'claude-fable-5-2', 'claude-fable-5-1', 'claude-haiku-5-5', 'gpt-6-sol', '', undefined].map((m) => [String(m), rungOfModel(m)]));
+  check('p14. rungOfModel: haiku light, sonnet mid by alias or id, opus strong, fable frontier, never premium, an unknown id null',
+    rungs.haiku === 'light' && rungs['claude-haiku-5-5'] === 'light' && rungs.sonnet === 'mid' && rungs['claude-sonnet-5-5'] === 'mid' && rungs.opus === 'strong' && rungs['claude-opus-5-5'] === 'strong'
+    && rungs.fable === 'frontier' && rungs['claude-fable-5-2'] === 'frontier' && rungs['claude-fable-5-1'] === 'frontier' && rungs['gpt-6-sol'] === null && rungs[''] === null && rungs.undefined === null, JSON.stringify(rungs));
+
   // The Scope hash: behaviour 8 of the dispatch guard compares it, so the row must carry it. A mutant
   // copy of the module without the field must fail the same check.
   const hashed = routed('r9', 'rt9', 'Scope: src/app.js   only.\nObjective: y');
@@ -329,6 +340,7 @@ try {
   const mutantDir = join(home, 'mutant-ledger');
   mkdirSync(mutantDir, { recursive: true });
   cpSync(join(repo, 'scripts', 'ledger-grammar.mjs'), join(mutantDir, 'ledger-grammar.mjs'));
+  cpSync(join(repo, 'scripts', 'model-tiers.mjs'), join(mutantDir, 'model-tiers.mjs'));
   const ledgerSource = readFileSync(join(repo, 'scripts', 'agent-ledger.mjs'), 'utf8');
   const target = '    scopeHash: scopeHashOf(prompt),\n';
   writeFileSync(join(mutantDir, 'agent-ledger.mjs'), ledgerSource.replace(target, ''));
@@ -352,24 +364,28 @@ try {
 
   // starvation and overuse advisories over judgment dispatches.
   const row = (agent_id, agent_type, requestedTier, appliedModel) => ({ status: 'dispatched', agent_id, agent_type, requestedTier, appliedModel });
-  const starved = routingSummary([row('1', 'code-ops-suite:implementer', 'premium', 'claude-sonnet-5-5'), row('2', 'code-ops-suite:reviewer', 'premium', 'claude-sonnet-5-5'),
-    ...['3', '4', '5', '6', '7', '8', '9'].map((i) => row(i, 'code-ops-suite:tracer', 'strong', 'claude-sonnet-5-5')), row('10', 'code-ops-suite:probe', 'light', 'haiku')]);
+  const starved = routingSummary([row('1', 'code-ops-suite:implementer', 'premium', 'claude-opus-5-5'), row('2', 'code-ops-suite:reviewer', 'premium', 'claude-opus-5-5'),
+    ...['3', '4', '5', '6', '7', '8', '9'].map((i) => row(i, 'code-ops-suite:tracer', 'strong', 'claude-opus-5-5')), row('10', 'code-ops-suite:probe', 'light', 'haiku')]);
   check('r. starvation fires when triggered dispatches ran below premium, and non-judgment agents are not counted',
     starved.judgment === 9 && starved.triggered === 2 && starved.premium === 0 && starved.starved && !starved.overused
     && starved.advisories.length === 1 && /starved - 2 of 2/.test(starved.advisories[0]) && starved.line === 'Routing: 9 judgment, 2 triggered, 0 premium -> STARVED', JSON.stringify(starved));
-  const over25 = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5'), row('4', 'implementer', 'strong', 'claude-sonnet-5-5')]);
+  const over25 = routingSummary([row('1', 'reviewer', 'premium', 'fable'), row('2', 'reviewer', 'premium', 'fable'), row('3', 'implementer', 'strong', 'claude-opus-5-5'), row('4', 'implementer', 'strong', 'claude-opus-5-5')]);
   check('r2. overuse fires when the premium share passes the ceiling', over25.overused && !over25.starved && /overuse - premium share 50% \(2 of 4/.test(over25.advisories[0]) && over25.line.endsWith('OVERUSED'), JSON.stringify(over25));
-  const underMin = routingSummary([row('1', 'reviewer', 'premium', 'opus'), row('2', 'reviewer', 'premium', 'opus'), row('3', 'implementer', 'strong', 'claude-sonnet-5-5')]);
+  const underMin = routingSummary([row('1', 'reviewer', 'premium', 'fable'), row('2', 'reviewer', 'premium', 'fable'), row('3', 'implementer', 'strong', 'claude-opus-5-5')]);
   check('r2b. below the minimum sample the counts print with no overuse verdict, and four dispatches is the first that can fire',
     MIN_OVERUSE_DISPATCHES === 4 && underMin.judgment === 3 && underMin.premium === 2 && !underMin.overused && underMin.advisories.length === 0 && underMin.line === 'Routing: 3 judgment, 2 triggered, 2 premium -> ok'
     && over25.judgment === MIN_OVERUSE_DISPATCHES, JSON.stringify([underMin, MIN_OVERUSE_DISPATCHES]));
-  const inBounds = routingSummary([row('1', 'reviewer', 'premium', 'opus'), ...['2', '3', '4'].map((i) => row(i, 'implementer', 'strong', 'claude-sonnet-5-5'))]);
+  const inBounds = routingSummary([row('1', 'reviewer', 'premium', 'fable'), ...['2', '3', '4'].map((i) => row(i, 'implementer', 'strong', 'claude-opus-5-5'))]);
   check('r3. a premium share at the ceiling, with every triggered dispatch at premium, is silent', !inBounds.starved && !inBounds.overused && inBounds.advisories.length === 0 && inBounds.share === 0.25 && inBounds.line.endsWith('ok'), JSON.stringify(inBounds));
-  const tight = routingSummary([row('1', 'reviewer', 'strong', 'opus'), row('2', 'implementer', 'strong', 'claude-sonnet-5-5')], { ceiling: 0.6 });
-  const dup = routingSummary([row('1', 'reviewer', 'strong', 'claude-sonnet-5-5'), { ...row('1', 'reviewer', 'strong', 'claude-sonnet-5-5'), status: 'reported' }, row('1', 'reviewer', 'strong', 'claude-sonnet-5-5')]);
+  const tight = routingSummary([row('1', 'reviewer', 'strong', 'fable'), row('2', 'implementer', 'strong', 'claude-opus-5-5')], { ceiling: 0.6 });
+  const dup = routingSummary([row('1', 'reviewer', 'strong', 'claude-opus-5-5'), { ...row('1', 'reviewer', 'strong', 'claude-opus-5-5'), status: 'reported' }, row('1', 'reviewer', 'strong', 'claude-opus-5-5')]);
   check('r4. the ceiling is an option, an empty ledger is silent, and an agent id counts once',
     !tight.overused && routingSummary([]).advisories.length === 0 && routingSummary(undefined).judgment === 0 && dup.judgment === 1, JSON.stringify([tight, dup.judgment]));
-  const picked = routingSummary([row('1', 'reviewer', 'strong', 'claude-sonnet-5-5')], { triggered: () => true });
+  const opusOnly = routingSummary([row('1', 'reviewer', 'premium', 'claude-opus-5-5'), row('2', 'implementer', 'strong', 'claude-opus-5-5')]);
+  const fableOne = routingSummary([row('1', 'reviewer', 'premium', 'fable'), row('2', 'implementer', 'strong', 'claude-opus-5-5')]);
+  check('r6. an Opus dispatch is the strong pin and never counts at premium, so a premium request on it is starved; a Fable dispatch counts and satisfies it',
+    opusOnly.premium === 0 && opusOnly.starved && fableOne.premium === 1 && !fableOne.starved && fableOne.share === 0.5, JSON.stringify([opusOnly, fableOne]));
+  const picked = routingSummary([row('1', 'reviewer', 'strong', 'claude-opus-5-5')], { triggered: () => true });
   check('r5. a caller can supply the trigger, which a derived surface will use', picked.triggered === 1 && picked.starved, JSON.stringify(picked));
 
   // Grok: SubagentStop carries camelCase subagentId and subagentType and no agent_id.

@@ -470,6 +470,30 @@ function workspaceLine(setup) {
   } catch { return []; }
 }
 
+// One advisory line when the state folder, run folders, or merged worktrees hold reclaimable files.
+// scripts/clean.mjs owns the stamp (once per 24 hours per repository), the time budget, and the
+// `CODE_OPS_CLEAN` switch; it never deletes. The switch is read before the import, and any error is silence.
+async function cleanLine(cwd) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_CLEAN ?? '')) return [];
+    const lib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'clean.mjs')).href);
+    const line = lib.cleanAdvisory({ cwd });
+    return line ? [line] : [];
+  } catch { return []; }
+}
+
+// One advisory line when stray code-ops processes exist. scripts/procs.mjs owns the stamp (once per 24
+// hours per machine), the 2-second read timeout with kill on expiry, and the `CODE_OPS_PROCS` switch; it
+// never ends a process. The switch is read before the import, and any error is silence.
+async function procsLine(cwd) {
+  try {
+    if (/^(off|0|false)$/i.test(process.env.CODE_OPS_PROCS ?? '')) return [];
+    const lib = await import(pathToFileURL(join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'procs.mjs')).href);
+    const line = lib.procsAdvisory({ cwd });
+    return line ? [line] : [];
+  } catch { return []; }
+}
+
 async function main() {
   if (/^(off|0|false)$/i.test(process.env.CODE_OPS_ROUTING_CARD ?? '')) return 0;
   // Grok ignores hook stdout and its stdin is unverified: set up the folders from the process
@@ -541,6 +565,8 @@ async function main() {
     // Workers an ended session in this directory launched and never saw report: left pending at session end.
     if (payload.source === 'startup') lines.push(...await pendingAgentLines({ cwd, endedOnly: true }, 'Left pending when an earlier session here ended:', sessionId));
     lines.push(...await peerLines(cwd, sessionId, null));
+    // A live payload only: the opencode build runs this hook with empty stdin and bakes the card into the dist.
+    if (raw.trim()) lines.push(...await cleanLine(cwd), ...await procsLine(cwd));
   }
   lines.push(...await routingLine(sessionId));
   console.log(lines.join('\n'));

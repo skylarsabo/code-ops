@@ -1,0 +1,3 @@
+- The vendored `scripts/model-tiers.mjs` carries the rebound Anthropic tier table. No agent changes.
+- The `gatherer` and `claim-checker` bodies tell the agent to return the report as the final message, which the suite `subagent-report` hook saves to the brief's `Report path:`.
+- The `subagent-report` hook saves a report only for an agent with no `Write` or `Edit` tool, decided from the agent file's `tools:` line or, where a host strips that line, a frozen set of the read-only suite agents. A write-capable agent gets no save. The pinned `report-persistence` passage now says the hook saves a read-only agent's report and the lead writes it only where the hook does not.

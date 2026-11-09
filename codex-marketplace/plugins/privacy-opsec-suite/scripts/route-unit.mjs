@@ -271,8 +271,12 @@ export function hostBindings(rung) {
   });
 }
 
+// A premium that repeats `frontier` still lifts the unit above strong, so only a premium that
+// repeats a rung at or below strong lacks a distinct premium model.
+const premiumNote = (collapse) => (collapse === 'frontier' ? '; premium differs from frontier only by Tier' : '; no distinct premium model');
+
 const bindingLine = ({ host, detail, collapse }, rung) =>
-  `${host}: ${detail}${collapse ? ` [COLLAPSE: ${rung} shares its model with ${collapse}${rung === 'premium' ? '; no distinct premium model' : ''}]` : ''}`;
+  `${host}: ${detail}${collapse ? ` [COLLAPSE: ${rung} shares its model with ${collapse}${rung === 'premium' ? premiumNote(collapse) : ''}]` : ''}`;
 
 // The frontmatter `model:` of a bundled agent, as the rung the agent declares. The root checkout
 // holds every plugin under plugins/; a vendored copy holds only its own plugin's agents.

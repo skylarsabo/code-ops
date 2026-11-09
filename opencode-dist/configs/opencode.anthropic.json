@@ -1,12 +1,12 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "anthropic/claude-fable-5-1",
+  "model": "anthropic/claude-fable-5-2",
   "agent": {
     "code-ops-suite-explorer": {
       "model": "anthropic/claude-haiku-5-5"
     },
     "code-ops-suite-implementer": {
-      "model": "anthropic/claude-sonnet-5-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "code-ops-suite-mech-review": {
       "model": "anthropic/claude-sonnet-5-5"
@@ -18,7 +18,7 @@
       "model": "anthropic/claude-sonnet-5-5"
     },
     "code-ops-suite-reviewer": {
-      "model": "anthropic/claude-sonnet-5-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "code-ops-suite-web-researcher": {
       "model": "anthropic/claude-sonnet-5-5"
@@ -27,13 +27,13 @@
       "model": "anthropic/claude-haiku-5-5"
     },
     "privacy-opsec-suite-privacy-reviewer": {
-      "model": "anthropic/claude-sonnet-5-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "rigor-tracer": {
-      "model": "anthropic/claude-sonnet-5-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "rigor-verifier": {
-      "model": "anthropic/claude-sonnet-5-5"
+      "model": "anthropic/claude-opus-5-5"
     },
     "researcher-claim-checker": {
       "model": "anthropic/claude-sonnet-5-5"

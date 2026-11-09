@@ -186,6 +186,37 @@ check('hook uses the process cwd when the payload has none', hookRun('git commit
 check('hook still scans a commit message on a good branch', hookRun('git commit -m "Generated with Claude Code"', good).status === 2);
 check('hook ignores a non-bash tool', spawnSync(process.execPath, [hook], { input: JSON.stringify({ tool_name: 'Read', tool_input: { command: 'git checkout -b claude/x' } }), encoding: 'utf8' }).status === 0);
 
+// The scanner bound. The hook runs the scanner beside it under SCAN_TIMEOUT_MS, and a scanner that never
+// answers must block the command (a missing verdict is not a clean one). A copy of the hook sits beside a
+// stub scanner, with the limit cut to one second so the case takes about one second. The "hang" stub
+// ends itself after 20 seconds with exit 0, so a hook that lost its bound would let the command through
+// and fail the case instead of hanging the eval. Every hook run has its own 30-second limit.
+{
+  const rig = join(work, 'scan-bound');
+  mkdirSync(join(rig, 'hooks'), { recursive: true });
+  mkdirSync(join(rig, 'scripts'), { recursive: true });
+  const source = readFileSync(hook, 'utf8');
+  const BOUND = 'const SCAN_TIMEOUT_MS = 15_000;';
+  check('the hook declares its scan bound where the eval cuts it', source.includes(BOUND));
+  writeFileSync(join(rig, 'hooks', 'enforce-traceless.mjs'), source.replace(BOUND, () => 'const SCAN_TIMEOUT_MS = 1_000;'));
+  const stub = (body) => writeFileSync(join(rig, 'scripts', 'scan-ai-tells.mjs'), `${body}\n`);
+  const rigRun = (command) => spawnSync(process.execPath, [join(rig, 'hooks', 'enforce-traceless.mjs')], {
+    input: JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd: good }), encoding: 'utf8', env: GIT_ENV, cwd: empty, timeout: 30_000, killSignal: 'SIGKILL',
+  });
+  const COMMIT = 'git commit -m "Fix it"';
+  stub('setTimeout(() => process.exit(0), 20000);');
+  const started = Date.now();
+  const hung = rigRun(COMMIT);
+  check('a scanner that outlasts the bound blocks the command (exit 2) and says why', hung.status === 2 && /did not finish within 1 seconds/.test(hung.stderr) && /blocked/.test(hung.stderr), `status ${hung.status} ${hung.signal ?? ''} ${hung.stderr.slice(0, 200)}`);
+  check('the hung scanner is cut at the bound, not at its own end', Date.now() - started < 15_000, `${Date.now() - started} ms`);
+  stub('process.exit(0);');
+  const clean = rigRun(COMMIT);
+  check('a scanner that returns clean lets the command through', clean.status === 0, `status ${clean.status} ${clean.stderr.slice(0, 200)}`);
+  stub("console.log('hit: AI attribution'); process.exit(1);");
+  const flagged = rigRun(COMMIT);
+  check('a scanner that reports a hit still blocks and shows its report', flagged.status === 2 && /AI-tell in commit/.test(flagged.stderr) && /hit: AI attribution/.test(flagged.stderr), `status ${flagged.status} ${flagged.stderr.slice(0, 200)}`);
+}
+
 // The tracked git hooks, run by real git against a repository that carries the rule script.
 function hooked(name, branch) {
   const dir = repo(name, branch);

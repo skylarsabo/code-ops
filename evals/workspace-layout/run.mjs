@@ -353,7 +353,7 @@ check('an advisory writes one decision row under workspace-note', rows.length ==
 // A hook copied without the library fails open.
 const iso = join(base, 'iso');
 mkdirSync(iso, { recursive: true });
-for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) copyFileSync(join(suite, 'hooks', file), join(iso, file));
+for (const file of ['dispatch-guard.mjs', 'agent-file.mjs', 'brief-rules.mjs']) copyFileSync(join(suite, 'hooks', file), join(iso, file));
 check('a missing library fails open', silent(hook(write(repo, join(elsewhere, 'iso', 'f.md')), {}, join(iso, 'dispatch-guard.mjs'))), '');
 
 check('no advisory output carries permissionDecision or updatedInput', advisories.length >= 8 && advisories.every((text) => !/permissionDecision|updatedInput/.test(text)), `${advisories.length} outputs`);

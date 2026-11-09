@@ -190,6 +190,7 @@ try {
   mkdirSync(join(bare, 'hooks'), { recursive: true });
   copyFileSync(hook, join(bare, 'hooks', 'dispatch-guard.mjs'));
   copyFileSync(join(dirname(hook), 'agent-file.mjs'), join(bare, 'hooks', 'agent-file.mjs'));
+  copyFileSync(join(dirname(hook), 'brief-rules.mjs'), join(bare, 'hooks', 'brief-rules.mjs'));
   check('a missing collision-lib.mjs fails open with no output', silent(call(edit('c4', 'src/claimed.js'), {}, join(bare, 'hooks', 'dispatch-guard.mjs'))), '');
 
   // Off switches.

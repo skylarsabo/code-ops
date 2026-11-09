@@ -1,7 +1,7 @@
 ---
 type: decision-register
 status: current
-updated: 2026-10-07
+updated: 2026-11-09
 ---
 
 # Decision register
@@ -75,10 +75,10 @@ Status is `in-force`, `amended`, `superseded`, or `historical`. A superseded or 
 | DEC-50 | 2026-09-28 | Seal is reached through `co docs records seal`; no separate `co docs seal` verb | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho5/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-51 | 2026-09-28 | Ledger grammar 2 is opt-in per PROGRAM.md via `Grammar: 2`; this ledger stays grammar 1 until migrated | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho5/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-52 | 2026-09-28 | A grammar-2 decision `Hop:` is the writing session's hop, the handoff Hop minus one | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho5/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
-| DEC-53 | 2026-09-28 | Claude strong and mid rungs bind to `claude-sonnet-5-5`; opus-declaring agents declare that id; every non-haiku agent declares effort at most high (lint check 30) | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho6/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
+| DEC-53 | 2026-09-28 | Claude strong and mid rungs bind to `claude-sonnet-5-5`; opus-declaring agents declare that id; every non-haiku agent declares effort at most high (lint check 30). The strong binding is amended by DEC-82. | amended | `80 Runs/2026-09-28-handoff-fidelity-ho6/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-54 | 2026-09-28 | PR 198 stale-derived failures are fixed by re-stamping the atlas section and syncing the docs manifest, since the section names no model ids | historical | `80 Runs/2026-09-28-handoff-fidelity-ho7/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-55 | 2026-09-28 | Check 17 compares a carried id-and-title item against the nearest ancestor handoff holding its full line, skipping when none is on disk | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho8/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
-| DEC-56 | 2026-09-28 | The tier floor gate keeps ranking the declared label, so `sonnet` fails a strong floor while `claude-sonnet-5-5` clears it; recorded in a comment | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho8/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
+| DEC-56 | 2026-09-28 | The tier floor gate keeps ranking the declared label, so `sonnet` fails a strong floor while `claude-sonnet-5-5` clears it; recorded in a comment. Amended by DEC-82: `claude-sonnet-5-5` now binds mid only. | amended | `80 Runs/2026-09-28-handoff-fidelity-ho8/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-57 | 2026-09-28 | A split child's first hop passes checks 9 and 13 only for ids the predecessor's ledger forwards to this program or, under `Split-from:`, to a sibling | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho9/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-58 | 2026-09-28 | A split parent takes no further hops, so its forwarded pending decisions stay pending | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho9/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-59 | 2026-09-28 | Merge keeps an imported pending decision's source Hop and prints a settle line for it; check 12 fails it at the next handoff | in-force | `80 Runs/2026-09-28-handoff-fidelity-ho9/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
@@ -104,6 +104,7 @@ Status is `in-force`, `amended`, `superseded`, or `historical`. A superseded or 
 | DEC-79 | 2026-10-01 | The ten R-013 lessons ship in one PR (230) from two implementer units, not ten PRs. | historical | `80 Runs/2026-09-30-handoff-fidelity-ho13/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-80 | 2026-10-01 | A prose-only fix is enforced by a text pin in an eval, with a fixed-in and an enforced-by edge, so the calibration graph never shows it RED. | in-force | `80 Runs/2026-09-30-handoff-fidelity-ho13/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
 | DEC-81 | 2026-10-01 | The Windows gate launch form (OI-69) stays out of the cross-host brief template; it is a murmuration repository fact for its AGENTS.md. | in-force | `80 Runs/2026-09-30-handoff-fidelity-ho13/`, `80 Runs/programs/handoff-fidelity/PROGRAM.md` |
+| DEC-82 | 2026-11-09 | Operator rebinds the Claude ladder: light `claude-haiku-5-5`, mid `claude-sonnet-5-5`, strong `claude-opus-5-5` (the five strong-floor agents pin it), premium `claude-fable-5-2` (dispatch only, `model: "fable"`), frontier Fable 5.2 (the lead). Premium repeats the frontier model, so the guard reads the brief `Tier:` line to tell them apart. The one-frontier-peer cap and the Run Contract peerException stay. | in-force | `80 Runs/model-ladder-fable-5-2-2026-11-09/` |
 | EVO-1 | 2026-09-23 | The session model always leads, and subagents carry typed contracts (#164). | in-force | `80 Runs/programs/code-ops-evolution/PROGRAM.md` |
 | EVO-2 | 2026-09-23 | Merge overlapping skills rather than add a labs tier; 66 to 59 skills (#170). | in-force | `80 Runs/programs/code-ops-evolution/PROGRAM.md` |
 | EVO-3 | 2026-09-23 | CLAUDE.md is exactly `@AGENTS.md`, and lint fails closed on anything else (#166). | in-force | `80 Runs/programs/code-ops-evolution/PROGRAM.md` |

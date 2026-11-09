@@ -29,13 +29,13 @@ export const CLAUDE_ALIAS_TIER = {
   haiku: 'light',
   sonnet: 'mid',
   opus: 'strong',
-  // Full model id, not an alias: operator decision 2026-09-28 rebinds the Claude strong
-  // rung to Sonnet 5.5. Agent frontmatter names it directly (Codex reads `model:`
-  // verbatim), so it must resolve here too, alongside the short aliases above. The floor
-  // gate ranks the declared label, not the model behind it: `sonnet` may serve the same
-  // model, yet it ranks mid and fails a strong floor. Only the full id clears one. That
-  // difference is intended, and it errs toward refusing.
-  'claude-sonnet-5-5': 'strong',
+  // Full model id, not an alias: operator decision 2026-11-09 rebinds the Claude strong
+  // rung to Opus 5.5 (it was Sonnet 5.5 from 2026-09-28). Agent frontmatter names it directly
+  // (Codex reads `model:` verbatim), so it must resolve here too, alongside the short
+  // aliases above. The floor gate ranks the declared label, not the model behind it: the
+  // `opus` alias and the full id both rank strong. A full Sonnet id is not listed: no agent
+  // pins one, and an unknown label fails the floor gate, which errs toward refusing.
+  'claude-opus-5-5': 'strong',
   // Full model id for the same reason: the `haiku` alias resolved to claude-haiku-4-5-20251001 in
   // recent transcripts and stays on 4.5 on cloud hosts, so the light agents pin the id directly.
   'claude-haiku-5-5': 'light',
@@ -58,8 +58,9 @@ export const REGISTRY_VERIFIED_AT = '2026-10-01';
 
 // `premium` is a dispatch-only binding, never a rung. It ranks `strong`, so it clears only
 // strong floors, and TIER_ORDER, CLAUDE_ALIAS_TIER, and the agent floors do not name it. A unit
-// selects it per dispatch (scripts/route-unit.mjs) when a routing trigger fires; Opus-class
-// models cost about twice the strong pin, so it is never a default. Each provider records
+// selects it per dispatch (scripts/route-unit.mjs) when a routing trigger fires; a premium model
+// costs about twice the strong pin (Fable 5.2 is $8/$40 against the Opus 5.5 pin at $4/$20), so
+// it is never a default. Each provider records
 // `models.premium` and `premiumCollapse`: the rung whose model premium repeats, or null when the
 // lineup has a distinct premium model. The collapse is stated here, not left to inference.
 // `dispatchAlias` appears only where the host takes a short alias in its dispatch parameter.
@@ -70,17 +71,18 @@ export const PROVIDER_TIERS = {
     label: 'Anthropic (Claude)',
     aliases: { light: 'haiku', mid: 'sonnet', strong: 'opus', frontier: 'fable' },
     // The `model` a dispatch passes. `strong: null` omits the parameter so the agent's frontmatter
-    // pin applies; `premium: 'opus'` is the one rung where the alias and the pin differ.
-    dispatchAlias: { light: 'haiku', mid: 'sonnet', strong: null, premium: 'opus', frontier: 'fable' },
+    // pin applies; `premium: 'fable'` repeats the frontier alias, because premium and frontier
+    // share one model here and only the brief's `Tier:` line tells them apart.
+    dispatchAlias: { light: 'haiku', mid: 'sonnet', strong: null, premium: 'fable', frontier: 'fable' },
     models: {
       light: 'claude-haiku-5-5',
       mid: 'claude-sonnet-5-5',
-      strong: 'claude-sonnet-5-5',
-      premium: 'claude-opus-5-5',
-      frontier: 'claude-fable-5-1',
+      strong: 'claude-opus-5-5',
+      premium: 'claude-fable-5-2',
+      frontier: 'claude-fable-5-2',
     },
-    premiumCollapse: null,
-    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: both `mid` and `strong` bind to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20 (the pricing table value, which the page prose contradicts), cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. Every bundled operative caps its `effort:` frontmatter at `high`. Opus 5.5 (`claude-opus-5-5`, $4/$20, cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), batch $2/$10) is the dispatch-only `premium` binding: it ranks strong, so it clears only strong floors, and a dispatch selects it through a routing trigger (`opus` alias). No bundled agent declares it in frontmatter. Decision 2026-10-07: `light` binds Claude Haiku 5.5 (`claude-haiku-5-5`, a dateless pinned snapshot the `haiku` alias resolves to on the Anthropic API only), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output, default effort `medium`. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. `frontier` stays Fable 5.1, lead-only; no bundled agent declares frontier as a floor.',
+    premiumCollapse: 'frontier',
+    notes: 'The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: `mid` binds to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20 (the pricing table value, which the page prose contradicts), cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. Operator decision 2026-11-09: `strong` binds to Claude Opus 5.5 (`claude-opus-5-5`, the model the `opus` alias resolves to on the Anthropic API), $4/$20 per million tokens, cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), batch $2/$10, 1M context, 128K output; the five strong-floor agents pin that id in frontmatter. The same decision binds `premium` and `frontier` to Claude Fable 5.2 (`claude-fable-5-2`, a dateless pinned snapshot the `fable` alias resolves to), $8/$40 per million tokens, cache reads $0.20, cache writes $10 (5-minute) or $16 (1-hour), batch $4/$20, 1M context, 128K output. Premium is dispatch-only, ranks strong, and repeats the frontier model (`premiumCollapse: frontier`), so a dispatch selects it through a routing trigger with the `fable` alias and only the `Tier:` line of the brief tells it from a frontier peer. Fable 5.1 (`claude-fable-5-1`, $10/$50) stays accepted for historical stamps. Every bundled operative caps its `effort:` frontmatter at `high`. Decision 2026-10-07: `light` binds Claude Haiku 5.5 (`claude-haiku-5-5`, a dateless pinned snapshot the `haiku` alias resolves to on the Anthropic API only), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output, default effort `medium`. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. `frontier` is Fable 5.2, lead-only; no bundled agent declares frontier as a floor.',
   },
   xai: {
     id: 'xai',
@@ -287,7 +289,10 @@ export const ACCEPTED_MODELS = {
   'claude-haiku-4.5': ['light'],
   'claude-opus-5.5': ['strong'],
   'claude-opus-5-5': ['strong'],
+  // Previous `frontier` pin, replaced by `claude-fable-5-2` 2026-11-09. Both spellings stay for
+  // historical stamps; the dotted one is the reseller form.
   'claude-fable-5.1': ['frontier'],
+  'claude-fable-5-1': ['frontier'],
   // Previous `mid`-rung pin, kept for a historical stamp now that `mid` moved to Sonnet 5.5.
   'claude-sonnet-5': ['mid'],
 };

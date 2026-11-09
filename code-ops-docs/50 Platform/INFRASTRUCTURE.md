@@ -56,6 +56,13 @@ The `SubagentStop` return check is advisory and never blocks. The agent ledger r
 subagent launch and report without output, so `co agents pending` lists the agents a handed-off
 session never heard back from. The `PreCompact` hook `compact-snapshot.mjs` writes
 `COMPACT_SNAPSHOT.md` before each compaction and never blocks it.
+Declared hook timeouts in `plugins/code-ops-suite/hooks/hooks.json`: the `digest-rewrite` `Bash`
+entry, `index-refresh`, `agent-ledger` (both entries), `digest-post`, `routing-card`, and
+`subagent-report` declare 15 seconds; `ladder-card` and the `handoff-card` `PostToolUse` entry declare
+10 seconds; `compact-snapshot` (both entries) declares 30 seconds; `session-receipt` declares 20
+seconds. `enforce-traceless`, `dispatch-guard`, `peer-guard`, the `digest-rewrite` `Write` entry, and
+the `handoff-card` `UserPromptSubmit` entry declare none, because a timeout on a hook that can deny or
+block lets the call through unchecked. The host default timeout for those is UNVERIFIED.
 The table lists each variable that switches off a hook or feature, read from the canonical
 `.claude/settings.json` environment. Three rows differ. `CODE_OPS_CONTEXT_CEILING` also takes an
 integer that turns the ceiling on at that size; it is on by default on Grok only. `CODE_OPS_OPERATOR_SHELL` is not an off switch: it names
@@ -81,7 +88,7 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_SNAPSHOT_RUN_FALLBACK` | `off`, `0`, or `false` | the inferred run folder fallback in `compact-snapshot.mjs`; with it off, a session no `SESSION.json` names gets the `not recorded` gap lines |
 | `CODE_OPS_INDEX` | `off`, `0`, or `false` | the `PostToolUse` symbol-index refresh, `index-refresh.mjs` |
 | `CODE_OPS_LADDER_CARD` | `off`, `0`, or `false` | the `SubagentStart` code-economy card, `ladder-card.mjs` |
-| `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false` | the `SubagentStop` advisory verdict and word-cap check, `subagent-report.mjs` |
+| `CODE_OPS_SUBAGENT_REPORT` | `off`, `0`, or `false`; `nosave` keeps the check and skips the save | the `SubagentStop` advisory verdict and word-cap check, and the save of a read-only agent's final message to the brief's `Report path:` (a new `.md` file under `80 Runs` or a host `.tmp`, never over a non-empty file), `subagent-report.mjs` |
 | `CODE_OPS_AGENT_LEDGER` | `off`, `0`, or `false` | the `PostToolUse` (`Agent`, `Task`) launch record and the `SubagentStop` report record in `~/.claude/code-ops/agents/`, `agent-ledger.mjs`; `co agents pending` reads them; also the `ended` marker that `session-receipt.mjs` writes at `SessionEnd` |
 | `CODE_OPS_AGENT_LEDGER_CAPTURE` | off unless `1`, `true`, or `on`, or a `capture.on` flag file exists in the ledger directory (`<home>/.claude/code-ops/agents/`) | the payload capture in `agent-ledger.mjs`, run by the agent-ledger and PreCompact hooks: one `payload-keys.ndjson` row per host, key-path list, and value set; key names, the host from env variable names (`codex`, `grok`, `claude`, `opencode`, `other`), up to 30 matching env var names, and only `hook_event_name`, `tool_name`, `agent_type`, and `subagent_type` as values (64 characters each), never any other value |
 | `CODE_OPS_RECEIPTS` | `off`, `0`, or `false` | the `SessionEnd` measurement row, `session-receipt.mjs` |
@@ -98,6 +105,8 @@ Rendered hosts use their documented process environment:
 | `CODE_OPS_CONTEXT_CEILING` | `off`, `0`, or `false` | the context-ceiling dispatch gate inside `dispatch-guard.mjs`; an integer of at least 150,000 turns the gate on at that size on any host; the gate is on by default on Grok only (200,000 tokens) |
 | `CODE_OPS_PEER_GUARD` | `off`, `0`, or `false` | the `PreToolUse` redirect or deny of a message to a handed-off peer session, `peer-guard.mjs`, and every presence board write: `handoff-state.mjs` open and resume, the `index-refresh.mjs` edit record, the `session-receipt.mjs` `SessionEnd` mark, and the OpenCode `tool.execute.after` adapter, the collision note and its peer-surface note in `dispatch-guard.mjs`, the routing card's `peer:` lines, and the change feed |
 | `CODE_OPS_WORKSPACE_GUARD` | `off`, `0`, or `false` | the advisory about a write outside the repository and the temp directory, and about a `git worktree add` outside the host worktrees folder, inside `dispatch-guard.mjs`, and the `ensureLayout` session setup in `routing-card.mjs`; it never denies or rewrites a call |
+| `CODE_OPS_CLEAN` | `off`, `0`, or `false` | the once-a-day `cleanup:` line the `SessionStart` card prints at startup and clear (`routing-card.mjs`, `cleanAdvisory` in `scripts/clean.mjs`); `co clean` itself always works and the advisory never deletes |
+| `CODE_OPS_PROCS` | `off`, `0`, or `false` | the once-a-day `processes:` line the `SessionStart` card prints when a stray code-ops process exists (`routing-card.mjs`); `co ps` itself always works |
 | `CODE_OPS_DIGEST_AUTOFIX` | `off`, `0`, or `false` | the git-hook digest autofix, read from the git process environment: the `.githooks/pre-commit` atlas content restamp (block 0d), its atlas-staged trigger, the merge reconcile in `derived-merge.mjs`, and the `.githooks/post-rewrite` restamp; it leaves the freshness checks on every failure path and the merge driver unchanged |
 | `CODE_OPS_OPERATOR_SHELL` | not an off switch | the `operator shell:` line inside `routing-card.mjs` on hosts other than Claude Code; a value replaces the shell derived from `process.platform` |
 
@@ -186,8 +195,9 @@ marked `source` `post`. `CODE_OPS_DIGEST_STORE=off` stops both writes.
 
 Leaving `digest-rewrite.mjs` on persists the complete raw output of every rewritten command, in
 plain text, under `<host home>/code-ops/digest/<slug of the repository>/`, with a receipt row that
-records the command's arguments as written. Nothing purges that store. Delete the directory to
-purge it. `CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing,
+records the command's arguments as written. Nothing purges that store unprompted; `co clean --apply
+--scope state --store digest` removes old raw files and their receipt lines, or delete the directory
+to purge it. `CODE_OPS_DIGEST_STORE=off` beside the switch keeps the compression and writes nothing,
 at the cost of the recovery hints. The store is keyed by the repository that opted in, never by a
 `cd` target inside a command. Evidence: `plugins/code-ops-suite/hooks/digest-rewrite.mjs:12-16`
 and `plugins/code-ops-suite/hooks/digest-rewrite.mjs:161-176`.
@@ -254,6 +264,39 @@ the mechanism and another runs without it, and their session receipts compare. T
 comparison method. The `ladder-card.mjs` card is an arm of exactly that kind, and it stays only
 if the receipts show it beats the brief-only control. Evidence:
 `plugins/code-ops-suite/hooks/ladder-card.mjs:6-10`.
+
+### Cleanup
+
+`co clean` (`scripts/clean.mjs`) reports what is reclaimable and removes it only on request. A dry run
+is the default and covers five scopes: `state` (the stores above), `tmp` (host `.tmp` files over 2
+days), `runs` (run folders marked `retention: working`), `worktrees` (merged, clean, unlocked), and
+`branches` (report only). `--apply` needs an explicit `--scope`, and a manual state store needs
+`--store <name>` as well. The age thresholds live in the frozen `STORES` table at the top of
+`scripts/clean.mjs`; each row names the reader that bounds it and none is under 14 days. `feed`
+bounds itself and is not walked. The `recall` and `index` stores are removed after 30 days because
+both rebuild on a miss. A recall `build.lock` is removed when it is over one hour old, records an
+integer pid, that pid is dead, and its bytes are unchanged at delete time. The `SessionStart` card adds one `cleanup:` line at most once per
+24 hours per repository, inside a 300 ms budget, and never deletes; `CODE_OPS_CLEAN=off` silences
+it. Evidence: `scripts/clean.mjs`, `evals/clean/run.mjs`. The contract is in
+[Cleanup command](../35%20Contracts%20and%20Data/CONTRACTS.md#cleanup-command).
+
+### Stray processes
+
+`co ps` (`scripts/procs.mjs`) lists code-ops related processes and the stale lock files, read-only by
+default. It reads the process table with one PowerShell `Get-CimInstance Win32_Process` call on win32
+and `ps` elsewhere, and prints for each process its origin (suite hook, suite MCP server, host `.tmp`
+script, eval run, `git`, or a heredoc `cat` or `python` suspect), age, resident memory, CPU time,
+parent state, and whether a live host owns it. `--sample <s>` marks a process `busy`. A process is a
+stray candidate only when its command line names a code-ops path, its parent is dead (checked with the
+parent's start time, so a reused pid does not look alive), no live host sits above it, it is older than
+30 minutes, and nothing in its own tree started in the last 5 minutes. `--reap` ends candidates only;
+the contract is in
+[Process report command](../35%20Contracts%20and%20Data/CONTRACTS.md#process-report-command). The
+`SessionStart` card adds one `processes:` line when a candidate exists. The table read took 530 to 590
+ms on the measuring machine, over the 300 ms budget of the cleanup line, so the check runs at most
+once per 24 hours per machine with a hard 2-second timeout and kill on expiry. `CODE_OPS_PROCS` of
+`off`, `0`, or `false` silences that line; `co ps` itself always works. `CODE_OPS_PROCS_READ_MS` sets
+the table read timeout for the command (default 20000). Evidence: `evals/procs/run.mjs`.
 
 ## Host projections
 

@@ -53,7 +53,8 @@ fits the unit. Name a round budget and a report cap in every brief.
 
 At the round budget, an operative checkpoints to the report path and finishes if it can before
 the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
-its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
+its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds,
+and an implementer unit when it needs more than about 40.
 
 On Claude and Codex, host auto-compaction is the context relief, not a handoff. The handoff card asks the lead to checkpoint twice per window: an early checkpoint at 60 percent of the auto-compaction window and a final checkpoint at 80 percent. At each, keep `TASKS.md` current and append the `Decision:`, `Grant:`, `In flight:`, and `Next:` lines to `RUN_LOG.md`. No manual compaction or handoff is needed. Set `CODE_OPS_COMPACT_WINDOW` to move the stages when the window is not the default 200,000 tokens.
 

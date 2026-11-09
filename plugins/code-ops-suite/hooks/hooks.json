@@ -10,7 +10,8 @@
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest-rewrite.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest-rewrite.mjs\"",
+            "timeout": 15
           }
         ]
       },
@@ -47,7 +48,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/index-refresh.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/index-refresh.mjs\"",
+            "timeout": 15
           }
         ]
       },
@@ -56,7 +58,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\"",
+            "timeout": 15
           }
         ]
       },
@@ -65,7 +68,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest-post.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/digest-post.mjs\"",
+            "timeout": 15
           }
         ]
       },
@@ -116,7 +120,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/routing-card.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/routing-card.mjs\"",
+            "timeout": 15
           }
         ]
       }
@@ -137,7 +142,8 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ladder-card.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/ladder-card.mjs\"",
+            "timeout": 10
           }
         ]
       }
@@ -147,11 +153,13 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-report.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/subagent-report.mjs\"",
+            "timeout": 15
           },
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\""
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/agent-ledger.mjs\"",
+            "timeout": 15
           }
         ]
       }

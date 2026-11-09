@@ -68,6 +68,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));
 const USAGE = 'usage: docs-gate.mjs [--root <repo>] [--baseline-init] [--check]';
 const MANIFEST_TAIL = '/98 System/DOCS_MANIFEST.json';
 const BASELINE_NAME = 'GATE_BASELINE.jsonl';
+const SIBLING_MS = 300_000; // one gate step; the same limit integrate-branch.mjs gives its test run
 const LEDGER_RE = /(?:^|\/)programs\/[^/]+\/PROGRAM\.md$/;
 const LEDGER_CHECK_RE = /^\s+- (check 1[1-8]: .+)$/;
 
@@ -88,7 +89,9 @@ const firstLine = (text) => text.split(/\r?\n/).map((l) => l.trim()).find(Boolea
 function sibling(script, args) {
   const file = join(HERE, script);
   if (!existsSync(file)) return { status: null, out: `${script} is not bundled beside docs-gate.mjs` };
-  const r = spawnSync(process.execPath, [file, ...args], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+  const r = spawnSync(process.execPath, [file, ...args], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: SIBLING_MS, killSignal: 'SIGKILL' });
+  // A step that outruns its limit reports no status, so it fails like a non-zero exit (every caller tests `!== 0`).
+  if (r.error?.code === 'ETIMEDOUT') return { status: null, out: `${script} did not finish within ${SIBLING_MS / 1000} seconds` };
   return { status: r.status, out: `${r.stdout ?? ''}${r.stderr ?? ''}` };
 }
 

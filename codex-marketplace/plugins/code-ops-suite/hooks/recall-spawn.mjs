@@ -18,7 +18,10 @@ export function spawnRecallBuild(sessionId, transcriptPath, cwd) {
     const script = join(dirname(fileURLToPath(import.meta.url)), '..', 'scripts', 'transcript-recall.mjs');
     if (!existsSync(script)) return;
     const child = spawn(process.execPath, [script, 'build', '--session', sessionId, '--transcript', transcriptPath], {
+      // CODE_OPS_RECALL_DETACHED tells the build to set its own deadline, to release its lock on every
+      // exit, and to stand down when another build holds a live lock (transcript-recall.mjs superviseBuild).
       cwd: existsSync(cwd) ? cwd : undefined, detached: true, stdio: 'ignore', windowsHide: true,
+      env: { ...process.env, CODE_OPS_RECALL_DETACHED: '1' },
     });
     child.on('error', () => {});
     child.unref();

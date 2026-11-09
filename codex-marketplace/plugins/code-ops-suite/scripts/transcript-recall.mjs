@@ -54,6 +54,7 @@ import { closeSync, mkdirSync, openSync, readFileSync, readSync, realpathSync, s
 import { homedir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { Worker, isMainThread } from 'node:worker_threads';
 import { parseOrDie, usage } from './cli-lib.mjs';
 import { maskTexts, redactBlocks } from './compact-snapshot.mjs';
 import { atomicWrite } from './context-index-lib.mjs';
@@ -73,6 +74,10 @@ const SNIPPET_RADIUS = 90;
 const MASK_WINDOW = 131_072;
 const LOCK_STALE_MS = 120_000;
 const LOCK_WAIT_MS = 20_000;
+// Hard limit of the detached prebuild. Measured full builds (CODE_OPS_HOME under a scratch folder, real
+// transcripts, 2026-11-09): 152 MB 0.7 s, 630 MB 2.6 s, 1.6 GB 5.8 s, so 60 s is ten times the largest.
+// It stays under LOCK_STALE_MS, so a live build is never judged stale by age while it still runs.
+const BUILD_LIMIT_MS = 60_000;
 const WITHHELD = '[withheld: masking failed]';
 const FILE_TOOLS = new Set(['Read', 'Edit', 'Write', 'MultiEdit', 'NotebookEdit']);
 const MARKER = /^\s*(?:[-*>]\s+)?(?:\*\*)?(?:Decision:|CONFIRMED\b|PROBABLE\b|error\b)/i;
@@ -495,6 +500,30 @@ function withLock(dir, fn) {
   try { return fn(); } finally { try { unlinkSync(path); } catch { /* already gone */ } }
 }
 
+// Removes build.lock only when it names this process. A worker shares its parent's pid, so the main
+// thread can release the lock its worker took, and never one another builder holds.
+function releaseLock(path) {
+  try { if (JSON.parse(readFileSync(path, 'utf8')).pid === process.pid) unlinkSync(path); } catch { /* not ours, or gone */ }
+}
+
+// The detached prebuild (hooks/recall-spawn.mjs sets CODE_OPS_RECALL_DETACHED) never waits for a lock
+// and never outlives BUILD_LIMIT_MS. The build is synchronous, so a timer or a signal handler on the
+// build's own thread could not fire until it ended: the build runs in a worker, and this thread keeps
+// the timer and the handlers. Every exit path releases the lock: the build ends, the limit passes, or a
+// SIGTERM, SIGINT, or SIGHUP arrives (win32 delivers none of the three to a handler, so there the stale
+// rule and `co clean` remove the lock). A live lock held by another build means that build covers this
+// one, so this process ends at once, and the first recall call catches up whatever it left.
+function superviseBuild(ctx) {
+  const path = join(ctx.dir, 'build.lock');
+  if (statSync(path, { throwIfNoEntry: false }) && !lockStale(path)) return;
+  const worker = new Worker(fileURLToPath(import.meta.url), { argv: process.argv.slice(2) });
+  const end = (code) => { releaseLock(path); process.exit(code); };
+  setTimeout(() => end(1), BUILD_LIMIT_MS); // refed on purpose: the worker's own work must not outlive it
+  for (const signal of ['SIGTERM', 'SIGINT', 'SIGHUP']) process.on(signal, () => end(143));
+  worker.on('error', () => end(1));
+  worker.on('exit', end);
+}
+
 // Brings the index up to date. Returns the loaded index and what ran: full, incremental, or none.
 function refresh(ctx, { rebuildOnDrift = false } = {}) {
   let idx = loadIndex(ctx);
@@ -741,6 +770,7 @@ function cli(argv) {
   };
   try {
     if (!statSync(transcript, { throwIfNoEntry: false })?.isFile()) return fail('transcript not found');
+    if (command === 'build' && isMainThread && process.env.CODE_OPS_RECALL_DETACHED === '1') { superviseBuild(ctx); return 0; }
     const out = run(command, ctx, opts);
     console.log(json ? JSON.stringify(out) : render(out));
     return 0;

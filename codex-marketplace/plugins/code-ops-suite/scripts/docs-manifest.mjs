@@ -46,8 +46,11 @@ function flags(args) {
   }
   return out;
 }
+// Git plumbing that outruns this limit is killed and the call throws (code ETIMEDOUT), so every caller
+// fails: check and sync exit non-zero, and a timeout never reads as a clean verdict.
+const GIT_MS = 30_000;
 function gitPaths(root, args) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: GIT_MS, killSignal: 'SIGKILL' })
     .split('\0').filter(Boolean).map((path) => toPosix(path));
 }
 export function hashPaths(root, paths, read = (path) => readFileSync(resolve(root, path))) {
@@ -89,7 +92,7 @@ function blobSnapshot(root, entries) {
   const shas = [...new Set(entries.map((entry) => entry.sha))];
   const blobs = new Map();
   if (shas.length) {
-    const out = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input: `${shas.join('\n')}\n`, maxBuffer: BLOB_BUFFER });
+    const out = execFileSync('git', ['cat-file', '--batch'], { cwd: root, input: `${shas.join('\n')}\n`, maxBuffer: BLOB_BUFFER, timeout: GIT_MS, killSignal: 'SIGKILL' });
     let at = 0;
     for (const sha of shas) {
       const eol = out.indexOf(0x0a, at);
@@ -113,7 +116,7 @@ function blobSnapshot(root, entries) {
 // Both listings are NUL-separated records of `<metadata>\t<path>`. A gitlink (a submodule commit)
 // has no blob, so `parse` returns null for it and the entry drops out.
 function listing(root, args, parse) {
-  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 })
+  return execFileSync('git', args, { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: GIT_MS, killSignal: 'SIGKILL' })
     .split('\0').filter(Boolean).flatMap((record) => {
       const tab = record.indexOf('\t');
       const entry = parse(record.slice(0, tab).split(' '), record.slice(tab + 1));
@@ -410,7 +413,9 @@ function parseRevs(root, value) {
   const revs = value.split(',');
   if (revs.some((rev) => !rev || rev.startsWith('-'))) usage();
   for (const rev of revs) {
-    try { execFileSync('git', ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { cwd: root, stdio: 'ignore' }); } catch { die(`--attested: ${rev} is not a commit`); }
+    try { execFileSync('git', ['rev-parse', '--verify', '--quiet', `${rev}^{commit}`], { cwd: root, stdio: 'ignore', timeout: GIT_MS, killSignal: 'SIGKILL' }); } catch (e) {
+      die(e.code === 'ETIMEDOUT' ? `--attested: git did not finish within ${GIT_MS / 1000} seconds checking ${rev}` : `--attested: ${rev} is not a commit`); // either way the run stops
+    }
   }
   return revs;
 }

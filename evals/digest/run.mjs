@@ -21,7 +21,7 @@
 //
 //   node evals/digest/run.mjs   (exit 0 = pass)
 
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { readFileSync, existsSync, readdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { dirname, resolve, join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -233,6 +233,40 @@ if (parsed) {
       expect(Number(m[3]) <= rawFile.length, `a stderr elision must stay inside the raw file, got line ${m[3]}`);
     }
   }
+}
+
+// A terminate sent to the wrapper must reach the wrapped command, and the wrapper then exits with the
+// command's own status (a command killed by the signal reports 1, never a success). win32 delivers no
+// SIGTERM to a handler, so there the case is skipped. Each run has its own 20-second limit that kills
+// the wrapper and the child, so a wrapper that forwards nothing fails the case and leaves no process.
+if (process.platform === 'win32') {
+  console.log('skip signal forwarding: win32 does not deliver SIGTERM to a handler, so the case runs on other platforms');
+} else {
+  const waitFor = async (file, ms) => {
+    for (const end = Date.now() + ms; Date.now() < end; await new Promise((r) => setTimeout(r, 25))) if (existsSync(file)) return true;
+    return false;
+  };
+  const alive = (pid) => { try { process.kill(pid, 0); return true; } catch { return false; } };
+  const forwarded = async (name, childSource) => {
+    const pidFile = join(tmp, `${name}.pid`);
+    const wrapper = spawn(process.execPath, [cli, '--no-store', '--', process.execPath, '-e', `require('node:fs').writeFileSync(${JSON.stringify(pidFile)}, String(process.pid)); ${childSource}`], { cwd: root, stdio: 'ignore' });
+    const closed = new Promise((res) => wrapper.on('close', (code, sig) => res({ code, sig })));
+    const limit = setTimeout(() => {
+      try { process.kill(Number(readFileSync(pidFile, 'utf8')), 'SIGKILL'); } catch { /* not started or gone */ }
+      wrapper.kill('SIGKILL');
+    }, 20_000);
+    const started = await waitFor(pidFile, 15_000);
+    if (started) wrapper.kill('SIGTERM');
+    const done = await closed;
+    clearTimeout(limit);
+    const pid = started ? Number(readFileSync(pidFile, 'utf8')) : 0;
+    await new Promise((r) => setTimeout(r, 200)); // the child is reaped by now; this only covers a slow exit
+    return { started, ...done, childAlive: pid ? alive(pid) : false };
+  };
+  const handled = await forwarded('handled', "process.on('SIGTERM', () => process.exit(42)); setInterval(() => {}, 1000);");
+  expect(handled.started && handled.code === 42 && !handled.childAlive, `a SIGTERM to the wrapper must reach a child that handles it, and the wrapper must exit with the child's status 42, got ${JSON.stringify(handled)}`);
+  const unhandled = await forwarded('unhandled', 'setInterval(() => {}, 1000);');
+  expect(unhandled.started && unhandled.code === 1 && !unhandled.childAlive, `a SIGTERM must kill a child with no handler, and a command killed by a signal must report exit 1, got ${JSON.stringify(unhandled)}`);
 }
 
 rmSync(tmp, { recursive: true, force: true });

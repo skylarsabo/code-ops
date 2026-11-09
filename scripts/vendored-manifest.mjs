@@ -114,6 +114,12 @@ export const RUNTIME_SCRIPTS = [
   // The per-host scratch and worktree folders and their advisory note. hooks/dispatch-guard.mjs and
   // hooks/routing-card.mjs import it lazily; it imports only node builtins; `co workspace` runs it.
   { name: 'workspace-layout.mjs', plugins: ['code-ops-suite'] },
+  // `co clean` and the once-a-day cleanup advisory. hooks/routing-card.mjs imports it lazily at
+  // startup and clear; it imports workspace-layout.mjs as a SIBLING (vendored above).
+  { name: 'clean.mjs', plugins: ['code-ops-suite'] },
+  // `co ps` and the once-a-day stray-process advisory. hooks/routing-card.mjs imports it lazily at
+  // startup and clear; it imports clean.mjs and workspace-layout.mjs as SIBLINGS (vendored above).
+  { name: 'procs.mjs', plugins: ['code-ops-suite'] },
   // `co decide promote` and `co program close`. Both import promotion-lib.mjs as a SIBLING and spawn
   // records.mjs (already vendored above), so the pair ships wherever handoff-state.mjs does.
   { name: 'program-lifecycle.mjs', plugins: ['code-ops-suite'] },

@@ -39,13 +39,16 @@
 // frontmatter `model:`), `appliedEffort` with `effortSource` (`workflow` for an `effort` option on the
 // dispatch, `frontmatter` for the agent's `effort:`), and `flag` (`ok`, `under`, or `over`: the
 // applied rung against the requested one). A field that is absent records `null`; none of them
-// can fail the hook. `attemptOf` derives a unit's attempt from the rows, and `routingSummary` reads
+// can fail the hook. One more field, `routeKind`, is the unit kind from the brief's `Route basis:`
+// line (its first `;` field); unlike the others it is left off the row when the brief has none, so
+// rows written before it existed read the same. `attemptOf` derives a unit's attempt from the rows, and `routingSummary` reads
 // the rows back as the starvation and overuse advisories (advisory only, never a failure).
 //
 // HOSTS. A Grok SubagentStop carries camelCase `subagentId` and `subagentType` and no `agent_id`;
 // `rowsFromPayload` maps them when the snake_case fields are absent.
 //
-// Imports node builtins only, so it vendors beside the hook without a dependency.
+// Imports node builtins and two sibling scripts (`ledger-grammar.mjs`, `model-tiers.mjs`), both
+// vendored beside it, so it carries no third-party dependency.
 
 import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import { createHash } from 'node:crypto';
@@ -53,6 +56,7 @@ import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { LEDGER_ROW_RE, replayDispatchJournal } from './ledger-grammar.mjs';
+import { PROVIDER_TIERS } from './model-tiers.mjs';
 
 const DESCRIPTION_MAX = 80;
 const REASON_MAX = 200;
@@ -197,23 +201,35 @@ function frontmatterOf(agentType, agentsDir) {
   return { model: field('model'), effort: field('effort') };
 }
 
-// deferred(a local name map, upgrade path: read the dispatch rungs from model-tiers.mjs once the
-// premium binding lands there). The rung a dispatch's model id or alias runs at: `sonnet` is the mid
-// alias, a full Sonnet id is the strong binding, `opus` is premium, `fable` is frontier. An id this
-// map does not know has no rung, so its flag is null.
+// The Claude model families and the rung each serves, from the one ladder in model-tiers.mjs: haiku
+// light, sonnet mid, opus strong, fable frontier. A family name matches inside a full id, so a stamp
+// from an earlier pin (`claude-sonnet-5-5`, `claude-fable-5-1`) keeps the rung of its family.
+const FAMILY_RUNGS = Object.entries(PROVIDER_TIERS.anthropic.aliases).map(([rung, family]) => [family, rung]);
+
+// The rung a dispatch's model id or alias runs at, or null for an id no family names, so its flag is
+// null. Never `premium`: premium and frontier share one model (premiumCollapse), so the model cannot
+// tell them apart and a premium dispatch reads `frontier`. The brief's `Tier:` line carries the
+// difference, which is why `compareRungs` lets a frontier model meet a premium request.
 export function rungOfModel(model) {
   const id = typeof model === 'string' ? model.trim().toLowerCase() : '';
-  if (!id) return null;
-  if (id.includes('haiku')) return 'light';
-  if (id === 'sonnet') return 'mid';
-  if (id.includes('sonnet')) return 'strong';
-  if (id.includes('opus')) return 'premium';
-  if (id.includes('fable')) return 'frontier';
-  return null;
+  return FAMILY_RUNGS.find(([family]) => id.includes(family))?.[1] ?? null;
 }
 
-// The routing fields of one `dispatched` row. Brief lines are read for the unit, tier, and effort
-// only; no other brief text is kept. Every field is null when its source is absent.
+// The sign of the applied rung against the requested one: -1 under, 0 ok, 1 over. A frontier model
+// meets a premium request, since the two share a model.
+const compareRungs = (applied, requested) => Math.sign(TIER_RUNGS.indexOf(applied === 'frontier' && requested === 'premium' ? 'premium' : applied) - TIER_RUNGS.indexOf(requested));
+
+// The unit kind a brief declares: the first `;` field of its `Route basis:` line, kept only when it
+// is a lowercase kind word, else null. The set of kinds lives in route-unit.mjs and is not
+// re-listed here, so a kind added there is recorded without a change to the ledger.
+const routeKindOf = (prompt) => {
+  const kind = briefLine(prompt, 'Route basis')?.split(';')[0].trim().toLowerCase();
+  return kind && /^[a-z][a-z-]{0,23}$/.test(kind) ? kind : null;
+};
+
+// The routing fields of one `dispatched` row. Brief lines are read for the unit, tier, effort, and
+// route kind only; no other brief text is kept. Every field is null when its source is absent,
+// except `routeKind`, which is then omitted.
 function routingOf(input, agentType, agentsDir) {
   const prompt = input.prompt;
   const fm = frontmatterOf(agentType, agentsDir);
@@ -221,6 +237,7 @@ function routingOf(input, agentType, agentsDir) {
   const appliedModel = typeof input.model === 'string' && input.model.trim() ? input.model.trim().slice(0, MODEL_MAX) : fm.model;
   const requestedTier = wordIn(briefLine(prompt, 'Tier'), new Set(TIER_RUNGS));
   const applied = rungOfModel(appliedModel);
+  const routeKind = routeKindOf(prompt);
   return {
     unit: oneLine(briefLine(prompt, 'Unit') ?? '', UNIT_MAX) || null,
     scopeHash: scopeHashOf(prompt),
@@ -229,7 +246,8 @@ function routingOf(input, agentType, agentsDir) {
     appliedModel: appliedModel ?? null,
     appliedEffort: option ?? fm.effort,
     effortSource: option ? 'workflow' : fm.effort ? 'frontmatter' : null,
-    flag: requestedTier && applied ? ['under', 'ok', 'over'][Math.sign(TIER_RUNGS.indexOf(applied) - TIER_RUNGS.indexOf(requestedTier)) + 1] : null,
+    flag: requestedTier && applied ? ['under', 'ok', 'over'][compareRungs(applied, requestedTier) + 1] : null,
+    ...(routeKind && { routeKind }),
   };
 }
 
@@ -443,6 +461,8 @@ export function routingSummary(rows, { ceiling = DEFAULT_PREMIUM_CEILING, trigge
     if (!r.agent_id) return true;
     return !seen.has(r.agent_id) && Boolean(seen.add(r.agent_id));
   });
+  // rungOfModel never answers `premium`, so this is the frontier model (Fable) alone; an Opus
+  // dispatch is the strong pin and does not count.
   const atPremium = (r) => TIER_RUNGS.indexOf(rungOfModel(r.appliedModel)) >= TIER_RUNGS.indexOf('premium');
   const premium = judgment.filter(atPremium).length;
   const asked = judgment.filter(triggered);

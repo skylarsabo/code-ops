@@ -21,7 +21,7 @@ Before each tool round, list what you still need, then request every item that d
 
 Return a compact structured report: what you were asked, what you found with `file:line`, anything ambiguous or unverified, and the specific entities (files, call-sites, dependencies) relevant to the next step. The orchestrator synthesizes across explorers.
 
-Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+Report cap: at most 400 words. Return the full report as your final message: the SubagentStop hook saves it to the brief's Report path when that path is in the run folder, so do not attempt to write it. It holds only the conclusion, evidence anchors, and next action.
 
 ## Contract
 
