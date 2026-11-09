@@ -461,7 +461,9 @@ export function reapStrays({ read = readTable, kill = killTree, now = Date.now, 
     if (!again.ok) { out.skipped.push({ pid: target.pid, reason: `table unreadable before the kill: ${again.reason}` }); continue; }
     const e = analyze(again.rows, { ...analysis, now: now() }).byPid.get(target.pid);
     if (!e) { out.skipped.push({ pid: target.pid, reason: 'already gone' }); continue; }
-    if (e.startMs !== target.startMs || e._raw !== target._raw) { out.skipped.push({ pid: target.pid, reason: 'start time or command line changed' }); continue; }
+    // A POSIX start time is the read time minus whole elapsed seconds, so two reads differ by up to SKEW_MS.
+    const sameStart = e.startMs !== null && target.startMs !== null && Math.abs(e.startMs - target.startMs) <= SKEW_MS;
+    if (!sameStart || e._raw !== target._raw) { out.skipped.push({ pid: target.pid, reason: 'start time or command line changed' }); continue; }
     if (!e.stray) { out.skipped.push({ pid: target.pid, reason: `no longer a candidate: ${e.blockers.join('; ')}` }); continue; }
     const done = kill(e);
     (done.ok ? out.killed : out.skipped).push({ pid: e.pid, origin: e.origin, tree: e.tree, cmd: e.cmd, reason: done.detail });

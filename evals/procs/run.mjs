@@ -401,6 +401,15 @@ const dead = 4242; // a parent pid that no row holds
   const readTableFake = () => ({ ok: true, rows: table, ms: 1, reason: '' });
   const reaped = reapStrays({ read: readTableFake, kill: (e) => killTree(e, { platform: 'win32', run: reapRun, read: readTableFake }), now: () => NOW, analysis: { root: ROOT, checkout: true, cacheRoots: [CACHE], selfPid: 99999, win: false } });
   check('reapStrays on win32 ends exactly the verified tree and not the unrelated process', reaped.killed.length === 1 && clean(reapCalls) && reapCalls.map((a) => Number(a[1])).join() === '9001,9002,9003', JSON.stringify(reapCalls));
+
+  // A POSIX start time is the read time minus whole elapsed seconds, so the re-read before the kill
+  // reports each start up to a second or two off. That is the same process, not a restarted one.
+  const shifted = (ms) => { let n = 0; return () => ({ ok: true, rows: n++ === 0 ? table : table.map((r) => ({ ...r, startMs: r.startMs + ms })), ms: 1, reason: '' }); };
+  const reapWith = (read) => { const killed = []; return { out: reapStrays({ read, kill: (e) => { killed.push(e.pid); return { ok: true, detail: 'fake' }; }, now: () => NOW, analysis: { root: ROOT, checkout: true, cacheRoots: [CACHE], selfPid: 99999, win: false } }), killed }; };
+  const jitter = reapWith(shifted(1000));
+  check('reapStrays: a re-read whose start times differ by one second still ends the stray', jitter.killed.join() === '9001' && jitter.out.skipped.length === 0, JSON.stringify(jitter.out));
+  const moved = reapWith(shifted(30 * MIN));
+  check('reapStrays: a re-read whose start time moved by minutes is skipped as a changed process', moved.killed.length === 0 && /start time or command line changed/.test(moved.out.skipped[0]?.reason ?? ''), JSON.stringify(moved.out));
 }
 
 // ---- the advisory -----------------------------------------------------------------------------
