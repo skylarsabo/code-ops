@@ -89,7 +89,8 @@ fits the unit. Name a round budget and a report cap in every brief.
 
 At the round budget, an operative checkpoints to the report path and finishes if it can before
 the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
-its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
+its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds,
+and an implementer unit when it needs more than about 40.
 
 <!-- host: grok -->
 
@@ -140,7 +141,7 @@ or effort, return a checkpointed smaller unit or request a scope decision.
 
 <!-- host: claude -->
 
-Fable 5.1 uses adaptive thinking, so let the runtime control effort.
+Fable 5.2 uses adaptive thinking, so let the runtime control effort.
 
 <!-- /host -->
 

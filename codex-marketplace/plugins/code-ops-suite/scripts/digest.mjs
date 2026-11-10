@@ -144,6 +144,10 @@ let child;
 try { child = spawn(spec.file, spec.args, { stdio: ['inherit', 'pipe', 'pipe'], cwd: workdir, ...spec.options }); }
 catch (e) { console.error(`digest: cannot spawn ${exe}: ${e.message}`); process.exit(127); }
 child.on('error', (e) => { console.error(`digest: cannot spawn ${exe}: ${e.message}`); process.exit(127); });
+// The wrapped command is the operator's own, so it gets no timeout (the host bounds the call). An
+// interrupt or terminate sent to this wrapper must still reach the child, or the child outlives it; the
+// close handler below then exits with the child's status. win32 delivers SIGTERM to no handler.
+for (const signal of ['SIGINT', 'SIGTERM']) process.on(signal, () => { try { child.kill(signal); } catch { /* already gone */ } });
 
 const outChunks = [];
 const errChunks = [];

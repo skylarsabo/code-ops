@@ -2,7 +2,7 @@
 name: tracer
 description: Read-only bug-hunt investigator. Delegate tracing a control- or data-flow path end-to-end, deriving the invariants a piece of code must uphold, or locating every site of a concept. Returns a tight, evidence-cited report. Never edits or executes.
 tools: Read, Grep, Glob
-model: claude-sonnet-5-5
+model: claude-opus-5-5
 effort: high
 ---
 
@@ -29,7 +29,7 @@ Before each tool round, list what you still need, then request every item that d
 
 Return the question asked, the trace, invariants, or sites with `file:line` evidence, explicit inferences against facts, and the specific spots the next step (a repro, a fix) should target. Keep the report dense and evidence-cited, with no raw dumps. The orchestrator turns your trace into a proven finding.
 
-Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+Report cap: at most 400 words. Return the full report as your final message: the SubagentStop hook saves it to the brief's Report path when that path is in the run folder, so do not attempt to write it. It holds only the conclusion, evidence anchors, and next action.
 
 **Routing.** The lead picks Tier and Effort for each dispatch with `co route` and states them in the brief. You work the same at any tier: the brief's Scope, rules, and report shape do not change with the rung.
 

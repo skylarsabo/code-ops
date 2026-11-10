@@ -59,7 +59,7 @@
 //   node evals/dispatch-guard/run.mjs
 
 import { spawnSync } from 'node:child_process';
-import { cpSync, existsSync, mkdtempSync, rmSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { cpSync, existsSync, mkdtempSync, rmSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -71,6 +71,24 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = resolve(here, '..', '..');
 const suite = join(root, 'plugins', 'code-ops-suite');
 const hook = join(suite, 'hooks', 'dispatch-guard.mjs');
+const rules = join(suite, 'hooks', 'brief-rules.mjs');
+// The files a copied dispatch-guard.mjs imports beside it; a copy without them crashes at import and prints nothing,
+// which every "stays open" and "allows" predicate would read as a pass.
+const HOOK_SIBLINGS = ['agent-file.mjs', 'brief-rules.mjs'];
+const copySiblings = (dir) => HOOK_SIBLINGS.forEach((name) => writeFileSync(join(dir, name), readFileSync(join(suite, 'hooks', name), 'utf8')));
+// A mutant of the guard, or of brief-rules.mjs (inModule), as `<dir>/hooks/<name>.mjs`. A module mutant is a copy of the
+// module under its own name, and the guard copy imports that one. The other siblings sit in <dir>/hooks already.
+function writeMutant(dir, name, from, to, inModule = false) {
+  const guardText = readFileSync(hook, 'utf8');
+  const rulesText = readFileSync(rules, 'utf8');
+  expect((inModule ? rulesText : guardText).includes(from), `${name}: the mutation target is gone from ${inModule ? 'brief-rules.mjs' : 'the hook'}`);
+  const mutantHook = join(dir, 'hooks', `${name}.mjs`);
+  if (inModule) {
+    writeFileSync(join(dir, 'hooks', `${name}-rules.mjs`), rulesText.replace(from, () => to));
+    writeFileSync(mutantHook, guardText.replace("'./brief-rules.mjs'", () => `'./${name}-rules.mjs'`));
+  } else writeFileSync(mutantHook, guardText.replace(from, () => to));
+  return mutantHook;
+}
 
 const { fails, expect } = tally();
 
@@ -514,7 +532,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
   const mutated = source.replace('const calls = workflowCalls(script);', 'const calls = null;');
   expect(mutated !== source, 'the mutation must change the hook source');
   writeFileSync(join(mutantDir, 'dispatch-guard.mjs'), mutated);
-  writeFileSync(join(mutantDir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+  copySiblings(mutantDir);
   const mutant = spawnSync('node', [join(mutantDir, 'dispatch-guard.mjs')], {
     input: JSON.stringify(dispatchCall({ script: `${typed};\n${untyped};` }, { tool_name: 'Workflow' })),
     encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '' },
@@ -527,7 +545,7 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     const changed = source.replace(from, to);
     expect(changed !== source, `the ${name} mutation must change the hook source`);
     writeFileSync(join(dir, 'dispatch-guard.mjs'), changed);
-    writeFileSync(join(dir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    copySiblings(dir);
     const res = spawnSync('node', [join(dir, 'dispatch-guard.mjs')], {
       input: JSON.stringify(dispatchCall({ script }, { tool_name: 'Workflow' })),
       encoding: 'utf8', env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_DISPATCH_GUARD: '', CODE_OPS_WORKFLOW_ARGS: '' },
@@ -605,9 +623,17 @@ const reasonOf = (out) => (out && out !== 'unparsable' ? out.hookSpecificOutput?
     expect(deny(out) && /missing: Scope;/.test(reasonOf(out) ?? ''), `${label} must not satisfy Scope, got ${JSON.stringify(out)}`);
   }
   // A bold list item with a parenthetical, and a heading, do count.
-  for (const line of ['- **Scope (edit authority):** x', '## Scope']) {
+  // Changed: a bare `## Scope` heading used to satisfy Scope with no value anywhere; a heading counts only
+  // with a value inline or below it, so the heading case carries one.
+  for (const line of ['- **Scope (edit authority):** x', '## Scope\nx', '## Scope: x', 'Scope:\n  x']) {
     r = runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home });
     expect(r.status === 0 && r.stdout === '', `${JSON.stringify(line)} must satisfy Scope, got ${JSON.stringify(r.stdout)}`);
+  }
+  // A Scope label or heading with no value is denied as a missing field that says so, wherever it sits.
+  for (const line of ['## Scope', 'Scope:', '## Scope\n\nReport cap: 1 word.']) {
+    out = parseOut(runHook(dispatchCall({ prompt: `${brief('Scope')}\n${line}`, subagent_type: 'code-ops-suite:implementer', effort: 'high' }), { home }));
+    expect(deny(out) && /requires these brief fields, missing: Scope; Scope has a label but no value on its line or below it;/.test(reasonOf(out) ?? '') && (reasonOf(out) ?? '').startsWith('Scope:\n'),
+      `${JSON.stringify(line)} must deny as a Scope with no value, got ${JSON.stringify(out)}`);
   }
 
   // A field denial that names Round budget carries no separate Round budget advisory.
@@ -1224,7 +1250,7 @@ function transcriptAt(dir, context, name = 'transcript.jsonl') {
   const wfMutated = hookSource.replace("join(dir, 'workflows')", "join(dir, 'no-workflows')");
   expect(wfMutated !== hookSource, 'the no-workflows mutation must change the hook source');
   writeFileSync(join(wfMutantDir, 'dispatch-guard.mjs'), wfMutated);
-  writeFileSync(join(wfMutantDir, 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+  copySiblings(wfMutantDir);
   writeWorkflowBrief('wf-mut', 'Scope: x\nRound budget: 15 tool rounds\n', 'wf-a');
   const mutantOuts = runWorkflow('wf-mut', 22, join(wfMutantDir, 'dispatch-guard.mjs'));
   expect(mutantOuts[21]?.hookSpecificOutput?.permissionDecision !== 'deny' && contextOf(mutantOuts[14]) === undefined,
@@ -1626,7 +1652,8 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
 
 // Fake agent definitions in a temp cache layout, so these cases read only the guard and the vendored
 // router, never the real agents' Contract lines. `reviewer` and `implementer` pin the strong model at
-// high effort; `steady` pins medium effort; `plain` has no `Tier` in its Contract.
+// high effort; `steady` pins medium effort; `plain` has no `Tier` in its Contract. The strong pin is the
+// full Opus id, as the real agents have it; a full Sonnet id ranks mid.
 {
   const { home, cleanup } = fakeHome();
   const suiteRoot = join(home, 'cache', 'code-ops', 'code-ops-suite', '2.0.0');
@@ -1634,9 +1661,9 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const ROUTED = 'Scope, Objective, Round budget, Report cap, Report path, Expected return, Unit, Tier, Effort, Route basis';
   const fake = (name, model, effort, requires) => writeFileSync(join(suiteRoot, 'agents', `${name}.md`),
     `---\nname: ${name}\nmodel: ${model}\neffort: ${effort}\n---\nBody.\n\n## Contract\n\nBrief requires: ${requires}\nEdits: none\n`);
-  fake('reviewer', 'claude-sonnet-5-5', 'high', ROUTED);
-  fake('implementer', 'claude-sonnet-5-5', 'high', ROUTED);
-  fake('steady', 'claude-sonnet-5-5', 'medium', ROUTED);
+  fake('reviewer', 'claude-opus-5-5', 'high', ROUTED);
+  fake('implementer', 'claude-opus-5-5', 'high', ROUTED);
+  fake('steady', 'claude-opus-5-5', 'medium', ROUTED);
   fake('plain', 'sonnet', 'low', 'Scope, Objective, Round budget, Report cap, Report path, Expected return');
 
   const brief = (o = {}) => {
@@ -1665,15 +1692,21 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
 
   // Baseline and the silent override: strong with no override, and an override that matches Tier.
   quiet(send(REV), 'strong, no override');
-  quiet(send(REV, {}, { model: 'claude-sonnet-5-5' }), 'an override at strong matches Tier strong');
+  quiet(send(REV, {}, { model: 'claude-opus-5-5' }), 'an override at strong matches Tier strong');
+  quiet(send(REV, {}, { model: 'opus' }), 'opus is strong, so an explicit opus matches Tier strong');
   const hard = { basis: 'judgment; surface=none; ambiguity=high; reversible=no' };
-  quiet(send(REV, { ...hard, tier: 'premium' }, { model: 'opus' }), 'premium with opus');
-  quiet(send(REV, { ...hard, tier: 'premium', override: 'x' }, { model: 'opus' }), 'premium with opus and an override line');
+  // Premium is the Fable model; the brief Tier alone tells it from a frontier peer.
+  quiet(send(REV, { ...hard, tier: 'premium' }, { model: 'fable' }), 'a triggered premium with fable');
+  quiet(send(REV, { ...hard, tier: 'premium', override: 'x' }, { model: 'fable' }), 'a triggered premium with fable and an override line');
 
   // Tier and the effective rung must agree.
-  denied(send(REV, { ...hard, tier: 'premium' }), /Tier: premium but the dispatch runs at strong.*pass model "opus"/, 'premium with no model');
-  denied(send(REV, { tier: 'strong' }, { model: 'opus' }), /Tier: strong but the dispatch runs at premium.*omit the model override/, 'strong with opus');
-  denied(send(REV, { tier: 'frontier' }, { model: 'opus' }), /Tier: frontier but the dispatch runs at premium.*pass model "fable"/, 'frontier with opus');
+  // Replaced: premium with no model once demanded model "opus"; premium now runs on "fable" and strong is the frontmatter pin.
+  denied(send(REV, { ...hard, tier: 'premium' }), /Tier: premium but the dispatch runs at strong.*pass model "fable"/, 'premium with no model');
+  denied(send(REV, { ...hard, tier: 'premium' }, { model: 'opus' }), /Tier: premium but the dispatch runs at strong \(model "opus"\); pass model "fable"/, 'premium with opus gets the fable fix text');
+  // Replaced: strong with opus once denied as premium; opus is strong now, so it matches Tier strong (the case above).
+  // The stricter form: strong on the Fable model is a mismatch.
+  denied(send(REV, { tier: 'strong' }, { model: 'fable' }), /Tier: strong but the dispatch runs at frontier \(model "fable"\).*omit the model override/, 'strong with fable');
+  denied(send(REV, { tier: 'frontier' }, { model: 'opus' }), /Tier: frontier but the dispatch runs at strong \(model "opus"\); pass model "fable"/, 'frontier with opus');
   denied(send(REV, { tier: 'mid' }), /Tier: mid but the dispatch runs at strong/, 'a Tier below the agent floor');
   denied(send(REV, { tier: 'ultra' }), /"ultra" is not a rung/, 'an unknown Tier');
 
@@ -1714,7 +1747,11 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   }
   // A Scope with an empty colon value reads the bullets after its blank lines.
   denied(send(IMP, { scope: '\n\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a blank-line Scope reads its bullets');
-  quiet(send(IMP, { scope: '\n\nObjective: x\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), 'an empty Scope followed by a label reads no bullets');
+  // Changed: this was quiet. An empty Scope followed by a label still reads no bullets, so no surface derives from
+  // them, and the brief now also denies as a Scope with no value.
+  const emptyScope = reasonOf(send(IMP, { scope: '\n\nObjective: x\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' })) ?? '';
+  expect(/missing: Scope; Scope has a label but no value/.test(emptyScope) && !/derive surface/.test(emptyScope),
+    `an empty Scope followed by a label must deny as no value and derive no surface, got ${emptyScope}`);
   // Any Label: line ends the Scope block, not only the closed list; a drive-letter path is no label.
   quiet(send(IMP, { scope: 'src/app.js.\nContext: see plugins/code-ops-suite/hooks/dispatch-guard.mjs for background' }), 'a non-stop label ends the Scope');
   quiet(send(IMP, { scope: 'src/app.js.\n- Notes (read only): scripts/lint-plugins.mjs' }), 'a bulleted label with a qualifier ends the Scope');
@@ -1735,7 +1772,7 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const secReview = { scope: 'src/auth/login.js', basis: 'review; surface=security; ambiguity=low; reversible=yes' };
   denied(send(REV, secReview), /below premium at high effort \(rule 7a/, 'a security review at strong');
   denied(send(REV, { ...secReview, override: 'cost' }), /below premium at high effort \(rule 7a.*does not clear a surface trigger/, 'a security review at strong with a Route override');
-  quiet(send(REV, { ...secReview, tier: 'premium' }, { model: 'opus' }), 'a security review at premium');
+  quiet(send(REV, { ...secReview, tier: 'premium' }, { model: 'fable' }), 'a security review at premium');
   // 7d (public-contract judgment at high ambiguity) is a surface trigger too.
   const pc = { scope: 'code-ops-docs/35 Contracts and Data/CONTRACTS.md', basis: 'judgment; surface=public-contract; ambiguity=high; reversible=yes' };
   denied(send(IMP, { ...pc, override: 'cost' }), /rule 7d.*does not clear a surface trigger/, 'a 7d unit with a Route override');
@@ -1752,11 +1789,18 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   ]);
   denied(send(IMP, { unit: 'u-retry' }), /below premium at high effort \(rule 7c/, 'attempt 2 after a failed strong attempt');
   quiet(send(IMP, { unit: 'u-retry', override: 'the failure was the harness' }), 'attempt 2 with a Route override');
-  quiet(send(IMP, { unit: 'u-retry', tier: 'premium' }, { model: 'opus' }), 'attempt 2 at premium');
+  quiet(send(IMP, { unit: 'u-retry', tier: 'premium' }, { model: 'fable' }), 'attempt 2 at premium');
   quiet(send(IMP, { unit: 'u-other' }), 'a different unit is still attempt 1');
 
-  // A rung above the route is an advisory, never a denial.
-  advised(send(IMP, { tier: 'premium' }, { model: 'opus' }), /Tier: premium is above the routed strong \(rule 4\); it costs more/, 'premium on a unit that routes strong');
+  // Premium is Fable at twice the strong price, so a unit that earns no trigger (7a to 7d) is denied, and no
+  // Route override clears it. Replaced: this was an advisory ("it costs more and is never denied"), a stricter gate now.
+  const NO_TRIGGER = /Tier: premium is above the routed strong \(rule 4\), and premium needs a trigger: 7a .*7b .*7c .*7d .*A Route override line does not clear this\. Correct the Route basis if it is wrong, or dispatch at Tier: strong\./;
+  denied(send(IMP, { tier: 'premium' }, { model: 'fable' }), NO_TRIGGER, 'premium on a unit that routes strong');
+  denied(send(IMP, { tier: 'premium', override: 'the lead wants the best model' }, { model: 'fable' }), NO_TRIGGER, 'the same with a Route override line');
+  const both = reasonOf(send(IMP, { tier: 'premium', override: 'x' }, { model: 'opus' })) ?? '';
+  expect(NO_TRIGGER.test(both) && /Tier: premium but the dispatch runs at strong \(model "opus"\); pass model "fable"/.test(both),
+    `an untriggered premium with the wrong model must report both shortfalls, got ${both}`);
+  // A rung above the route stays an advisory for frontier.
 
   // Effort the Agent tool can deliver.
   denied(send('code-ops-suite:steady', { effort: 'high' }), /Effort: high is above the medium that code-ops-suite:steady runs at.*Workflow agent\(/, 'Agent Effort above the frontmatter effort');
@@ -1774,17 +1818,222 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above the routed strong/, 'the first frontier dispatch');
   seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'sess-1', unit: 'u9', requestedTier: 'frontier', appliedModel: 'fable' }]);
   denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a second frontier dispatch');
-  quiet(send(IMP, { tier: 'premium', basis: hard.basis }, { model: 'opus' }), 'a premium dispatch after a frontier one');
+  quiet(send(IMP, { tier: 'premium', basis: hard.basis }, { model: 'fable' }), 'a triggered premium dispatch after a frontier one');
+  quiet(send(IMP, {}, { model: 'opus' }), 'a strong dispatch after a frontier one');
   // A ledger row counts on its applied model alone, with no requestedTier.
   seed([{ status: 'dispatched', agent_id: 'f3', agent_type: IMP, session_id: 'sess-1', unit: 'u10', appliedModel: 'fable' }]);
   denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session \(1 in the ledger\)/, 'a frontier row matched on appliedModel alone');
   // The effective rung counts when the brief Tier is empty, so no Tier check fires first.
   denied(send(IMP, { tier: '' }, { model: 'fable' }), /frontier dispatch already ran in this session/, 'a frontier override with an empty Tier');
   seed([]);
-  quiet(send(IMP, { tier: '' }, { model: 'fable' }), 'a frontier override with an empty Tier and no prior frontier dispatch');
+  // Changed: this was quiet. An empty Tier is a field with no value, denied as such; with no prior frontier row the cap adds nothing.
+  const emptyTier = reasonOf(send(IMP, { tier: '' }, { model: 'fable' })) ?? '';
+  expect(/missing: Tier; Tier has a label but no value/.test(emptyTier) && !/frontier dispatch already ran/.test(emptyTier),
+    `an empty Tier with no prior frontier dispatch must deny as no value only, got ${emptyTier}`);
   seed([]);
   seed([{ status: 'dispatched', agent_id: 'f1', agent_type: IMP, session_id: 'other-session', requestedTier: 'frontier' }], 'other-session');
   advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above/, 'a frontier dispatch in another session does not count');
+
+  // Premium repeats the frontier model, so it is told apart by the brief Tier and never counts toward the one-peer cap.
+  const premium = { tier: 'premium', basis: hard.basis };
+  const premiumRow = (id, unit, extra = {}) => ({ status: 'dispatched', agent_id: id, agent_type: IMP, session_id: 'sess-1', unit, requestedTier: 'premium', appliedModel: 'fable', ...extra });
+  const frontierRow = premiumRow('fr1', 'u20', { requestedTier: 'frontier' });
+  seed([frontierRow]);
+  quiet(send(IMP, premium, { model: 'fable' }), '(a) a triggered premium on fable is allowed after a frontier peer and is not blocked by the cap');
+  seed([premiumRow('p1', 'u21')]);
+  quiet(send(IMP, premium, { model: 'fable' }), '(a) a second triggered premium on fable is not counted toward the cap');
+  advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above the routed strong/, '(b) a frontier peer after a premium dispatch is still allowed once');
+  seed([premiumRow('p1', 'u21'), frontierRow]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /frontier dispatch already ran in this session \(1 in the ledger\)/, '(c) a second frontier peer after a premium dispatch is denied, and the premium row is not in the count');
+  // Fail closed: a frontier model with no recorded Tier, or a Tier other than premium, is a frontier peer.
+  seed([premiumRow('p2', 'u22', { requestedTier: undefined })]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /\(1 in the ledger\)/, 'a row with no requestedTier on fable counts as frontier');
+  seed([premiumRow('p3', 'u23', { requestedTier: 'strong' })]);
+  denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /\(1 in the ledger\)/, 'a row that asked for strong but ran on fable counts as frontier');
+  // (d) The dispatch itself: fable with no Tier line (so the Tier-line field denial also fires) counts as a frontier peer.
+  const noTier = (over = {}, input = { model: 'fable' }) => parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: brief(over).replace(/\nTier: .*/, ''), ...input }),
+    { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+  seed([frontierRow]);
+  denied(noTier(), /frontier dispatch already ran in this session/, '(d) fable with no Tier line counts as a frontier dispatch');
+  denied(send(IMP, { tier: 'strong' }, { model: 'fable' }), /Tier: strong but the dispatch runs at frontier/, 'fable on a strong brief is a mismatch');
+  seed([premiumRow('p4', 'u24')]);
+  expect(!/frontier dispatch already ran/.test(reasonOf(noTier()) ?? ''), '(d) a prior premium row does not make the first frontier peer a second one');
+  // The cap exemption holds only for a premium whose route computed to premium: a basis that cannot route
+  // is denied, with or without a prior frontier row. A heading or an empty `Route basis:` line with no value
+  // cannot be routed. One with the value below it (or inline after a colon) is read like the one-line form, so a
+  // triggered premium there is allowed and uncapped exactly as the one-line form is; a null pattern asserts that.
+  const CAP = /frontier dispatch already ran in this session \(1 in the ledger\)/;
+  const UNROUTED = /premium runs the frontier model, but its Route basis cannot be routed.*Route basis: <kind>; surface=<s>; ambiguity=<a>; reversible=<yes\|no>/;
+  const basisForms = [
+    ['no Route basis line', (text) => text.replace(/\nRoute basis: .*/, ''), /missing: .*Route basis/],
+    ['a Route basis heading with no value', (text) => text.replace(/\nRoute basis: .*/, '\n## Route basis'), UNROUTED],
+    // Changed: these were denied as unrouted while the guard did not read a value below a heading or an empty label.
+    ['a Route basis heading with the value below it', (text) => text.replace(/\nRoute basis: (.*)/, '\n## Route basis\n$1'), null],
+    ['a Route basis heading with an inline value', (text) => text.replace(/\nRoute basis: (.*)/, '\n## Route basis: $1'), null],
+    ['an empty Route basis line', (text) => text.replace(/\nRoute basis: .*/, '\nRoute basis:'), UNROUTED],
+    ['an empty Route basis line with the value below it', (text) => text.replace(/\nRoute basis: (.*)/, '\nRoute basis:\n  $1'), null],
+    ['an unparsable Route basis kind', (text) => text.replace(/\nRoute basis: .*/, '\nRoute basis: sorcery; surface=none; ambiguity=high; reversible=no'), /Route basis is not valid: kind must be one of/],
+  ];
+  const premiumOnFable = (edit) => parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: edit(brief(premium)), model: 'fable' }),
+    { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+  for (const [label, edit, pattern] of basisForms) {
+    if (pattern === null) {
+      for (const rows of [[], [frontierRow], [frontierRow, premiumRow('pr', 'u40')]]) {
+        seed(rows);
+        quiet(premiumOnFable(edit), `a triggered premium on fable with ${label} is read and allowed, as the one-line form is (${rows.length} ledger rows)`);
+      }
+      continue;
+    }
+    seed([]);
+    denied(premiumOnFable(edit), pattern, `a premium on fable with ${label} and no frontier row`);
+    seed([frontierRow]);
+    const withRow = premiumOnFable(edit);
+    denied(withRow, pattern, `a premium on fable with ${label} and a frontier row`);
+    // The no-line form is also a field denial, which returns before the cap reads the ledger's count; the rest reach it.
+    if (label !== 'no Route basis line') denied(withRow, CAP, `a premium on fable with ${label} is capped like a frontier peer`);
+    // Repeats never slip through: a ledger row written for an allowed premium does not make a denied one free.
+    seed([frontierRow, premiumRow('pr', 'u40')]);
+    denied(premiumOnFable(edit), pattern, `a premium on fable with ${label} after a premium row`);
+  }
+  seed([]);
+  // Frontier is unchanged: an unreadable basis neither exempts it nor adds the premium ask; the cap decides.
+  const frontierOnFable = (edit) => parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: edit(brief({ tier: 'frontier', basis: hard.basis })), model: 'fable' }),
+    { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+  const emptyBasis = (text) => text.replace(/\nRoute basis: .*/, '\nRoute basis:');
+  // Changed: this was allowed. An empty Route basis is a field with no value, denied as such, so the first frontier
+  // dispatch is now denied for that alone: no premium ask, and no cap text, which is the frontier behaviour that did not change.
+  const firstFrontier = reasonOf(frontierOnFable(emptyBasis)) ?? '';
+  expect(/missing: Route basis; Route basis has a label but no value/.test(firstFrontier) && !/Route basis cannot be routed|frontier dispatch already ran/.test(firstFrontier),
+    `a first frontier dispatch with an empty Route basis must deny as no value only, got ${firstFrontier}`);
+  seed([frontierRow]);
+  denied(frontierOnFable(emptyBasis), CAP, 'a second frontier dispatch with an empty Route basis is still capped');
+  denied(frontierOnFable((text) => text), CAP, 'a second frontier dispatch with a readable basis is still capped');
+  // A triggered premium stays allowed and uncapped, with every trigger form the guard forces.
+  quiet(send(IMP, premium, { model: 'fable' }), 'a triggered premium (7b) after a frontier row stays allowed and uncapped');
+  quiet(send(REV, { ...hard, tier: 'premium' }, { model: 'fable' }), 'a triggered premium reviewer after a frontier row stays allowed and uncapped');
+  seed([]);
+
+  // One reader for every routed field (brief-rules.mjs readField). A heading or an empty label that carries a value is read
+  // and checked like the one-line form; a label with no value is denied as one. Before, such a brief skipped the tier,
+  // effort, attempt, surface, and Anchors checks: a presence check passed it while the value read as null.
+  {
+    const lineOf = (label) => new RegExp(`^${label}: (.*)$`, 'm');
+    const valued = {
+      'a heading with the value below it': (text, label) => text.replace(lineOf(label), (_, v) => `## ${label}\n${v}`),
+      'a heading with an inline value': (text, label) => text.replace(lineOf(label), (_, v) => `## ${label}: ${v}`),
+      'an empty label with the value below it': (text, label) => text.replace(lineOf(label), (_, v) => `${label}:\n  ${v}`),
+    };
+    const empty = {
+      'a heading before another label': (text, label) => text.replace(lineOf(label), () => `## ${label}`),
+      'an empty label before another label': (text, label) => text.replace(lineOf(label), () => `${label}:`),
+      'an empty label on the last line': (text, label) => `${text.replace(lineOf(label), '')}\n${label}:`,
+      'a heading on the last line': (text, label) => `${text.replace(lineOf(label), '')}\n## ${label}`,
+    };
+    const withAnchors = (over, anchors) => (anchors === undefined ? brief(over) : brief(over).replace('\nUnit:', () => `\nAnchors: ${anchors}\nUnit:`));
+    const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
+    const retry = [
+      { status: 'dispatched', agent_id: 'a1', agent_type: IMP, session_id: 'sess-1', unit: 'u-retry', requestedTier: 'strong' },
+      { status: 'failed', agent_id: 'a1', agent_type: IMP, session_id: 'sess-1' },
+    ];
+    const run = (type, prompt, rows) => {
+      seed(rows);
+      return parseOut(runHook(dispatchCall({ subagent_type: type, prompt }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+    };
+    const REVIEW = { basis: 'review; surface=none; ambiguity=low; reversible=yes' };
+    // [field, agent, brief with a bad value, brief with a good one, Anchors value bad/good, ledger rows, the one-line denial]
+    const fields = [
+      ['Tier', IMP, { tier: 'mid' }, {}, undefined, undefined, [], /Tier: mid but the dispatch runs at strong/],
+      ['Effort', IMP, { effort: 'xhigh' }, {}, undefined, undefined, [], /Effort: xhigh is above high/],
+      ['Unit', IMP, { unit: 'u-retry' }, {}, undefined, undefined, retry, /below premium at high effort \(rule 7c/],
+      ['Route basis', IMP, gate, { ...gate, basis: 'judgment; surface=gate-script; ambiguity=low; reversible=yes' }, undefined, undefined, [], /derive surface=gate-script/],
+      ['Route basis', REV, secReview, REVIEW, undefined, undefined, [], /below premium at high effort \(rule 7a/],
+      ['Anchors', IMP, EXEC, EXEC, 'none', 'src/app.js:1-20', [], /Anchors required: .*has no Anchors block/],
+    ];
+    for (const [label, type, bad, good, badAnchors, goodAnchors, rows, pattern] of fields) {
+      const tag = `${label} (${pattern.source.slice(0, 24)})`;
+      quiet(run(type, withAnchors(good, goodAnchors), []), `${tag}: the one-line form with a valid value is allowed`);
+      denied(run(type, withAnchors(bad, badAnchors), rows), pattern, `${tag}: the one-line form`);
+      for (const [form, edit] of Object.entries(valued)) {
+        quiet(run(type, edit(withAnchors(good, goodAnchors), label), []), `${tag} as ${form}: a valid value is allowed`);
+        denied(run(type, edit(withAnchors(bad, badAnchors), label), rows), pattern, `${tag} as ${form}: the same denial as the one-line form`);
+      }
+      const noValue = label === 'Anchors' ? /Anchors required: .*Anchors label with no value on its line or below it/
+        : new RegExp(`requires these brief fields, missing: ${label}; ${label} has a label but no value on its line or below it`);
+      for (const [form, edit] of Object.entries(empty)) {
+        denied(run(type, edit(withAnchors(good, goodAnchors), label), []), noValue, `${tag} as ${form}: denied as a field with no value`);
+      }
+    }
+    seed([]);
+
+    // The reader itself, with no spawn.
+    const { readField, anchorsGiven } = await import(pathToFileURL(rules).href);
+    const reads = (prompt, field, state, value) => {
+      const got = readField(prompt, field);
+      expect(got.state === state && got.value === value, `readField(${JSON.stringify(prompt)}, ${field}): want ${state}/${value}, got ${JSON.stringify(got)}`);
+    };
+    reads('Tier: strong', 'Tier', 'value', 'strong');
+    reads('**Tier:** strong', 'Tier', 'value', 'strong');
+    reads('  - tier (rung): strong', 'Tier', 'value', 'strong');
+    reads('1. TIER: "strong"', 'Tier', 'value', 'strong');
+    reads('Scope: a\r\nTier: strong\r\n', 'Tier', 'value', 'strong');
+    reads('## Tier\nstrong', 'Tier', 'value', 'strong');
+    reads('## Tier: strong', 'Tier', 'value', 'strong');
+    reads('## Tier (rung)\n- strong', 'Tier', 'value', 'strong');
+    reads('Tier:\n\n  strong\n\nmore prose', 'Tier', 'value', 'strong');
+    reads('Anchors:\n- Makefile:12\n- a.js', 'Anchors', 'value', 'Makefile:12 - a.js');
+    reads('Scope:\nC:/work/x.js', 'Scope', 'value', 'C:/work/x.js');
+    reads('Tier: mid\nTier: strong', 'Tier', 'value', 'mid');
+    reads('## Tiers\nx', 'Tier', 'absent', null);
+    reads('Out of scope: x\nMicroscope: y', 'Scope', 'absent', null);
+    reads('no label at all', 'Tier', 'absent', null);
+    reads('Tier:', 'Tier', 'malformed', null);
+    reads('Tier: **', 'Tier', 'malformed', null);
+    reads('Tier:\nEffort: high', 'Tier', 'malformed', null);
+    reads('Tier:\nTier: strong', 'Tier', 'malformed', null);
+    reads('## Tier\n## Effort', 'Tier', 'malformed', null);
+    reads('## Tier\n\n\n', 'Tier', 'malformed', null);
+    expect(!anchorsGiven('Anchors: none') && !anchorsGiven('Anchors: none ()') && !anchorsGiven('Anchors:') && !anchorsGiven('## Anchors\nnone')
+      && anchorsGiven('Anchors: none (new file)') && anchorsGiven('## Anchors\nsrc/a.js') && !anchorsGiven('Objective: x'), 'anchorsGiven: a bare none or no value is not given anchors');
+    console.log('ok   every routed field is read as one-line, heading, and empty-label forms with the same denial, and a label with no value is denied as one');
+  }
+
+  // (f) The strong floor ranks by the full id: a full Sonnet id is mid and fails it, the full Opus id passes.
+  denied(send(IMP, { tier: 'mid' }, { model: 'claude-sonnet-5-5' }), /"claude-sonnet-5-5" runs code-ops-suite:implementer at mid, below its strong floor/, '(f) a full Sonnet id fails a strong floor');
+  quiet(send(IMP, {}, { model: 'claude-opus-5-5' }), '(f) a full Opus id passes a strong floor');
+  seed([]);
+
+  // Mutants for the premium rules: each removal must change the outcome of the case that guards it.
+  {
+    const mutantRoot = join(home, 'mutant-premium');
+    mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+    cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+    copySiblings(join(mutantRoot, 'hooks'));
+    const mutate = (name, from, to, rows, over, killed, inModule = false) => {
+      const mutantHook = writeMutant(mutantRoot, name, from, to, inModule);
+      seed(rows);
+      const out = parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: brief(over), model: 'fable' }),
+        { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, hookFile: mutantHook }));
+      expect(killed(out), `the ${name} mutant must change the outcome, got ${JSON.stringify(out)}`);
+      seed([]);
+    };
+    const denies = (out) => out?.hookSpecificOutput?.permissionDecision === 'deny';
+    const allows = (out) => !denies(out);
+    const trigger = "tier === 'premium' && libs.rungRank.premium > libs.rungRank[full.rung]";
+    mutate('mutant-premium-advisory', `if (${trigger}) {`, 'if (false) {', [], { tier: 'premium' }, allows, true);
+    mutate('mutant-premium-override', trigger, `!hasOverride && ${trigger}`, [], { tier: 'premium', override: 'x' }, allows, true);
+    mutate('mutant-premium-counts', "(effective === 'frontier' && !earned)", "effective === 'frontier'", [frontierRow], premium, denies);
+    // An empty Route basis is also a field denial, so the kill predicates read the message each clause owns, not allow or deny.
+    const noCap = (out) => !CAP.test(reasonOf(out) ?? '');
+    const noUnrouted = (out) => !UNROUTED.test(reasonOf(out) ?? '');
+    const emptyBasisPremium = { ...premium, basis: '' };
+    mutate('mutant-premium-unrouted-exempt', "const earned = tier === 'premium' && route?.rung === 'premium';", "const earned = tier === 'premium';", [frontierRow], emptyBasisPremium, noCap);
+    mutate('mutant-premium-unrouted-allowed', "if (tier === 'premium' && effective === 'frontier' && !route) denials.push(UNROUTED_PREMIUM);", '', [], emptyBasisPremium, noUnrouted);
+    // A route-less return that names a premium route would exempt the premium from the cap and from the unrouted ask.
+    mutate('mutant-premium-early-return', 'if (basisLine === null) return { tier, effective, route: null };', "if (basisLine === null) return { tier, effective, route: { rung: 'premium' } };", [frontierRow], emptyBasisPremium, (out) => noCap(out) && noUnrouted(out), true);
+    mutate('mutant-premium-mismatch', " && !(tier === 'premium' && effective === 'frontier')", '', [], premium, denies, true);
+    mutate('mutant-row-premium-counts', "row.requestedTier !== 'premium' && ", '', [premiumRow('pm', 'u30')], { tier: 'frontier' }, denies);
+    mutate('mutant-row-no-tier-free', "row.requestedTier !== 'premium' && ", "row.requestedTier !== 'premium' && row.requestedTier !== undefined && ", [premiumRow('pn', 'u31', { requestedTier: undefined })], { tier: 'frontier' }, allows);
+  }
 
   // Behaviour 8: a repeat of a finished dispatch (same description and Scope hash) earns one advisory
   // naming its report. The ledger row stores `scopeHash`; the eval computes it as the hook does.
@@ -1819,7 +2068,7 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
     const mutantRoot = join(home, 'mutant-redispatch');
     mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
     cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
-    writeFileSync(join(mutantRoot, 'hooks', 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    copySiblings(join(mutantRoot, 'hooks'));
     const mutate = (name, from, to, rows, over, killed) => {
       expect(hookText.includes(from), `${name}: the mutation target is gone from the hook`);
       const mutantHook = join(mutantRoot, 'hooks', `${name}.mjs`);
@@ -1836,64 +2085,123 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   }
   console.log('ok   a repeated finished dispatch earns one advisory note naming its report, and the deny, scope-hash, and failed-row mutants fail');
 
-  // Behaviour 9: an execution brief for the implementer with no Anchors line earns the anchors note.
+  // Behaviour 9: an execution brief for the implementer with no usable Anchors line is denied. The denial
+  // names the fix, a bare `Anchors: none` does not count, and `warn` downgrades it to an advisory.
   {
     const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
-    const ANCH = /Anchors note: .*co brief code-ops-suite:implementer --anchors <path\[:line\]>/;
-    const withBrief = (extra, over = EXEC) => {
+    const JUDG = { basis: 'judgment; surface=none; ambiguity=low; reversible=yes' };
+    const ANCH = /Anchors required: .*co brief code-ops-suite:implementer --anchors <path\[:line\]>.*Anchors: none \(<reason>\)/;
+    const envOf = (env = {}) => ({ home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home, ...env } });
+    const withBrief = (extra, over = EXEC, type = IMP, env) => {
       const text = brief(over) + extra;
-      return parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: text }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
+      return parseOut(runHook(dispatchCall({ subagent_type: type, prompt: text }), envOf(env)));
     };
-    const noted = (out) => ANCH.test(contextOf(out) ?? '') && !Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision');
-    expect(noted(withBrief('')), 'an execution implementer brief with no Anchors line must earn the anchors note and not deny');
-    expect(!noted(withBrief('\nAnchors:\nsrc/app.js:1-20')), 'an Anchors block must silence the anchors note');
-    expect(!noted(withBrief('\nAnchors: none (new file, no existing code)')), 'Anchors: none (reason) must silence the anchors note');
-    expect(!noted(withBrief('', { basis: 'judgment; surface=none; ambiguity=low; reversible=yes' })), 'a judgment brief must not earn the anchors note');
-    const other = parseOut(runHook(dispatchCall({ subagent_type: 'code-ops-suite:steady', prompt: brief({ ...EXEC, effort: 'medium' }) }),
-      { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home } }));
-    expect(!noted(other), 'a dispatch to another agent must not earn the anchors note');
-    const offRun = runHook(dispatchCall({ subagent_type: IMP, prompt: brief(EXEC) }),
-      { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: 'off' } });
-    expect(offRun.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must silence the anchors note, got ${offRun.stdout}`);
+    const blocked = (out) => out?.hookSpecificOutput?.permissionDecision === 'deny' && ANCH.test(reasonOf(out) ?? '');
+    expect(blocked(withBrief('')), 'an execution implementer brief with no Anchors line must be denied with the fix');
+    expect(withBrief('\nAnchors:\nsrc/app.js:1-20') === null, 'an Anchors block must clear the anchors denial');
+    expect(withBrief('\nAnchors: src/app.js:1-20') === null, 'an Anchors line with a path must clear the anchors denial');
+    expect(withBrief('\nAnchors: none (new file, no existing code)') === null, 'Anchors: none (reason) must clear the anchors denial');
+    expect(blocked(withBrief('\nAnchors: none')), 'a bare Anchors: none (no reason) must stay denied');
+    expect(blocked(withBrief('\nAnchors: none ()')), 'Anchors: none () (empty reason) must stay denied');
+    // A heading or an empty label line holds its value on the next line; briefHas counts it, briefValue does not read it.
+    expect(blocked(withBrief('\n## Anchors\nnone')), 'an Anchors heading followed by a bare none must be denied');
+    expect(blocked(withBrief('\n## Anchors\n\r\n  none.')), 'an Anchors heading, a blank line, and a bare none with a period must be denied');
+    expect(blocked(withBrief('\nAnchors:\nnone')), 'an empty Anchors line followed by a bare none must be denied');
+    expect(withBrief('\n## Anchors\nsrc/app.js:1-20\nsrc/lib.js') === null, 'an Anchors heading followed by path lines must clear the anchors denial');
+    expect(withBrief('\n## Anchors\nnone (new file, no existing code)') === null, 'an Anchors heading followed by none (reason) must clear the anchors denial');
+    expect(!/Anchors/.test(JSON.stringify(withBrief('', JUDG))), 'a judgment implementer brief must not be denied for anchors');
+    // A Route basis heading holds its kind on the next line; the anchors denial still reads it.
+    const headingBasis = parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: brief(EXEC).replace(/\nRoute basis: (.*)/, '\n## Route basis\n$1') }), envOf()));
+    expect(blocked(headingBasis), `an execution brief with a Route basis heading and no Anchors must be denied, got ${JSON.stringify(headingBasis)}`);
+    const noBasis = parseOut(runHook(dispatchCall({ subagent_type: IMP, prompt: brief(EXEC).split('\n').filter((line) => !line.startsWith('Route basis')).join('\n') }), envOf()));
+    expect(!/Anchors/.test(reasonOf(noBasis) ?? ''), 'a brief with no Route basis line is not covered by the anchors denial on the Agent path');
+    const other = withBrief('', { ...EXEC, effort: 'medium' }, 'code-ops-suite:steady');
+    expect(!/Anchors/.test(JSON.stringify(other)), 'a dispatch to another agent type must not be denied for anchors');
+    const warned = withBrief('', EXEC, IMP, { CODE_OPS_DISPATCH_GUARD: 'warn' });
+    expect(ANCH.test(contextOf(warned) ?? '') && !Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'permissionDecision'), 'CODE_OPS_DISPATCH_GUARD=warn must downgrade the anchors denial to an advisory');
+    const offRun = runHook(dispatchCall({ subagent_type: IMP, prompt: brief(EXEC) }), envOf({ CODE_OPS_DISPATCH_GUARD: 'off' }));
+    expect(offRun.stdout === '', `CODE_OPS_DISPATCH_GUARD=off must silence the anchors denial, got ${offRun.stdout}`);
   }
-  console.log('ok   an execution implementer brief with no Anchors line earns the anchors note; an Anchors line, Anchors: none, another kind or agent, and the off switch stay silent');
+  console.log('ok   an execution implementer brief with no usable Anchors line is denied; an Anchors line or Anchors: none (reason) clears it, a bare none, a judgment brief, no Route basis, another agent, warn, and off behave as stated');
 
   // Behaviour 9, Workflow: the prompt argument of each implementer agent() call is read statically.
   {
     const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
     const JUDG = { basis: 'judgment; surface=none; ambiguity=low; reversible=yes' };
-    const WF_NOTE = /Anchors note: (.*)\. Run `co brief code-ops-suite:implementer --anchors/;
+    const WF_DENY = /Anchors required: (.*?)\. Run `co brief code-ops-suite:implementer --anchors/;
+    const WF_NOTE = /Anchors note: (.*?)\. Run `co brief code-ops-suite:implementer --anchors/;
     const opts = `{ agentType: '${IMP}', effort: 'medium' }`;
     const run = (script, env = {}) => runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home, ...env } });
+    // The denial text, or null when the call is not denied for anchors.
+    const denialOf = (script, env) => {
+      const out = parseOut(run(script, env));
+      return out?.hookSpecificOutput?.permissionDecision === 'deny' ? (WF_DENY.exec(reasonOf(out) ?? '')?.[1] ?? null) : null;
+    };
+    // The advisory text. A call is never both denied and advised for the same reason.
     const noteOf = (script, env) => {
       const out = parseOut(run(script, env));
-      const hit = WF_NOTE.exec(contextOf(out) ?? '');
-      expect(!Object.hasOwn(out?.hookSpecificOutput ?? {}, 'permissionDecision'), 'the Workflow anchors note must never deny');
-      return hit?.[1] ?? null;
+      return WF_NOTE.exec(contextOf(out) ?? reasonOf(out) ?? '')?.[1] ?? null;
     };
     const call = (prompt, o = opts) => `await agent(${prompt}, ${o});`;
     const lit = (extra, over = EXEC) => JSON.stringify(brief(over) + extra);
-    const noted = noteOf(call(lit('')));
-    expect(noted && /1 of 1 .*no Anchors block \(call 1\)/.test(noted), `a literal prompt with no Anchors must advise call 1, got ${noted}`);
-    expect(noteOf(call(lit('\nAnchors:\nsrc/app.js:1-20'))) === null, 'a literal prompt with an Anchors block must stay silent');
-    expect(noteOf(call(lit('\nAnchors: none (x)'))) === null, 'Anchors: none (x) must stay silent');
-    expect(noteOf(call('`' + (brief(EXEC) + '\nAnchors: src/a.js').replaceAll('`', '') + ' ${extra}`')) === null, 'a template literal with a hole and Anchors must stay silent');
-    expect(noteOf(call(`${lit('\n')} + '\\nAnchors: none (x)'`)) === null, 'a concatenation that ends in an Anchors line must stay silent');
-    expect(noteOf(call('`' + brief(EXEC).replaceAll('`', '') + '${extra}`')), 'a template literal with a hole and no Anchors must advise');
+    const denied = denialOf(call(lit('')));
+    expect(denied && /1 of 1 .*no Anchors block \(call 1\)/.test(denied), `a literal execution prompt with no Anchors must be denied naming call 1, got ${denied}`);
+    expect(denialOf(call(lit('\nAnchors:\nsrc/app.js:1-20'))) === null && run(call(lit('\nAnchors:\nsrc/app.js:1-20'))).stdout === '', 'a literal prompt with an Anchors block must stay silent');
+    expect(denialOf(call(lit('\nAnchors: none (x)'))) === null, 'Anchors: none (x) must not be denied');
+    expect(denialOf(call(lit('\nAnchors: none'))), 'a bare Anchors: none must be denied');
+    expect(denialOf(call('`' + (brief(EXEC) + '\nAnchors: src/a.js').replaceAll('`', '') + ' ${extra}`')) === null, 'a template literal with a hole and Anchors must not be denied');
+    expect(denialOf(call(`${lit('\n')} + '\\nAnchors: none (x)'`)) === null, 'a concatenation that ends in an Anchors line must not be denied');
+    expect(denialOf(call('`' + brief(EXEC).replaceAll('`', '') + '${extra}`')), 'a template literal with a hole and no Anchors must be denied');
     const unread = noteOf(call('prompt'));
-    expect(unread && /cannot read.*call 1/.test(unread) && !/no Anchors block/.test(unread), `a variable prompt must advise as unreadable, got ${unread}`);
-    expect(noteOf(call('makePrompt(unit)')) !== null, 'a function-call prompt must advise as unreadable');
-    expect(noteOf(call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`)) === null, 'a non-implementer agentType must stay silent');
-    expect(noteOf(call(lit('', JUDG))) === null, 'a non-execution Route basis must stay silent');
-    expect(noteOf(call(lit(''), opts), { CODE_OPS_DISPATCH_GUARD: 'off' }) === null && run(call(lit('')), { CODE_OPS_DISPATCH_GUARD: 'off' }).stdout === '', 'CODE_OPS_DISPATCH_GUARD=off must silence the Workflow anchors note');
+    expect(unread && /cannot read.*call 1/.test(unread) && !/no Anchors block/.test(unread) && denialOf(call('prompt')) === null,
+      `a variable prompt must stay an advisory and not deny, got ${unread}`);
+    expect(noteOf(call('makePrompt(unit)')) !== null && denialOf(call('makePrompt(unit)')) === null, 'a function-call prompt must stay an advisory and not deny');
+    const noBasis = lit('').replace(/\\nRoute basis: [^\\"]*/, '');
+    expect(!noBasis.includes('Route basis'), 'the no-Route-basis fixture must drop the line');
+    const basisless = noteOf(call(noBasis));
+    expect(basisless && /no Route basis line and no Anchors block \(call 1\)/.test(basisless) && denialOf(call(noBasis)) === null, `a readable prompt with no Route basis line must stay an advisory, got ${basisless}`);
+    expect(denialOf(call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`)) === null, 'a non-implementer agentType must not be denied for anchors');
+    expect(denialOf(call(lit('', JUDG))) === null && noteOf(call(lit('', JUDG))) === null, 'a non-execution Route basis must stay silent');
+    expect(denialOf(call(lit(''), opts), { CODE_OPS_DISPATCH_GUARD: 'off' }) === null && run(call(lit('')), { CODE_OPS_DISPATCH_GUARD: 'off' }).stdout === '', 'CODE_OPS_DISPATCH_GUARD=off must silence the Workflow anchors denial');
+    const warnedOut = parseOut(run(call(lit('')), { CODE_OPS_DISPATCH_GUARD: 'warn' }));
+    expect(WF_DENY.test(contextOf(warnedOut) ?? '') && !Object.hasOwn(warnedOut?.hookSpecificOutput ?? {}, 'permissionDecision'), 'CODE_OPS_DISPATCH_GUARD=warn must downgrade the Workflow anchors denial');
     const mixed = [
       call(lit('\nAnchors: none (x)')), call(lit('')), call('prompt'), call(lit('', JUDG)),
-      call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`), call(lit('')),
+      call(lit(''), `{ agentType: 'code-ops-suite:steady', effort: 'medium' }`), call(lit('')), call(noBasis),
     ].join('\n');
-    const note = noteOf(mixed);
-    expect(note && /2 of 6 .*no Anchors block \(call 2, 6\)/.test(note) && /1 pass a prompt.*\(call 3\)/.test(note), `mixed calls must list the right indexes in one note, got ${note}`);
+    const mixedDeny = denialOf(mixed);
+    const mixedNote = noteOf(mixed);
+    expect(mixedDeny && /2 of 7 .*no Anchors block \(call 2, 6\)/.test(mixedDeny), `mixed calls must deny and list the right indexes, got ${mixedDeny}`);
+    expect(mixedNote && /1 have a prompt with no Route basis line.*\(call 7\)/.test(mixedNote) && /1 pass a prompt.*\(call 3\)/.test(mixedNote), `mixed calls must advise on the rest in one note, got ${mixedNote}`);
   }
-  console.log('ok   a Workflow implementer call earns one combined anchors note by call index; Anchors, another kind or agent, and the off switch stay silent; an unreadable prompt is reported');
+  console.log('ok   a Workflow implementer call with an execution brief and no Anchors is denied by call index; Anchors, another kind or agent, warn, and off stay clear; an unreadable prompt or a missing Route basis stays an advisory');
+
+  // Mutants for behaviour 9: the Agent denial, the strict bare `none`, and the Workflow denial each gate an outcome.
+  {
+    const hookText = readFileSync(hook, 'utf8');
+    const mutantRoot = join(home, 'mutant-anchors');
+    mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+    cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+    copySiblings(join(mutantRoot, 'hooks'));
+    const EXEC = { basis: 'execution; surface=none; ambiguity=low; reversible=yes' };
+    const mutate = (name, from, to, dispatch, killed, inModule = false) => {
+      const mutantHook = writeMutant(mutantRoot, name, from, to, inModule);
+      const out = parseOut(runHook(dispatch, { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, hookFile: mutantHook }));
+      expect(killed(out), `the ${name} mutant must change the outcome, got ${JSON.stringify(out)}`);
+    };
+    const agentCall = (extra) => dispatchCall({ subagent_type: IMP, prompt: brief(EXEC) + extra });
+    const wfCall = dispatchCall({ script: `await agent(${JSON.stringify(brief(EXEC))}, { agentType: '${IMP}', effort: 'medium' });` }, { tool_name: 'Workflow' });
+    const notDenied = (out) => out?.hookSpecificOutput?.permissionDecision !== 'deny';
+    const given = "field.state === 'value' && !BARE_NONE.test(field.value)";
+    mutate('mutant-anchors-advisory', 'if (anchors) denials.push(anchors);', 'if (anchors) advisories.push(anchors);', agentCall(''), notDenied, true);
+    mutate('mutant-anchors-bare-none', given, "field.state === 'value' && !BARE_NONE.test('x')", agentCall('\nAnchors: none'), notDenied, true);
+    // A label with no value at all is not a given anchor; a value below a heading is read, so a reader that skips the block denies it.
+    mutate('mutant-anchors-malformed-given', given, "field.state !== 'absent' && !BARE_NONE.test(field.value ?? '')", agentCall('\n## Anchors'), notDenied, true);
+    mutate('mutant-reader-skips-below', 'for (const line of prompt.slice(hit.index + hit[0].length).split(/\\r?\\n/).slice(1)) {', 'for (const line of []) {',
+      agentCall('\n## Anchors\nsrc/app.js:1-20'), (out) => !notDenied(out), true);
+    mutate('mutant-anchors-workflow-advisory', 'denials.push(`Anchors required: ${missing.length}', 'advisories.push(`Anchors required: ${missing.length}', wfCall, notDenied);
+  }
+  console.log('ok   the anchors advisory, bare-none, and Workflow advisory mutants fail');
 
   // The ledger writes the hash the guard compares, and the guard calls the ledger library's scopeHashOf
   // (one function, no copy). For each brief shape a row carrying the library's hash earns the note. A
@@ -1914,7 +2222,7 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
     const mutantRoot = join(home, 'mutant-parity');
     mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
     cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
-    writeFileSync(join(mutantRoot, 'hooks', 'agent-file.mjs'), readFileSync(join(suite, 'hooks', 'agent-file.mjs'), 'utf8'));
+    copySiblings(join(mutantRoot, 'hooks'));
     const mutantHook = join(mutantRoot, 'hooks', 'mutant-hash.mjs');
     expect(!/function scopeHashOf|function scopeText/.test(hookText), 'the guard must not keep its own copy of the Scope hash');
     writeFileSync(mutantHook, hookText);
@@ -1947,8 +2255,236 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
       'the dispatched row carries the Scope hash');
     advised(send(IMP, {}, { description: 'build the thing' }), NOTE, 'a row written by the real ledger hook earns the redispatch note on a repeat dispatch');
     seed([]);
+    // The premium cap exemption reads the ledger's own requestedTier, so prove it on rows the real parser builds.
+    const realRow = (tier, id) => rowsFromPayload({ hook_event_name: 'PostToolUse', session_id: 'sess-1', cwd: home, tool_name: 'Agent',
+      tool_input: { subagent_type: IMP, description: 'x', prompt: brief({ tier, basis: hard.basis }), model: 'fable' }, tool_response: { status: 'completed', agentId: id } })[0];
+    const realPremium = realRow('premium', 'e2e3');
+    expect(realPremium?.requestedTier === 'premium' && realPremium?.appliedModel === 'fable', `the real ledger row for Tier: premium on fable must record both, got ${JSON.stringify(realPremium)}`);
+    seed([realPremium]);
+    advised(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /Tier: frontier is above the routed strong/, 'a frontier peer after a real premium ledger row is allowed');
+    seed([realRow('frontier', 'e2e4')]);
+    denied(send(IMP, { tier: 'frontier' }, { model: 'fable' }), /(1 in the ledger)/, 'a real frontier ledger row still counts');
+    seed([]);
   }
   console.log('ok   the guard uses the ledger library Scope hash, the real ledger path earns the note, and the changed-library and missing-export mutants fail');
+
+  // D-025. A routed field appears exactly once, the frontier cap never depends on the guard and the ledger reading one line,
+  // and a value block ends only at a known label or a heading.
+  {
+    const { readField, fieldCount, premiumLabelled, word, KNOWN_LABELS } = await import(pathToFileURL(rules).href);
+    const { rowsFromPayload } = await import(pathToFileURL(join(suite, 'scripts', 'agent-ledger.mjs')).href);
+    const denies = (out) => out?.hookSpecificOutput?.permissionDecision === 'deny';
+    const repeatOf = (names, subject = 'The brief') => new RegExp(`${subject} has ${names} more than once; each of Unit, Tier, Effort, and Route basis must appear exactly once, `
+      + 'as one "Label:" line or one heading, because the guard and the agent ledger read different occurrences\\. Remove the repeat\\. '
+      + 'To mention a field name at the start of a line \\(a quoted rule, a code block\\), wrap it in backticks or begin the line with other words');
+    const fire = (input, { tool = 'Agent', hookFile, rows } = {}) => {
+      if (rows) seed(rows);
+      return parseOut(runHook(dispatchCall(input, { tool_name: tool }), { home, pluginRoot: suiteRoot, env: { CODE_OPS_HOME: home }, hookFile }));
+    };
+    const hardBrief = brief(hard);
+    const withTier = (text) => hardBrief.replace('\nTier: strong', () => text);
+    const ROWS = [[], [frontierRow], [frontierRow, premiumRow('pr', 'u40')]];
+
+    // Finding 1: the guard reads the first heading or label, the ledger the first inline line; a repeat in any form is denied.
+    const bypass = {
+      'a Tier heading with the value below it, then an inline premium': '\n## Tier\nfrontier\n\nTier: premium',
+      'a Tier heading with a colon, then an inline premium': '\n## Tier: frontier\nTier: premium',
+      'a Tier heading, a U+2028 line break, then an inline premium': '\n## Tier\nfrontier Tier: premium',
+      'a Tier heading, a lone CR line break, then an inline premium': '\n## Tier\nfrontier\rTier: premium',
+      'an empty Tier label with the value below it, then an inline premium': '\nTier:\n  frontier\nTier: premium',
+      'two inline Tier lines': '\nTier: frontier\nTier: premium',
+      'a bold Tier then a listed one': '\n**Tier:** frontier\n- Tier: premium',
+      'an inline Tier then an indented one': '\nTier: frontier\n    Tier: premium',
+    };
+    for (const [label, text] of Object.entries(bypass)) {
+      for (const rows of ROWS) denied(fire({ subagent_type: IMP, prompt: withTier(text), model: 'fable' }, { rows }), repeatOf('Tier'), `${label}, ${rows.length} prior ledger rows`);
+    }
+    const [firstBypass, secondBypass] = Object.values(bypass);
+    for (const tool of ['Task', 'spawn_subagent', 'spawn_agent']) {
+      for (const text of [firstBypass, secondBypass]) denied(fire({ subagent_type: IMP, prompt: withTier(text), model: 'fable' }, { tool, rows: [] }), repeatOf('Tier'), `a repeated Tier on ${tool}`);
+    }
+    // Every other routed field, and two at once, in the same way.
+    const repeats = [
+      ['Effort', 'Effort', hardBrief.replace('\nEffort: high', '\nEffort: high\n## Effort\nhigh')],
+      ['Unit', 'Unit', hardBrief.replace('\nUnit: u1', '\nUnit: u1\n**Unit:** u1b')],
+      ['Route basis', 'Route basis', hardBrief.replace(/\nRoute basis: (.*)/, '\nRoute basis: $1\n- Route basis: $1')],
+      ['Route basis heading', 'Route basis', hardBrief.replace(/\nRoute basis: (.*)/, '\nRoute basis: $1\n## Route basis')],
+      ['Unit and Effort', 'Unit, Effort', hardBrief.replace('\nUnit: u1', '\nUnit: u1\nUnit: u2').replace('\nEffort: high', '\nEffort: high\nEffort: high')],
+    ];
+    for (const [label, names, prompt] of repeats) denied(fire({ subagent_type: IMP, prompt }, { rows: [] }), repeatOf(names), `a repeated ${label}`);
+    // The Workflow path reads Route basis from each literal implementer prompt.
+    const wfPrompt = (extra) => `await agent(${JSON.stringify(brief({ basis: 'judgment; surface=none; ambiguity=low; reversible=yes' }) + extra)}, { agentType: '${IMP}', effort: 'medium' });`;
+    const wfRun = (script, hookFile) => fire({ script }, { tool: 'Workflow', hookFile });
+    denied(wfRun(wfPrompt('\n## Route basis\nexecution; surface=none; ambiguity=low; reversible=yes')), repeatOf('Route basis', "Workflow agent\\(\\) call 1's brief"), 'a repeated Route basis in a Workflow prompt');
+    expect(wfRun(wfPrompt('')) === null, 'a Workflow prompt with one Route basis stays silent');
+
+    // The count sees a label only at the start of a line, in the readers' own line semantics.
+    const counts = (text, field, n) => expect(fieldCount(text, field) === n, `fieldCount(${JSON.stringify(text)}, ${field}): want ${n}, got ${fieldCount(text, field)}`);
+    counts('Tier: strong', 'Tier', 1);
+    counts('Objective: keep Tier: strong.\nThe Tier: line and the Route basis: line are read.', 'Tier', 0);
+    counts('Objective: x\n- `Tier:` is a field\n"Tier: strong" is quoted\nsee Tier: x', 'Tier', 0);
+    counts('## Tier\nx\nTier: y', 'Tier', 2);
+    counts('## Tiers\nx\n## Tier-by-tier', 'Tier', 1);
+    counts('1. **Tier**: x\n  tier (rung): y', 'Tier', 2);
+    counts('a Tier: x\rTier: y', 'Tier', 2);
+    counts('Route  basis: x\nroute BASIS (a): y', 'Route basis', 2);
+
+    // The realistic long brief: several multi-line fields and rules that mention Tier and Route basis mid-sentence stay allowed.
+    const LONG = [
+      'Unit: D-025', 'Tier: strong', 'Effort: high', 'Route basis: judgment; surface=gate-script; ambiguity=medium; reversible=yes',
+      'Scope (edit authority): plugins/code-ops-suite/hooks/brief-rules.mjs, plugins/code-ops-suite/hooks/dispatch-guard.mjs, evals/dispatch-guard/run.mjs. '
+      + 'Another unit is editing scripts/procs.mjs now: do NOT touch it, scripts/**, or derived trees. No commit, branch, or push.',
+      'Anchors:', '- plugins/code-ops-suite/hooks/brief-rules.mjs:30-110', '- scripts/agent-ledger.mjs:135-150',
+      'Objective: Fix two confirmed defects an independent review found in the uncommitted guard change.',
+      'Finding 1, a repeatable frontier-cap bypass: the guard reads a brief field with `readField` (first heading or label wins), while the ledger hook reads only inline lines.',
+      'Finding 4, false denials: the block reader ends the value block under an empty label at any line shaped like `Words:`.',
+      'Deterministic rules:',
+      '1. A brief in which any routed field (Tier, Effort, Unit, Route basis) appears more than once is denied; the word "Tier:" inside a sentence of the Objective must not count.',
+      '2. Count only a label that starts a line. A rule that mentions Tier or Route basis mid-sentence stays allowed.',
+      '3. Finding 4: the value block ends only at a known field label or a heading.',
+      'Risks: a gate script; a new false-deny class on long real briefs is as harmful as the bypass.',
+      'Expected evidence: `node evals/dispatch-guard/run.mjs` and a direct reproduction.',
+      'Round budget: 50', 'Report cap: 500 words', 'Report path: reports/D-025.md', 'Expected return: files changed with file:line, the table, confidence.',
+    ].join('\n');
+    quiet(fire({ subagent_type: IMP, prompt: LONG }, { rows: [] }), 'a realistic long brief with field names mid-sentence');
+    denied(fire({ subagent_type: IMP, prompt: LONG.replace('\n2. Count only', '\nTier: premium needs a trigger.\n2. Count only') }, { rows: [] }), repeatOf('Tier'), 'a line in the rules that starts with Tier: is read as the field');
+    quiet(fire({ subagent_type: IMP, prompt: LONG.replace('\n2. Count only', '\n`Tier: premium` needs a trigger.\n2. Count only') }, { rows: [] }), 'the same rule with the name in backticks is allowed');
+
+    // Finding 4: a value under an empty label or a heading ends only at a known label or a heading.
+    const f4 = {
+      objColon: ['Objective:\nReview the guard: check X.\n', 'Objective', 'Review the guard: check X.'],
+      rulesNumbered: ['Deterministic rules:\n1. Guard after the refactor: is there any form?\n2. Parity: try five.\n', 'Deterministic rules', 'Guard after the refactor: is there any form? 2. Parity: try five.'],
+      scopeNote: ['Scope:\nNote: read-only.\n- plugins/a.mjs\n', 'Scope', 'Note: read-only. - plugins/a.mjs'],
+    };
+    for (const [name, [text, field, value]] of Object.entries(f4)) {
+      const got = readField(text, field);
+      expect(got.state === 'value' && got.value === value, `finding 4 ${name}: readField must read ${JSON.stringify(value)}, got ${JSON.stringify(got)}`);
+    }
+    const objBrief = brief().replace('Objective: x', () => f4.objColon[0].trim());
+    const retBrief = brief().replace('Expected return: a line.', () => 'Expected return:\n1. Files changed: list them.\n2. Verdicts: DONE or BLOCKED.');
+    const scopeBrief = brief().replace('Scope: src/app.js only.', () => 'Scope:\nNote: read-only.\n- src/app.js');
+    for (const [label, prompt] of [['an Objective under an empty label', objBrief], ['numbered Words: lines under an empty Expected return', retBrief], ['a Scope with a Note: line', scopeBrief]]) {
+      quiet(fire({ subagent_type: IMP, prompt }, { rows: [] }), `${label} is a value, not a malformed field`);
+    }
+    // A known label or a heading still ends the block, so the D-011 and D-015 malformed-field denials hold.
+    for (const [text, field] of [['Objective:\nTier: strong', 'Objective'], ['Objective:\nReport cap: 5', 'Objective'], ['Anchors:\nRoute override: x', 'Anchors'], ['## Tier\n## Effort', 'Tier'], ['Tier:\nEffort: high', 'Tier']]) {
+      expect(readField(text, field).state === 'malformed', `${JSON.stringify(text)} must still read ${field} as malformed`);
+    }
+    denied(fire({ subagent_type: IMP, prompt: brief().replace('Objective: x', 'Objective:\nRound budget: 25') }, { rows: [] }), /missing: Objective; Objective has a label but no value/, 'an empty Objective before a known label is still denied');
+    // The Scope readers differ (the ledger's scopeText ends at any Label: line, readField at a known one); the surface counts both.
+    denied(send(REV, { scope: '\nNote: read-only.\n- src/auth/login.js' }), /derive surface=security/, 'a security path below a Note: line in a reviewer Scope still derives its surface');
+    denied(send(IMP, { scope: '\nNote: read-only.\n- plugins/code-ops-suite/hooks/dispatch-guard.mjs' }), /derive surface=gate-script/, 'a gate-script path below a Note: line still derives its surface');
+    // Every shipped Contract field is a known label, so the static list cannot drift from the agents.
+    const plugins = join(root, 'plugins');
+    const contractFields = new Set();
+    for (const plugin of readdirSync(plugins)) {
+      const agentsDir = join(plugins, plugin, 'agents');
+      if (!existsSync(agentsDir)) continue;
+      for (const file of readdirSync(agentsDir).filter((name) => name.endsWith('.md'))) {
+        const line = /^Brief requires:[ \t]*(.+)$/m.exec(readFileSync(join(agentsDir, file), 'utf8'))?.[1];
+        for (const field of (line ?? '').split(',').map((part) => part.trim()).filter(Boolean)) contractFields.add(field);
+      }
+    }
+    const unknownFields = [...contractFields].filter((field) => !KNOWN_LABELS.some((known) => known.toLowerCase() === field.toLowerCase()));
+    expect(contractFields.size >= 10 && !unknownFields.length, `every Contract field must be a known label, missing: ${unknownFields.join(', ')} (of ${contractFields.size})`);
+
+    // Unrouted agents: a Tier: premium line on the frontier model would exempt its ledger row from the cap with no routing check behind it.
+    const PLAIN = 'code-ops-suite:plain';
+    denied(send(PLAIN, { tier: 'premium' }, { model: 'fable' }), /Tier: premium on an agent whose Contract does not require Tier gets no routing check/, 'premium on the frontier model for an agent with no Tier Contract');
+    quiet(send(PLAIN, { tier: 'premium' }, { model: 'opus' }), 'premium text on a non-frontier model for an agent with no Tier Contract');
+    quiet(send(PLAIN, { tier: 'strong' }, { model: 'fable' }), 'a non-premium Tier on the frontier model for an agent with no Tier Contract');
+    quiet(fire({ subagent_type: PLAIN, prompt: brief().replace('\nTier: strong', '\n## Tier\npremium'), model: 'fable' }, { rows: [] }), 'a heading-form premium on an unrouted agent is recorded with no Tier, so the ledger counts it');
+
+    // The executed form table: for every single-occurrence Tier form, what the guard reads, what the real ledger parser records,
+    // and whether the next frontier dispatch counts the row. The ledger may record the same Tier or none; premium is exempt only
+    // when the ledger recorded premium, and a null Tier on the frontier model counts as frontier.
+    const FORMS = [
+      ['inline', (v) => `Tier: ${v}`], ['bold label', (v) => `**Tier:** ${v}`], ['bold name', (v) => `**Tier**: ${v}`], ['bulleted', (v) => `- Tier: ${v}`],
+      ['numbered', (v) => `1. Tier: ${v}`], ['indented', (v) => `    Tier: ${v}`], ['parenthetical', (v) => `Tier (routed): ${v}`], ['quoted value', (v) => `Tier: \`${v}\``],
+      ['heading with colon', (v) => `## Tier: ${v}`], ['heading, value below', (v) => `## Tier\n${v}`], ['heading, bulleted value below', (v) => `## Tier\n- ${v}`],
+      ['empty label, value below', (v) => `Tier:\n  ${v}`],
+    ];
+    const table = [];
+    let formId = 0;
+    for (const crlf of [false, true]) {
+      for (const [label, form] of FORMS) {
+        for (const value of ['frontier', 'premium']) {
+          let prompt = withTier(`\n${form(value)}`);
+          if (crlf) prompt = prompt.replace(/\n/g, '\r\n');
+          const name = `${label}${crlf ? ' (CRLF)' : ''}, ${value}`;
+          const guardTier = word(readField(prompt, 'Tier').value);
+          const row = rowsFromPayload({ hook_event_name: 'PostToolUse', session_id: 'sess-1', cwd: home, tool_name: 'Agent', tool_input: { subagent_type: IMP, description: 'x', prompt, model: 'fable' },
+            tool_response: { status: 'async_launched', agentId: `form-${formId++}` } })[0];
+          const ledgerTier = row?.requestedTier ?? null;
+          expect(fieldCount(prompt, 'Tier') === 1, `${name}: one Tier occurrence`);
+          expect(guardTier === value, `${name}: the guard must read ${value}, got ${guardTier}`);
+          expect(ledgerTier === null || ledgerTier === guardTier, `${name}: the ledger must record the guard's Tier or none, got ${ledgerTier}`);
+          expect(ledgerTier !== 'premium' || premiumLabelled(prompt), `${name}: a ledger-recorded premium must be one the guard's premium check sees`);
+          const counted = CAP.test(reasonOf(fire({ subagent_type: IMP, prompt: brief({ tier: 'frontier' }), model: 'fable' }, { rows: [row] })) ?? '');
+          expect(counted === (ledgerTier !== 'premium'), `${name}: counted as frontier must be ${ledgerTier !== 'premium'}, got ${counted}`);
+          table.push(`${name.padEnd(46)} guard=${guardTier.padEnd(9)} ledger=${String(ledgerTier).padEnd(9)} ${counted ? 'frontier peer' : 'exempt'}`);
+        }
+      }
+    }
+    seed([]);
+    console.log(`     form table (single Tier occurrence; guard reads / ledger records / next frontier dispatch counts it):\n       ${table.join('\n       ')}`);
+
+    // The real round trip: the guard decides, the real ledger hook records, and the next frontier dispatch meets the cap.
+    const ledgerEnv = { ...process.env, CODE_OPS_HOME: home, CODE_OPS_AGENT_LEDGER: '' };
+    const dispatchReal = (prompt, id, model = 'fable') => {
+      const input = { subagent_type: IMP, description: 'real', prompt, model };
+      const out = fire(input);
+      if (!denies(out)) {
+        const ran = spawnSync(process.execPath, [join(suite, 'hooks', 'agent-ledger.mjs')], { encoding: 'utf8', env: ledgerEnv, timeout: 20000,
+          input: JSON.stringify({ hook_event_name: 'PostToolUse', session_id: 'sess-1', cwd: home, tool_name: 'Agent', tool_input: input, tool_response: { status: 'async_launched', agentId: id } }) });
+        expect(ran.status === 0, `the real ledger hook ran: ${ran.stderr}`);
+      }
+      return out;
+    };
+    const FRONTIER_ADVICE = /Tier: frontier is above the routed strong/;
+    seed([]);
+    advised(dispatchReal(brief({ unit: 'rl1' }).replace('\nTier: strong', '\n## Tier\nfrontier'), 'rl1'), FRONTIER_ADVICE, 'real ledger: a heading-form frontier peer is allowed once');
+    denied(dispatchReal(brief({ unit: 'rl2', tier: 'frontier' }), 'rl2'), CAP, 'real ledger: the next frontier dispatch is capped after a heading-form frontier peer');
+    seed([]);
+    quiet(dispatchReal(brief({ unit: 'rl3', tier: 'premium', basis: hard.basis }), 'rl3'), 'real ledger: a triggered inline premium is allowed');
+    quiet(dispatchReal(brief({ unit: 'rl4', tier: 'premium', basis: hard.basis }), 'rl4'), 'real ledger: a second triggered premium is not counted');
+    advised(dispatchReal(brief({ unit: 'rl5', tier: 'frontier' }), 'rl5'), FRONTIER_ADVICE, 'real ledger: the first frontier peer after premiums is allowed');
+    denied(dispatchReal(brief({ unit: 'rl6', tier: 'frontier' }), 'rl6'), CAP, 'real ledger: the second frontier peer is capped');
+    seed([]);
+    // A triggered premium written as a heading is recorded with no Tier, so it counts as a frontier peer: it costs the lead one
+    // peer, and it never admits a second.
+    quiet(dispatchReal(brief({ unit: 'rl7', basis: hard.basis }).replace('\nTier: strong', '\n## Tier\npremium'), 'rl7'), 'real ledger: a triggered heading-form premium is allowed');
+    denied(dispatchReal(brief({ unit: 'rl8', tier: 'frontier' }), 'rl8'), CAP, 'real ledger: a heading-form premium counts as a frontier peer (fail closed)');
+    seed([]);
+
+    // Mutants: each rule's removal must change the outcome of the case that guards it.
+    const mutantRoot = join(home, 'mutant-d025');
+    mkdirSync(join(mutantRoot, 'hooks'), { recursive: true });
+    cpSync(join(suite, 'scripts'), join(mutantRoot, 'scripts'), { recursive: true });
+    copySiblings(join(mutantRoot, 'hooks'));
+    const mutate = (name, from, to, input, killed, { inModule = true, tool } = {}) => {
+      const mutantHook = writeMutant(mutantRoot, name, from, to, inModule);
+      const out = fire(input, { tool, hookFile: mutantHook, rows: [] });
+      expect(killed(out), `the ${name} mutant must change the outcome, got ${JSON.stringify(out)}`);
+    };
+    const allows = (out) => !denies(out);
+    const bypassInput = (label) => ({ subagent_type: IMP, prompt: withTier(bypass[label]), model: 'fable' });
+    mutate('mutant-d025-no-repeat-denial', 'if (repeated.length) denials.push(duplicateDenial(repeated));', 'void repeated;', bypassInput('a Tier heading with the value below it, then an inline premium'), allows);
+    mutate('mutant-d025-no-heading-count', 'return [...prompt.matchAll(colon)].length + [...prompt.matchAll(heading)].length;', 'return [...prompt.matchAll(colon)].length;',
+      bypassInput('a Tier heading with the value below it, then an inline premium'), allows);
+    mutate('mutant-d025-line-split-count', 'return [...prompt.matchAll(colon)].length + [...prompt.matchAll(heading)].length;',
+      "return prompt.split(/\\r?\\n/).filter((line) => new RegExp(colon.source, 'i').test(line) || new RegExp(heading.source, 'i').test(line)).length;",
+      bypassInput('a Tier heading, a U+2028 line break, then an inline premium'), allows);
+    mutate('mutant-d025-any-label-ends-block', 'KNOWN_LABEL_LINE.test(line) || HEADING_LINE.test(line)', '/^[ \\t]*[A-Za-z][A-Za-z\\t -]{0,40}:/.test(line) || HEADING_LINE.test(line)',
+      { subagent_type: IMP, prompt: objBrief }, denies);
+    mutate('mutant-d025-unrouted-premium', 'ctx.frontierModel && premiumLabelled(prompt)', 'false', { subagent_type: PLAIN, prompt: brief({ tier: 'premium' }), model: 'fable' }, allows);
+    mutate('mutant-d025-scope-readers', "`${libs.scopeText(prompt)} ${readField(prompt, 'Scope').value ?? ''}`", 'libs.scopeText(prompt)',
+      { subagent_type: REV, prompt: brief({ scope: '\nNote: read-only.\n- src/auth/login.js', basis: 'review; surface=none; ambiguity=low; reversible=yes' }) }, allows);
+    mutate('mutant-d025-workflow-repeat', "if (fieldCount(call.prompt, 'Route basis') > 1) repeatedBasis.push(index + 1);", '',
+      { script: wfPrompt('\n## Route basis\nexecution; surface=none; ambiguity=low; reversible=yes') }, allows, { inModule: false, tool: 'Workflow' });
+    seed([]);
+  }
+  console.log('ok   a repeated routed field is denied in every form and path, the frontier cap holds across the guard and the real ledger, a value block ends only at a known label or a heading, and the repeat, count, terminator, unrouted-premium, Scope, and Workflow mutants fail');
 
   // An agent whose Contract does not list Tier keeps today's behavior exactly.
   const plainBrief = 'Scope: plugins/code-ops-suite/hooks/dispatch-guard.mjs\nObjective: x\nRound budget: 9\nReport cap: 1\nReport path: r.md\nExpected return: x\n'
@@ -1962,8 +2498,9 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const runContract = contractLine(home);
   const wf = (script, guard) => parseOut(runHook(dispatchCall({ script }, { tool_name: 'Workflow' }), { home, pluginRoot: suiteRoot, guard }));
   denied(wf(`agent({ agentType: '${REV}', model: 'sonnet', prompt: 'x' });`), /call 1 sets model "sonnet" \(mid\), below the strong floor of code-ops-suite:reviewer/, 'a Workflow model below the floor');
+  denied(wf(`agent({ agentType: '${REV}', model: 'claude-sonnet-5-5', prompt: 'x' });`), /call 1 sets model "claude-sonnet-5-5" \(mid\), below the strong floor/, '(f) a Workflow full Sonnet id below the strong floor');
   denied(wf(`agent({ agentType: '${REV}', prompt: 'x' });\nagent({ agentType: 'code-ops-suite:plain', model: 'haiku', prompt: 'x' });`), /call 2 sets model "haiku" \(light\), below the mid floor/, 'the failing call is named');
-  quiet(wf(`${runContract}\nagent({ agentType: '${REV}', model: 'claude-sonnet-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
+  quiet(wf(`${runContract}\nagent({ agentType: '${REV}', model: 'claude-opus-5-5', effort: 'high' }); agent({ agentType: '${REV}', model: 'opus' }); agent({ agentType: 'code-ops-suite:plain', model: 'sonnet' });`), 'Workflow models at or above their floors');
   quiet(wf(`${runContract}\nagent({ agentType: 'no-such:agent', model: 'haiku' }); agent({ agentType: '${REV}', model: 'unknown-model' });`), 'a model or agent the guard cannot rank');
   advised(wf(`agent({ agentType: '${REV}', model: choice });`), /not a literal string/, 'a Workflow model that is a variable');
   // One frontier dispatch per run covers a Workflow: literal frontier models in the script plus frontier ledger rows.
@@ -1971,10 +2508,14 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   const fableCall = `agent({ agentType: '${REV}', model: 'fable' });`;
   quiet(wf(fableCall), 'one literal frontier Workflow call');
   denied(wf(`${fableCall}\n${fableCall}`), /frontier model on 2 agent\(\) call\(s\) and 0 frontier dispatch/, 'two literal frontier Workflow calls');
-  quiet(wf(`${runContract}\n${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one premium Workflow call');
+  quiet(wf(`${runContract}\n${fableCall}\nagent({ agentType: '${REV}', model: 'opus' });`), 'one frontier and one strong (opus) Workflow call');
   seed([{ status: 'dispatched', agent_id: 'f4', agent_type: IMP, session_id: 'sess-1', unit: 'u11', appliedModel: 'fable' }]);
   denied(wf(fableCall), /frontier model on 1 agent\(\) call\(s\) and 1 frontier dispatch\(es\) already ran/, 'a frontier Workflow call after a frontier ledger row');
-  quiet(wf(`agent({ agentType: '${REV}', model: 'opus' });`), 'a premium Workflow call after a frontier ledger row');
+  quiet(wf(`agent({ agentType: '${REV}', model: 'opus' });`), 'a strong (opus) Workflow call after a frontier ledger row');
+  // A Workflow call has no Tier line, so it fails closed: a prior ledger row that asked for premium is not counted, a Workflow fable call is.
+  seed([{ status: 'dispatched', agent_id: 'f5', agent_type: IMP, session_id: 'sess-1', unit: 'u12', requestedTier: 'premium', appliedModel: 'fable' }]);
+  quiet(wf(fableCall), 'a literal fable Workflow call after a premium ledger row is the first frontier peer');
+  denied(wf(`${fableCall}\n${fableCall}`), /frontier model on 2 agent\(\) call\(s\) and 0 frontier dispatch/, 'two fable Workflow calls still deny after a premium ledger row');
   seed([]);
   const warned = wf(`agent({ agentType: '${REV}', model: 'sonnet' });`, 'warn');
   expect(Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'additionalContext') && !Object.hasOwn(warned?.hookSpecificOutput ?? {}, 'permissionDecision'),
@@ -1995,6 +2536,9 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   quiet(grokSpawn(IMP, {}), 'a Grok implementer at Tier strong is silent');
   advised(grokSpawn(IMP, { tier: 'frontier' }), /Tier: frontier is above the routed strong/, 'a Grok frontier Tier does not demand a Claude model');
   expect(!/pass model/.test(contextOf(grokSpawn(IMP, { tier: 'frontier' })) ?? ''), 'a Grok frontier Tier must not ask for a Claude model');
+  // The premium trigger check is host-independent: the route decides it on Grok too, with no model to compare.
+  quiet(grokSpawn(IMP, { tier: 'premium', basis: hard.basis }), 'a triggered premium Tier on Grok with no model is silent');
+  denied(grokSpawn(IMP, { tier: 'premium' }), /Tier: premium is above the routed strong \(rule 4\), and premium needs a trigger/, 'an untriggered premium Tier on Grok is denied');
   denied(grokSpawn(REV, { scope: 'src/auth/login.js', basis: 'review; surface=security; ambiguity=low; reversible=yes', tier: 'strong' }),
     /below premium at high effort \(rule 7a/, 'a Grok security review at strong still routes up');
   denied(parseOut(runHook(dispatchCall({
@@ -2010,7 +2554,7 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   // Fail open: with the vendored libraries absent, the routing checks skip and the field denial stays.
   const iso = join(home, 'iso', 'hooks');
   mkdirSync(iso, { recursive: true });
-  for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) writeFileSync(join(iso, file), readFileSync(join(suite, 'hooks', file), 'utf8'));
+  for (const file of ['dispatch-guard.mjs', ...HOOK_SIBLINGS]) writeFileSync(join(iso, file), readFileSync(join(suite, 'hooks', file), 'utf8'));
   const bare = (input) => spawnSync('node', [join(iso, 'dispatch-guard.mjs')], {
     input: JSON.stringify(dispatchCall(input)), encoding: 'utf8',
     env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: '', CLAUDE_PLUGIN_ROOT: suiteRoot },
@@ -2020,12 +2564,13 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   res = bare({ subagent_type: REV, prompt: 'Round budget: 5', model: 'sonnet' });
   expect(/missing: Scope/.test(parseOut(res)?.hookSpecificOutput?.permissionDecisionReason ?? ''), `the field denial must survive a missing routing library, got ${JSON.stringify(res.stdout)}`);
   // Each library alone: a copy of the suite scripts with one file removed skips the routing checks; the full copy denies.
-  const isolated = (name, without) => {
+  const isolated = (name, without, sabotage) => {
     const root = join(home, name);
     mkdirSync(join(root, 'hooks'), { recursive: true });
-    for (const file of ['dispatch-guard.mjs', 'agent-file.mjs']) writeFileSync(join(root, 'hooks', file), readFileSync(join(suite, 'hooks', file), 'utf8'));
+    for (const file of ['dispatch-guard.mjs', ...HOOK_SIBLINGS]) writeFileSync(join(root, 'hooks', file), readFileSync(join(suite, 'hooks', file), 'utf8'));
     cpSync(join(suite, 'scripts'), join(root, 'scripts'), { recursive: true });
     if (without) rmSync(join(root, 'scripts', without));
+    if (sabotage) sabotage(join(root, 'scripts'));
     return (input) => spawnSync('node', [join(root, 'hooks', 'dispatch-guard.mjs')], {
       input: JSON.stringify(dispatchCall(input)), encoding: 'utf8',
       env: { ...process.env, HOME: home, USERPROFILE: home, CODE_OPS_HOME: home, CODE_OPS_DISPATCH_GUARD: '', CLAUDE_PLUGIN_ROOT: suiteRoot },
@@ -2036,6 +2581,26 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   for (const missing of ['route-unit.mjs', 'agent-ledger.mjs']) {
     res = isolated(`iso-no-${missing}`, missing)(below);
     expect(res.status === 0 && res.stdout === '', `a missing ${missing} must skip the routing checks, got ${res.status}/${JSON.stringify(res.stdout)}`);
+  }
+  // The one exception to fail open: a premium on the frontier model whose route cannot be computed is denied, and its
+  // neighbours (a strong dispatch, a frontier peer) stay open. A route that throws is the same case as a missing library.
+  const premiumFable = { subagent_type: IMP, prompt: brief({ tier: 'premium', basis: hard.basis }), model: 'fable' };
+  const strongOpus = { subagent_type: IMP, prompt: brief({}), model: 'claude-opus-5-5' };
+  const frontierFable = { subagent_type: IMP, prompt: brief({ tier: 'frontier' }), model: 'fable' };
+  const throwing = isolated('iso-throws', null, (scripts) => {
+    const file = join(scripts, 'route-unit.mjs');
+    const text = readFileSync(file, 'utf8');
+    expect(text.includes('export function routeUnit(basis) {'), 'the routeUnit sabotage target is gone');
+    writeFileSync(file, text.replace('export function routeUnit(basis) {', "export function routeUnit(basis) {\n  throw new Error('boom');"));
+  });
+  const isoRuns = [['a missing route-unit.mjs', isolated('iso-p-no-route', 'route-unit.mjs')], ['a missing agent-ledger.mjs', isolated('iso-p-no-ledger', 'agent-ledger.mjs')],
+    ['a routeUnit that throws', throwing]];
+  for (const [label, run] of isoRuns) {
+    denied(parseOut(run(premiumFable)), /premium runs the frontier model, but its Route basis cannot be routed/, `a premium on fable with ${label}`);
+    res = run(strongOpus);
+    expect(res.status === 0 && res.stdout === '', `a strong dispatch with ${label} must stay fail open, got ${res.status}/${JSON.stringify(res.stdout)}`);
+    res = run(frontierFable);
+    expect(!/permissionDecision/.test(res.stdout), `a frontier peer with ${label} must stay fail open, got ${res.stdout}`);
   }
   cleanup();
   console.log('ok   routing: tier against rung, floor, surface from Scope, 7a-7d with the override rule, effort, frontier count, Workflow model, spawn effort, and an agent without Tier is untouched');

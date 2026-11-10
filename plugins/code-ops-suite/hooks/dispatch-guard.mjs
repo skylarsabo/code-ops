@@ -74,8 +74,9 @@
 //      "Enforcement"); every other agent keeps the checks above and nothing more. A `model`
 //      override no longer earns a blanket advisory: one that matches the brief `Tier` passes
 //      silently. For a routed agent the hook denies (a) an override that ranks below the agent's
-//      frontmatter floor, (b) a `Tier` that disagrees with the effective rung (premium needs
-//      `model:"opus"`, frontier `model:"fable"`, strong needs no override or one at strong), (c) a
+//      frontmatter floor, (b) a `Tier` that disagrees with the effective rung (premium and frontier
+//      both need `model:"fable"`; they differ by the brief `Tier` alone; strong needs no override
+//      or one at strong, such as `model:"opus"`), (c) a
 //      `Route basis` surface that differs from a non-`none` surface derived from the Scope paths
 //      with `surfaceOfScope`, which no `Route override:` line clears (a declared surface over a
 //      derived `none` routes up and earns an advisory only), (d) a `Tier` or `Effort` below
@@ -86,13 +87,16 @@
 //      (CLI 2.1.292 and later), else the frontmatter effort, and an Agent `effort` that is
 //      not low, medium, or high, (f) a literal `xhigh` or `max` brief `Effort`, and (g) a
 //      second frontier dispatch in the session, counted from agent-ledger rows (a Workflow script
-//      counts its literal frontier `model` calls with them: more than one in total denies), and
-//      (h) a `Route basis` surface that is not a surface. The Scope block ends at a blank line or any
+//      counts its literal frontier `model` calls with them: more than one in total denies; a
+//      dispatch on a frontier model counts unless its brief `Tier` is premium, and a Workflow call
+//      has no Tier line, so it always counts), (h) a `Route basis` surface that is not a surface,
+//      and (i) `Tier: premium` when `routeUnit` of the basis earns no premium trigger (7a to 7d),
+//      which no `Route override:` line clears. The Scope block ends at a blank line or any
 //      `Label:` line, and reads past blank lines after an empty `Scope:` colon; a Scope path drops a
 //      trailing line anchor (`:120-180`, `#L120`) and matches case-insensitively. The declared kind
 //      is raised to the agent's minimum (AGENT_MIN_KIND in route-unit.mjs: reviewer and
 //      privacy-reviewer review, verifier refutation, tracer judgment) with an advisory. A rung
-//      above `routeUnit`, a raised kind, a `model` override that cannot be ranked (Tier goes
+//      above `routeUnit` other than an untriggered premium (item (i) denies it), a raised kind, a `model` override that cannot be ranked (Tier goes
 //      unchecked), a brief `Effort` below the effort the dispatch runs at, and a non-literal Workflow
 //      `model` or `effort` are advisories. A Workflow `agent()` call also denies a literal `model`
 //      below the floor of its literal `agentType`, and `spawn_subagent` or `spawn_agent` input with a
@@ -155,17 +159,20 @@
 //      so a repeat only counts once the ledger writes the hash. A failed prior row earns no note
 //      and routes through `attemptOf` as before. It reuses the routing check's ledger read.
 //      Its off switch is `CODE_OPS_REDISPATCH_NOTE`, taking `off`, `0`, or `false`.
-//   9. ANCHORS NOTE (advisory only), on the lead's own Agent, Task, and spawn dispatch of
+//   9. ANCHORS DENIAL, on the lead's own Agent, Task, and spawn dispatch of
 //      `code-ops-suite:implementer` whose brief `Route basis` kind is `execution` and that carries no
-//      `Anchors:` line. The note names `co brief code-ops-suite:implementer --anchors <path[:line]>...`
-//      so the operative skips its orientation reads. An `Anchors:` line, including
-//      `Anchors: none (<reason>)`, silences it. It never denies and reads no library. A Workflow
-//      `agent()` call to the implementer is checked the same way on its prompt argument when that
-//      is a string literal, a template literal, or a `+` concatenation of those; a Route basis
-//      kind other than `execution` or an `Anchors:` line silences it. A prompt the scan cannot
-//      read (a variable, a call) earns a note that the brief could not be checked. One note
-//      per Workflow lists the affected call indexes. With `CODE_OPS_WORKFLOW_ARGS=first` the
-//      prompt is not read and the check is skipped.
+//      `Anchors:` line. The denial names `co brief code-ops-suite:implementer --anchors <path[:line]>...`
+//      so the operative skips its orientation reads. An `Anchors:` line clears it, including
+//      `Anchors: none (<reason>)`; a bare `Anchors: none` (no reason) does not. A brief with no
+//      `Route basis` line is not covered on this path. It reads no library, and `warn` turns the
+//      denial into an advisory. A Workflow `agent()` call to the implementer is checked the same
+//      way on its prompt argument when that is a string literal, a template literal, or a `+`
+//      concatenation of those, and the denial names the call indexes; a Route basis kind other
+//      than `execution` or an `Anchors:` line clears it. Two cases stay advisory, because the
+//      guard cannot prove the anchors are missing: a prompt the scan cannot read (a variable, a
+//      call), and a readable prompt with no `Route basis` line (a Workflow call is checked there,
+//      an Agent call is not). With `CODE_OPS_WORKFLOW_ARGS=first` the prompt is not read and the
+//      check is skipped.
 //  10. LEAD INLINE-STREAK GUARD, on the main thread only (`agent_id` absent), for the hands-on tools
 //      (Bash, Read, Grep, Glob, Edit, Write, MultiEdit, NotebookEdit, run_terminal_command). Each such call
 //      adds one to a per-session streak; an allowed dispatch tool (not one the hook denies) or a new
@@ -300,6 +307,7 @@ import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { homedir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { agentFile } from './agent-file.mjs';
+import { OVER_HIGH_EFFORT, SCRIPT_WIDE_REASON, UNROUTED_PREMIUM, WIDE_TYPES, anchorsGiven, duplicateDenial, fieldCount, parseRouteBasis, readField, reviewBrief, word } from './brief-rules.mjs';
 
 const DEFAULT_BUDGET = 40;
 const WARN_EVERY = 20;
@@ -310,7 +318,8 @@ const MAX_BRIEF_BUDGET = 120;
 // Only the brief's first line is read, and only this much of the transcript.
 const BRIEF_HEAD_BYTES = 262_144;
 const SAFE_AGENT = /^[A-Za-z0-9_-]{1,128}$/;
-// A `Round budget:` label line, in the forms briefHas accepts, with the number after the colon.
+// A `Round budget:` label line, in the label forms brief-rules.mjs readField accepts, with the number after the colon.
+// This is the binding parser for the brief's budget, not a presence check, so it stays a regex of its own.
 const BRIEF_BUDGET = /^[ \t]*(?:(?:[-*]|\d+\.)[ \t]+)?(?:\*\*|__)?Round[ \t]+budget(?:\*\*|__)?[ \t]*(?:\([^)\n]*\))?[ \t]*(?:\*\*|__)?[ \t]*:[ \t]*(?:\*\*|__)?[ \t]*(\d+)/gim;
 const BRIEF_STATUSES = new Set(['BRIEF', 'CLAMPED', 'INVALID', 'NONE', 'MISSING']);
 // The checkpoint the warning asks for and the stop requires, so a fresh operative resumes from
@@ -320,10 +329,6 @@ const CHECKPOINT = 'done items with file:line evidence, each dirty (uncommitted)
 // `spawn_agent` is Codex's dispatch tool. Whether PreToolUse fires for it is UNVERIFIED, so the
 // name is covered here and stays inert until a captured payload shows the hook runs.
 const DISPATCH_TOOLS = new Set(['Agent', 'Task', 'Workflow', 'spawn_subagent', 'spawn_agent']);
-// Agent types that start from the host's full tool surface or inherit the lead's context.
-const WIDE_TYPES = new Set(['general-purpose', 'claude', 'fork']);
-// A brief line that justifies a wide or unnamed agent type, with the reason on the same line.
-const WIDE_REASON = /^Wide-surface reason:[ \t]*\S/m;
 const BAND_TOKENS = 150_000;
 const HANDOFF_SKILL = /code-ops-suite[:-]handoff/;
 // Session ids key the assessment marker and appear in the unlock command the deny prints, so
@@ -571,30 +576,6 @@ function requiredFields(subagentType) {
   return line.split(',').map((field) => field.trim()).filter(Boolean);
 }
 
-// A brief carries a field when a line starts with the label, case-insensitive, followed by a
-// colon. Only leading whitespace, one list marker (`-`, `*`, or `1.`), and bold markers may
-// precede the label; bold markers or a parenthetical may sit between it and the colon. A
-// markdown heading line that starts with the label also counts. A label mid-line, as in
-// `Out of scope:` or `relevant to Scope: x`, does not.
-const labelSource = (field) => field.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '[ \\t]+');
-const LABEL_HEAD = '^[ \\t]*(?:(?:[-*]|\\d+\\.)[ \\t]+)?(?:\\*\\*|__)?';
-const LABEL_TAIL = '(?:\\*\\*|__)?[ \\t]*(?:\\([^)\\n]*\\))?[ \\t]*(?:\\*\\*|__)?[ \\t]*:';
-
-function briefHas(prompt, field) {
-  const label = labelSource(field);
-  return new RegExp(`${LABEL_HEAD}${label}${LABEL_TAIL}`, 'im').test(prompt)
-    || new RegExp(`^[ \\t]*#{1,6}[ \\t]+${label}(?![A-Za-z0-9])`, 'im').test(prompt);
-}
-
-// The text on a brief's `<field>:` line, or null when the line is absent or empty. The label rule
-// is briefHas's; the value drops leading quotes and trailing bold markers or quotes, as the agent
-// ledger's own reader does, so a `Unit:` value here equals the one the ledger stored.
-function briefValue(prompt, field) {
-  const match = new RegExp(`${LABEL_HEAD}${labelSource(field)}${LABEL_TAIL}[ \\t]*(?:\\*\\*|__)?[ \\t]*([^\\r\\n]*)`, 'im').exec(prompt);
-  const value = (match?.[1] ?? '').replace(/^[`'"]+/, '').replace(/(?:\*\*|__|[`'"])+[ \t]*$/, '').trim();
-  return value || null;
-}
-
 // Behaviour 5's note for this call, behaviour 6's denial text, and whether any output has gone
 // out yet.
 let collision = null;
@@ -618,8 +599,9 @@ const GATES = [
   ['wide-type', /starts from (?:a large default or inherited context|the default surface)/, ['GB-05', 'GD-01', 'R1-07']],
   ['effort-cap', /effort is at most high|is not an effort/, []],
   ['brief-fields', /requires these brief fields, missing/, ['GD-06']],
+  ['brief-repeat', /must appear exactly once|does not require Tier gets no routing check/, []],
   ['budget-missing', /No Round budget in the brief/, ['GC-25']],
-  ['route-tier', /is not a rung|cannot be ranked|, below its .* floor|but the dispatch runs at|(?:runs at|the Agent call passes)\. Pass effort|The Agent call passes effort "|Tier \S+ \/ Effort|is above the routed|below the \S+ floor of/, ['GC-05', 'GC-06']],
+  ['route-tier', /is not a rung|cannot be ranked|, below its .* floor|but the dispatch runs at|(?:runs at|the Agent call passes)\. Pass effort|The Agent call passes effort "|Tier \S+ \/ Effort|is above the routed|below the \S+ floor of|Route basis cannot be routed/, ['GC-05', 'GC-06']],
   ['route-basis', /Route basis/, []],
   ['frontier', /only one frontier peer/, []],
   ['workflow-opaque', /Workflow agent\(\) calls pass (?:options the guard cannot read|a model or effort that is not a literal)/, []],
@@ -629,7 +611,7 @@ const GATES = [
   ['subagent-git', /Subagent git guard:/, []],
   ['peer-note', /^(?:Collision|Surface) note/m, []],
   ['redispatch-note', /Redispatch note:/, []],
-  ['anchors-note', /Anchors note:/, []],
+  ['anchors', /Anchors (?:required|note):/, []],
   ['lead-streak', /Lead inline streak:/, []],
   ['workspace-note', /Workspace note:/, []],
 ];
@@ -1133,9 +1115,6 @@ function ceilingReason(gate) {
 
 const AGENT_CALL = /\bagent\s*\(/g;
 const OPTION_KEY = /(agentType|effort|model)\s*(?=[:,}])/y;
-const OVER_HIGH_EFFORT = new Set(['xhigh', 'max']);
-// The efforts an Agent call may pass, the same list route-unit.mjs ranks for a routed agent.
-const AGENT_EFFORTS = ['low', 'medium', 'high'];
 // A script-wide `Run contract: <path>` line, bare or inside a comment, with the path on that line.
 // The compliance counts planned for scripts/context-audit.mjs must match this same pattern.
 const RUN_CONTRACT_LINE = /^[ \t]*(?:\/\/+|\/?\*+)?[ \t]*Run contract:[ \t]*(\S.*?)(?:[ \t]*\*\/)?[ \t\r]*$/m;
@@ -1339,7 +1318,7 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
   const calls = workflowCalls(script);
   if (!calls) {
     // deferred(parse surprise, a fuller JavaScript tokenizer): fall back to the script-wide test.
-    if (/\bagent\s*\(/.test(script) && !/\bagentType\s*:/.test(script) && !script.includes('Wide-surface reason:')) {
+    if (/\bagent\s*\(/.test(script) && !/\bagentType\s*:/.test(script) && !SCRIPT_WIDE_REASON.test(script)) {
       denials.push('A Workflow agent() call with no agentType starts from the default surface; set agentType '
         + 'to a code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
     }
@@ -1352,7 +1331,9 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
   let nonLiteral = 0;
   let noEffort = 0;
   const noAnchors = [];
+  const noBasis = [];
   const unreadableBriefs = [];
+  const repeatedBasis = [];
   // A literal model is judged against its literal agentType's floor, which needs the rung table.
   const libs = calls.some((call) => call && typeof call.keys.get('model') === 'string') ? await getRoutingLibs() : null;
   calls.forEach((call, index) => {
@@ -1374,8 +1355,13 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     if (literalType?.trim() === 'code-ops-suite:implementer' && call.prompt !== undefined) {
       if (call.prompt === null) unreadableBriefs.push(index + 1);
       else {
-        const basis = briefValue(call.prompt, 'Route basis');
-        if ((basis === null || parseRouteBasis(basis).kind === 'execution') && !briefHas(call.prompt, 'Anchors')) noAnchors.push(index + 1);
+        const basis = readField(call.prompt, 'Route basis').value;
+        // The Anchors check below reads the first Route basis, so a second one could hide an execution kind.
+        if (fieldCount(call.prompt, 'Route basis') > 1) repeatedBasis.push(index + 1);
+        if (!anchorsGiven(call.prompt)) {
+          if (basis === null) noBasis.push(index + 1);
+          else if (parseRouteBasis(basis).kind === 'execution') noAnchors.push(index + 1);
+        }
       }
     }
     if (!keys.has('agentType')) {
@@ -1386,10 +1372,13 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     if (type !== null && (!type.trim() || WIDE_TYPES.has(type.trim().split(':').pop().toLowerCase()))) failed.push(index + 1);
   });
   workflow = { calls: calls.length, unreadable, contract: RUN_CONTRACT_LINE.test(script), workflowArgs: workflowArgsMode() };
-  if (failed.length && !script.includes('Wide-surface reason:')) {
+  if (failed.length && !SCRIPT_WIDE_REASON.test(script)) {
     denials.push(`${failed.length} of ${calls.length} Workflow agent() calls name no agentType or a wide-surface one `
       + `(the first is call ${failed[0]}), which starts from the default surface; set agentType on each to a `
       + 'code-ops-suite agent, or add "Wide-surface reason: <why>" to the script.');
+  }
+  if (repeatedBasis.length) {
+    denials.push(duplicateDenial(['Route basis'], `Workflow agent() call ${repeatedBasis[0]}'s brief${repeatedBasis.length > 1 ? ` (${repeatedBasis.length} of ${calls.length} calls do)` : ''}`));
   }
   if (high.length) {
     denials.push(`Workflow agent() call ${high[0]} sets an effort above high (${high.length} of ${calls.length} calls do); `
@@ -1417,20 +1406,25 @@ async function reviewWorkflow(script, denials, advisories, sessionId, cwd) {
     advisories.push(`${nonLiteral} of ${calls.length} Workflow agent() calls pass a model or effort that is not a literal string, `
       + 'so the guard cannot check it against the agent floor or the effort ceiling; confirm the value.');
   }
-  workflowAnchorsNote(calls.length, noAnchors, unreadableBriefs, advisories);
+  workflowAnchors(calls.length, { missing: noAnchors, noBasis, unread: unreadableBriefs }, denials, advisories);
   reviewWorkflowContract(script, calls, unreadable, noEffort, cwd, advisories);
 }
 
-// Behaviour 9 for a Workflow: one note naming the implementer calls whose prompt has no `Anchors:` line,
-// and those whose prompt the scan cannot read. It lists up to ten indexes of each and never denies.
-function workflowAnchorsNote(total, missing, unread, advisories) {
-  if (!missing.length && !unread.length) return;
+// Behaviour 9 for a Workflow. An execution brief with no usable `Anchors:` line is a denial naming the
+// call indexes. A readable prompt with no Route basis line, and a prompt the scan cannot read, stay one
+// advisory, because the guard cannot prove those calls are execution briefs. Up to ten indexes per list.
+function workflowAnchors(total, { missing, noBasis, unread }, denials, advisories) {
   const list = (calls) => `${calls.slice(0, 10).join(', ')}${calls.length > 10 ? ', ...' : ''}`;
+  const fix = 'Run `co brief code-ops-suite:implementer --anchors <path[:line]>...` with the files the unit will edit, '
+    + 'so the operative skips its orientation reads, or add "Anchors: none (<reason>)".';
+  if (missing.length) {
+    denials.push(`Anchors required: ${missing.length} of ${total} Workflow agent() calls to code-ops-suite:implementer have an execution brief `
+      + `with no Anchors block (call ${list(missing)}). ${fix}`);
+  }
   const parts = [];
-  if (missing.length) parts.push(`${missing.length} of ${total} Workflow agent() calls to code-ops-suite:implementer have an execution brief with no Anchors block (call ${list(missing)})`);
+  if (noBasis.length) parts.push(`${noBasis.length} have a prompt with no Route basis line and no Anchors block (call ${list(noBasis)})`);
   if (unread.length) parts.push(`${unread.length} pass a prompt the guard cannot read, so its anchors could not be checked (call ${list(unread)})`);
-  advisories.push(`Anchors note: ${parts.join('; ')}. Run \`co brief code-ops-suite:implementer --anchors <path[:line]>...\` `
-    + 'with the files the unit will edit, so the operative skips its orientation reads, or add "Anchors: none (<reason>)".');
+  if (parts.length) advisories.push(`Anchors note: ${parts.join('; ')}. ${fix}`);
 }
 
 // The routing libraries, loaded once and only for a routed dispatch or a Workflow model. Null when
@@ -1454,22 +1448,6 @@ async function getRoutingLibs() {
   return routingLibs;
 }
 
-const word = (value) => value?.split(/[\s,;:()]+/)[0]?.toLowerCase().slice(0, 24) ?? null;
-
-// Path candidates in a Scope text: each token holding a separator, alone and with up to five following
-// tokens, so a path with spaces (`35 Contracts and Data`) reaches the surface patterns whole. A bare
-// word such as `auth` in prose is never a candidate. A trailing line anchor (`:120-180`, `#L120`) drops.
-function scopePaths(text) {
-  const tokens = text.split(/[\s,;`'"()<>[\]{}|]+/)
-    .map((token) => token.replace(/[.,:;!?]+$/, '').replace(/(?:#L\d+(?:-L?\d+)?|:\d+(?:[-:]\d+)?)$/i, '')).filter(Boolean);
-  const paths = new Set();
-  tokens.forEach((token, i) => {
-    if (!/[\\/]/.test(token)) return;
-    for (let n = 1; n <= 6 && i + n <= tokens.length; n++) paths.add(tokens.slice(i, i + n).join(' '));
-  });
-  return [...paths];
-}
-
 // The session's ledger rows, or [] for an unsafe session id or a ledger error. One hook process
 // decides one call, so the read is kept for the routing check and the redispatch note to share.
 let rowsMemo = null;
@@ -1483,169 +1461,64 @@ function sessionRows(libs, sessionId) {
 
 // Behaviour 8. The report path of the latest finished row with this description and Scope hash,
 // as one advisory. A row that failed, never reported, or kept no report path is no match.
-async function redispatchNote(input, prompt, sessionId, advisories) {
-  if (off('CODE_OPS_REDISPATCH_NOTE')) return;
+async function redispatchNote(input, prompt, sessionId) {
+  if (off('CODE_OPS_REDISPATCH_NOTE')) return null;
   const description = typeof input.description === 'string' ? input.description.replace(/\s+/g, ' ').trim().slice(0, 80) : '';
-  if (!description) return;
+  if (!description) return null;
   const libs = await getRoutingLibs();
   try {
     const hash = libs?.scopeHashOf(prompt);
-    if (!hash) return;
+    if (!hash) return null;
     const rows = sessionRows(libs, sessionId);
     const failed = new Set(rows.filter((r) => r.status === 'failed').map((r) => r.agent_id));
     const done = new Set(rows.filter((r) => r.status === 'reported' && !failed.has(r.agent_id)).map((r) => r.agent_id));
     const prior = rows.findLast((r) => r.status === 'dispatched' && r.description === description && r.scopeHash === hash
       && r.report_path && done.has(r.agent_id));
-    if (prior) advisories.push(`Redispatch note: an earlier dispatch with this description and Scope finished and left ${prior.report_path}; a retry should cite that report instead of repeating the work.`);
-  } catch { /* fail open */ }
-}
-
-// Behaviour 9. An execution brief for the implementer with no `Anchors:` line earns one note. Pure
-// string work: the kind is the first part of the `Route basis` line, as parseRouteBasis reads it.
-function anchorsNote(prompt, advisories) {
-  const basis = briefValue(prompt, 'Route basis');
-  if (basis === null || parseRouteBasis(basis).kind !== 'execution' || briefHas(prompt, 'Anchors')) return;
-  advisories.push('Anchors note: this execution brief has no Anchors block. Run `co brief code-ops-suite:implementer --anchors '
-    + '<path[:line]>...` with the files the unit will edit, so the operative skips its orientation reads, '
-    + 'or add "Anchors: none (<reason>)".');
+    return prior ? `Redispatch note: an earlier dispatch with this description and Scope finished and left ${prior.report_path}; a retry should cite that report instead of repeating the work.` : null;
+  } catch { return null; /* fail open */ }
 }
 
 // Frontier dispatches in ledger rows: `dispatched` rows that asked for frontier or applied a frontier
-// model, each agent once.
+// model, each agent once. Premium repeats the frontier model, so a row that asked for premium is the
+// one exception: the ledger writes a row after a dispatch ran (PostToolUse), and routeChecks denies
+// every premium on the frontier model that no trigger earned, so a premium row is a triggered one.
+// A row with no recorded Tier stays a frontier peer (fail closed).
 function frontierCount(libs, rows) {
   const seen = new Set();
-  return rows.filter((row) => row.status === 'dispatched' && (row.requestedTier === 'frontier' || libs.rungOf(row.appliedModel) === 'frontier')
+  return rows.filter((row) => row.status === 'dispatched'
+    && (row.requestedTier === 'frontier' || (row.requestedTier !== 'premium' && libs.rungOf(row.appliedModel) === 'frontier'))
     && (!row.agent_id || (!seen.has(row.agent_id) && seen.add(row.agent_id)))).length;
 }
 
-// `Route basis: <kind>; surface=<s>; ambiguity=<a>; reversible=<r>` as its parts.
-function parseRouteBasis(line) {
-  const get = (key) => new RegExp(`\\b${key}\\s*=\\s*([A-Za-z-]+)`, 'i').exec(line)?.[1]?.toLowerCase();
-  return { kind: line.split(';')[0].trim().toLowerCase(), surface: get('surface'), ambiguity: get('ambiguity'), reversible: get('reversible') };
-}
-
-const SURFACE_TRIGGERS = new Set(['7a', '7d']);
-
-// Behaviour 4, routing half, for a dispatch of an agent whose Contract requires `Tier`.
-// Every denial here tightens the guard; a `Route override:` line clears only the shortfalls that come
-// from the ambiguity and attempt triggers (7b, 7c) and the table rows, never a surface trigger.
-function routeChecks(libs, input, type, prompt, sessionId, denials, advisories) {
-  const fm = agentFrontmatter(type);
-  const floorRung = libs.rungOf(fm?.model);
-  const override = typeof input.model === 'string' ? input.model.trim() : '';
-  // Grok does not run the Claude frontmatter model, so a valid Tier is not compared to it.
-  const effective = process.env.GROK_PLUGIN_ROOT && !override ? null : (override ? libs.rungOf(override) : floorRung);
-  const tier = word(briefValue(prompt, 'Tier'));
-  const effort = word(briefValue(prompt, 'Effort'));
-  const hasOverride = briefValue(prompt, 'Route override') !== null;
-  const tierOk = tier !== null && Object.hasOwn(libs.rungRank, tier);
-  const effortOk = effort !== null && libs.efforts.includes(effort);
-  let rows = null;
-  const ledger = () => {
-    rows ??= sessionRows(libs, sessionId);
-    return rows;
-  };
-
-  if (override && effective === null && tier !== null) {
-    advisories.push(`The model override "${override}" cannot be ranked, so the guard cannot check Tier: ${tier} against the rung it runs at; confirm they agree.`);
-  }
-  if (tier !== null && !tierOk) denials.push(`Tier: "${tier}" is not a rung; use light, mid, strong, premium, or frontier.`);
-  if (effort !== null && OVER_HIGH_EFFORT.has(effort)) {
-    denials.push(`Effort: ${effort} is above high; effort is at most high, and no Route override allows more.`);
-  } else if (effort !== null && !effortOk) denials.push(`Effort: "${effort}" is not an effort; use low, medium, or high.`);
-
-  // Rung of the dispatch: the override against the agent floor, then against the brief Tier.
-  const belowFloor = override && libs.rungOf(override) && floorRung && libs.floorRank[libs.rungOf(override)] < libs.floorRank[floorRung];
-  if (belowFloor) {
-    denials.push(`The model override "${override}" runs ${type} at ${libs.rungOf(override)}, below its ${floorRung} floor; `
-      + `omit the override so the frontmatter model (${fm.model}) applies.`);
-  } else if (tierOk && effective && tier !== effective) {
-    const fix = tier === 'premium' ? 'pass model "opus"' : tier === 'frontier' ? 'pass model "fable"'
-      : tier === 'strong' ? 'omit the model override' : `${type} cannot run below its ${floorRung} floor, so raise Tier`;
-    denials.push(`Tier: ${tier} but the dispatch runs at ${effective}${override ? ` (model "${override}")` : ` (the frontmatter ${fm.model})`}; ${fix}.`);
-  }
-
-  // Frontier is one dispatch per run, counted from the ledger.
-  if (tier === 'frontier' || effective === 'frontier') {
-    const prior = frontierCount(libs, ledger());
+// Frontier is one dispatch per run, counted from the ledger. A frontier model with no Tier line, or
+// a Tier other than premium, is a frontier peer. `Tier: premium` is exempt only when `route` is the
+// computed route and its rung is premium, so a trigger (7a to 7d) fired. A premium whose route cannot
+// be computed is capped and asked for a Route basis, never exempted. This is the ledger half of the
+// routing check; brief-rules.mjs routeChecks returns the tier, the rung it runs at, and the route.
+function settleFrontier(libs, sessionId, { tier, effective, route }) {
+  const denials = [];
+  const earned = tier === 'premium' && route?.rung === 'premium';
+  if (tier === 'frontier' || (effective === 'frontier' && !earned)) {
+    const prior = frontierCount(libs, sessionRows(libs, sessionId));
     if (prior >= 1) denials.push(`A frontier dispatch already ran in this session (${prior} in the ledger); only one frontier peer runs per run. Dispatch at premium or strong.`);
   }
-
-  // Effort the host delivers: the Agent call's own `effort` (CLI 2.1.292 and later), else the frontmatter.
-  const callEffort = typeof input.effort === 'string' ? input.effort.trim() : null;
-  if (callEffort !== null && !libs.efforts.includes(callEffort)) {
-    denials.push(`The Agent call passes effort "${callEffort}"; pass low, medium, or high, because effort is at most high.`);
-  }
-  const fmEffort = fm?.effort && libs.efforts.includes(fm.effort) ? fm.effort : null;
-  const runEffort = callEffort !== null && libs.efforts.includes(callEffort) ? callEffort : fmEffort;
-  if (effortOk && runEffort) {
-    const asked = libs.efforts.indexOf(effort);
-    const given = libs.efforts.indexOf(runEffort);
-    const source = runEffort === callEffort ? 'the Agent call passes' : `${type} runs at`;
-    if (asked > given) {
-      denials.push(`Effort: ${effort} is above the ${runEffort} that ${source}. `
-        + `Pass effort: "${effort}" on the Agent call, or use Workflow agent({ agentType, model, effort }).`);
-    } else if (asked < given) {
-      advisories.push(`Effort: ${effort} is below the ${runEffort} that ${source}. Pass effort: "${effort}" on the Agent call, or use Workflow agent() to run at ${effort}.`);
-    }
-  }
-
-  // Surface, then the routed floor for Tier and Effort.
-  const basisLine = briefValue(prompt, 'Route basis');
-  if (basisLine === null) return;
-  const basis = parseRouteBasis(basisLine);
-  const derived = libs.surfaceOfScope(scopePaths(libs.scopeText(prompt)));
-  if (basis.surface === undefined) {
-    denials.push('Route basis names no surface=<s>; add it (none, security, egress, migration, public-contract, or gate-script).');
-  } else if (!libs.surfaces.includes(basis.surface)) {
-    denials.push(`Route basis names surface=${basis.surface}, which is not a surface; use ${libs.surfaces.join(', ')}.`);
-  } else if (basis.surface !== derived && derived !== 'none') {
-    denials.push(`Route basis says surface=${basis.surface} but the Scope paths derive surface=${derived}; correct the line or the Scope. `
-      + 'A Route override line does not clear a surface mismatch.');
-  } else if (basis.surface !== derived) {
-    // No Scope path derives a surface (a directory-level Scope, say), so a declared surface routes up; it is never a contradiction.
-    advisories.push(`Route basis says surface=${basis.surface} but the Scope paths derive no surface; routing up is allowed, and it costs more.`);
-  }
-  const unit = (briefValue(prompt, 'Unit') ?? '').replace(/\s+/g, ' ').trim().slice(0, 80) || null;
-  const { kind, raisedFrom } = libs.applyMinKind(basis.kind, type);
-  if (raisedFrom) advisories.push(`Route basis kind=${raisedFrom} is below the minimum for ${type}; routing it as ${kind}.`);
-  const base = { kind, ambiguity: basis.ambiguity, reversible: basis.reversible, surface: derived };
-  const floorTier = ['light', 'mid', 'strong', 'frontier'][libs.floorRank[floorRung]];
-  if (floorTier) base.floor = floorTier;
-  let full;
-  let hard;
-  try {
-    full = libs.routeUnit({ ...base, attempt: unit ? libs.attemptOf(ledger(), unit) : 1 });
-    // The surface triggers alone: no ambiguity-and-irreversible trigger, no retry trigger.
-    hard = libs.routeUnit({ ...base, reversible: 'yes', attempt: 1 });
-  } catch (error) {
-    if (!(error instanceof TypeError)) throw error;
-    denials.push(`Route basis is not valid: ${error.message}.`);
-    return;
-  }
-  if (!tierOk) return;
-  const under = (route) => libs.rungRank[tier] < libs.rungRank[route.rung]
-    || (effortOk && route.effort !== 'adaptive' && libs.efforts.indexOf(effort) < libs.efforts.indexOf(route.effort));
-  const want = (route) => `${route.rung} at ${route.effort} effort (rule ${route.rule}: ${route.why})`;
-  if (SURFACE_TRIGGERS.has(hard.rule) && under(hard)) {
-    denials.push(`Tier ${tier} / Effort ${effort ?? 'unset'} is below ${want(hard)}; a Route override line does not clear a surface trigger.`);
-  } else if (under(full) && !hasOverride) {
-    denials.push(`Tier ${tier} / Effort ${effort ?? 'unset'} is below ${want(full)}; raise them (\`co route\` prints the block), `
-      + 'or add a "Route override: <reason>" line to depart from the table.');
-  }
-  if (libs.rungRank[tier] > libs.rungRank[full.rung]) {
-    advisories.push(`Tier: ${tier} is above the routed ${full.rung} (rule ${full.rule}); it costs more and is never denied.`);
-  }
+  if (tier === 'premium' && effective === 'frontier' && !route) denials.push(UNROUTED_PREMIUM);
+  return denials;
 }
 
-async function reviewRouting(input, type, prompt, sessionId, denials, advisories) {
-  const libs = await getRoutingLibs();
-  if (!libs) return;
-  try { routeChecks(libs, input, type, prompt, sessionId, denials, advisories); } catch { /* fail open */ }
+// Fail closed for the one dispatch the frontier cap exempts: a premium request on the frontier model
+// whose route could not be computed (no routing libraries, or routeChecks threw). Every other
+// dispatch keeps the guard's fail-open. Without the libraries the model id is read by family name.
+function unroutedPremium(libs, input, tier) {
+  const model = typeof input.model === 'string' ? input.model.trim() : '';
+  const frontier = libs ? libs.rungOf(model) === 'frontier' : /fable/i.test(model);
+  return frontier && tier === 'premium' ? [UNROUTED_PREMIUM] : [];
 }
 
 // Behaviour 4: the lead's own dispatch. A wide surface without a stated reason is a denial, and so
-// is a routing breach for an agent that requires `Tier`; a missing Round budget stays advisory.
+// is a routing breach for an agent that requires `Tier`; a missing Round budget stays advisory. The
+// brief rules themselves are brief-rules.mjs reviewBrief; this builds its inputs from the call and the
+// ledger and returns its skeleton.
 async function reviewDispatch(tool, input, budget, denials, advisories, sessionId, cwd) {
   if (tool === 'Workflow') {
     await reviewWorkflow(typeof input.script === 'string' ? input.script : '', denials, advisories, sessionId, cwd);
@@ -1661,35 +1534,28 @@ async function reviewDispatch(tool, input, budget, denials, advisories, sessionI
     const over = ['effort', 'reasoning_effort', 'reasoningEffort'].find((key) => OVER_HIGH_EFFORT.has(String(input[key] ?? '').trim().toLowerCase()));
     if (over) denials.push(`${tool} sets ${over} above high; effort is at most high, and no Wide-surface reason allows more.`);
   }
-  const typeless = spawn && input.subagent_type === undefined;
-  if (!typeless && (!type || WIDE_TYPES.has(type.split(':').pop().toLowerCase())) && !WIDE_REASON.test(prompt)) {
-    denials.push(`${type || 'An unnamed type'} starts from a large default or inherited context; `
-      + 'dispatch code-ops-suite:implementer, explorer, reviewer, mech, web-researcher, or probe, or add a '
-      + '"Wide-surface reason: <why>" line to the brief.');
-  }
+  const dispatch = tool === 'Agent' || tool === 'Task' || spawn;
   const required = requiredFields(type);
-  const missing = required.filter((field) => !briefHas(prompt, field));
   const routed = required.some((field) => /^tier$/i.test(field));
-  if ((tool === 'Agent' || tool === 'Task' || spawn) && routed) {
-    await reviewRouting(input, type, prompt, sessionId, denials, advisories);
-  } else if ((tool === 'Agent' || tool === 'Task') && typeof input.effort === 'string' && !AGENT_EFFORTS.includes(input.effort.trim())) {
-    // An unrouted agent never reaches the routing check, so its Agent `effort` is held to the same cap here.
-    denials.push(`The Agent call passes effort "${input.effort.trim()}"; pass low, medium, or high, because effort is at most high.`);
-  }
-  if (tool === 'Agent' || tool === 'Task' || spawn) await redispatchNote(input, prompt, sessionId, advisories);
-  if ((tool === 'Agent' || tool === 'Task' || spawn) && type === 'code-ops-suite:implementer') anchorsNote(prompt, advisories);
-  if (missing.length) {
-    denials.push(`The ${type} Contract requires these brief fields, missing: ${missing.join(', ')}; `
-      + 'add each as a "Label:" line or a heading. The missing lines open this denial, ready to fill; '
-      + `\`node "${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}" brief ${type}\` prints the full template.`);
-  }
-  // A field denial that already names Round budget makes this advisory a repeat.
-  const deniedBudget = missing.some((field) => /^round budget$/i.test(field));
-  if (typeof input.prompt === 'string' && !deniedBudget && !/round budget/i.test(input.prompt)) {
-    advisories.push(`No Round budget in the brief; the guard warns at ${budget} rounds, `
-      + `stops at ${stopCall(budget)}.`);
-  }
-  return missing.map((field) => `${field}:`);
+  const libs = dispatch && routed ? await getRoutingLibs() : null;
+  const override = typeof input.model === 'string' ? input.model.trim() : '';
+  // The model the dispatch runs, as the ledger resolves it (the override, else the frontmatter), for a Contract with no Tier.
+  const unroutedLibs = dispatch && !routed ? await getRoutingLibs() : null;
+  const appliedModel = override || agentFrontmatter(type)?.model || '';
+  const frontierModel = dispatch && !routed && (unroutedLibs ? unroutedLibs.rungOf(appliedModel) === 'frontier' : /fable/i.test(appliedModel));
+  return reviewBrief({
+    prompt, type, required, dispatch, frontierModel, typeless: spawn && input.subagent_type === undefined,
+    agentTool: tool === 'Agent' || tool === 'Task',
+    libs, fm: libs ? agentFrontmatter(type) : null,
+    call: { model: override, effort: typeof input.effort === 'string' ? input.effort.trim() : null, grok: Boolean(process.env.GROK_PLUGIN_ROOT) },
+    attemptOf: (unit) => libs.attemptOf(sessionRows(libs, sessionId), unit),
+    settle: (result) => settleFrontier(libs, sessionId, result),
+    unrouted: (tier) => unroutedPremium(libs, input, tier),
+    redispatch: dispatch ? await redispatchNote(input, prompt, sessionId) : null,
+    brief: `node "${join(dirname(dirname(HOOK_PATH)), 'scripts', 'co.mjs')}" brief ${type}`,
+    budgetNote: typeof input.prompt === 'string'
+      ? `No Round budget in the brief; the guard warns at ${budget} rounds, stops at ${stopCall(budget)}.` : null,
+  }, denials, advisories);
 }
 
 // Behaviours 3 and 4: the main thread. A handoff Skill call records the assessment; a dispatch

@@ -1,8 +1,10 @@
 # Changelog — researcher
 
-## 0.18.1
-- Refresh vendored scripts.
+## 0.18.2
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
+- The vendored `scripts/model-tiers.mjs` carries the rebound Anthropic tier table. No agent changes.
+- The `gatherer` and `claim-checker` bodies tell the agent to return the report as the final message, which the suite `subagent-report` hook saves to the brief's `Report path:`.
+- The `subagent-report` hook saves a report only for an agent with no `Write` or `Edit` tool, decided from the agent file's `tools:` line or, where a host strips that line, a frozen set of the read-only suite agents. A write-capable agent gets no save. The pinned `report-persistence` passage now says the hook saves a read-only agent's report and the lead writes it only where the hook does not.
 - The `claim-checker` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional.
 - `library-eval`, `research-ideate`, `research-improve`, `research-spike`, `research-sweep`, and `research-verify` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
@@ -11,6 +13,9 @@ The vendored `co.mjs` gains the `recall` command.
 - `co.mjs` lists `co build-graph`, which runs only in the code-ops repository and prints "not bundled here" from an installed plugin.
 - Skill and agent descriptions are shorter, to cut session-start context.
 - Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
+
+## 0.18.1
+- Refresh vendored scripts.
 
 ## 0.17.0
 - The `gatherer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.

@@ -383,7 +383,8 @@ export function integrationLinks({ touched, stale, exists }) {
 }
 
 function execTry(args, opts = {}) {
-  try { return { ok: true, out: execFileSync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, ...opts }) }; }
+  // The one caller passes its own 60 s; the default keeps a future caller bounded. A timeout throws, so it lands in the catch as ok:false, like a non-zero exit.
+  try { return { ok: true, out: execFileSync(process.execPath, args, { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: 60000, killSignal: 'SIGKILL', ...opts }) }; }
   catch (e) { return { ok: false, out: e.stdout || '', err: e.stderr || '' }; }
 }
 

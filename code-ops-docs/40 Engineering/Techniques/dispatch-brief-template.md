@@ -82,7 +82,8 @@ The named path governs over any default reporting instruction in the agent defin
   the path, a one-line verdict, and counts such as findings per tier.
 - **Operative without a file-write tool** (shipped: explorer in code-ops-suite and
   privacy-opsec-suite, reviewer, privacy-reviewer, tracer, gatherer, claim-checker): return
-  the full report inline. The lead writes it to the named path in the turn it arrives.
+  the full report inline. The `subagent-report` hook saves it to the named path when the path is in
+  the run folder. Where the hook does not run or saves nothing, the lead writes it in the turn it arrives.
 - **The lead, either way:** gate the file before the unit counts as covered. In code-ops-suite,
   run `dispatch-ledger.mjs update --status reported --report <path> --sections <names>`. A
   missing, empty, or section-less file fails the gate, and the row stays unreported. The lead

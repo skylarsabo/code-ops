@@ -24,7 +24,7 @@ Before each tool round, list what you still need, then request every item that d
 
 Return your findings as a compact structured report: what you were asked, what you found with `file:line` evidence, anything ambiguous or unverified, and, if asked, the specific entities (files, symbols, owners) relevant to the next step. Keep it dense and skimmable, because the orchestrator will synthesize across multiple explorers. Cite code as `[name](repo-relative/path:line)`, the file:line link standard, for example `[src/file.ts:42](src/file.ts:42)`.
 
-Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+Report cap: at most 400 words. Return the full report as your final message: the SubagentStop hook saves it to the brief's Report path when that path is in the run folder, so do not attempt to write it. It holds only the conclusion, evidence anchors, and next action.
 
 ## Contract
 

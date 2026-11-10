@@ -8,7 +8,7 @@
     },
     {
       "name": "privacy-reviewer",
-      "sourceModel": "claude-sonnet-5-5",
+      "sourceModel": "claude-opus-5-5",
       "minimumTier": "strong"
     }
   ]

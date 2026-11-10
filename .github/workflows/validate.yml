@@ -311,6 +311,12 @@ jobs:
       - name: Workspace layout eval (per-host folders, advisory-only note, SessionStart setup)
         run: node evals/workspace-layout/run.mjs
 
+      - name: Clean eval (age-based cleanup keep rules, dry run default, cleanup advisory)
+        run: node evals/clean/run.mjs
+
+      - name: Process report eval (stray-process candidate rule, guarded reap, redaction, fail-soft table)
+        run: node evals/procs/run.mjs
+
       - name: Collision note eval (warn-only peer collision context)
         run: node evals/collision/run.mjs
 

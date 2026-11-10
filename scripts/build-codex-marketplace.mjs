@@ -375,7 +375,7 @@ const HOOK_PURPOSES = new Map([
   ['compact-snapshot.mjs', 'writes a masked state snapshot of operator words, running work, open items, and peers owed a reply just before the host compacts the session'],
   ['session-receipt.mjs', 'appends a local session receipt row with token usage, tool calls, and model mix'],
   ['ladder-card.mjs', 'hands an implementer subagent the code-economy ladder card'],
-  ['subagent-report.mjs', 'notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap'],
+  ['subagent-report.mjs', 'notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap, and saves the report of a read-only agent to its Report path in the run folder'],
   ['agent-ledger.mjs', 'records each subagent launch and report in a local ledger so the agents still unreported after a handoff can be listed'],
   ['handoff-card.mjs', 'prompts the lead to checkpoint durable state at a safe boundary at 60 and 80 percent of the auto-compaction window (each 150,000-token band on Grok), and to assess a handoff only where the host keeps one'],
   ['peer-guard.mjs', 'denies a message to a peer session that already handed off and names the live successor to resend to'],

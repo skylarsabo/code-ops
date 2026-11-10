@@ -33,7 +33,7 @@ Before each tool round, list what you still need, then request every item that d
 
 Return a compact structured report: the sub-question, what you found with each line carrying its source and tier, how it applies to our code, anything ambiguous or `UNVERIFIED`, and what a web source would be needed to close the gap. Keep it dense, because the orchestrator synthesizes across gatherers.
 
-Report cap: at most 400 words. You have no file-write tool, so the lead writes your report to the brief's Report path; return only the conclusion, evidence anchors, and next action.
+Report cap: at most 400 words. Return the full report as your final message: the SubagentStop hook saves it to the brief's Report path when that path is in the run folder, so do not attempt to write it. It holds only the conclusion, evidence anchors, and next action.
 
 ## Contract
 

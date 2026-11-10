@@ -213,6 +213,34 @@ try {
   const facade = node([join(SCRIPTS, 'co.mjs'), 'docs', 'gate', '--root', join(work, 'real-repo')], ROOT);
   check('co docs gate reaches the gate', facade.status === 0 && /docs gate: PASS|docs gate: skipped/.test(facade.out) && /^ {2}1 docs-manifest check/m.test(facade.out), facade.out + facade.err);
 
+  // A sibling step that outruns its limit is a failed step, never a pass. A copy of the gate runs beside a
+  // stub docs-manifest.mjs, with the 300-second limit cut to one second. The "hang" stub ends itself after
+  // 20 seconds with exit 0, so a gate that lost its bound would show step 1 as ok and fail the case
+  // instead of hanging the eval. Each gate run has its own 60-second limit.
+  {
+    const rig = join(work, 'sibling-bound');
+    mkdirSync(rig, { recursive: true });
+    const source = readFileSync(GATE, 'utf8');
+    const BOUND = 'const SIBLING_MS = 300_000;';
+    check('the gate declares its sibling bound where the eval cuts it', source.includes(BOUND));
+    // The copy imports its helpers from the real scripts folder and finds its siblings (the stubs) beside itself.
+    const home = pathToFileURL(SCRIPTS).href;
+    writeFileSync(join(rig, 'docs-gate.mjs'), source.replace(BOUND, () => 'const SIBLING_MS = 1_000;').replace(/from '\.\//g, () => `from '${home}/`));
+    const rigGate = () => {
+      const r = spawnSync(process.execPath, [join(rig, 'docs-gate.mjs'), '--root', join(work, 'real-repo')], { cwd: join(work, 'real-repo'), encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
+      return { status: r.status, out: r.stdout ?? '', err: r.stderr ?? '' };
+    };
+    const stepOne = (r) => /^ {2}1 docs-manifest check: (.+)$/m.exec(r.out)?.[1];
+    writeFileSync(join(rig, 'docs-manifest.mjs'), 'setTimeout(() => process.exit(0), 20000);\n');
+    const started = Date.now();
+    const hung = rigGate();
+    check('a sibling step that outlasts the bound fails step 1 and the gate, and names the limit', hung.status === 1 && stepOne(hung) === '1 violation(s)' && /docs-manifest\.mjs did not finish within 1 seconds/.test(hung.err), `status ${hung.status} step1 ${stepOne(hung)} ${hung.err.slice(0, 200)}`);
+    check('the hung sibling is cut at the bound, not at its own end', Date.now() - started < 15_000, `${Date.now() - started} ms`);
+    writeFileSync(join(rig, 'docs-manifest.mjs'), 'process.exit(0);\n');
+    const fine = rigGate();
+    check('control: a sibling that returns zero leaves step 1 ok', stepOne(fine) === 'ok', `step1 ${stepOne(fine)} ${fine.out.slice(0, 200)}`);
+  }
+
   const integrate = await import(pathToFileURL(join(SCRIPTS, 'integrate-branch.mjs')).href);
   check('integrate-branch reads this repository manifest as v2, so the docs gate step skips', integrate.manifestVersion(ROOT) === 2);
   check('integrate-branch reads a v2 fixture manifest as 2', integrate.manifestVersion(join(work, 'real-repo')) === 2);

@@ -155,6 +155,16 @@ const TABLE = {
   // prints or creates the host's scratch and worktree folders for this repository, and lists
   // worktrees as in-layout, host-managed, or stray. Never blocks anything.
   workspace: 'workspace-layout.mjs',
+  // A command: `co clean [--apply] [--scope state|tmp|runs|worktrees|branches]... [--store <name>]...
+  // [--older-than <days>] [--json]` reports reclaimable state, scratch, run folders, and merged
+  // worktrees and branches. A dry run unless `--apply --scope <name>` is given. `CODE_OPS_CLEAN=off`
+  // silences its SessionStart advisory.
+  clean: 'clean.mjs',
+  // A command: `co ps [--json] [--all] [--sample <s>] [--reap [--older-than <min>] [--pid <n>]...]`
+  // lists code-ops related processes with the evidence for each, and the stale lock files. Read-only
+  // unless `--reap`, which ends stray candidates only (dead parent, no live host, older than 30 minutes).
+  // `CODE_OPS_PROCS=off` silences its SessionStart advisory.
+  ps: 'procs.mjs',
   // A command: `co route --kind <k> --ambiguity <l|m|h> --reversible <yes|no> [--scope <path>]...
   // [--attempt <n>] [--agent <plugin:agent>] [--json]` prints the paste-ready Tier, Effort, and
   // Route basis lines for one unit and its binding on each host. Read-only.

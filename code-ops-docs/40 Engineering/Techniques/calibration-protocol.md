@@ -214,7 +214,7 @@ vocabulary, so the line adds no leak surface, and no version string, endpoint, o
 id crosses on it.
 
 A point release keeps its family's class name while it serves the same rung, so Fable 5.1
-records as `fable-5`, and one class never splits across two slugs. The grammar accepts
+and Fable 5.2 both record as `fable-5`, and one class never splits across two slugs. The grammar accepts
 `fable-5-1` and rejects `fable-5.1`, so this rule, not the validator, holds the name.
 
 A lead that changed mid-run records every lead class in order, plus-separated, as in

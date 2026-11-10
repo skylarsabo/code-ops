@@ -46,7 +46,7 @@ const pluginNames = ['code-ops-suite', 'privacy-opsec-suite', 'rigor', 'research
 const read = (path) => readFileSync(path, 'utf8').replace(/\r\n/g, '\n');
 const { fails, expect } = tally();
 
-expect(PROVIDER_TIERS.anthropic.models.frontier === 'claude-fable-5-1', 'Anthropic frontier must bind to Fable 5.1');
+expect(PROVIDER_TIERS.anthropic.models.frontier === 'claude-fable-5-2', 'Anthropic frontier must bind to Fable 5.2');
 
 // opencode's own name grammar; a name that fails it is silently undiscoverable.
 const NAME_RE = /^[a-z0-9]+(-[a-z0-9]+)*$/;

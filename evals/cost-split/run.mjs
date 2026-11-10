@@ -9,7 +9,7 @@
 //        file (type `unknown`) each price to the hand-computed USD and the priced subtotal sums them.
 //   b.   Per-field max. One lead message id appears twice and the later record raises output, so the
 //        lead's output is the later figure once, not the first figure and not the sum.
-//   c.   Unpriced ids. `claude-fable-5-1` (no entry) is listed with its tokens and costs nothing in
+//   c.   Unpriced ids. `claude-fable-6-0` (no entry; a future id, since the 5.x Fable ids are priced) is listed with its tokens and costs nothing in
 //        the subtotal. An id with no entry is never $0 and never aliased to a family rate.
 //   i.   Haiku 5.5 (OI-17) prices per message: a prompt (input + cache read + cache write) over
 //        100,000 puts the whole request in the higher tier. One message at exactly 100,000 and one
@@ -53,7 +53,8 @@ const { fails, check } = tally();
 const tmp = mkdtempSync(join(tmpdir(), 'cost-split-'));
 
 const OPUS = 'claude-opus-5-5', SONNET = 'claude-sonnet-5-5', HAIKU4 = 'claude-haiku-4-5-20251001';
-const FABLE = 'claude-fable-5-1', HAIKU5 = 'claude-haiku-5-5';
+const FABLE52 = 'claude-fable-5-2', FABLE51 = 'claude-fable-5-1';
+const UNPINNED = 'claude-fable-6-0', HAIKU5 = 'claude-haiku-5-5';
 
 const usage = (input, cacheRead, cacheCreate, output) => ({
   input_tokens: input, cache_read_input_tokens: cacheRead, cache_creation_input_tokens: cacheCreate, output_tokens: output,
@@ -71,7 +72,7 @@ writeLines(join(mixed, 's1.jsonl'), [
   line('m1', OPUS, usage(1000, 100000, 20000, 500)),
   line('m1', OPUS, usage(1000, 100000, 20000, 2000)),
   line('m2', OPUS, usage(500, 50000, 0, 1000)),
-  line('m3', FABLE, usage(100, 0, 0, 50)),
+  line('m3', UNPINNED, usage(100, 0, 0, 50)),
   line('m4', OPUS, null),
 ]);
 const sub = (name, type, lines) => {
@@ -116,7 +117,7 @@ writeLines(join(adv, 'a1', 'subagents', 'agent-x.jsonl'), [
 writeFileSync(join(adv, 'a1', 'subagents', 'agent-x.meta.json'), JSON.stringify({ agentType: 'code-ops-suite:implementer' }));
 const advX = join(tmp, 'advX');
 writeLines(join(advX, 'b1.jsonl'), [
-  advLine('x1', OPUS, usage(1, 0, 0, 1), { call: 'srv5', advisor: [iter('advisor_message', 1000, 100, FABLE)] }),
+  advLine('x1', OPUS, usage(1, 0, 0, 1), { call: 'srv5', advisor: [iter('advisor_message', 1000, 100, UNPINNED)] }),
   advLine('x2', OPUS, usage(1, 0, 0, 1), { call: 'srv6', advisor: [iter('advisor_message', 10, 1)] }),
 ]);
 const advNone = join(tmp, 'advNone');
@@ -176,14 +177,24 @@ check('b. repeated message id takes the per-field max', lead?.output === 3000 &&
 
 // c. Unpriced ids are listed, with tokens, and add nothing to the subtotal.
 const ids = rep.unpriced.map((u) => u.model).sort();
-check('c. exactly the unpinned id is listed; Haiku 5.5 is priced', JSON.stringify(ids) === JSON.stringify([FABLE]), JSON.stringify(ids));
-const fable = rep.unpriced.find((u) => u.model === FABLE);
-check('c. an unpriced id carries its tokens and a reason', fable?.input === 100 && fable.output === 50 && fable.messages === 1 && fable.reason === 'no price pinned', JSON.stringify(fable));
+check('c. exactly the unpinned id is listed; Haiku 5.5 is priced', JSON.stringify(ids) === JSON.stringify([UNPINNED]), JSON.stringify(ids));
+const unpinned = rep.unpriced.find((u) => u.model === UNPINNED);
+check('c. an unpriced id carries its tokens and a reason', unpinned?.input === 100 && unpinned.output === 50 && unpinned.messages === 1 && unpinned.reason === 'no price pinned', JSON.stringify(unpinned));
 check('c. unpriced rows have no USD', rep.rows.filter((r) => !r.priced).every((r) => r.usd === null));
 const text = run(script, ['--transcripts', mixed]);
-check('c. text report lists the unpriced id and labels the subtotal', /## Unpriced model ids[\s\S]*claude-fable-5-1/.test(text.stdout)
+check('c. text report lists the unpriced id and labels the subtotal', /## Unpriced model ids[\s\S]*claude-fable-6-0/.test(text.stdout)
   && text.stdout.includes('Priced subtotal, excludes unpriced ids: $0.23.'), text.stdout.slice(-400));
 check('c. a Haiku 5.5 message in the fixture prints the tier assumption', text.stdout.includes('prompt = input + cache read + cache write tokens of one request'), text.stdout.slice(-600));
+
+// c2. Fable 5.2 and the retired 5.1 pin are priced, so neither lands in the unpriced list.
+//     Fable 5.2: (1000*8 + 100000*0.2 + 20000*10 + 500*40) / 1e6 = 0.248
+//     Fable 5.1: (1000*10 + 100000*0.25 + 20000*12.5 + 500*50) / 1e6 = 0.31
+const fableDir = join(tmp, 'fable');
+writeLines(join(fableDir, 's1.jsonl'), [line('f1', FABLE52, usage(1000, 100000, 20000, 500)), line('f2', FABLE51, usage(1000, 100000, 20000, 500))]);
+const fableRun = json(script, fableDir);
+check('c2. Fable 5.2 and 5.1 price at their list rates and are not unpriced', fableRun.rep?.unpriced.length === 0
+  && near(row(fableRun.rep, 'lead', FABLE52)?.usd, 0.248) && near(row(fableRun.rep, 'lead', FABLE51)?.usd, 0.31), JSON.stringify(fableRun.rep?.rows));
+check('c2. --check passes for a fixture whose ids are Fable 5.x', run(script, ['--transcripts', fableDir, '--check']).status === 0);
 
 // d. A message with no usage is incomplete, never priced.
 check('d. missing usage is reported as incomplete', rep.incomplete.some((i) => i.model === 'UNKNOWN'), JSON.stringify(rep.incomplete));
@@ -229,9 +240,9 @@ check('h. --check exits 0 when every advisor id is priced, even with a usage-abs
 const advXRun = json(script, advX);
 const ax = advXRun.rep;
 const axIds = ax?.unpriced.map((u) => u.model).sort();
-check('h. an unpriced advisor id and a missing iteration model are listed', JSON.stringify(axIds) === JSON.stringify([FABLE, 'UNKNOWN'].sort()), JSON.stringify(ax?.unpriced));
-const axFable = ax?.unpriced.find((u) => u.model === FABLE);
-check('h. the unpriced advisor id carries its tokens and no USD', axFable?.input === 1000 && axFable.output === 100 && row(ax, 'advisor', FABLE)?.usd === null, JSON.stringify(axFable));
+check('h. an unpriced advisor id and a missing iteration model are listed', JSON.stringify(axIds) === JSON.stringify([UNPINNED, 'UNKNOWN'].sort()), JSON.stringify(ax?.unpriced));
+const axFable = ax?.unpriced.find((u) => u.model === UNPINNED);
+check('h. the unpriced advisor id carries its tokens and no USD', axFable?.input === 1000 && axFable.output === 100 && row(ax, 'advisor', UNPINNED)?.usd === null, JSON.stringify(axFable));
 check('h. an iteration with no model marks its row incomplete', ax?.incomplete.some((i) => i.group === 'advisor' && i.model === 'UNKNOWN'), JSON.stringify(ax?.incomplete));
 check('h. --check exits 1 for an unpriced advisor id', run(script, ['--transcripts', advX, '--check']).status === 1);
 

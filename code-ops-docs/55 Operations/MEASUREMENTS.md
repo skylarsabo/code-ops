@@ -1,7 +1,7 @@
 ---
 type: reference
 status: current
-updated: 2026-10-10
+updated: 2026-11-09
 ---
 
 # Measurements
@@ -1005,3 +1005,32 @@ is one whose transcript holds the guard's "tool rounds used against" warning.
   implementer warn rate under 25% with no rise in the median calls per finished unit. A warn rate
   that stays near 45% means leads still scale units to the budget, and the doctrine line on
   splitting units is the next lever.
+
+## Ladder rebind baseline, 2026-11-09
+
+This reading backs operator decision DEC-82, which moves the strong rung from `claude-sonnet-5-5`
+to `claude-opus-5-5` and binds premium and frontier to `claude-fable-5-2`. The figures come from
+the D-004 review of the model-ladder run, not from a rerun in the change that records them. The
+source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 14 days.
+
+- **Strong-floor spend.** Strong-floor operatives cost $2,605 at Sonnet prices and $4,022 at Opus
+  prices for the same tokens. That is 1.54 times, or +$1,417.
+- **Implementer.** The implementer is the largest share of the pool: $2,302 at Sonnet prices and
+  $3,533 at Opus prices, 88 percent of the pool.
+- **Why the rise is below 2 times.** Cache reads cost $0.20 per million tokens on both models, so the
+  cache-read share of the spend does not rise.
+- **Decision rule.** The rebind is kept if a matched arm of Sonnet 5.5 against Opus 5.5 on the
+  judgment matrix shows a quality gain. `evals/FLOOR_TABLE.md` notes that the current fixture
+  cannot discriminate, because it shows zero strong-tier inflation. The arm needs a more
+  discriminating fixture, and that work is open.
+- **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
+  share.
+- **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
+  began to deny an implementer execution brief with no `Anchors:` line. Implementer context has a
+  median peak of 140K and a p90 of 258K. The effect on that context is unmeasured.
+- **Shipped lever: implementer split threshold.** Doctrine now splits an implementer unit at about 40
+  tool rounds, down from about 60 (the budget stays 60). Two implementer units in this run reached
+  their round budget. The effect is unmeasured.
+- **Open lever: premium ceiling.** It stays at 25 percent until the guard-derived trigger is
+  stamped on the ledger row.
+- **Open lever: effort sweep.** Not run.

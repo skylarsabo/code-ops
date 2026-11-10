@@ -807,6 +807,27 @@ try {
   // Mutant G: a version below the base is accepted.
   const lowVersion = mutate('low-version', 'compareVersions(o, b) <= 0 || compareVersions(t, b) <= 0', 'false');
   check('mutant: a driver that accepts a version below the base is caught', versionRefusalProblems(join(lowVersion, 'derived-merge.mjs')).length > 0, 'the refusal cases passed');
+
+  // 9. A generator that never answers. The driver runs inside a git command, so a hung tool must read as a
+  // failed regeneration (the conflict stays, nothing commits) and must not hang the merge. The copy has its
+  // 300-second tool limit cut to one second, and the repository's docs-manifest.mjs becomes a stub that
+  // ends itself after 20 seconds with exit 0: a driver that lost its bound would regenerate "successfully"
+  // and fail the case instead of hanging the eval. The branches are built with the real generator first.
+  // The merge has its own 60-second limit.
+  const slow = fixture('tool-timeout', { scriptsDir: mutate('tool-timeout', 'const TOOL_MS = 300_000;', 'const TOOL_MS = 1_000;') });
+  diverge(slow, { sync: (cwd) => node(cwd, join(ROOT, 'scripts', 'docs-manifest.mjs'), 'sync') });
+  put(slow, 'scripts/docs-manifest.mjs', 'setTimeout(() => process.exit(0), 20000);\n');
+  const slowHead = git(slow, 'rev-parse', 'HEAD').out;
+  const slowStart = Date.now();
+  const slowMerge = spawnSync('git', ['-c', 'core.autocrlf=false', '-c', 'user.email=eval@example.com', '-c', 'user.name=Eval', 'merge', '--no-edit', 'right'], { cwd: slow, encoding: 'utf8', timeout: 60_000, killSignal: 'SIGKILL' });
+  const slowOut = `${slowMerge.stdout || ''}${slowMerge.stderr || ''}`.trim();
+  const slowProblems = [];
+  if (slowMerge.status === 0) slowProblems.push('the merge completed');
+  if (git(slow, 'rev-parse', 'HEAD').out !== slowHead) slowProblems.push('HEAD moved');
+  if (!unmerged(slow).includes(MANIFEST)) slowProblems.push(`manifest is not conflicted in the index (unmerged: ${unmerged(slow).join() || 'none'})`);
+  if (!/regeneration failed/.test(slowOut) || !/docs-manifest\.mjs did not finish within 1 seconds/.test(slowOut)) slowProblems.push(`the message lacks the cause: ${slowOut.slice(-240)}`);
+  check('tool timeout: a generator that outlasts its limit leaves the conflict, commits nothing, and names the limit', slowProblems.length === 0, slowProblems.join('; '));
+  check('tool timeout: the hung generator is cut at the limit, not at its own end', Date.now() - slowStart < 15_000, `${Date.now() - slowStart} ms`);
 } finally {
   rmSync(work, { recursive: true, force: true });
 }

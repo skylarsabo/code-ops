@@ -40,6 +40,8 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Agent state machine](#agent-state-machine)
 - [Peer guard hook](#peer-guard-hook)
 - [Workspace guard hook](#workspace-guard-hook)
+- [Cleanup command](#cleanup-command)
+- [Process report command](#process-report-command)
 - [Change feed](#change-feed)
 - [Symbol index and query](#symbol-index-and-query)
 - [Atlas claims and scope suggestion](#atlas-claims-and-scope-suggestion)
@@ -900,22 +902,52 @@ OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite
 
 ## Subagent report hook
 
-`hooks/subagent-report.mjs` runs at `SubagentStop` and checks a suite subagent's final report
-against that agent's `## Contract` block. The first non-empty line must start with a token from
-the `Verdicts:` line, and the report must fit the body's `Report cap: at most N words` line. A
-miss prints one `systemMessage` note, which the host shows to the operator. The hook is on by
-default and does nothing when `CODE_OPS_SUBAGENT_REPORT` is `off`, `0`, or `false`.
+`hooks/subagent-report.mjs` runs at `SubagentStop` and does two jobs for a suite subagent.
 
-The hook is advisory. It never returns `decision`, `continue`, or `additionalContext`, so it
-cannot keep a subagent running. Only a plugin-qualified type whose agent file resolves is
-checked; a bare or custom type gets nothing. The Claude host contract was read from the
-installed 2.1.276 bundle: the input carries `agent_id`, `agent_type`, `agent_transcript_path`,
-and `last_assistant_message` (offset 203499373). When `last_assistant_message` is absent, the
+**Check.** It checks the final report against that agent's `## Contract` block. The first
+non-empty line must start with a token from the `Verdicts:` line, and the report must fit the
+body's `Report cap: at most N words` line. A miss prints one `systemMessage` note, which the host
+shows to the operator.
+
+**Save.** A read-only agent has no file-write tool, so the hook saves its final message to the
+brief's `Report path:` and no model writes it. The hook saves only for a read-only agent: the
+agent file's frontmatter `tools:` line decides (no `Write` and no `Edit`), and when that line is
+absent, as in a host distribution that strips it, a frozen set of the ten read-only suite agents
+decides. The brief is the first user entry of
+`agent_transcript_path`, read with the dispatch guard's checks (a root user entry whose `agentId`,
+when present, matches). The path is the one the agent ledger reads, so it may hold spaces and a
+trailing note in parentheses is ignored. The hook writes only when all of these hold:
+
+- `cwd` is absolute and inside a git repository, and the path is a `.md` file.
+- A relative path resolves against the repository top, `\` reads as `/`, and the real path
+  (symlinks and junctions resolved) is strictly inside the top, with no `.git` segment.
+- The path is under `80 Runs` as its first or second segment (the docs hub), and `git
+  check-ignore` proves git ignores it, or it is under `<host folder>/.tmp` for a host folder that
+  `scripts/workspace-layout.mjs` defines. The `check-ignore` call is the hook's only spawned process.
+- The file is absent or an empty regular file. A non-empty file is never overwritten, because a
+  write-capable agent or the lead already wrote it, and a lead-written report is never replaced.
+
+The file holds one comment line (`saved by the subagent-report hook from <type>'s final message`),
+the message in LF form, and one final newline. The save notice joins any advisory in the one
+`systemMessage`: a short line with the repository-relative path, never the file content. Every
+other path saves nothing and says nothing.
+
+The hook is on by default. `CODE_OPS_SUBAGENT_REPORT` set to `off`, `0`, or `false` turns off the
+check and the save. `nosave` keeps the check and skips the save.
+
+The hook never returns `decision`, `continue`, or `additionalContext`, so it cannot keep a
+subagent running. Only a plugin-qualified type whose agent file resolves is handled; a bare or
+custom type gets nothing. The Claude host contract was read from the installed 2.1.276 bundle: the
+input carries `agent_id`, `agent_type`, `agent_transcript_path`, and `last_assistant_message`
+(offset 203499373). `cwd` is the common hook field. When `last_assistant_message` is absent, the
 hook reads the last assistant text from `agent_transcript_path`. Bad JSON, a missing field, an
-unreadable file, or another event name exits 0 with no output. The Grok and OpenCode
-`SubagentStop` contracts are UNVERIFIED, so the hook is silent under the Grok adapter and
-OpenCode has no port. Evidence: `plugins/code-ops-suite/hooks/subagent-report.mjs:1-25` and
-`evals/subagent-report/run.mjs:3-14`.
+unreadable file, a failed save, or another event name exits 0 and never hides the check. Grok
+sends the same event in camelCase (`subagentType`, `lastAssistantMessage`, `agentTranscriptPath`);
+the eval covers that shape, but Grok's real transcript layout is UNVERIFIED, so a mismatch makes
+the save a no-op. OpenCode has no port. The write-capable agents (`implementer`, `verifier`,
+`mech`) write their own report and get no save, so a skipped report stays visibly missing and the
+lead treats it as a failed dispatch. Evidence:
+`plugins/code-ops-suite/hooks/subagent-report.mjs:1-35` and `evals/subagent-report/run.mjs:3-20`.
 
 ## Handoff card hook
 
@@ -1309,6 +1341,20 @@ prints a `dispatch-guard CAPPED` line on stderr and still exits 0. The bound war
 registered budget beside the effective one. Conflicting or invalid registrations cannot enlarge the allowance.
 A malformed explicit binding or unavailable bound counter denies further calls, including in warning mode. Registration storage failures return nonzero UNAVAILABLE. Receipt counts remain UNKNOWN when counter storage cannot be read as a regular file.
 
+`co brief <plugin>:<agent> --check <file>` (`--check -` reads stdin) runs the guard's own prompt-level
+rules on a brief before the dispatch, so a denial costs no resend. It calls `reviewBrief` in
+`hooks/brief-rules.mjs`, the function the guard calls, with the brief, the agent's Contract fields,
+and its frontmatter model and effort. It prints each denial as `deny: <text>` and each advisory as
+`note: <text>`, one `not checked here:` line, and `ok` or `denied (<n>)`. It cannot check what the
+ledger or the live call decides: the frontier cap, the attempt count for trigger 7c, the redispatch
+note, the missing-Round-budget advisory, and the context ceiling. `--model <alias>` and
+`--effort <level>` supply the `model` and `effort` the Agent call will pass; without `--effort`, the
+brief's Effort is held to the agent's frontmatter effort, as the guard holds a call that passes
+none. `--json` prints `{ denials, advisories, unchecked }`. Exit 0 means no denial, 1 a denial, and 2
+a usage error or a missing rules module, `route-unit.mjs`, or `agent-ledger.mjs`; a plugin copy without
+`hooks/brief-rules.mjs` still prints the template. Evidence: `scripts/brief-template.mjs` and
+`evals/brief-template/run.mjs`, whose parity case feeds one brief to the hook and to `--check`.
+
 `receipt --agent-id <id>` reports allowlisted control measurements and binding health. It emits
 no raw identity, path, prompt, or command. Model requests and token usage remain `UNKNOWN` when
 unobserved. This receipt is not a provider usage record. Evidence:
@@ -1370,9 +1416,11 @@ these, and `warn` turns each into an advisory:
 - A `model` override that ranks below the agent's floor. The floor is the model its frontmatter
   declares, which lint holds at `AGENT_MODEL_FLOORS`. The override `sonnet` ranks mid, so it fails
   a strong floor on `reviewer`.
-- A `Tier` that disagrees with the effective rung. `premium` needs `model:"opus"`, `frontier`
-  needs `model:"fable"`, and `strong` needs no override or one at strong. An override that matches
-  `Tier` passes silently.
+- A `Tier` that disagrees with the effective rung. `premium` needs `model:"fable"`, `frontier`
+  needs `model:"fable"` plus the peer exception, and `strong` needs no override or one at strong.
+  Premium and frontier share one model, so the gate reads the brief `Tier:` line, not the model
+  id, to tell them apart. A premium dispatch does not consume the one-frontier-peer cap. An
+  override that matches `Tier` passes silently.
 - A `Route basis` surface that differs from the surface the `Scope:` paths derive. No `Route override:`
   line clears this denial. A declared surface that is not a surface is denied as malformed.
 - A `Tier` or `Effort` below `routeUnit` of the basis with the derived surface and the derived
@@ -1388,7 +1436,9 @@ these, and `warn` turns each into an advisory:
   frontier or applied a frontier model. A Workflow script counts its literal frontier `model` calls
   with those rows, and more than one in total is denied.
 
-The advisories are a `Tier` above the routed rung, a declared kind raised to the agent's minimum, a
+An untriggered `Tier: premium` is denied too: when the routed rung is below premium, the brief has no
+trigger that earns it (7a to 7d), and a `Route override:` line does not clear that denial. The advisories
+are a `Tier` above the routed rung for any other tier, a declared kind raised to the agent's minimum, a
 `model` override the gate cannot rank (it leaves `Tier` unchecked), a brief `Effort` below the
 effort the dispatch runs at, and a Workflow `model` or `effort` that is not a literal string. A readable Workflow
 script that makes two or more `agent()` calls, or any call the guard cannot read, earns one more advisory
@@ -1502,20 +1552,24 @@ and the dispatch-guard eval pins their parity. `CODE_OPS_REDISPATCH_NOTE` set to
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:146-181`, and
 `plugins/code-ops-suite/scripts/agent-ledger.mjs:226`.
 
-The anchors note is a ninth behavior and is advisory only. On the lead's own `Agent`, `Task`, or spawn
-dispatch of `code-ops-suite:implementer` whose `Route basis` kind is `execution`, the hook adds one
-note when the brief has no `Anchors:` line. The note names `co brief code-ops-suite:implementer
---anchors <path[:line]>...`, which prints the `Anchors:` block, so the operative skips its
-orientation reads. Any `Anchors:` line silences it, `Anchors: none (<reason>)` included. Another agent
-type, another kind, and `CODE_OPS_DISPATCH_GUARD=off` also stay silent. A Workflow `agent()` call to
-the implementer is checked on its prompt argument when that is a string literal, a template literal
-(holes kept as written), or a `+` concatenation of those. A `Route basis` kind other than `execution`
-or an `Anchors:` line silences it, and a prompt with no `Route basis` line is checked. A prompt the
-scan cannot read (a variable, a function call) earns a note that its anchors could not be checked.
-One note per Workflow lists the affected call indexes, up to ten of each kind. With
-`CODE_OPS_WORKFLOW_ARGS=first` the prompt is not read and the check is skipped. The gate id is
-`anchors-note`. Evidence: `plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`anchorsNote`) and
-`evals/dispatch-guard/run.mjs`.
+The anchors denial is a ninth behavior. On the lead's own `Agent`, `Task`, or spawn dispatch of
+`code-ops-suite:implementer` whose `Route basis` kind is `execution`, the hook denies a brief that has
+no `Anchors:` line. The denial names `co brief code-ops-suite:implementer --anchors <path[:line]>...`,
+which prints the `Anchors:` block, so the operative skips its orientation reads. Any `Anchors:` line
+clears it, and so does `Anchors: none (<reason>)`. A bare `Anchors: none` with no reason, or an empty
+`none ()`, does not clear it. Another agent type and another kind are not denied, and neither is an
+Agent dispatch with no `Route basis` line (the brief fields denial covers that case).
+`CODE_OPS_DISPATCH_GUARD=off` silences the gate and `warn` turns the denial into an advisory. A Workflow
+`agent()` call to the implementer is checked on its prompt argument when that is a string literal, a
+template literal (holes kept as written), or a `+` concatenation of those. An execution brief
+with no usable `Anchors:` line is denied there too, and the denial names the call indexes, up to ten.
+A prompt the scan cannot read (a variable, a function call) and a readable prompt with no `Route basis`
+line stay one advisory, because the guard cannot prove the anchors are missing. With
+`CODE_OPS_WORKFLOW_ARGS=first` the prompt is not read and the check is skipped. The same hook runs on
+every host that loads it, so the denial applies wherever the hook does; a host with no hook is not
+checked. The gate id is `anchors`, for the denial and the advisory. Evidence:
+`plugins/code-ops-suite/hooks/dispatch-guard.mjs` (`anchorsDenial`, `anchorsGiven`, `workflowAnchors`)
+and `evals/dispatch-guard/run.mjs`.
 
 The lead inline-streak guard is a tenth behavior and ships in warn mode. On the main thread only
 (`agent_id` absent), each hands-on call (`Bash`, `Read`, `Grep`, `Glob`, `Edit`, `Write`,
@@ -1821,6 +1875,81 @@ target stays silent. Grok maps its camelCase
 card line. The Grok write-tool names and path key are UNVERIFIED. OpenCode does not run these hooks,
 and its baked card carries no workspace line, so it gets neither. On OpenCode, the agent runs
 `co workspace ensure` and follows the written rule.
+
+## Cleanup command
+
+`co clean` is `scripts/clean.mjs`: `[--apply] [--scope state|tmp|runs|worktrees|branches]...
+[--store <name>]... [--older-than <days>] [--json] [--root <dir>] [--home <dir>]`. It uses only
+`node:` builtins and `git`. A dry run is the default: one line per scope (file count, bytes, the rule),
+then a total, and nothing is deleted. `--apply` deletes only the scopes named with `--scope`; without
+one it exits 2. Exit 0 means done, and a failed delete is listed, not escalated. Exit 2 is a usage error:
+an unknown scope, store, or flag, `--apply --store` without `--scope state`, or `--older-than` below
+the floor of a selected scope (a store's own threshold, 2 days for `tmp`, 30 for `runs`). `--older-than`
+only raises a threshold.
+
+**May delete.** `state`: a file or unit in an `auto` store older than the store's threshold (the frozen
+`STORES` table; `agents` and `board`, 30 days), and in a `manual` store only when `--store <name>`
+names it. A digest raw file goes with its receipt line: the receipts file is rewritten first (temp file,
+rename) and is never deleted. `tmp`: files over 2 days old under `<host folder>/.tmp`. `runs`: a run
+folder whose SESSION.json says `retention: working`, whose newest file is over 30 days old, with no
+HANDOFF.md lacking a HANDOFF.consumed, and no tracked file citing its name. `worktrees`: through
+`git worktree remove` without `--force`, a worktree under a host `worktrees/` folder with an empty
+`git status --porcelain --ignored`, a branch merged into main, not locked, detached, or the working
+directory, and untouched for 24 hours.
+
+**Never deletes.** Anything newer than 24 hours; a lock file or a unit holding one; a file of a session
+seen in the last 24 hours (matched by id, id slug, or id sha256); an agent ledger with an unsettled
+background dispatch; an `evidence` run, a `programs` folder, a cited run, a run with an open handoff,
+and an unmarked run (a missing or invalid mark reads as `evidence` in `handoff-state.mjs`; the dry run
+prints `co run retention "<run dir>" working --operator`, which is the operator's call); a branch (the
+`branches` scope is report only, and `--apply --scope branches` says it deleted nothing); the layout
+`.gitignore`; the `feed` store; top-level state files. Every target resolves through symlinks and must
+sit inside its scope root; a walk never follows a link or junction, a link is unlinked and never its
+target, and only files, links, and empty directories are removed. When a rule is uncertain, the file stays.
+
+**Advisory.** `cleanAdvisory` adds `cleanup: <size> reclaimable, <n> stale run folders; run `co clean`
+to see it` to the `SessionStart` card at startup and clear, on a live payload only, at most once per 24
+hours per repository (a stamp under `<home>/.claude/code-ops/clean-advisory/`, written before the walk),
+when reclaimable state and scratch exceed 500 MB, stale run folders exceed 30, or a merged clean worktree
+exists. The walk stops after about 300 ms; a cut-short walk is a lower bound and the line says "at
+least". The run count there is approximate (top-level entries only). `CODE_OPS_CLEAN` of `off`, `0`, or
+`false` silences it. Evidence: `evals/clean/run.mjs`.
+
+## Process report command
+
+`co ps` is `scripts/procs.mjs`: `[--json] [--all] [--sample <seconds>] [--reap [--older-than <minutes>]
+[--pid <n>]...]`. It uses only `node:` builtins and sibling scripts. Without `--reap` nothing is ever
+killed. Exit 0 means done: an unreadable process table prints why and lists nothing, and a failed or
+skipped kill is listed, not escalated. Exit 2 is a usage error: an unknown flag, a missing value,
+`--pid` without `--reap`, `--older-than` under 30, or `--sample` outside 1 to 600.
+
+`--reap` may kill only a stray candidate. A candidate meets ALL of these: its command line names a
+path under the suite plugin cache, or under this repository a host `.tmp` folder, `scripts/`,
+`plugins/`, `evals/`, or `hooks/`; its parent is dead (the pid is absent, or now belongs to a process
+that started after the child, or on POSIX the process was reparented to init); it does not descend
+from a live host process; it is older than the threshold (default 30 minutes, at least 30); no
+process in its own tree started in the last 5 minutes; and its tree holds no host process and
+nothing of the running `co ps`. An MCP server is a candidate only when no live host started before
+it. `--reap --pid <n>` reaps one pid and only if it is a candidate; any other pid is refused with the
+reason. The table is read again immediately before each kill, and a pid whose start time, command
+line, or candidate status changed is skipped. A kill is by tree: on win32 `taskkill /PID <pid> /T
+/F`, on POSIX SIGTERM to each verified pid and SIGKILL after 3 seconds to those whose start time
+still matches.
+
+`--reap` never kills by name pattern, never a process group, never a heredoc `cat` or `python` child
+on its own (it dies with a candidate root), never a scratch script of another repository, never a
+host, never a path under the repository outside the folders above, and never this process or its
+tree. The residual risk is a long quiet orphan whose launching shell exited while its agent still
+works: the age and tree rules keep it only while it is young or still spawning. The listing shows the
+evidence for each candidate before any kill.
+
+Output is a line per process with origin, age, memory, CPU time, parent state, and verdict with its
+reason, then the stale locks (report only; `co clean` owns removal): `recall/*/*/build.lock` files
+whose recorded pid is dead, and `.git/*.lock` files, which record no pid. Command lines print cut to
+160 characters with secret-looking arguments replaced by `<REDACTED:secret>`; the environment is
+never read. The `SessionStart` advisory reads `processes: <n> stray code-ops processes (<size>); run co ps`, at
+most once per 24 hours per machine, with a 2-second read timeout; `CODE_OPS_PROCS` of `off`, `0`, or
+`false` silences it. Evidence: `evals/procs/run.mjs`.
 
 ## Change feed
 

@@ -1,10 +1,13 @@
 # Changelog — privacy-opsec-suite
 
-## 2.7.1
-- Refresh vendored scripts.
+## 2.7.2
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
+- The `privacy-reviewer` agent pins `claude-opus-5-5`, matching the rebound Anthropic strong rung. The vendored `scripts/model-tiers.mjs` carries the new tier table.
+- The `explorer` and `privacy-reviewer` bodies tell the agent to return the report as the final message, which the suite `subagent-report` hook saves to the brief's `Report path:`.
+- The `subagent-report` hook saves a report only for an agent with no `Write` or `Edit` tool, decided from the agent file's `tools:` line or, where a host strips that line, a frozen set of the read-only suite agents. A write-capable agent gets no save. The pinned `report-persistence` passage now says the hook saves a read-only agent's report and the lead writes it only where the hook does not.
+- The privacy-reviewer agent body adds shell guidance: plain single commands, an explicit timeout for long commands, no background process left running. Vendored scripts refreshed.
 - `opsec-pr-gate` and `privacy-feature-design` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
@@ -13,6 +16,9 @@ The vendored `co.mjs` gains the `recall` command.
 - The Workflow fan-out section admits an opt-in from an operator-invoked skill whose own instructions call Workflow, for fan-outs of three or more independent units. Every `agent()` call names a suite agent type.
 - Skill and agent descriptions are shorter, to cut session-start context.
 - Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
+
+## 2.7.1
+- Refresh vendored scripts.
 
 ## 2.6.0
 - The `explorer` agent declares `model: claude-haiku-5-5`, replacing the `haiku` alias, which resolved to Haiku 4.5 in recent sessions and stays on 4.5 on cloud hosts. It declares no `effort:`, because Haiku 5.5 defaults to medium. The vendored `scripts/model-tiers.mjs` binds the Anthropic `light` rung to `claude-haiku-5-5` and carries the corrected Claude price notes.

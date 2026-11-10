@@ -18,6 +18,8 @@
 //      itself passes `build --session <id> --transcript <file>` with the payload's cwd;
 //   G4 a missing script, a missing session id, or a missing transcript changes neither the hook's
 //      exit, nor its stdout, nor the receipt row (compared against a run with the script present).
+//   G5 the detached build's bound: a build past its deadline exits 1 and frees only a lock it holds, a
+//      SIGTERM frees the lock (not on win32), and a second build stands down while a live build holds it;
 // Informational, never gated: the full-build time on a generated fixture of at least 5 MB, the
 // hook wall time on that fixture, and the time until the index appears.
 // Cleanup kills any build still alive (its pid is in its lock file) and waits for the lock to clear
@@ -167,10 +169,14 @@ async function g1(name) {
   check(`G1 ${name}: the hook exits 0 and prints nothing to the model`, ran.status === 0 && ran.stdout === '', `${ran.status} ${ran.stdout.slice(0, 80)}`);
   await sleep(700);
   check(`G1 ${name}: the build is still blocked after the hook returned (no index yet)`, !existsSync(join(box.dir, 'meta.json')) && existsSync(lock));
+  // The spawned build sees a live lock held by another pid and stands down (it never waits and never
+  // takes the lock), so the lock stays ours and no index appears until a later call catches up.
+  check(`G1 ${name}: the build stood down and left the live lock to its holder`, lockPid(box) === process.pid, String(lockPid(box)));
   rmSync(lock, { force: true });
-  const meta = await until(() => metaOf(box));
-  check(`G1 ${name}: the index exists once the lock frees`, Boolean(meta) && meta.builtAt >= ran.exitedAt - 5, JSON.stringify(meta && { builtAt: meta.builtAt, exitedAt: ran.exitedAt }));
-  await until(() => !existsSync(lock));
+  const meta = await until(() => metaOf(box), 3000);
+  check(`G1 ${name}: no second build ran while the lock was held`, meta === null, JSON.stringify(meta));
+  const catchUp = recallCli(box, ['build']);
+  check(`G1 ${name}: a later call catches the index up`, catchUp.status === 0 && Boolean(metaOf(box)), JSON.stringify(catchUp.json));
   const status = recallCli(box, ['status']);
   check(`G1 ${name}: the prebuilt index is current for the transcript`, status.json?.current === true && status.json?.action === 'none', JSON.stringify(status.json));
   check(`G1 ${name}: search finds the planted needle`, needleHit(box));
@@ -241,6 +247,90 @@ async function g4(name) {
   check(`G4 ${name}: a payload cwd that does not exist still exits 0`, odd.status === 0, `${odd.status}`);
 }
 
+// G5 is the detached build's own bound (transcript-recall.mjs superviseBuild): a build past its deadline
+// exits 1 and frees only a lock it holds, a SIGTERM frees the lock, and a build stands down while another
+// live build holds the lock. The deadline is cut from 60 seconds to 4 and the build is made slow in a copy
+// of the script (a 60-second sleep inside the lock, where the index write starts), so each case takes
+// seconds on any machine. Every build has its own 25-second limit that kills it, so a bound that is
+// missing fails the case and leaves no process.
+const DEADLINE_MS = 4_000;
+const SLOW_ANCHORS = [
+  ['const BUILD_LIMIT_MS = 60_000;', `const BUILD_LIMIT_MS = ${DEADLINE_MS};`],
+  ["const wrote = writeIndex(ctx, need === 'extend' ? idx : null);", "Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 60000); const wrote = writeIndex(ctx, need === 'extend' ? idx : null);"],
+];
+
+function slowBox(label) {
+  const box = sandbox(label);
+  makeTranscript(box.transcript, box.session, 4096);
+  const script = join(box.plugin, 'scripts', 'transcript-recall.mjs');
+  let source = readFileSync(script, 'utf8');
+  for (const [from, to] of SLOW_ANCHORS) {
+    if (!source.includes(from)) throw new Error(`G5 anchor not found, the eval is stale: ${from}`);
+    source = source.replace(from, () => to);
+  }
+  writeFileSync(script, source);
+  box.script = script;
+  return box;
+}
+
+// One detached build, as recall-spawn.mjs starts it, watched instead of released.
+function detachedBuild(box) {
+  const child = spawn(process.execPath, [box.script, 'build', '--session', box.session, '--transcript', box.transcript], {
+    cwd: box.work, env: { ...box.env, CODE_OPS_RECALL_DETACHED: '1' }, stdio: 'ignore', windowsHide: true,
+  });
+  const started = Date.now();
+  const limit = setTimeout(() => child.kill('SIGKILL'), 25_000);
+  const done = new Promise((res) => child.on('close', (code, signal) => { clearTimeout(limit); res({ code, signal, ms: Date.now() - started }); }));
+  return { child, done };
+}
+
+async function g5() {
+  const box = slowBox('g5');
+  const lock = join(box.dir, 'build.lock');
+  const owned = (pid) => () => lockPid(box) === pid;
+  const holder = spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)'], { stdio: 'ignore', windowsHide: true });
+  try {
+    // 1. Deadline, lock still ours: exit 1 at the deadline (not at the 60-second sleep), lock gone.
+    let build = detachedBuild(box);
+    check('G5 deadline: the build takes its lock', Boolean(await until(owned(build.child.pid), 15_000, 10)), String(lockPid(box)));
+    let end = await build.done;
+    check('G5 deadline: the build exits 1 at the deadline, well before its own 60-second sleep ends', end.code === 1 && end.ms < 20_000, JSON.stringify(end));
+    check('G5 deadline: the build released its own lock', !existsSync(lock));
+    check('G5 deadline: no index was written', metaOf(box) === null);
+
+    // 2. Deadline, lock reclaimed by another builder while this one ran: the lock stays with its holder.
+    build = detachedBuild(box);
+    await until(owned(build.child.pid), 15_000, 10);
+    writeFileSync(lock, JSON.stringify({ pid: holder.pid, at: Date.now() }));
+    end = await build.done;
+    check('G5 deadline: the build still exits 1', end.code === 1, JSON.stringify(end));
+    check('G5 deadline: a lock another process holds is left alone', lockPid(box) === holder.pid, String(lockPid(box)));
+    rmSync(lock, { force: true });
+
+    // 3. A SIGTERM during the build frees the lock. win32 delivers no SIGTERM to a handler.
+    if (process.platform === 'win32') console.log('skip G5 SIGTERM: win32 does not deliver SIGTERM to a handler, so the case runs on other platforms');
+    else {
+      build = detachedBuild(box);
+      await until(owned(build.child.pid), 15_000, 10);
+      build.child.kill('SIGTERM');
+      end = await build.done;
+      check('G5 SIGTERM: the build exits 143 at once', end.code === 143 && end.ms < 20_000, JSON.stringify(end));
+      check('G5 SIGTERM: the build released its lock', !existsSync(lock));
+    }
+
+    // 4. A second build stands down while a live build holds the lock, and the first build keeps it.
+    const first = detachedBuild(box);
+    await until(owned(first.child.pid), 15_000, 10);
+    const second = await detachedBuild(box).done;
+    check('G5 stand-down: the second build exits 0 at once', second.code === 0 && second.ms < 15_000, JSON.stringify(second));
+    check('G5 stand-down: the first build keeps its lock and nothing was built', lockPid(box) === first.child.pid && metaOf(box) === null, `${lockPid(box)} ${first.child.pid}`);
+    first.child.kill('SIGKILL');
+    await first.done;
+  } finally {
+    holder.kill('SIGKILL');
+  }
+}
+
 async function measure() {
   const box = sandbox('measure');
   const size = makeTranscript(box.transcript, box.session, BUILD_MIN_BYTES + MB);
@@ -286,6 +376,7 @@ try {
     await g3(name);
     await g4(name);
   }
+  await g5();
   await measure();
 } finally {
   await cleanup();

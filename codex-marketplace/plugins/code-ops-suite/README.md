@@ -63,7 +63,7 @@ Name a workflow in Codex as `code-ops-suite:<skill>`. Every generated skill sets
   - `SessionStart` `routing-card.mjs`: prints the routing card at session start, the compaction snapshot state, git state, and live pending work after compaction, and up to 3 pending handoffs by session name on a fresh session, where the session is new work unless the operator resumes one.
   - `SessionEnd` `session-receipt.mjs`: appends a local session receipt row with token usage, tool calls, and model mix.
   - `SubagentStart` `ladder-card.mjs`: hands an implementer subagent the code-economy ladder card.
-  - `SubagentStop` `subagent-report.mjs`: notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap.
+  - `SubagentStop` `subagent-report.mjs`: notes, without blocking, a subagent report whose first line lacks a declared verdict or that exceeds its word cap, and saves the report of a read-only agent to its Report path in the run folder.
   - `SubagentStop` `agent-ledger.mjs`: records each subagent launch and report in a local ledger so the agents still unreported after a handoff can be listed.
 
 For source history and release notes, see the generated `CHANGELOG.md` and the repository root.

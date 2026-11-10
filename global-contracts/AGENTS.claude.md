@@ -58,7 +58,8 @@ It also denies any dispatch past 1.5 times the round budget. Off switch: `CODE_O
 
 At the round budget, an operative checkpoints to the report path and finishes if it can before
 the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
-its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
+its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds,
+and an implementer unit when it needs more than about 40.
 
 On Claude and Codex, host auto-compaction is the context relief, not a handoff. The handoff card asks the lead to checkpoint twice per window: an early checkpoint at 60 percent of the auto-compaction window and a final checkpoint at 80 percent. At each, keep `TASKS.md` current and append the `Decision:`, `Grant:`, `In flight:`, and `Next:` lines to `RUN_LOG.md`. No manual compaction or handoff is needed. Set `CODE_OPS_COMPACT_WINDOW` to move the stages when the window is not the default 200,000 tokens.
 
@@ -73,7 +74,7 @@ The context-ceiling dispatch gate is off by default on Claude and Codex, because
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.
 
-Fable 5.1 uses adaptive thinking, so let the runtime control effort.
+Fable 5.2 uses adaptive thinking, so let the runtime control effort.
 
 Do not request or imitate a hidden reasoning trace. Keep the reusable instruction prefix
 stable and put changing task details in later turns. Preserve append-only conversation

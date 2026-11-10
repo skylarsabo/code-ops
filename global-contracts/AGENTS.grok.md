@@ -55,7 +55,8 @@ each brief, and keep breadth agents at their declared tier.
 
 At the round budget, an operative checkpoints to the report path and finishes if it can before
 the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
-its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds.
+its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds,
+and an implementer unit when it needs more than about 40.
 
 At 150,000 tokens of context the lead checkpoints: keep `TASKS.md` current and append a `Next:` line to `RUN_LOG.md`.
 

@@ -5,7 +5,8 @@
 // run is a commit or PR-open/-merge, the bundled scan-ai-tells.mjs scans it in --command
 // mode before the tool call proceeds: the raw command string, and each message, trailer,
 // title, and body argument value the command would publish, on its own line. A scanner
-// exit other than 0 blocks the call (exit 2). A scanner that cannot spawn fails open
+// exit other than 0 blocks the call (exit 2), and so does a scanner that outruns its 15 s limit
+// (SCAN_TIMEOUT_MS). A scanner that cannot spawn fails open
 // (exit 0), because the "Traceless publishing (PR commits, title, body)" step of
 // .github/workflows/validate.yml is the fail-closed backstop on every pull request.
 //
@@ -30,6 +31,11 @@ const GATED_RE = /\bgit(?:\s+-[Cc]\s+\S+|\s+--\S+=\S+)*\s+commit\b|\bgh\s+pr\s+(
 // A command that may name or run on a branch: any git command carrying one of the branch-relevant
 // subcommand words, or gh pr create. Cheap to test; the parse and the git lookup run only on a match.
 const BRANCH_RE = /\bgit\b[\s\S]*\b(?:commit|push|checkout|switch|branch|worktree)\b|\bgh\s+pr\s+create\b/i;
+
+// The scanner takes tens of milliseconds (docs MEASUREMENTS.md: a `git commit` entry adds 85 ms at
+// p50, 125 ms at p95, for two spawns), so 15 s is over 100 times its p95 and well under the host's own
+// hook timeout. It exists so a hung scanner ends in a verdict, never in a wait for the host to give up.
+const SCAN_TIMEOUT_MS = 15_000;
 
 function readStdin() {
   try {
@@ -88,9 +94,17 @@ async function main() {
   const tmpFile = join(tmpdir(), `traceless-hook-${randomUUID()}.txt`);
   try {
     writeFileSync(tmpFile, command, 'utf8');
-    execFileSync(process.execPath, [scannerPath, '--command', tmpFile], { stdio: ['ignore', 'pipe', 'pipe'] });
+    execFileSync(process.execPath, [scannerPath, '--command', tmpFile], { stdio: ['ignore', 'pipe', 'pipe'], timeout: SCAN_TIMEOUT_MS, killSignal: 'SIGKILL' });
     return 0; // scanner exited 0, clean
   } catch (e) {
+    if (e.code === 'ETIMEDOUT') {
+      // The scanner ran and did not finish. A hung scanner is not a clean verdict: block, as a scanner
+      // that exits non-zero does. Without this branch the missing status would fall to the fail-open return.
+      process.stderr.write(
+        `Traceless gate: the scanner did not finish within ${SCAN_TIMEOUT_MS / 1000} seconds, so the command was not scanned and is blocked. Retry the command.\n`,
+      );
+      return 2;
+    }
     if (typeof e.status === 'number') {
       // The scanner ran and found hits (exit 1); block the tool call.
       const report = (e.stdout ?? '').toString();

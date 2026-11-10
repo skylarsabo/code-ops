@@ -118,8 +118,13 @@ export function attributeLines() {
   return [...lines, ...UNION_ATTRIBUTES];
 }
 
+// A merge driver runs inside a git command, so a hung child would hang the merge. Git plumbing gets 30 s
+// and a tool run 300 s; a child that outruns its limit reports no status, which every caller already
+// reads as a failure (`status ?? 1` below, `status !== 0` at the tool calls).
+const GIT_MS = 30_000;
+const TOOL_MS = 300_000;
 function git(args, options = {}) {
-  const result = spawnSync('git', args, { encoding: 'utf8', ...options });
+  const result = spawnSync('git', args, { encoding: 'utf8', timeout: GIT_MS, killSignal: 'SIGKILL', ...options });
   return { status: result.status ?? 1, out: (result.stdout || '').trim(), err: (result.stderr || '').trim() };
 }
 const topLevel = () => resolve(git(['rev-parse', '--show-toplevel']).out);
@@ -283,7 +288,8 @@ function driver([base, ours, theirs, path]) {
 function runTools(group, root, ctx) {
   for (const [tool, ...args] of group.tools) {
     if (args.some((arg) => typeof arg === 'function') && ctx.parents.length < 2) return `${tool} needs both merge parents, and git named only ${ctx.parents.length}`;
-    const result = spawnSync(process.execPath, [join(SCRIPTS, tool), ...args.map((arg) => (typeof arg === 'function' ? arg(ctx) : arg))], { cwd: root, encoding: 'utf8' });
+    const result = spawnSync(process.execPath, [join(SCRIPTS, tool), ...args.map((arg) => (typeof arg === 'function' ? arg(ctx) : arg))], { cwd: root, encoding: 'utf8', timeout: TOOL_MS, killSignal: 'SIGKILL' });
+    if (result.error?.code === 'ETIMEDOUT') return `${tool} did not finish within ${TOOL_MS / 1000} seconds`;
     if (result.status !== 0) return `${tool} exited ${result.status ?? 'without a status'}: ${`${result.stdout || ''}${result.stderr || ''}`.trim().split('\n').slice(-6).join(' | ')}`;
     ctx.notes.push(...(result.stdout || '').split('\n').filter((line) => line.startsWith('left stale')));
   }
@@ -458,7 +464,7 @@ function rewrite(args) {
   const stale = () => { reportStale(done.ctx.notes); return 1; };
   if (!changed) return done.ctx.notes.length ? stale() : 0;
   const staged = stage(root, done.paths);
-  const verdict = staged ? { status: 1 } : spawnSync(process.execPath, [join(SCRIPTS, 'docs-manifest.mjs'), 'check', '--index'], { cwd: root, encoding: 'utf8' });
+  const verdict = staged ? { status: 1 } : spawnSync(process.execPath, [join(SCRIPTS, 'docs-manifest.mjs'), 'check', '--index'], { cwd: root, encoding: 'utf8', timeout: TOOL_MS, killSignal: 'SIGKILL' });
   if (verdict.status !== 0) {
     git(['restore', '--source=HEAD', '--staged', '--worktree', '--', ...done.paths], { cwd: root });
     if (staged) console.error(`x rewrite: ${staged}`);

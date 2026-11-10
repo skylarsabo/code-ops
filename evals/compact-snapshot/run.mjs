@@ -297,7 +297,7 @@ try {
   // masking failure end to end: a scripts copy with no scanner must stub, never write the raw text
   const noscan = join(tmp, 'noscan', 'scripts');
   mkdirSync(noscan, { recursive: true });
-  for (const f of ['compact-snapshot.mjs', 'agent-ledger.mjs', 'cli-lib.mjs', 'transcript-lib.mjs', 'ledger-grammar.mjs']) copyFileSync(join(SCRIPTS, f), join(noscan, f));
+  for (const f of ['compact-snapshot.mjs', 'agent-ledger.mjs', 'cli-lib.mjs', 'transcript-lib.mjs', 'ledger-grammar.mjs', 'model-tiers.mjs']) copyFileSync(join(SCRIPTS, f), join(noscan, f));
   const secretPath = transcript('secret.jsonl', [enqueue('SENTINEL-RAW-DIRECTIVE must never appear'), enqueue(`token ${secret}`)]);
   r = cli(repo, ['--session', SID, '--transcript', secretPath], { script: join(noscan, 'compact-snapshot.mjs') });
   const stubbed = readFileSync(snapPath, 'utf8');

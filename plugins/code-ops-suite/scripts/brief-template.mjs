@@ -3,7 +3,8 @@
 // the agent's `## Contract` section, as one `Label:` line in contract order, ready to fill.
 //
 //   node scripts/brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>] [--anchors <path[:line]>...]
-//                                                        (also `co brief <plugin>:<agent>`)
+//   node scripts/brief-template.mjs <plugin>:<agent> --check <file|-> [--model <alias>] [--effort <level>] [--json]
+//                                                        (also `co brief <plugin>:<agent> ...`)
 //
 // WHY: the dispatch guard (hooks/dispatch-guard.mjs) denies a dispatch whose brief lacks one of
 // those fields, and its denial lists only the missing labels in this same form. This prints the
@@ -28,9 +29,24 @@
 // note, and marks a missing path `(not found)` and an unreadable one with skim's reason. The list
 // ends at a flag or a `<plugin>:<agent>` argument. The outline is a hint: the operative re-validates it.
 //
-// Exit: 0 with the template on stdout; 2 when the type is not `<plugin>:<agent>` in a suite
-// plugin, the definition is missing, its Contract has no `Brief requires:` line, or the
-// --continue report cannot be read.
+// --check <file> (or `--check -` for stdin) does not print the template. It runs the dispatch
+// guard's own brief rules on the brief before the dispatch, so a denial costs no resend. It calls
+// the exported reviewBrief in hooks/brief-rules.mjs, the function the guard calls, with the brief
+// text, the agent type, its Contract fields, and its frontmatter model and effort read as the guard
+// reads them. Each denial prints as `deny: <text>` and each advisory as `note: <text>`, then one
+// `not checked here:` line, then `ok` or `denied (<n>)`. The checks that need the ledger or the
+// live dispatch stay with the guard and the unchecked line names them. --model <alias> and
+// --effort <level> stand in for the `model` and `effort` the Agent call will pass, so the tier and
+// effort agreement is checked; --json prints { denials, advisories, unchecked }. The rules module
+// sits at hooks/brief-rules.mjs in a code-ops-suite copy and under plugins/code-ops-suite/hooks/
+// in the checkout; a copy in another plugin has neither, and --check then exits 2 while the
+// template still prints.
+//
+// Exit: 0 with the template on stdout, or with a brief --check finds no denial in; 1 when --check
+// finds a denial; 2 when the type is not `<plugin>:<agent>` in a suite plugin, the definition is
+// missing, its Contract has no `Brief requires:` line, the --continue report or the --check brief
+// cannot be read, --check is combined with --continue or --anchors, or the rules module (or, for a
+// routed agent, route-unit.mjs and agent-ledger.mjs) cannot be found.
 
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
@@ -38,11 +54,10 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
-const RESOLVERS = [
-  join(HERE, '..', 'hooks', 'agent-file.mjs'),
-  join(HERE, '..', 'plugins', 'code-ops-suite', 'hooks', 'agent-file.mjs'),
-];
-const USAGE = 'usage: brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>] [--anchors <path[:line]>...]   (for example code-ops-suite:implementer)';
+// A hook module beside this script in a code-ops-suite copy, or under plugins/code-ops-suite/ in the checkout.
+const HOOK_DIRS = [join(HERE, '..', 'hooks'), join(HERE, '..', 'plugins', 'code-ops-suite', 'hooks')];
+const hookFile = (name) => HOOK_DIRS.map((dir) => join(dir, name)).find((path) => existsSync(path));
+const USAGE = 'usage: brief-template.mjs <plugin>:<agent> [--continue <checkpoint report>] [--anchors <path[:line]>...]   or   <plugin>:<agent> --check <file|-> [--model <alias>] [--effort <level>] [--json]   (for example code-ops-suite:implementer)';
 // Carried checkpoint text stays under CARRY_BUDGET characters; one line clips at LINE_CAP and the Scope at SCOPE_CAP.
 const CARRY_BUDGET = 4000;
 const LINE_CAP = 300;
@@ -205,13 +220,30 @@ if (args[0] === '--help' || args[0] === '-h') {
   console.log(USAGE);
   process.exit(0);
 }
+// A flag with a value leaves `args` with it. `-` is a value only for --check, where it names stdin.
+function option(name) {
+  const index = args.indexOf(name);
+  if (index < 0) return null;
+  const value = args[index + 1];
+  if (!value || (value.startsWith('-') && !(name === '--check' && value === '-'))) fail(USAGE);
+  args.splice(index, 2);
+  return value;
+}
+const checkSource = option('--check');
+const modelOption = option('--model');
+const effortOption = option('--effort');
+const jsonAt = args.indexOf('--json');
+const json = jsonAt >= 0;
+if (json) args.splice(jsonAt, 1);
 const at = args.indexOf('--continue');
 const reportPath = at < 0 ? '' : args[at + 1] ?? '';
 const rest = at < 0 ? args : args.filter((_, i) => i !== at && i !== at + 1);
 if (rest.length !== 1 || (at >= 0 && (!reportPath || reportPath.startsWith('--')))) fail(USAGE);
+// --model, --effort, and --json only shape a check, and a check prints no template to continue or anchor.
+if (checkSource === null ? modelOption !== null || effortOption !== null || json : reportPath || anchors.length) fail(USAGE);
 const type = rest[0].trim();
 
-const resolver = RESOLVERS.find((path) => existsSync(path));
+const resolver = hookFile('agent-file.mjs');
 if (!resolver) fail('brief-template: hooks/agent-file.mjs is not bundled beside this script');
 const { agentFile } = await import(pathToFileURL(resolver).href);
 
@@ -230,6 +262,76 @@ const routeUnit = existsSync(join(HERE, 'route-unit.mjs'))
   && (fields.includes('Tier') || fields.includes('Round budget'))
   ? await import(pathToFileURL(join(HERE, 'route-unit.mjs')).href)
   : null;
+
+// What --check leaves to the guard: each needs the ledger or the live Agent call.
+const UNCHECKED = [
+  'the frontier cap (ledger)',
+  'the attempt count for trigger 7c (ledger; counted as 1)',
+  'the redispatch note (ledger)',
+  'the missing-Round-budget advisory',
+  'the context ceiling (session size)',
+];
+
+// Runs the guard's brief rules on one brief and exits. Only the inputs are built here (the Contract
+// fields, the frontmatter model and effort, the routing functions); every rule is reviewBrief's.
+async function check(source) {
+  let brief;
+  try {
+    brief = readFileSync(source === '-' ? 0 : source, 'utf8').replace(/^﻿/, '');
+  } catch (error) {
+    fail(`brief-template: cannot read the brief ${source === '-' ? 'from stdin' : source} (${error.code ?? error.message})`);
+  }
+  const rulesPath = hookFile('brief-rules.mjs');
+  if (!rulesPath) fail('brief-template: --check needs hooks/brief-rules.mjs, which only a code-ops-suite install or the repository checkout carries');
+  let rules;
+  try {
+    rules = await import(pathToFileURL(rulesPath).href);
+  } catch (error) {
+    fail(`brief-template: cannot load ${rulesPath} (${error.message})`);
+  }
+  const routed = fields.some((field) => /^tier$/i.test(field));
+  let libs = null;
+  if (routed) {
+    const ledgerPath = join(HERE, 'agent-ledger.mjs');
+    if (!routeUnit || !existsSync(ledgerPath)) fail(`brief-template: --check needs route-unit.mjs and agent-ledger.mjs beside this script to route a ${type} brief`);
+    const ledger = await import(pathToFileURL(ledgerPath).href);
+    libs = {
+      rungRank: routeUnit.RUNG_RANK, floorRank: routeUnit.FLOOR_RANK, efforts: routeUnit.EFFORTS, surfaces: routeUnit.SURFACES,
+      surfaceOfScope: routeUnit.surfaceOfScope, applyMinKind: routeUnit.applyMinKind, routeUnit: routeUnit.routeUnit,
+      rungOf: ledger.rungOfModel, scopeText: ledger.scopeText,
+    };
+  }
+  // The same two frontmatter patterns as agentFrontmatter in hooks/dispatch-guard.mjs.
+  const head = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
+  const frontmatter = (key) => new RegExp(`^${key}:[ \\t]*["']?([A-Za-z0-9._-]+)["']?[ \\t]*$`, 'm').exec(head)?.[1] ?? null;
+  const denials = [];
+  const advisories = [];
+  rules.reviewBrief({
+    prompt: brief, type, required: fields, dispatch: true, agentTool: true, typeless: false,
+    libs, fm: libs ? { model: frontmatter('model'), effort: frontmatter('effort') } : null,
+    call: { model: modelOption ?? '', effort: effortOption, grok: Boolean(process.env.GROK_PLUGIN_ROOT) },
+    attemptOf: () => 1, settle: () => [], unrouted: () => [], redispatch: null, budgetNote: null,
+    // The command the guard's own denial names, built from the same hooks folder.
+    brief: `node "${join(dirname(dirname(rulesPath)), 'scripts', 'co.mjs')}" brief ${type}`,
+  }, denials, advisories);
+  const unchecked = [
+    ...UNCHECKED,
+    ...(modelOption === null ? ['the model the Agent call passes (--model)'] : []),
+    ...(effortOption === null ? ['the effort the Agent call passes (--effort)'] : []),
+  ];
+  const out = json
+    ? JSON.stringify({ denials, advisories, unchecked }, null, 2)
+    : [
+      ...denials.map((denial) => `deny: ${denial}`),
+      ...advisories.map((advisory) => `note: ${advisory}`),
+      `not checked here: ${unchecked.join('; ')}`,
+      denials.length ? `denied (${denials.length})` : 'ok',
+    ].join('\n');
+  await new Promise((resolve) => process.stdout.write(`${out}\n`, resolve));
+  process.exit(denials.length ? 1 : 0);
+}
+if (checkSource !== null) await check(checkSource);
+
 const lines = fields.map((field) => (field === 'Round budget' && routeUnit ? `${field}: ${routeUnit.defaultRoundBudget(type)}` : `${field}:`));
 // A --continue brief carries the prior checkpoint after the fields, and its Scope fills the Scope line.
 if (reportPath) {

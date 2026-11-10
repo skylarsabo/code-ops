@@ -57,6 +57,9 @@ export const PRICES_VERIFIED_AT = '2026-10-07';
 // The Sonnet 5.5 cache read rate follows the pricing table ($0.20); the page prose says $0.10.
 export const PRICES = {
   'claude-opus-5-5': { input: 4, cacheRead: 0.2, cacheWrite5m: 5, output: 20 },
+  // Fable rows verified 2026-11-09 (the date above covers the other rows). 5.1 stays for old transcripts.
+  'claude-fable-5-2': { input: 8, cacheRead: 0.2, cacheWrite5m: 10, output: 40 },
+  'claude-fable-5-1': { input: 10, cacheRead: 0.25, cacheWrite5m: 12.5, output: 50 },
   'claude-sonnet-5-5': { input: 2, cacheRead: 0.2, cacheWrite5m: 2.5, output: 10 },
   'claude-haiku-4-5-20251001': { input: 1, cacheRead: 0.1, cacheWrite5m: 1.25, output: 5 },
   'claude-haiku-4-5': { input: 1, cacheRead: 0.1, cacheWrite5m: 1.25, output: 5 },
