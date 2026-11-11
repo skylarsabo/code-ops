@@ -50,3 +50,34 @@ Pre-registered before the first run. Five fresh read-only control reps per model
 - Both models used about the same tokens. Opus took about 2.3 times the wall time.
 - Pooled with the three pilot reps per model, the means are 12.0 and 15.1 of 18. The pooled figure is descriptive only.
 - Limits: one fixture, a control prompt with no skill, a read-only hunt. The arm does not measure implementation work or tier inflation.
+
+## Fan-out against tier (2026-11-11)
+
+Computed from the ten matched-arm registers, with no new run. The rule was written before the union counts were computed, but after the per-rep counts were known, so the result is descriptive. A union of k registers finds a defect when any of the k found it.
+
+| Registers in the union | Sonnet 5.5 mean (range) | Opus 5.5 mean (range) | Tokens |
+|------------------------|-------------------------|-----------------------|--------|
+| 1 | 12.2 (12 to 13) | 15.0 (14 to 16) | about 147,000 |
+| 2 | 13.8 (13 to 15) | 16.0 (15 to 17) | about 295,000 |
+| 3 | 14.5 (14 to 15) | 16.5 (15 to 17) | about 442,000 |
+| 5 | 15.0 | 17.0 | about 738,000 |
+
+- Two Sonnet registers do not match one Opus register: 13.8 against a bar of 14.0. Three match it at about three times the tokens. No Sonnet union beats one Opus register.
+- The Sonnet misses are correlated. All five reps missed the same three defects, so more reps cannot find them.
+- A union also sums the false reports of its registers.
+
+## Skill arm: `rigor:bug-hunt` against the control prompt (2026-11-11)
+
+Pre-registered before the first run. Five fresh read-only reps per model. The prompt is the control prompt plus one paragraph that tells the worker to read and apply copies of the skill and the rigor conventions. The control is the matched arm above. The skill shows a gain when the mean difference is at least 2.0 defects and a one-sided exact permutation test gives p at most 0.05.
+
+| Model | Control mean | Skill, defects found of 18 | Skill mean | Difference | p | Mean tokens | Mean wall time |
+|-------|--------------|----------------------------|------------|------------|---|-------------|----------------|
+| Sonnet 5.5 | 12.2 | 15, 14, 13, 13, 14 | 13.8 | +1.6 | 0.012 | 163,915 (+12%) | 300 s |
+| Opus 5.5 | 15.0 | 15, 15, 15, 14, 15 | 14.8 | -0.2 | 0.86 | 170,240 (+14%) | 622 s |
+
+- Result: the rule is not met for either model. The Sonnet gain of 1.6 is below the registered minimum of 2.0. Opus shows no gain and pays 14 percent more tokens.
+- Sonnet with the skill stays 1.2 defects below Opus on the control prompt.
+- With the skill, no Sonnet rep missed four defects that control reps missed 1 to 3 times each. The four hardest defects did not move for either model.
+- No rep flagged a decoy.
+- Scoring: a skill register quotes other `file:line` references inside its sentences, and `evals/score.mjs` counts each as a flag. Both arms were rescored on the leading citation of each finding only. No defect count changed; the skill-arm unkeyed counts fell from 3 to 11 per rep to 0 to 2.
+- Limits: the control reps ran one day earlier. The worker cannot execute, so the skill's proof step did not run. One fixture.

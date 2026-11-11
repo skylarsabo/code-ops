@@ -1032,6 +1032,15 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   the decision rule is met for read-only defect finding. Tokens per rep were equal within 2
   percent. The arm used a control prompt on one fixture and did not test implementation work,
   which is the largest share of the pool.
+- **Fan-out against tier, 2026-11-11.** From the same ten registers: the union of two Sonnet 5.5
+  registers finds 13.8 of 18 on average and the union of three finds 14.5, against 15.0 for one
+  Opus 5.5 register at a third of the tokens. All five Sonnet reps missed the same three defects.
+  Tier buys more recall per token than repetition on this fixture. Post hoc, descriptive.
+- **Skill arm, 2026-11-11.** Five fresh read-only reps per model with `rigor:bug-hunt` added to
+  the control prompt, pre-registered with a minimum gain of 2.0 defects. Sonnet 5.5 rose from 12.2
+  to 13.8 (p = 0.012) for 12 percent more tokens, below the minimum. Opus 5.5 went from 15.0 to
+  14.8 for 14 percent more tokens. The rule is not met for either model. The worker could not
+  execute, so the skill's proof step did not run.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
