@@ -1032,6 +1032,36 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   the decision rule is met for read-only defect finding. Tokens per rep were equal within 2
   percent. The arm used a control prompt on one fixture and did not test implementation work,
   which is the largest share of the pool.
+- **Fan-out against tier, 2026-11-11.** From the same ten registers: the union of two Sonnet 5.5
+  registers finds 13.8 of 18 on average and the union of three finds 14.5, against 15.0 for one
+  Opus 5.5 register at a third of the tokens. All five Sonnet reps missed the same three defects.
+  Tier buys more recall per token than repetition on this fixture. Post hoc, descriptive.
+- **Skill arm, 2026-11-11.** Five fresh read-only reps per model with `rigor:bug-hunt` added to
+  the control prompt, pre-registered with a minimum gain of 2.0 defects. Sonnet 5.5 rose from 12.2
+  to 13.8 (p = 0.012) for 12 percent more tokens, below the minimum. Opus 5.5 went from 15.0 to
+  14.8 for 14 percent more tokens. The rule is not met for either model. The worker could not
+  execute, so the skill's proof step did not run.
+- **Trimmed skill arm, 2026-11-11.** One file with the skill and five convention sections,
+  28 percent of the full document bytes, pre-registered. Sonnet 5.5 found 13.4 of 18 against 13.8
+  with the full skill, and Opus 5.5 found 14.8 against 14.8, so the trim keeps the quality. It
+  saved 1.6 and 4.9 percent of tokens. Document size is not the cost on this task: a rep spends
+  about 150,000 tokens reading the library across about 32 tool calls.
+- **Read-discipline arm, 2026-11-11.** The control prompt plus a read-once, batched-read
+  paragraph, pre-registered. Sonnet 5.5 found 13.2 of 18 against 12.2 for control, and Opus 5.5
+  found 14.4 against 15.0, so there is no loss. There is also no saving: tokens rose 7.6 and 2.4
+  percent, and tool calls stayed at about 30 for 29 files. The control already reads the library
+  once, so the cost is one whole read. A token cut has to come from reading fewer files.
+- **Scoped hunt arm, 2026-11-11.** Three name-order slices of the source, one worker per slice,
+  union of three registers per rep, pre-registered. Sonnet 5.5 found 12.2 of 18 against 12.2 for
+  control, and Opus 5.5 found 14.6 against 15.0, so there is no loss. Summed tokens rose 35.5 and
+  27.5 percent, because each worker pays a fixed startup cost of about 20,000 to 26,000 tokens.
+  Wall time fell 42 and 54 percent. Three of ten reps flagged a decoy against none in control.
+  Split a hunt that fits in one context for speed, not for tokens.
+- **Opus effort ladder, 2026-11-11.** Opus 5.5 on the control prompt at low and at high effort,
+  pre-registered, against the medium control. Low found 13.0 of 18 against 15.0, a loss of 2.0
+  (p 0.008), for 12.8 percent fewer tokens. High found 15.4, no gain, for 7.4 percent more tokens
+  and 40 percent more wall time. Keep medium for a whole-library hunt. Effort moves wall time far
+  more than tokens, because most tokens are the read.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
