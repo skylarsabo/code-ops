@@ -142,6 +142,9 @@ jobs:
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
 
+      - name: Lead doctrine hook eval (Claude lead only, fail visible)
+        run: node evals/lead-doctrine/run.mjs
+
       - name: Subagent report hook eval (verdict token + report cap, advisory)
         run: node evals/subagent-report/run.mjs
 
@@ -507,6 +510,7 @@ jobs:
       - run: node evals/context-query/run.mjs
       - run: node evals/context-query-mcp/run.mjs
       - run: node evals/ladder-card/run.mjs
+      - run: node evals/lead-doctrine/run.mjs
       - run: node evals/subagent-report/run.mjs
       - run: node evals/handoff-card/run.mjs
       - run: node evals/dispatch-guard/run.mjs
@@ -577,7 +581,7 @@ jobs:
       - name: Doc-citation checker eval
         run: node evals/doc-citations/run.mjs
 
-  # Shard 3: the docs-gate, ladder-card, and merge-driver evals, then the path-gated record eval
+  # Shard 3: the docs-gate, ladder-card, lead-doctrine, and merge-driver evals, then the path-gated record eval
   # (median 179.5 s without the record eval, which adds 394 s when it runs). The gate leaves this
   # leg nearly empty on most changes, so the evals above fill it.
   structural-lint-windows-shard-3:
@@ -598,6 +602,9 @@ jobs:
 
       - name: Ladder card hook eval (opt-in switch + implementer filter)
         run: node evals/ladder-card/run.mjs
+
+      - name: Lead doctrine hook eval (Claude lead only, fail visible)
+        run: node evals/lead-doctrine/run.mjs
 
       - name: Derived-file merge driver regression eval
         run: node evals/merge-driver/run.mjs

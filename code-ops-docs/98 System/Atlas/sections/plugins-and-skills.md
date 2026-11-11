@@ -38,7 +38,7 @@ The traceless scanner is one canonical script shared by the code-ops and privacy
 
 Vault migration must make irreversible judgment durable. The skill plans genesis or incremental admission to a repository-relative ignored receipt. Risky candidates require explicit dispositions. Protected repository review authenticates the unkeyed checksum. Scheduled recovery uses a unique branch in an isolated per-run worktree and never switches the shared checkout.
 
-The canonical package registers seventeen hook commands across nine events (plugins/code-ops-suite/hooks/hooks.json:2). `handoff-card.mjs` runs
+The canonical package registers eighteen hook commands across nine events (plugins/code-ops-suite/hooks/hooks.json:2). `handoff-card.mjs` runs
 at `UserPromptSubmit` on Claude and Codex, reads only the transcript tail, and asks the lead to
 checkpoint at 60 and 80 percent of the auto-compaction window (150,000-token bands on Grok); it does not execute a transition
 or prove that the host displayed the advice (plugins/code-ops-suite/hooks/handoff-card.mjs:2,

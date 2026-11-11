@@ -39,8 +39,8 @@ A commit that stages any file under `code-ops-docs/98 System/Atlas` now runs the
 
 ## Host hook switches
 
-The code-ops-suite package registers sixteen commands across nine events in
-`plugins/code-ops-suite/hooks/hooks.json`. Thirteen distinct scripts serve them. The `PostToolUse`
+The code-ops-suite package registers eighteen commands across nine events in
+`plugins/code-ops-suite/hooks/hooks.json`. Fourteen distinct scripts serve them. The `PostToolUse`
 output digest, `digest-post.mjs`, replaces a long `Bash` result (and a `Read` result, opt-in) with
 its digest on Claude Code. Grok Build registers it from the canonical package, and its acceptance
 is UNVERIFIED. The Codex and OpenCode builds omit it. Every one is on by default where the host exposes
@@ -58,7 +58,7 @@ session never heard back from. The `PreCompact` hook `compact-snapshot.mjs` writ
 `COMPACT_SNAPSHOT.md` before each compaction and never blocks it.
 Declared hook timeouts in `plugins/code-ops-suite/hooks/hooks.json`: the `digest-rewrite` `Bash`
 entry, `index-refresh`, `agent-ledger` (both entries), `digest-post`, `routing-card`, and
-`subagent-report` declare 15 seconds; `ladder-card` and the `handoff-card` `PostToolUse` entry declare
+`subagent-report` declare 15 seconds; `ladder-card`, `lead-doctrine`, and the `handoff-card` `PostToolUse` entry declare
 10 seconds; `compact-snapshot` (both entries) declares 30 seconds; `session-receipt` declares 20
 seconds. `enforce-traceless`, `dispatch-guard`, `peer-guard`, the `digest-rewrite` `Write` entry, and
 the `handoff-card` `UserPromptSubmit` entry declare none, because a timeout on a hook that can deny or
@@ -166,7 +166,9 @@ Evidence: `codex-marketplace/plugins/code-ops-suite/hooks/session-receipt.mjs:29
 
 `CODE_OPS_DIGEST_STORE=off` keeps compression enabled while disabling raw-output and receipt storage.
 
-The one command with no switch is `enforce-traceless.mjs` at `PreToolUse`. The routing card
+Two commands have no switch: `enforce-traceless.mjs` at `PreToolUse` and `lead-doctrine.mjs` at
+`SessionStart`. The lead-doctrine hook prints the lead part of the user-wide contract to the Claude
+session lead; without it the lead runs without its orchestration rules. The routing card
 itself has none either; only its pending-handoff line does. The `PreCompact` command
 `compact-snapshot.mjs` prints nothing, because the host ignores `PreCompact` stdout. It writes the
 snapshot file, and Claude and Codex receive the durable-state restore instruction on `SessionStart
@@ -315,6 +317,7 @@ byte-identical packaging.
 | Compact snapshot | Native `PreCompact` hook writes `COMPACT_SNAPSHOT.md`; the `source=compact` card reads it | `PreCompact` and `PostCompact` write `COMPACT_SNAPSHOT.md`. The 2026-10-01 capture shows Grok sends the snake-case `session_id` and `transcript_path` the hook reads. No Grok compaction marker is known, so the boundary count stays 0. The next PostToolUse names the newest `compaction/segment_*.md`. Passive stdout is ignored | Projected hook; dropped: `PreCompact` did not fire on compaction in the 2026-10-01 capture, so the handoff card tells Codex to run `co snapshot` | No `PreCompact` port and no snapshot writer; the compacting hook pushes the open `TASKS.md` lines, pending dispatch rows, and the snapshot path or a `co snapshot` line |
 | Documentation MCP | Plugin manifest | Plugin manifest | Projected MCP manifest | Runtime `config` hook with local commands |
 | Ladder card | Native | Instruction files only; receipt arm is false | Projected hook | Lifecycle plugin injects it into the implementer |
+| Lead doctrine | Native `SessionStart` hook prints `lead-doctrine.claude.md` to the session lead; the core contract omits that text | Not needed: the full contract file keeps the text; the hook prints nothing | Omitted: the full `AGENTS.md` keeps the text, so the build drops the hook and its file | Unchanged: the bake does not run or copy the hook |
 | Subagent return check | Native `SubagentStop` `systemMessage` note | `SubagentStop` `systemMessage` only. CamelCase `subagentType` and `lastAssistantMessage` are read. `additionalContext` is never set | Projected hook; payload fields UNVERIFIED, so a missing field leaves it silent | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Agent ledger | Native `PostToolUse` (`Agent`, `Task`) and `SubagentStop` | `PostToolUse` records `spawn_subagent` and `spawn_agent`. `SubagentStop` records the report. An omitted `background` flag means a background child | Projected hook without a matcher; it filters on `Agent` or `Task`, and the Codex dispatch tool name and `SubagentStop` fields are UNVERIFIED, so a missing field records nothing | Not ported; no verified subagent-stop callback (UNVERIFIED) |
 | Session receipt | Native transcript callback | `updates.jsonl` side effect | Child rollouts followed by `parent_thread_id` | Lifecycle ledger from `message.updated`; no transcript parse |
@@ -327,6 +330,8 @@ byte-identical packaging.
 | Change feed | Native | PostToolUse delivery only | Payload UNVERIFIED | Hub-edit and seal events only; no push or merge events, no delivery |
 | Legacy path deny | Native `PreToolUse` deny inside the dispatch guard | Registered; camelCase `toolName` and `toolInput` mapped; `search_replace` is the edit name, and its path key is UNVERIFIED, so the extractor tries `file_path`, `filePath`, `path`, and `target_file` | Payload-adapted; `apply_patch` targets read from the patch text | `tool.execute.before` throw for `write`, `edit`, `patch`, and `apply_patch`; the shared library loads from `code-ops/code-ops-suite/scripts/` |
 | History read notice | Native `PostToolUse` context on `Read`, `Grep`, and shell | Reach UNVERIFIED. No captured Grok payload exists in the repository. The Grok hooks guide (installed 1.0.13) maps `Read` to `read_file`, `Grep` to `grep`, and `Bash` to `run_terminal_command` and says a matcher tests the real tool name, so the hook matches those names. The read tool's input field name is UNVERIFIED, so the extractor tries the same key list; a Grok read it cannot extract gets no notice | Probable: shell commands through `exec_command` and `shell`; the record path is matched inside the command text | `tool.execute.after` appends to the tool output for `read`, `grep`, and `bash`, reusing the arguments the before hook saw when the after event carries none |
+
+The table has no Copilot column. The lead-doctrine split leaves Copilot unchanged.
 
 The Codex renderer removes Claude-only matchers and lets normalized payload adapters filter
 the actual tool. The OpenCode renderer translates both slash and bare canonical skill names,

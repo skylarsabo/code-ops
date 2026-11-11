@@ -1,0 +1,3 @@
+- The Claude user-wide contract now holds only the core rules. The lead-only orchestration text moved to `hooks/lead-doctrine.claude.md`, so every Claude subagent starts with about 6 KB less contract text.
+- New `SessionStart` hook `hooks/lead-doctrine.mjs` prints that text to the Claude session lead at startup and after each compaction, so the lead keeps the same rules. A missing file prints one visible line. The hook has no off switch.
+- The Codex build excludes the hook and its file, because the Codex contract keeps the full text. It now drops an excluded command from its group instead of the whole group, so the routing card stays.

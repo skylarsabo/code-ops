@@ -33,6 +33,7 @@ shapes, and the [infrastructure reference](../50%20Platform/INFRASTRUCTURE.md) o
 - [Over-build scanner](#over-build-scanner)
 - [Deferral harvest](#deferral-harvest)
 - [Ladder card hook](#ladder-card-hook)
+- [Lead doctrine hook](#lead-doctrine-hook)
 - [Subagent report hook](#subagent-report-hook)
 - [Handoff card hook](#handoff-card-hook)
 - [Handoff write and consumption](#handoff-write-and-consumption)
@@ -797,11 +798,11 @@ replace the tool output. Evidence: `plugins/code-ops-suite/hooks/digest-post.mjs
 The Claude Code host accepts `updatedToolOutput` for `Bash`: a live smoke on 2026-10-08 confirmed
 it. That smoke covered `Bash`; the opt-in `Read` path is UNVERIFIED on a live host. The Codex and OpenCode builds omit the
 hook. Codex support for `hookSpecificOutput.updatedToolOutput` is unproven, so
-`CODEX_EXCLUDED_HOOKS` removes the script, its `hooks.json` group, and its hook documentation from
-the Codex projection. OpenCode has no `PostToolUse` hook that replaces tool output, so its
+`CODEX_EXCLUDED_HOOKS` removes the script, its `hooks.json` command, and its hook documentation from
+the Codex projection. A group left with no command is dropped. OpenCode has no `PostToolUse` hook that replaces tool output, so its
 distribution bundles only `digest-rewrite.mjs` and `index-refresh.mjs`. Evidence:
-`scripts/build-codex-marketplace.mjs:385-387`, `scripts/build-codex-marketplace.mjs:393`,
-`scripts/build-codex-marketplace.mjs:469`, `scripts/build-codex-marketplace.mjs:624`, and
+`scripts/build-codex-marketplace.mjs:385-388`, `scripts/build-codex-marketplace.mjs:394`,
+`scripts/build-codex-marketplace.mjs:470`, `scripts/build-codex-marketplace.mjs:625`, and
 `scripts/build-opencode-dist.mjs:799`. The eval is `evals/digest-post/run.mjs`.
 
 ## Script entrypoint
@@ -909,6 +910,27 @@ hook returns no permission decision. On installed Grok 1.0.13 it emits nothing b
 `SubagentStart` stdout is ignored; `CLAUDE.md` and `AGENTS.md` carry the same ladder doctrine.
 OpenCode has no typed subagent-start callback. Evidence: `plugins/code-ops-suite/hooks/ladder-card.mjs:12-22`,
 `plugins/code-ops-suite/hooks/ladder-card.mjs:43-58`, and `evals/ladder-card/run.mjs:3-14`.
+
+## Lead doctrine hook
+
+`hooks/lead-doctrine.mjs` runs at `SessionStart` on Claude Code only. It prints
+`hooks/lead-doctrine.claude.md` as plain text, so the session lead receives the lead doctrine at
+startup and again after each compaction. A subagent does not run `SessionStart`, so it starts with
+the core contract only. The hook prints nothing when `GROK_PLUGIN_ROOT` is set, when `CLAUDECODE`
+is not `1`, or when stdin is blank. A missing, empty, or unreadable doctrine file prints one
+visible line that names the gap and says to reinstall or update the code-ops-suite plugin. Every
+path exits 0. The hook has no off switch. The Codex build excludes the hook and the file, because
+the Codex contract keeps the full text. OpenCode bundles neither. Evidence:
+`plugins/code-ops-suite/hooks/lead-doctrine.mjs:17`, `plugins/code-ops-suite/hooks/lead-doctrine.mjs:25`,
+`scripts/build-codex-marketplace.mjs:386-387`, and `evals/lead-doctrine/run.mjs`.
+
+The `audience: lead` directive in `global-contracts/AGENTS.source.md` marks the lead text.
+`scripts/render-global-contracts.mjs` drops it from the Claude render and writes it, in source
+order under its `##` heading, to the lead file. The Codex and Grok renders keep it inline. The
+renderer fails closed on these rules: an audience block sits outside host blocks, and a host block
+may sit inside it; audience blocks do not nest; a block holds no heading; `lead` is the only
+audience; a marker that splits a paragraph follows a line that ends a sentence. Evidence:
+`scripts/render-global-contracts.mjs:11-29` and `evals/render-global-contracts/run.mjs`.
 
 ## Subagent report hook
 
