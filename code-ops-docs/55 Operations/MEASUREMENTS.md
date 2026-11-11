@@ -1051,6 +1051,12 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   found 14.4 against 15.0, so there is no loss. There is also no saving: tokens rose 7.6 and 2.4
   percent, and tool calls stayed at about 30 for 29 files. The control already reads the library
   once, so the cost is one whole read. A token cut has to come from reading fewer files.
+- **Scoped hunt arm, 2026-11-11.** Three name-order slices of the source, one worker per slice,
+  union of three registers per rep, pre-registered. Sonnet 5.5 found 12.2 of 18 against 12.2 for
+  control, and Opus 5.5 found 14.6 against 15.0, so there is no loss. Summed tokens rose 35.5 and
+  27.5 percent, because each worker pays a fixed startup cost of about 20,000 to 26,000 tokens.
+  Wall time fell 42 and 54 percent. Three of ten reps flagged a decoy against none in control.
+  Split a hunt that fits in one context for speed, not for tokens.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard

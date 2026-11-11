@@ -112,3 +112,19 @@ Pre-registered before the first run. Five fresh read-only reps per model. The pr
 - Sonnet rose 1.0 defect (p 0.063) and Opus fell 0.6 (p 0.28). Neither difference meets a registered rule. Opus wall time fell 21 percent.
 - No rep flagged a decoy.
 - Limits: the token figure is the subagent total the host reports. A margin of 1.0 defect at five reps is a descriptive check. The control reps ran one day earlier. One fixture.
+
+## Scoped hunt arm (2026-11-11)
+
+Pre-registered before the first run. The 28 files of `src/` in name order are cut into three contiguous slices of near-equal bytes (`assemble.js` to `filter.js`, `geoparquet.js` to `rowgroup.js`, `scan.js` to `xxhash.js`). One read-only worker hunts each slice and reads no other file. A rep is the union of three registers, five reps per model. Quality shows no loss when the mean is within 1.0 of the control mean. Cost shows a saving when the summed tokens of the three workers are at most 90 percent of the control mean.
+
+| Model | Control mean | Scoped, defects found of 18 | Scoped mean | Mean tokens: control, scoped (sum of three) | Mean wall time: control, scoped (longest worker) |
+|-------|--------------|-----------------------------|-------------|---------------------------------------------|--------------------------------------------------|
+| Sonnet 5.5 | 12.2 | 13, 10, 13, 14, 11 | 12.2 | 146,303; 198,186 | 207 s; 121 s |
+| Opus 5.5 | 15.0 | 13, 15, 15, 15, 15 | 14.6 | 148,917; 189,897 | 475 s; 220 s |
+
+- Result: no loss for either model, and the saving rule is not met. Summed tokens rose 35.5 percent on Sonnet and 27.5 percent on Opus.
+- Each worker pays a fixed startup cost. A worker used about 60,000 to 70,000 tokens for a third of the source, so each extra worker adds about 20,000 to 26,000 tokens. Splitting a hunt that fits in one context costs tokens.
+- Scoping buys wall time: 42 percent less on Sonnet and 54 percent less on Opus.
+- Precision fell. Three of ten reps flagged a decoy, against none in control, and unkeyed flags rose to 3 to 5 per rep.
+- No scoped rep on either model found `bh-scan-column-await`, which every Opus control rep found. The defect needs a callee in another slice. Four of five Opus reps found `bh-page-range-touch`, which no Opus control rep found.
+- Limits: one slicing rule, and a worker could not read outside its slice. The token figure is the subagent total the host reports. A margin of 1.0 defect at five reps is a descriptive check. One fixture, about 210,000 source bytes.
