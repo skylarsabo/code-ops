@@ -96,3 +96,19 @@ Pre-registered before the first run. Five fresh read-only reps per model. The wo
 - The document size is not the cost. A rep spends about 150,000 tokens reading the library across about 32 tool calls. A token cut has to come from fewer or smaller turns.
 - No rep flagged a decoy.
 - Limits: a margin of 1.0 defect at five reps is a descriptive check, not proof of equivalence. The worker cannot execute. One fixture.
+
+## Read-discipline arm (2026-11-11)
+
+Pre-registered before the first run. Five fresh read-only reps per model. The prompt is the control prompt plus one paragraph: list the directory once, read each file at most once and whole, send up to ten reads in one message, and run no search. The discipline shows no loss when the mean is within 1.0 of the control mean, and a loss when it is at least 2.0 lower at p at most 0.05.
+
+| Model | Control, defects found of 18 | Control mean | Discipline, defects found of 18 | Discipline mean | Mean tokens: control, discipline | Mean tool calls: control, discipline | Mean wall time: control, discipline |
+|-------|------------------------------|--------------|---------------------------------|-----------------|----------------------------------|--------------------------------------|-------------------------------------|
+| Sonnet 5.5 | 12, 13, 12, 12, 12 | 12.2 | 13, 14, 13, 12, 14 | 13.2 | 146,303; 157,366 | 30.0; 29.4 | 207 s; 244 s |
+| Opus 5.5 | 15, 16, 14, 15, 15 | 15.0 | 13, 16, 15, 13, 15 | 14.4 | 148,917; 152,452 | 31.0; 29.8 | 475 s; 373 s |
+
+- Result: no loss for either model, and no saving. Tokens rose 7.6 percent on Sonnet and 2.4 percent on Opus.
+- The control already reads the library once. The fixture has 29 files and the control reps made 30 to 32 tool calls, so the discipline had at most two calls to remove.
+- This corrects the reading in the trimmed skill section: the cost is not repeated reading. It is one whole read of the library, about 150,000 tokens. A token cut on this task has to come from reading fewer files.
+- Sonnet rose 1.0 defect (p 0.063) and Opus fell 0.6 (p 0.28). Neither difference meets a registered rule. Opus wall time fell 21 percent.
+- No rep flagged a decoy.
+- Limits: the token figure is the subagent total the host reports. A margin of 1.0 defect at five reps is a descriptive check. The control reps ran one day earlier. One fixture.
