@@ -95,6 +95,26 @@ try {
   writeFileSync(objCand, JSON.stringify({ file: 'a.js', line: 1 }));
   check('SCR-019 non-array candidate exits 2', runNode([join(REPO, 'evals', 'score.mjs'), join(REPO, 'evals', 'bug-garden', 'ANSWER_KEY.json'), objCand]).code === 2);
 
+  // SCR-021: --leading-citations reads one flag per finding line; the default still reads every citation
+  const score = join(REPO, 'evals', 'score.mjs');
+  const leadKey = join(work, 'leadkey.json');
+  writeFileSync(leadKey, JSON.stringify({ repo: '.', lineTolerance: 0,
+    planted: [{ id: 'P1', file: 'a.js', line: 10 }, { id: 'P2', file: 'a.js', line: 32 }],
+    decoys: [{ id: 'D1', file: 'b.js', line: 50 }] }));
+  const leadCand = join(work, 'lead.md');
+  writeFileSync(leadCand, '- a.js:10 · PROBABLE · bug, see c.js:200 for context\n- a.js:30-34 · range finding\n'
+    + 'Prose that names a.js:99 is not a finding line.\n1. `d.js:5` · calls the b.js:50 helper\n');
+  const def21 = runNode([score, leadKey, leadCand, '--no-exit']).out;
+  const lead21 = runNode([score, leadKey, leadCand, '--leading-citations', '--no-exit']).out;
+  check('SCR-021 default counts an in-sentence citation as a flag', /Unkeyed flags:\s+4 /.test(def21));
+  check('SCR-021 mode reads one flag per finding line', /Unkeyed flags:\s+1 /.test(lead21) && /3 leading citations read, 3 other citations ignored/.test(lead21));
+  check('SCR-021 mode scores a range at its midpoint', /Recall:\s+2\/2/.test(lead21) && /Recall:\s+1\/2/.test(def21));
+  check('SCR-021 in-sentence decoy citation flags the decoy by default only', /False positives: 1\/1/.test(def21) && /False positives: 0\/1/.test(lead21));
+  const proseCand = join(work, 'prose.md');
+  writeFileSync(proseCand, 'The bug is at a.js:10.\n');
+  check('SCR-021 mode with no finding lines exits 2', runNode([score, leadKey, proseCand, '--leading-citations', '--no-exit']).code === 2);
+  check('SCR-021 mode with a JSON candidate exits 2', runNode([score, leadKey, emptyCand, '--leading-citations', '--no-exit']).code === 2);
+
   // SCR-016 — an option-like --git range token is rejected before git runs
   const msg = join(work, 'msg.txt');
   writeFileSync(msg, 'a normal commit message\n');

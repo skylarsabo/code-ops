@@ -32,7 +32,7 @@ Three read-only control reps per tier on a copy outside the repository. Same pro
 - The mid range (9 to 14) overlaps the light range and ends one defect below the strong range. Three reps do not separate mid from either neighbor.
 - Decoys carry little signal here: one flag in nine reps.
 - The unkeyed flag that every rep shares, `src/geoparquet.js:27`, is unseeded upstream code.
-- Each finding is scored at one line. One mid rep returned the range `src/scan.js:265-272`, which holds a keyed defect at line 269; it is scored as a hit. Scored at line 265, that rep finds 11, and the mid range stays 9 to 14.
+- Each finding is scored at one line. Pass `--leading-citations` to `score.mjs` to do this: it reads the leading citation of each finding line, takes the midpoint of a range, and ignores other citations on the line. One mid rep returned the range `src/scan.js:265-272`, which holds a keyed defect at line 269; it is scored as a hit. Scored at line 265, that rep finds 11, and the mid range stays 9 to 14.
 - The pilot prompt did not define the confidence tiers, so the pilot does not measure tier inflation.
 - The first rep of each tier ran before the decoy bar moved from 1 to 0. The counts above do not depend on the bar.
 
