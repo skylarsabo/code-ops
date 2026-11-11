@@ -34,7 +34,7 @@ function run(args, root) {
 
 const root = mkdtempSync(join(tmpdir(), 'judgment-orchestration-'));
 try {
-  for (const path of ['evals/score.mjs', 'evals/judgment-matrix.json', 'evals/bug-garden', 'evals/leak-lab', 'evals/drifted-docs', 'evals/hasty-code', 'evals/trap-garden', 'evals/calibration-traps', 'evals/xfn-traps', 'plugins/rigor/skills/bug-hunt/SKILL.md', 'plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md', 'plugins/code-ops-suite/skills/doc-alignment/SKILL.md', 'plugins/code-ops-suite/skills/normalize/SKILL.md']) {
+  for (const path of ['evals/score.mjs', 'evals/judgment-matrix.json', 'evals/bug-garden', 'evals/leak-lab', 'evals/drifted-docs', 'evals/hasty-code', 'evals/trap-garden', 'evals/calibration-traps', 'evals/xfn-traps', 'evals/scale-parquet', 'plugins/rigor/skills/bug-hunt/SKILL.md', 'plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md', 'plugins/code-ops-suite/skills/doc-alignment/SKILL.md', 'plugins/code-ops-suite/skills/normalize/SKILL.md']) {
     const from = join(SOURCE, path); const to = join(root, path);
     mkdirSync(dirname(to), { recursive: true }); cpSync(from, to, { recursive: true });
   }
@@ -81,7 +81,7 @@ try {
   writeFileSync(join(root, planPath), planBytes);
   unlinkSync(planAlias);
   check('trend plan has one strong skill arm per fixture', plan.execution === 'available'
-    && plan.units.length === 7 && plan.units.every((unit) => unit.tier === 'strong' && unit.arm === 'skill' && unit.rep === 1));
+    && plan.units.length === 8 && plan.units.every((unit) => unit.tier === 'strong' && unit.arm === 'skill' && unit.rep === 1));
   check('worker units do not expose answer-key paths', plan.units.every((unit) => !Object.hasOwn(unit, 'answerKey')));
   const checked = run(['check-plan', '--root', root, '--plan', planPath], root);
   check('plan revalidates HEAD and all fixture inputs', checked.status === 0, checked.stderr);
@@ -120,7 +120,7 @@ try {
   const scored = run(['score', '--root', root, '--plan', planPath, '--out', 'run/trend/scores.json'], root);
   const receipt = scored.status === 0 ? JSON.parse(readFileSync(join(root, 'run/trend/scores.json'), 'utf8')) : null;
   check('scores every local result and writes a digest-bound receipt', scored.status === 0 && receipt.execution === 'available'
-    && receipt.completedUnits === 7 && /^[0-9a-f]{64}$/.test(receipt.receiptSha256), scored.stderr);
+    && receipt.completedUnits === 8 && /^[0-9a-f]{64}$/.test(receipt.receiptSha256), scored.stderr);
   const receiptCheck = run(['check-receipt', '--root', root, '--plan', planPath, '--receipt', 'run/trend/scores.json'], root);
   check('receipt replay re-scores every bound candidate', receiptCheck.status === 0, receiptCheck.stderr);
   writeFileSync(join(root, plan.units[0].findingsPath), '[{"file":"forged.js","line":1}]\n');
@@ -131,9 +131,9 @@ try {
   mkdirSync(join(root, 'run/floor'), { recursive: true });
   const floor = run(['plan', '--root', root, '--mode', 'floor', '--execution', 'unavailable', '--out', 'run/floor/plan.json', '--strong-model', 'strong-model', '--weak-model', 'weak-model'], root);
   const floorPlan = floor.status === 0 ? JSON.parse(readFileSync(join(root, 'run/floor/plan.json'), 'utf8')) : null;
-  check('floor plan preserves the registered 2x2 repetition asymmetry', floor.status === 0 && floorPlan.units.length === 56
-    && floorPlan.units.filter((unit) => unit.tier === 'strong').length === 14
-    && floorPlan.units.filter((unit) => unit.tier === 'weak').length === 42, floor.stderr);
+  check('floor plan preserves the registered 2x2 repetition asymmetry', floor.status === 0 && floorPlan.units.length === 64
+    && floorPlan.units.filter((unit) => unit.tier === 'strong').length === 16
+    && floorPlan.units.filter((unit) => unit.tier === 'weak').length === 48, floor.stderr);
   const sameModel = run(['plan', '--root', root, '--mode', 'floor', '--execution', 'unavailable', '--out', 'run/floor/same-model.json', '--strong-model', 'same-model', '--weak-model', 'SAME-MODEL'], root);
   check('floor calibration refuses identical normalized model IDs', sameModel.status !== 0 && sameModel.stderr.includes('distinct strong and weak'), sameModel.stderr);
 

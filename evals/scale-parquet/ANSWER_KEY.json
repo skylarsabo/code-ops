@@ -1,0 +1,265 @@
+{
+  "fixture": "scale-parquet",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": {
+    "recall": 0.5,
+    "maxDecoys": 0
+  },
+  "planted": [
+    {
+      "id": "bh-scan-candidate-edge",
+      "file": "src/scan.js",
+      "line": 252,
+      "anchor": "} else if (rowStart > candidate.rowEnd) {",
+      "category": "off-by-one",
+      "oracle": "bh-scan-candidate-edge.test.js",
+      "desc": "`} else if (rowStart >= candidate.rowEnd) {` became `} else if (rowStart > candidate.rowEnd) {`"
+    },
+    {
+      "id": "bh-scan-column-await",
+      "file": "src/scan.js",
+      "line": 193,
+      "anchor": "const result = asyncColumn.data",
+      "category": "missing-await",
+      "oracle": "bh-scan-column-await.test.js",
+      "desc": "`const result = await asyncColumn.data` became `const result = asyncColumn.data`"
+    },
+    {
+      "id": "bh-or-group-skip",
+      "file": "src/filter.js",
+      "line": 124,
+      "anchor": "return filter.$or.some(subFilter => canSkipRowGroup({ rowGroup, physicalColumns, filter: subFilter, strict, bloomFilters, schemaElements }))",
+      "category": "inverted-guard",
+      "oracle": "bh-or-group-skip.test.js",
+      "desc": "`return filter.$or.every(subFilter => canSkipRowGroup(` became `return filter.$or.some(subFilter => canSkipRowGroup(`"
+    },
+    {
+      "id": "bh-strict-default",
+      "file": "src/read.js",
+      "line": 35,
+      "anchor": "const { rowStart = 0, rowEnd, columns, onChunk, onComplete, rowFormat, filter, filterStrict = false } = options",
+      "category": "wrong-default",
+      "oracle": "bh-strict-default.test.js",
+      "desc": "`filter, filterStrict = true } = options` became `filter, filterStrict = false } = options`"
+    },
+    {
+      "id": "bh-bloom-truncated-silent",
+      "file": "src/bloom.js",
+      "line": 96,
+      "anchor": "return undefined",
+      "category": "swallowed-error",
+      "oracle": "bh-bloom-truncated-silent.test.js",
+      "desc": "`` throw new Error(`parquet bloom filter truncated: need ${numBytes} bytes, have ${view.byteLength - offset}`) `` became `return undefined`"
+    },
+    {
+      "id": "bh-equals-bytes-length",
+      "file": "src/utils.js",
+      "line": 58,
+      "anchor": "if (a instanceof Uint8Array && b instanceof Uint8Array) {",
+      "category": "missing-guard",
+      "oracle": "bh-equals-bytes-length.test.js",
+      "desc": "removes `if (a.length !== b.length) return false`"
+    },
+    {
+      "id": "bh-chunk-row-end",
+      "file": "src/read.js",
+      "line": 80,
+      "anchor": "rowEnd: rowStart + columnData.length - 1,",
+      "category": "off-by-one",
+      "oracle": "bh-chunk-row-end.test.js",
+      "desc": "`rowEnd: rowStart + columnData.length,` became `rowEnd: rowStart + columnData.length - 1,`"
+    },
+    {
+      "id": "bh-cache-slice-end",
+      "file": "src/scan.js",
+      "line": 87,
+      "anchor": "rowEnd - cached.rowEnd",
+      "category": "wrong-variable",
+      "oracle": "bh-cache-slice-end.test.js",
+      "desc": "`rowEnd - cached.rowStart` became `rowEnd - cached.rowEnd`"
+    },
+    {
+      "id": "bh-bloom-skip-inverted",
+      "file": "src/filter.js",
+      "line": 158,
+      "anchor": "if (hash !== undefined && sbbfContains(bloom.blocks, hash)) return true",
+      "category": "inverted-guard",
+      "oracle": "bh-bloom-skip-inverted.test.js",
+      "desc": "`if (hash !== undefined && !sbbfContains(bloom.blocks, hash)) return true` became `if (hash !== undefined && sbbfContains(bloom.blocks, hash)) return true`"
+    },
+    {
+      "id": "bh-scan-range-reversed",
+      "file": "src/scan.js",
+      "line": 269,
+      "anchor": "if (!Number.isSafeInteger(rowEnd)) {",
+      "category": "unsafe-input",
+      "oracle": "bh-scan-range-reversed.test.js",
+      "desc": "`if (!Number.isSafeInteger(rowEnd) || rowEnd < rowStart) {` became `if (!Number.isSafeInteger(rowEnd)) {`"
+    },
+    {
+      "id": "bh-unknown-leaf-filter",
+      "file": "src/filter.js",
+      "line": 135,
+      "anchor": "const columnIndex = physicalColumns.indexOf(field)",
+      "category": "missing-guard",
+      "oracle": "bh-unknown-leaf-filter.test.js",
+      "desc": "removes `if (columnIndex === -1) continue`"
+    },
+    {
+      "id": "bh-offset-index-fields",
+      "file": "src/indexes.js",
+      "line": 41,
+      "anchor": "compressed_page_size: loc.field_3,",
+      "category": "wrong-variable",
+      "oracle": "bh-offset-index-fields.test.js",
+      "desc": "`compressed_page_size: loc.field_2,` / `first_row_index: loc.field_3,` became `compressed_page_size: loc.field_3,` / `first_row_index: loc.field_2,`"
+    },
+    {
+      "id": "bh-delta-33bit-zigzag",
+      "file": "src/delta.js",
+      "line": 134,
+      "anchor": "const high = reader.offset - start === 5 ? reader.view.getUint8(start + 4) >>> 3 & 1 : 0",
+      "category": "off-by-one",
+      "oracle": "bh-delta-33bit-zigzag.test.js",
+      "desc": "`reader.view.getUint8(start + 4) >>> 4 & 1 : 0` became `reader.view.getUint8(start + 4) >>> 3 & 1 : 0`"
+    },
+    {
+      "id": "bh-page-range-touch",
+      "file": "src/plan.js",
+      "line": 232,
+      "anchor": "if (pageEnd >= rangeStart && pageStart < rangeEnd) {",
+      "category": "off-by-one",
+      "oracle": "bh-page-range-touch.test.js",
+      "desc": "`if (pageEnd > rangeStart && pageStart < rangeEnd) {` became `if (pageEnd >= rangeStart && pageStart < rangeEnd) {`"
+    },
+    {
+      "id": "bh-stats-gte-edge",
+      "file": "src/filter.js",
+      "line": 203,
+      "anchor": "if (operator === '$gte' && relationalBoundsAreSafe && maxComparison !== undefined && maxComparison <= 0) return true",
+      "category": "off-by-one",
+      "oracle": "bh-stats-gte-edge.test.js",
+      "desc": "`if (operator === '$gte' && relationalBoundsAreSafe && maxComparison !== undefined && maxComparison < 0) return true` became `if (operator === '$gte' && relationalBoundsAreSafe && maxComparison !== undefined && maxComparison <= 0) return true`"
+    },
+    {
+      "id": "bh-rle-width-bytes",
+      "file": "src/encoding.js",
+      "line": 49,
+      "anchor": "const width = bitWidth + 8 >> 3",
+      "category": "off-by-one",
+      "oracle": "bh-rle-width-bytes.test.js",
+      "desc": "`const width = bitWidth + 7 >> 3` became `const width = bitWidth + 8 >> 3`"
+    },
+    {
+      "id": "bh-split-stream-layout",
+      "file": "src/encoding.js",
+      "line": 124,
+      "anchor": "bytes[b * count + i] = reader.view.getUint8(reader.offset++)",
+      "category": "wrong-order",
+      "oracle": "bh-split-stream-layout.test.js",
+      "desc": "`bytes[i * width + b] = reader.view.getUint8(reader.offset++)` became `bytes[b * count + i] = reader.view.getUint8(reader.offset++)`"
+    },
+    {
+      "id": "bh-column-start-zero",
+      "file": "src/plan.js",
+      "line": 136,
+      "anchor": "const columnOffset = meta.dictionary_page_offset ?? meta.data_page_offset",
+      "category": "wrong-default",
+      "oracle": "bh-column-start-zero.test.js",
+      "desc": "`const columnOffset = meta.dictionary_page_offset || meta.data_page_offset` became `const columnOffset = meta.dictionary_page_offset ?? meta.data_page_offset`"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "bh-intersect-advance-tie",
+      "file": "src/filter.js",
+      "line": 366,
+      "anchor": "if (a[i][1] <= b[j][1]) i++",
+      "category": "off-by-one",
+      "oracle": "bh-intersect-advance-tie.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if (a[i][1] < b[j][1]) i++` became `if (a[i][1] <= b[j][1]) i++`"
+    },
+    {
+      "id": "bh-projection-redundant-columns",
+      "file": "src/read.js",
+      "line": 121,
+      "anchor": "if (requiresProjection) {",
+      "category": "missing-guard",
+      "oracle": "bh-projection-redundant-columns.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if (requiresProjection && columns) {` became `if (requiresProjection) {`"
+    },
+    {
+      "id": "bh-query-return-await",
+      "file": "src/query.js",
+      "line": 95,
+      "anchor": "return parquetReadObjects(options)",
+      "category": "missing-await",
+      "oracle": "bh-query-return-await.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `return await parquetReadObjects(options)` became `return parquetReadObjects(options)`"
+    },
+    {
+      "id": "bh-query-metadata-alias",
+      "file": "src/query.js",
+      "line": 29,
+      "anchor": "const allColumns = parquetSchema(metadata).children.map(c => c.element.name)",
+      "category": "wrong-variable",
+      "oracle": "bh-query-metadata-alias.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `const allColumns = parquetSchema(options.metadata).children.map(c => c.element.name)` became `const allColumns = parquetSchema(metadata).children.map(c => c.element.name)`"
+    },
+    {
+      "id": "bh-filter-limit-break",
+      "file": "src/query.js",
+      "line": 47,
+      "anchor": "if (filteredRows.length > rowEnd) break",
+      "category": "off-by-one",
+      "oracle": "bh-filter-limit-break.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if (filteredRows.length >= rowEnd) break` became `if (filteredRows.length > rowEnd) break`"
+    },
+    {
+      "id": "bh-tojson-branch-order",
+      "file": "src/utils.js",
+      "line": 18,
+      "anchor": "if (obj instanceof Date) return obj.toISOString()",
+      "category": "wrong-order",
+      "oracle": "bh-tojson-branch-order.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: swaps the order of `if (obj instanceof Uint8Array) return Array.from(obj)` and `if (obj instanceof Date) return obj.toISOString()`"
+    },
+    {
+      "id": "bh-literal-condition-form",
+      "file": "src/filter.js",
+      "line": 65,
+      "anchor": "if (!(typeof condition === 'object' && condition !== null && !Array.isArray(condition))) {",
+      "category": "inverted-guard",
+      "oracle": "bh-literal-condition-form.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if (typeof condition !== 'object' || condition === null || Array.isArray(condition)) {` became `if (!(typeof condition === 'object' && condition !== null && !Array.isArray(condition))) {`"
+    },
+    {
+      "id": "bh-bloom-int64-wrap",
+      "file": "src/bloom.js",
+      "line": 159,
+      "anchor": "new DataView(buf).setBigUint64(0, bigValue, true)",
+      "category": "missing-guard",
+      "oracle": "bh-bloom-int64-wrap.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `setBigUint64(0, BigInt.asUintN(64, bigValue), true)` became `setBigUint64(0, bigValue, true)`"
+    },
+    {
+      "id": "bh-coalesce-touching",
+      "file": "src/plan.js",
+      "line": 441,
+      "anchor": "if (last && range.startByte < last.endByte + maxGap + 1 && Math.max(last.endByte, range.endByte) - last.startByte <= maxSize) {",
+      "category": "off-by-one",
+      "oracle": "bh-coalesce-touching.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if (last && range.startByte <= last.endByte + maxGap &&` became `if (last && range.startByte < last.endByte + maxGap + 1 &&`"
+    },
+    {
+      "id": "bh-read-return-promise",
+      "file": "src/read.js",
+      "line": 61,
+      "anchor": "return awaitAllColumns(asyncGroups)",
+      "category": "missing-await",
+      "oracle": "bh-read-return-promise.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `await awaitAllColumns(asyncGroups)` / `return` became `return awaitAllColumns(asyncGroups)`"
+    }
+  ]
+}
