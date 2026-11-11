@@ -41,3 +41,5 @@ As of 2026-09-23 each deterministic leg is sharded into parallel jobs of balance
 The distill no-loss eval runs on the Ubuntu structural leg and on a Windows shard (`.github/workflows/validate.yml:59`, `.github/workflows/validate.yml:541`). The distill vault-mode state eval runs on both legs, in Windows shard 2 (`.github/workflows/validate.yml:62`, `.github/workflows/validate.yml:572`).
 
 Ubuntu shard 1 runs the beat-the-bare-model bench check and its regression eval (`.github/workflows/validate.yml:91`, `.github/workflows/validate.yml:94`). The check runs no model: it validates the matrix, recomputes the vendored target digest, and proves every seed, change, and task acceptance in temporary copies. There is no Windows mirror.
+
+Ubuntu shard 1 also runs the scale-parquet fixture eval after the bench regression eval (`.github/workflows/validate.yml:97`).
