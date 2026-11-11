@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "073b0d08cdc8a7dfeb7afdb291c8a3290dfa2ba5",
-      "verifiedDigest": "319164a8cefe1ef185f60b05a25177d0711dfe343ce796852b72d847253b89c4",
+      "verifiedAt": "26ee9156271176ef70d6f8e6586763b901780697",
+      "verifiedDigest": "fab6a1d6048a3e3652fb2e8f5126783adcf87b3f25a3faebab4d57fbdbd1e108",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1987,7 +1987,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "073b0d08cdc8a7dfeb7afdb291c8a3290dfa2ba5",
+      "verifiedAt": "26ee9156271176ef70d6f8e6586763b901780697",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2070,7 +2070,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "08362c858b39264cda79c61f7732dcc03a09bd45f3a55cdaac021ce46a906c94"
+      "verifiedDigest": "e6d1dc4843fc573c1e2209b6f7c7b29049301fc56db39860cce14bd2c27c6de0"
     },
     {
       "slug": "root-contracts",
