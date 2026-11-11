@@ -1057,6 +1057,11 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   27.5 percent, because each worker pays a fixed startup cost of about 20,000 to 26,000 tokens.
   Wall time fell 42 and 54 percent. Three of ten reps flagged a decoy against none in control.
   Split a hunt that fits in one context for speed, not for tokens.
+- **Opus effort ladder, 2026-11-11.** Opus 5.5 on the control prompt at low and at high effort,
+  pre-registered, against the medium control. Low found 13.0 of 18 against 15.0, a loss of 2.0
+  (p 0.008), for 12.8 percent fewer tokens. High found 15.4, no gain, for 7.4 percent more tokens
+  and 40 percent more wall time. Keep medium for a whole-library hunt. Effort moves wall time far
+  more than tokens, because most tokens are the read.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard

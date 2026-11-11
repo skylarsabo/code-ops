@@ -128,3 +128,20 @@ Pre-registered before the first run. The 28 files of `src/` in name order are cu
 - Precision fell. Three of ten reps flagged a decoy, against none in control, and unkeyed flags rose to 3 to 5 per rep.
 - No scoped rep on either model found `bh-scan-column-await`, which every Opus control rep found. The defect needs a callee in another slice. Four of five Opus reps found `bh-page-range-touch`, which no Opus control rep found.
 - Limits: one slicing rule, and a worker could not read outside its slice. The token figure is the subagent total the host reports. A margin of 1.0 defect at five reps is a descriptive check. One fixture, about 210,000 source bytes.
+
+## Opus effort ladder (2026-11-11)
+
+Pre-registered before the first run. Five fresh read-only reps of Opus 5.5 at low effort and five at high effort, on the control prompt. The control reps ran at medium effort. Low holds when its mean is at least 14.0 and shows a loss when it is at least 2.0 below control at p at most 0.05. High shows a gain when its mean is at least 16.0 at p at most 0.05.
+
+| Effort | Defects found of 18 | Mean | Mean tokens | Mean tool calls | Mean wall time |
+|--------|---------------------|------|-------------|-----------------|----------------|
+| Low | 13, 12, 13, 14, 13 | 13.0 | 129,841 | 29.2 | 174 s |
+| Medium (control) | 15, 16, 14, 15, 15 | 15.0 | 148,917 | 31.0 | 475 s |
+| High | 16, 15, 16, 16, 14 | 15.4 | 160,008 | 32.2 | 667 s |
+
+- Result: low effort shows a loss, 2.0 defects below medium (p 0.008), for 12.8 percent fewer tokens. High effort shows no gain: 0.4 defects above medium (p 0.34) for 7.4 percent more tokens and 40 percent more wall time.
+- Medium is the rung to keep for this task. Effort changes the token total little, because most tokens are the read of the library. It changes wall time a lot.
+- Low effort missed four defects in all five reps. Two of them, `bh-strict-default` and `bh-column-start-zero`, are found at medium in most reps.
+- No rep at any effort flagged a decoy, and no rep at any effort found `bh-bloom-truncated-silent` or `bh-page-range-touch`.
+- Opus at low effort found 13.0 against 12.2 for Sonnet 5.5 at medium, with fewer tokens and less wall time. That comparison was not registered and does not weigh price per token.
+- Limits: the token figure is the subagent total the host reports, and whether it counts thinking tokens in full is not verified. Five reps per rung. The control reps ran one day earlier. One fixture.
