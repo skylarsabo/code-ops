@@ -113,6 +113,7 @@ for (const plugin of pluginNames) {
 for (const [name, input] of [
   ['routing-card.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup' })],
   ['ladder-card.mjs', JSON.stringify({ hook_event_name: 'SubagentStart', agent_type: 'implementer' })],
+  ['lead-doctrine.mjs', JSON.stringify({ hook_event_name: 'SessionStart', source: 'startup' })],
 ]) {
   const result = spawnSync('node', [join(pluginsDir, 'code-ops-suite', 'hooks', name)], {
     input, encoding: 'utf8', env: { ...process.env, GROK_PLUGIN_ROOT: join(pluginsDir, 'code-ops-suite') },

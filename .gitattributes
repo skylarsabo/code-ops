@@ -21,3 +21,4 @@ plugins/*/.claude-plugin/plugin.json merge=code-ops-derived
 global-contracts/AGENTS.claude.md linguist-generated=true
 global-contracts/AGENTS.codex.md linguist-generated=true
 global-contracts/AGENTS.grok.md linguist-generated=true
+plugins/code-ops-suite/hooks/lead-doctrine.claude.md linguist-generated=true

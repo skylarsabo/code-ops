@@ -122,6 +122,11 @@
             "type": "command",
             "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/routing-card.mjs\"",
             "timeout": 15
+          },
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/lead-doctrine.mjs\"",
+            "timeout": 10
           }
         ]
       }

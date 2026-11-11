@@ -204,6 +204,11 @@ const codexHookText = JSON.stringify(hookManifest);
 expect(!codexHookFiles.includes('digest-post.mjs'), 'the Codex package ships hooks/digest-post.mjs, which the build must exclude');
 expect(!codexHookText.includes('digest-post'), 'the Codex hooks.json carries a digest-post command, which the build must exclude');
 expect(codexHookFiles.includes('enforce-traceless.mjs') && codexHookText.includes('enforce-traceless'), 'the Codex exclusion check no longer sees the hooks it should keep');
+// Codex keeps the full contract in AGENTS.md, so the lead-doctrine hook and its file stay out. The
+// exclusion drops the command only: the routing card shares its SessionStart group and must survive.
+expect(!codexHookFiles.includes('lead-doctrine.mjs') && !codexHookFiles.includes('lead-doctrine.claude.md'), 'the Codex package ships the lead-doctrine hook or file, which the build must exclude');
+expect(!codexHookText.includes('lead-doctrine'), 'the Codex hooks.json carries a lead-doctrine command, which the build must exclude');
+expect(JSON.stringify(hookManifest.hooks?.SessionStart ?? []).includes('routing-card.mjs'), 'the Codex SessionStart lost the routing card when the build excluded a hook from its group');
 
 const routingCard = read(join(pluginsDir, 'code-ops-suite', 'hooks', 'routing-card.mjs'));
 expect(!/\/(?:code-ops-suite|privacy-opsec-suite|rigor|researcher):/.test(routingCard), 'routing card retains Claude slash-command syntax');

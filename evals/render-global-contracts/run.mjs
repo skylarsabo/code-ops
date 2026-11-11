@@ -1,8 +1,9 @@
 #!/usr/bin/env node
 // Regression eval for scripts/render-global-contracts.mjs. It copies the renderer into a scratch
 // repo layout and runs it on small sources. It asserts per-host selection, stripped backstop and
-// note lines, byte-stable output, a CRLF source, every fail-closed source error, the leak guard,
-// --check drift (missing, stale, unexpected), and the usage error.
+// note lines, byte-stable output, a CRLF source, audience blocks and the lead file, every
+// fail-closed source error, the leak guard, --check drift (missing, stale, unexpected), and the
+// usage error.
 //
 //   node evals/render-global-contracts/run.mjs   (exit 0 = all assertions pass)
 
@@ -22,6 +23,7 @@ const dir = join(repo, 'global-contracts');
 mkdirSync(join(repo, 'scripts'), { recursive: true });
 mkdirSync(dir);
 mkdirSync(join(repo, 'plugins', 'p', 'hooks'), { recursive: true });
+mkdirSync(join(repo, 'plugins', 'code-ops-suite', 'hooks'), { recursive: true });
 mkdirSync(join(repo, 'code-ops-docs', '50 Platform'), { recursive: true });
 copyFileSync(join(REPO, 'scripts', 'render-global-contracts.mjs'), join(repo, 'scripts', 'render-global-contracts.mjs'));
 writeFileSync(join(repo, 'plugins', 'p', 'hooks', 'guard.mjs'), '// stub\n');
@@ -30,6 +32,7 @@ writeFileSync(join(repo, 'code-ops-docs', '50 Platform', 'INFRASTRUCTURE.md'), '
 const HOSTS = ['claude', 'codex', 'grok'];
 const SOURCE = join(dir, 'AGENTS.source.md');
 const out = (host) => join(dir, `AGENTS.${host}.md`);
+const LEAD = join(repo, 'plugins', 'code-ops-suite', 'hooks', 'lead-doctrine.claude.md');
 const read = (p) => (existsSync(p) ? readFileSync(p, 'utf8') : null);
 
 function render(args = []) {
@@ -39,6 +42,7 @@ function render(args = []) {
 // Each case starts from a clean directory holding only the given source.
 function withSource(text) {
   for (const f of readdirSync(dir)) rmSync(join(dir, f));
+  rmSync(LEAD, { force: true });
   writeFileSync(SOURCE, text);
 }
 
@@ -93,11 +97,40 @@ try {
   check('--check exits 1 on any other .md file', r.code === 1 && /unexpected file: global-contracts\/AGENTS\.md/.test(r.out), r.out);
   check('the write mode refuses it too', render().code === 1);
 
+  // Audience blocks: the claude render drops them, the lead file holds them under their section
+  // headings, and the other renders keep them inline with a split paragraph rejoined.
+  withSource([
+    '# Title', '', '## One', '', 'Core one.', '',
+    '<!-- audience: lead -->', '', 'Lead one.', '', '<!-- host: codex -->', '', 'Codex lead.', '', '<!-- /host -->', '', '<!-- /audience -->', '',
+    '## Two', '', 'First half ends here.', '<!-- audience: lead -->', 'Second half follows.', '<!-- /audience -->', '', 'Core two.', '',
+  ].join('\n'));
+  r = render();
+  check('an audience source renders', r.code === 0, r.out);
+  check('the claude render drops audience text', read(out('claude')) === '# Title\n\n## One\n\nCore one.\n\n## Two\n\nFirst half ends here.\n\nCore two.\n', read(out('claude')));
+  const lead = read(LEAD) ?? '';
+  check('the lead file holds audience text under its section headings',
+    lead.startsWith('# Lead doctrine\n\n') && lead.endsWith('\n\n## One\n\nLead one.\n\n## Two\n\nSecond half follows.\n') && !/<!--|-->|Codex lead/.test(lead), lead);
+  check('a codex render keeps audience text inline and rejoins the split paragraph',
+    read(out('codex')) === '# Title\n\n## One\n\nCore one.\n\nLead one.\n\nCodex lead.\n\n## Two\n\nFirst half ends here. Second half follows.\n\nCore two.\n', read(out('codex')));
+  check('a grok render keeps audience text inline', read(out('grok')) === '# Title\n\n## One\n\nCore one.\n\nLead one.\n\n## Two\n\nFirst half ends here. Second half follows.\n\nCore two.\n', read(out('grok')));
+  check('--check exits 0 with a current lead file', render(['--check']).code === 0);
+  writeFileSync(LEAD, `${lead}Edited by hand.\n`);
+  r = render(['--check']);
+  check('--check exits 1 on a stale lead file', r.code === 1 && /stale generated file: plugins\/code-ops-suite\/hooks\/lead-doctrine\.claude\.md/.test(r.out), r.out);
+  rmSync(LEAD);
+  r = render(['--check']);
+  check('--check exits 1 on a missing lead file', r.code === 1 && /missing generated file: plugins\/code-ops-suite\/hooks\/lead-doctrine\.claude\.md/.test(r.out), r.out);
+  render();
+  check('the write mode restores the lead file', read(LEAD) === lead);
+  writeFileSync(join(dir, 'lead-doctrine.claude.md'), 'misplaced\n');
+  r = render(['--check']);
+  check('--check still exits 1 on an unexpected .md in global-contracts/', r.code === 1 && /unexpected file: global-contracts\/lead-doctrine\.claude\.md/.test(r.out), r.out);
+
   // Fail-closed source errors. Each exits 1, names the problem, and writes no render.
   const bad = (name, source, pattern) => {
     withSource(source);
     const res = render();
-    check(name, res.code === 1 && pattern.test(res.out) && HOSTS.every((h) => !existsSync(out(h))), res.out);
+    check(name, res.code === 1 && pattern.test(res.out) && HOSTS.every((h) => !existsSync(out(h))) && !existsSync(LEAD), res.out);
   };
   bad('an unclosed host block fails', 'Text.\n\n<!-- host: claude -->\n\nOpen.\n', /never closed/);
   bad('a nested host block fails', '<!-- host: claude -->\n\n<!-- host: codex -->\n\nX.\n\n<!-- /host -->\n\n<!-- /host -->\n', /nested host block/);
@@ -109,6 +142,13 @@ try {
   bad('text before a directive on its line fails', 'Text <!-- note: x -->\n', /must sit alone on its line/);
   bad('text after a directive on its line fails', '<!-- host: claude --> trailing\n\nX.\n\n<!-- /host -->\n', /must sit alone on its line/);
   bad('an unknown directive fails', '<!-- shout: hello -->\n', /unknown directive/);
+  bad('an unclosed audience block fails', 'Text.\n\n<!-- audience: lead -->\n\nOpen.\n', /audience block opened at .* is never closed/);
+  bad('a nested audience block fails', '<!-- audience: lead -->\n\n<!-- audience: lead -->\n\nX.\n\n<!-- /audience -->\n\n<!-- /audience -->\n', /nested audience block/);
+  bad('a stray /audience fails', 'Text.\n\n<!-- /audience -->\n', /stray \/audience/);
+  bad('an unknown audience fails', '<!-- audience: worker -->\n\nX.\n\n<!-- /audience -->\n', /unknown audience: worker/);
+  bad('an audience marker inside a host block fails', '<!-- host: claude -->\n\n<!-- audience: lead -->\n\nX.\n\n<!-- /audience -->\n\n<!-- /host -->\n', /audience marker cannot sit inside a host block/);
+  bad('a heading inside an audience block fails', '<!-- audience: lead -->\n\n## Heading\n\nX.\n\n<!-- /audience -->\n', /audience block cannot hold a heading/);
+  bad('a mid-sentence audience split fails', 'Text that runs\n<!-- audience: lead -->\non here.\n<!-- /audience -->\n', /must follow a line that ends a sentence/);
 
   // Leak guard: a term reserved for another host fails the render.
   withSource('Shared paragraph.\n\nGrok-only prose leaked here.\n');
@@ -117,6 +157,9 @@ try {
   withSource('Shared paragraph.\n\n<!-- host: codex -->\n\nAstra text.\n\n<!-- /host -->\n\n<!-- host: claude,grok -->\n\nFable text.\n\n<!-- /host -->\n');
   r = render();
   check('the leak guard trips on Fable in the grok render', r.code === 1 && /the grok render contains the reserved term "Fable"/.test(r.out), r.out);
+  withSource('Shared paragraph.\n\n<!-- audience: lead -->\n\nAstra lead text.\n\n<!-- /audience -->\n');
+  r = render();
+  check('the leak guard holds the lead file to the claude terms', r.code === 1 && /the lead file contains the reserved term "Astra"/.test(r.out) && !existsSync(LEAD), r.out);
 
   // Usage.
   check('an unknown flag is exit 2', render(['--write']).code === 2);

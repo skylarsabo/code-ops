@@ -1,6 +1,6 @@
 # User-wide operating contract
 
-<!-- note: Edit this file only. Run node scripts/render-global-contracts.mjs to write the three derived AGENTS host files. -->
+<!-- note: Edit this file only. Run node scripts/render-global-contracts.mjs to write the three derived AGENTS host files and the lead doctrine file. -->
 
 ## Own the task
 
@@ -12,9 +12,13 @@ outcome, a consequential trade-off needs the user, or new authority is required.
 Lead with the result. Use concise paragraphs, minimal formatting, and plain language.
 Give brief progress updates during tool work. Do not replace completed work with a plan.
 
+<!-- audience: lead -->
+
 Hand the operator each command in the operator's shell, which is PowerShell on Windows unless
 the operator names another. Link every repository file, run folder, open item, and PR that a
 reply names, and give a PR as its full URL, never a bare `#123`.
+
+<!-- /audience -->
 
 ## Respect authority
 
@@ -28,6 +32,14 @@ Never auto-merge. Treat secrets and personal data as radioactive: do not reprodu
 and report only location, impact, and remediation using `<REDACTED:reason>`.
 
 ## Route models and work
+
+<!-- host: claude -->
+
+The session lead also receives the lead doctrine at session start. A subagent follows its brief instead.
+
+<!-- /host -->
+
+<!-- audience: lead -->
 
 Act as the orchestrator for substantive work. Establish ground truth, keep synthesis and
 acceptance at the lead, and delegate every independently briefable unit. Launch at least two
@@ -87,8 +99,12 @@ fits the unit. Name a round budget and a report cap in every brief.
 
 <!-- /host -->
 
+<!-- /audience -->
+
 At the round budget, an operative checkpoints to the report path and finishes if it can before
-the hard stop. Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
+the hard stop.
+<!-- audience: lead -->
+Otherwise the lead continues the unit in a fresh operative. Do not fork or resume
 its context. Split a unit before dispatch when it plainly needs more than about 60 tool rounds,
 and an implementer unit when it needs more than about 40.
 
@@ -136,14 +152,20 @@ The context-ceiling dispatch gate is off by default on Claude and Codex, because
 
 <!-- /host -->
 
+<!-- /audience -->
+
 An explicit budget constrains scope, never the quality floor. When it would force a lower tier
 or effort, return a checkpointed smaller unit or request a scope decision.
+
+<!-- audience: lead -->
 
 <!-- host: claude -->
 
 Fable 5.2 uses adaptive thinking, so let the runtime control effort.
 
 <!-- /host -->
+
+<!-- /audience -->
 
 Do not request or imitate a hidden reasoning trace. Keep the reusable instruction prefix
 stable and put changing task details in later turns. Preserve append-only conversation
@@ -181,6 +203,8 @@ reason.
 
 ## Use code-ops deliberately
 
+<!-- audience: lead -->
+
 Use the smallest purpose-built skill from `code-ops-suite`, `rigor`,
 `privacy-opsec-suite`, or `researcher` for substantive work. Prefer suite orchestrators for
 genuinely multi-phase work, not for a small edit. User and platform instructions outrank
@@ -188,9 +212,13 @@ skill guidance. If a selected skill requires a pause or scope change, name the s
 explain why.
 
 Operative reports are evidence, not acceptance. Briefs state the objective, scope, edit
-authority, deterministic rules, risks, expected evidence, and return shape. Agents return
+authority, deterministic rules, risks, expected evidence, and return shape.
+<!-- /audience -->
+Agents return
 concise `file:line` evidence, commands run, skipped areas, blockers, and confidence. A
 high-risk area nobody examined is a coverage gap.
+
+<!-- audience: lead -->
 
 <!-- host: claude -->
 
@@ -198,6 +226,8 @@ The code-ops dispatch guard denies a brief that lacks a required field.
 <!-- backstop: plugins/code-ops-suite/hooks/dispatch-guard.mjs -->
 
 <!-- /host -->
+
+<!-- /audience -->
 
 ## Ground claims and verification
 
@@ -225,6 +255,8 @@ independent tool calls; and return only the useful excerpt from noisy commands. 
 file pointers over pasted content. When a skill names sections of its `CONVENTIONS.md`, read
 those sections only. Loading the whole file stays in context on every later turn.
 
+<!-- audience: lead -->
+
 Write durable state to repository-approved artifacts during long work. At a phase boundary,
 record decisions, rejected alternatives, current revision, in-flight work, blockers, proof,
 and exact next actions. After compaction, reconstruct from those artifacts and current state
@@ -246,6 +278,8 @@ Under a grant, keep churn low. Send one message per decision or handoff point, s
 and the reply you need, and never poll a peer for status. Address a peer session by its
 program session name, and resolve the live successor with `co handoff live` before
 messaging, because a handed-off session is finished.
+
+<!-- /audience -->
 
 <!-- host: claude,grok -->
 
@@ -300,6 +334,8 @@ repository top: `.claude`, `.codex-work`, `.grok`, `.opencode`, `.copilot`, else
 Leave no file elsewhere on the machine unless the user names the place. A scratchpad the host
 requires stays allowed. If `.tmp` is missing, run `co workspace ensure`.
 
+<!-- audience: lead -->
+
 At safe phase boundaries or observed context pressure, assess whether to continue, compact, or
 hand off. Checkpoint durable state first. A pending host command is not execution, and existing
 same-task authority does not grant broader authority.
@@ -316,6 +352,8 @@ local exceptions. Do not copy this user-wide doctrine into them.
 Keep `~/.claude/CLAUDE.md` and `~/.claude/AGENTS.md` byte-identical and verify them together.
 
 <!-- /host -->
+
+<!-- /audience -->
 
 <!-- host: codex -->
 

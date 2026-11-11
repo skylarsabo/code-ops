@@ -383,7 +383,8 @@ const HOOK_PURPOSES = new Map([
 ]);
 
 // WHY: Codex support for hookSpecificOutput.updatedToolOutput is unproven, so the Codex build omits the digest hook.
-const CODEX_EXCLUDED_HOOKS = new Set(['digest-post.mjs']);
+// WHY: Codex keeps the full contract in its own AGENTS.md, so it needs neither the lead-doctrine hook nor its file.
+const CODEX_EXCLUDED_HOOKS = new Set(['digest-post.mjs', 'lead-doctrine.mjs', 'lead-doctrine.claude.md']);
 const isExcludedHook = (hook) => CODEX_EXCLUDED_HOOKS.has(hook.command?.match(/hooks\/([\w.-]+\.mjs)/)?.[1]);
 
 function bundledHooks(pluginName) {
@@ -466,7 +467,7 @@ function transformCodexHook(contents, file) {
   if (file.split(/[\\/]/).at(-1) !== 'hooks.json') return rewritten;
   const manifest = JSON.parse(rewritten);
   for (const [event, groups] of Object.entries(manifest.hooks ?? {})) {
-    manifest.hooks[event] = groups.filter((group) => !(group.hooks ?? []).some(isExcludedHook));
+    manifest.hooks[event] = groups.map((group) => ({ ...group, hooks: (group.hooks ?? []).filter((hook) => !isExcludedHook(hook)) })).filter((group) => group.hooks.length > 0);
   }
   // Codex tool names are not Claude's Bash/Edit vocabulary. Run the lightweight adapters
   // for every pre/post tool event and let each script filter the normalized payload.

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -441,7 +441,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "2e6e376d416e206575d15d8406717c70b19c69f2125057b412efda96c75b2b4f"
+      "verifiedDigest": "b9c6d4269fae9b6af1e5ce2bd4f82523f30b3f4312eb1434222702b71864e616"
     },
     {
       "slug": "gate-scripts",
@@ -450,7 +450,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1064,7 +1064,7 @@
         },
         {
           "file": "scripts/render-global-contracts.mjs",
-          "line": 94,
+          "line": 132,
           "anchor": "function renderHost(chunks, host) {"
         },
         {
@@ -1193,7 +1193,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "330e10771d33b73577e3edd6d2780470fa2769c4754e5c3508c83544811a93c0"
+      "verifiedDigest": "9010a25bd099797566220233a7bb04e7d2be16fbe0847c09e270a4dea29aff31"
     },
     {
       "slug": "evals-and-calibration",
@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f57c8319dcf61434f737f0047ebf9438e6281ef4",
-      "verifiedDigest": "d6e452640a4531621aab339ac6cafcc9632d72c67025e90592641163020d36bf",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
+      "verifiedDigest": "7e8a1c73145d3fcd7d2fc87fc3100a80eb8ab51a3eec8f6b1c7137477ca25a7d",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1276,7 +1276,7 @@
         },
         {
           "file": "evals/codex-marketplace/run.mjs",
-          "line": 214,
+          "line": 219,
           "anchor": "// reach the package. Only lines naming a host-specific token may differ from th"
         },
         {
@@ -1706,7 +1706,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1715,7 +1715,13 @@
         },
         {
           "file": "scripts/build-codex-marketplace.mjs",
-          "line": 604
+          "line": 613,
+          "anchor": "addSourceTree(sourcePath(spec.name, 'scripts'),"
+        },
+        {
+          "file": "scripts/build-codex-marketplace.mjs",
+          "line": 604,
+          "anchor": "}"
         },
         {
           "file": "codex-marketplace/plugins/code-ops-suite/scripts/records.mjs",
@@ -1833,7 +1839,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "3a3597b457d13a5c5bf7da5c505ce7de6d5b270a42bf6d0c1b41cda0bcb0104e"
+      "verifiedDigest": "b0f5fc3428b29932cb79b76fbaa6d51412dd35df00e47d00b29c75f13418cfa3"
     },
     {
       "slug": "ci-workflows",
@@ -1841,8 +1847,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "073b0d08cdc8a7dfeb7afdb291c8a3290dfa2ba5",
-      "verifiedDigest": "5e493d07e8ce212588f336a7e58d5ea92b61651ce467a3988c5517c05e87e740",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
+      "verifiedDigest": "d2291935d20ad85b9a139fc42bb77d3eae8cb5bd522bd75f0394f9a72ca8bb50",
       "claims": [
         {
           "file": ".github/workflows/validate.yml",
@@ -1856,72 +1862,57 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 247,
+          "line": 250,
           "anchor": "run: node evals/skill-write-class/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 675,
+          "line": 682,
           "anchor": "run: node evals/docs-alignment/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 403,
+          "line": 406,
           "anchor": "run: node evals/co-facade/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 739,
+          "line": 746,
           "anchor": "run: node evals/co-facade/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 264,
+          "line": 267,
           "anchor": "- name: Derived-file merge driver regression eval"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 783,
+          "line": 790,
           "anchor": "- name: opencode distribution regression eval"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 303,
+          "line": 306,
           "anchor": "run: node evals/handoff-state/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 654,
+          "line": 661,
           "anchor": "package-manager-cache: false"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 237,
-          "anchor": "- name: Branch-name rule and hook eval"
-        },
-        {
-          "file": ".github/workflows/validate.yml",
-          "line": 240,
-          "anchor": "- name: Refutation tally eval (fail-closed panel votes, tier and severity only f"
-        },
-        {
-          "file": ".github/workflows/validate.yml",
-          "line": 243,
+          "line": 246,
           "anchor": "- name: Skill trigger harness eval (logic only; the model-in-the-loop runner is"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 489,
+          "line": 492,
           "anchor": "# The two devices in use are Windows and macOS. Ubuntu and Windows run on every"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 186,
-          "anchor": "run: node scripts/lint-plugins.mjs"
-        },
-        {
-          "file": ".github/workflows/validate.yml",
-          "line": 189,
+          "line": 192,
           "anchor": "run: node scripts/ci-budget.mjs check"
         },
         {
@@ -1936,7 +1927,7 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 541,
+          "line": 545,
           "anchor": "run: node evals/docs-manifest/run.mjs"
         },
         {
@@ -1946,7 +1937,7 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 572,
+          "line": 576,
           "anchor": "run: node evals/docs-relocate/run.mjs"
         },
         {
@@ -1987,7 +1978,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "74641b4ae1943f4be4ca342f1d659a1603c17b5a",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2032,26 +2023,26 @@
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
           "line": 42,
-          "anchor": "The code-ops-suite package registers sixteen commands across nine events in"
+          "anchor": "The code-ops-suite package registers eighteen commands across nine events in"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 309,
+          "line": 310,
           "anchor": "before the host compacts,"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 401,
+          "line": 402,
           "anchor": "Snapshot fresh (<words> operator words, <running> running, <items> items, <peers"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 1011,
+          "line": 1033,
           "anchor": "scripts/opencode-lifecycle.js"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 1171,
+          "line": 1193,
           "anchor": "and names three ways out: wait, settle a lost one with"
         },
         {
@@ -2066,11 +2057,11 @@
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
-          "line": 254,
+          "line": 255,
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "ae19fa355c5daa7ba921dffed6a76dec23295657ff5c8d348063934e83c756ee"
+      "verifiedDigest": "c28b874e2b9e0460fd4698087f9e363c38cf35859fc8b4c67c326cf2941b6675"
     },
     {
       "slug": "root-contracts",
@@ -2085,11 +2076,11 @@
         ".gitignore",
         ".gitattributes"
       ],
-      "verifiedAt": "356b1d9a536c94760e36ba0d2a3833563b1f4ac9",
+      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
       "claims": [
         {
-          "file": "global-contracts/AGENTS.claude.md",
-          "line": 64,
+          "file": "plugins/code-ops-suite/hooks/lead-doctrine.claude.md",
+          "line": 46,
           "anchor": "On Claude and Codex, host auto-compaction is the context relief, not a handoff."
         },
         {
@@ -2109,17 +2100,17 @@
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 150,
+          "line": 74,
           "anchor": "When the host compacts this session, keep these items in the summary:"
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 162,
+          "line": 86,
           "anchor": "After a compaction, read the newest compaction segment before the host summary."
         },
         {
           "file": "global-contracts/AGENTS.claude.md",
-          "line": 164,
+          "line": 88,
           "anchor": "## Change and publishing standards"
         },
         {
@@ -2128,7 +2119,7 @@
           "anchor": "takes no model, no persona, and no reasoning_effort. Do not"
         }
       ],
-      "verifiedDigest": "65dc174b8d8b3af5cd387d13a5f4294053986c7a9cac5cf2c6e011a146c83f1a"
+      "verifiedDigest": "29590e2ec0b4dbdadbf9175e28d517b6e8d1696e5f3da100a0e499ccc00a4fea"
     },
     {
       "slug": "runtime-toolchain",
