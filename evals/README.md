@@ -104,6 +104,8 @@ node evals/score.mjs evals/bug-garden/ANSWER_KEY.json --check   # verify the key
 ```
 Candidates are matched to keyed items by **path suffix + basename** (not basename alone, so a wrong-directory citation earns no credit) within `lineTolerance`. Decoy false-positives are counted **independently** of recall, and an ambiguous flag equidistant between a planted bug and a decoy is scored as the decoy (fail-safe for precision). A `FAIL` verdict exits non-zero by default; pass `--no-exit` to inspect without gating.
 
+By default a Markdown candidate yields one flag for every `file:line` in the file, so a citation inside a finding's sentence counts as an extra flag. Pass `--leading-citations` to read one flag per finding line instead. A finding line starts with a list marker (`-`, `*`, or `1.`) and then a citation. A range such as `a.js:10-14` scores at its midpoint. The report states how many citations the mode ignored. The flag exits 2 for a JSON candidate or when no finding line is found.
+
 **Built fixtures:**
 - **`bug-garden/`** — 4 planted bugs + 3 decoys for `rigor:bug-hunt` / `quality-scan` / `code-ops-suite:codebase-audit`.
 - **`leak-lab/`** — 3 planted leaks + 3 decoys for the privacy audits.

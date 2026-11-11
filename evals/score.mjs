@@ -8,6 +8,8 @@
 //
 // <candidate> is either a JSON array of {file,line,...} or a Markdown register
 // (file:line pairs are extracted). Matching is by path-suffix + line within tolerance.
+// --leading-citations (Markdown only) reads one flag per finding line: the first citation
+// after a list marker, at the midpoint of a line range. Other citations are ignored.
 // Exits non-zero on a FAIL verdict (pass --no-exit to inspect without gating).
 // The model-in-the-loop part (running the skill) is manual; this scoring is deterministic.
 
@@ -18,10 +20,11 @@ const args = process.argv.slice(2);
 const keyPath = args[0];
 const check = args.includes('--check');
 const noExit = args.includes('--no-exit') || args.includes('--report-only');
+const leading = args.includes('--leading-citations');
 const tolArg = args.indexOf('--tolerance');
 // BUG-009: do not mistake the --tolerance VALUE for the candidate path.
 const candidatePath = args.slice(1).find((a, i) => !a.startsWith('--') && i !== tolArg);
-if (!keyPath) { console.error('usage: score.mjs <answer-key.json> <candidate>|--check [--tolerance N] [--no-exit]'); process.exit(2); }
+if (!keyPath) { console.error('usage: score.mjs <answer-key.json> <candidate>|--check [--tolerance N] [--leading-citations] [--no-exit]'); process.exit(2); }
 
 const key = JSON.parse(readFileSync(keyPath, 'utf8'));
 // BUG-010: a malformed --tolerance must fail loudly, not silently disable matching (NaN).
@@ -65,14 +68,26 @@ if (!candidatePath || !existsSync(candidatePath)) { console.error('candidate fil
 if (!planted.length) { console.error('x answer key defines no planted items — nothing to score'); process.exit(2); }
 
 let cand = [];
+let ignoredCitations = 0;
 if (candidatePath.endsWith('.json')) {
+  if (leading) { console.error('x --leading-citations applies only to a Markdown candidate, not JSON'); process.exit(2); }
   cand = JSON.parse(readFileSync(candidatePath, 'utf8'));
   // SCR-019: a single object / null candidate must give a clean diagnostic, not an unhandled TypeError.
   if (!Array.isArray(cand)) { console.error('x candidate JSON must be an array of {file,line} objects'); process.exit(2); }
 } else {
   // BUG-012: require a known file extension so version strings / host:port are not parsed as refs.
-  const re = /\b((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)\b/gi;
-  for (const m of readFileSync(candidatePath, 'utf8').matchAll(re)) cand.push({ file: m[1], line: Number(m[2]) });
+  const ref = String.raw`((?:[\w.-]+\/)*[\w.-]+\.(?:mjs|cjs|js|tsx?|jsx|json|md|markdown|txt|ya?ml|toml|sh|py|rb|go|rs|java|cpp|cc|css|html?)):(\d+)`;
+  const re = new RegExp(String.raw`\b${ref}\b`, 'gi');
+  const text = readFileSync(candidatePath, 'utf8');
+  for (const m of text.matchAll(re)) cand.push({ file: m[1], line: Number(m[2]) });
+  if (leading) {
+    // SCR-021: one flag per finding line (list marker, optional backtick, citation); a range scores at its midpoint.
+    const all = cand.length;
+    const lead = new RegExp(String.raw`^[ \t]*(?:[-*]|\d+\.)[ \t]+\x60?${ref}(?:-(\d+))?\b`, 'gim');
+    cand = [...text.matchAll(lead)].map((m) => ({ file: m[1], line: m[3] ? Math.floor((Number(m[2]) + Number(m[3])) / 2) : Number(m[2]) }));
+    if (!cand.length) { console.error('x --leading-citations found no finding lines (a list marker followed by file:line)'); process.exit(2); }
+    ignoredCitations = all - cand.length;
+  }
 }
 
 // EVAL-008: match on a path SUFFIX (+ basename), not basename alone, so a wrong-directory
@@ -113,6 +128,7 @@ console.log(`Recall:          ${found.length}/${planted.length} planted found ($
 if (missed.length) console.log(`  missed:        ${missed.map((m) => m.id).join(', ')}`);
 console.log(`False positives: ${flaggedDecoys.length}/${decoys.length} decoys flagged${flaggedDecoys.length ? ' — ' + flaggedDecoys.map((d) => d.id).join(', ') : ''}`);
 console.log(`Unkeyed flags:   ${unkeyed.length} (not planted, not a decoy — real extra finds or noise; review by hand)`);
+if (leading) console.log(`Leading mode:    ${cand.length} leading citations read, ${ignoredCitations} other citations ignored`);
 
 // FLOOR-001: informational tier columns for the model-floor calibration. JSON candidates
 // may carry a `tier` field; the distribution is reported, and under --no-exec (the caller
