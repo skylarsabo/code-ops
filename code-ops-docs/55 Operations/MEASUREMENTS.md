@@ -1023,8 +1023,9 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   judgment matrix shows a quality gain. `evals/FLOOR_TABLE.md` notes that the current fixture
   cannot discriminate, because it shows zero strong-tier inflation. The `evals/scale-parquet`
   fixture now gives recall headroom: its three pilot strong reps found 15, 15, and 16 of 18
-  defects, against 9 to 11 at the light tier. The pilot shows
-  no tier inflation, so that gap stays open. The matched arm itself has not run.
+  defects, against 9 to 11 at the light tier. The pilot separates strong from light only: three
+  mid reps found 14, 9, and 12, which is not separated from strong. The pilot prompt did not
+  define the confidence tiers, so it does not measure inflation. The matched arm has not run.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
