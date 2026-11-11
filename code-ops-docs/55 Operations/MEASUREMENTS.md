@@ -1041,6 +1041,11 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   to 13.8 (p = 0.012) for 12 percent more tokens, below the minimum. Opus 5.5 went from 15.0 to
   14.8 for 14 percent more tokens. The rule is not met for either model. The worker could not
   execute, so the skill's proof step did not run.
+- **Trimmed skill arm, 2026-11-11.** One file with the skill and five convention sections,
+  28 percent of the full document bytes, pre-registered. Sonnet 5.5 found 13.4 of 18 against 13.8
+  with the full skill, and Opus 5.5 found 14.8 against 14.8, so the trim keeps the quality. It
+  saved 1.6 and 4.9 percent of tokens. Document size is not the cost on this task: a rep spends
+  about 150,000 tokens reading the library across about 32 tool calls.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard

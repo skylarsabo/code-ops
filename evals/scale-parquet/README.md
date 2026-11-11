@@ -81,3 +81,18 @@ Pre-registered before the first run. Five fresh read-only reps per model. The pr
 - No rep flagged a decoy.
 - Scoring: a skill register quotes other `file:line` references inside its sentences, and `evals/score.mjs` counts each as a flag. Both arms were rescored on the leading citation of each finding only. No defect count changed; the skill-arm unkeyed counts fell from 3 to 11 per rep to 0 to 2.
 - Limits: the control reps ran one day earlier. The worker cannot execute, so the skill's proof step did not run. One fixture.
+
+## Trimmed skill arm (2026-11-11)
+
+Pre-registered before the first run. Five fresh read-only reps per model. The worker reads one file: `SKILL.md` verbatim plus five convention sections verbatim (evidence tiers, disconfirmation pass, evidence standard, root cause, quality lenses). That file is 10,927 bytes against 39,334 for the full skill and conventions. The trim keeps the gain when the Sonnet mean is at least 12.8 and shows no loss when the Opus mean is at least 14.0.
+
+| Model | Control mean | Full skill mean | Trimmed, defects found of 18 | Trimmed mean | Mean tokens: control, full, trimmed |
+|-------|--------------|-----------------|------------------------------|--------------|-------------------------------------|
+| Sonnet 5.5 | 12.2 | 13.8 | 13, 13, 13, 14, 14 | 13.4 | 146,303; 163,915; 161,344 |
+| Opus 5.5 | 15.0 | 14.8 | 15, 15, 15, 15, 14 | 14.8 | 148,917; 170,240; 161,918 |
+
+- Result: both bars are met. The trim keeps the Sonnet gain and leaves Opus unchanged.
+- Cutting 72 percent of the document bytes saved 1.6 percent of tokens on Sonnet and 4.9 percent on Opus. The trimmed arm still costs 9 to 10 percent more than control.
+- The document size is not the cost. A rep spends about 150,000 tokens reading the library across about 32 tool calls. A token cut has to come from fewer or smaller turns.
+- No rep flagged a decoy.
+- Limits: a margin of 1.0 defect at five reps is a descriptive check, not proof of equivalence. The worker cannot execute. One fixture.
