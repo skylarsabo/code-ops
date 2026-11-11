@@ -35,3 +35,18 @@ Three read-only control reps per tier on a copy outside the repository. Same pro
 - Each finding is scored at one line. One mid rep returned the range `src/scan.js:265-272`, which holds a keyed defect at line 269; it is scored as a hit. Scored at line 265, that rep finds 11, and the mid range stays 9 to 14.
 - The pilot prompt did not define the confidence tiers, so the pilot does not measure tier inflation.
 - The first rep of each tier ran before the decoy bar moved from 1 to 0. The counts above do not depend on the bar.
+
+## Matched arm: Sonnet 5.5 against Opus 5.5 (2026-11-10)
+
+Pre-registered before the first run. Five fresh read-only control reps per model, same prompt and outside copy as the pilot, only the model varied. Opus shows a gain when the mean difference is at least 2.0 defects and a one-sided exact permutation test gives p at most 0.05.
+
+| Model | Defects found of 18 | Mean | Decoys flagged | Unkeyed flags | Mean tokens | Mean wall time |
+|-------|---------------------|------|----------------|---------------|-------------|----------------|
+| Sonnet 5.5 | 12, 13, 12, 12, 12 | 12.2 | 0 in 5 reps | 1, 1, 1, 0, 1 | 146,303 | 207 s |
+| Opus 5.5 | 15, 16, 14, 15, 15 | 15.0 | 0 in 5 reps | 0, 2, 1, 0, 1 | 148,917 | 475 s |
+
+- Result: Opus shows a quality gain. The mean difference is 2.8 defects, and 1 of 252 splits is as extreme (p = 0.004). Every Opus rep is above every Sonnet rep.
+- Sonnet missed `bh-scan-column-await` in all five reps and `bh-split-stream-layout` in four. Opus found the first in all five and the second in four.
+- Both models used about the same tokens. Opus took about 2.3 times the wall time.
+- Pooled with the three pilot reps per model, the means are 12.0 and 15.1 of 18. The pooled figure is descriptive only.
+- Limits: one fixture, a control prompt with no skill, a read-only hunt. The arm does not measure implementation work or tier inflation.

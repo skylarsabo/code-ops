@@ -1025,7 +1025,13 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   fixture now gives recall headroom: its three pilot strong reps found 15, 15, and 16 of 18
   defects, against 9 to 11 at the light tier. The pilot separates strong from light only: three
   mid reps found 14, 9, and 12, which is not separated from strong. The pilot prompt did not
-  define the confidence tiers, so it does not measure inflation. The matched arm has not run.
+  define the confidence tiers, so it does not measure inflation.
+- **Matched arm, 2026-11-10.** Five fresh read-only reps per model on `evals/scale-parquet`,
+  pre-registered. Opus 5.5 found 15, 16, 14, 15, 15 of 18 defects (mean 15.0). Sonnet 5.5 found
+  12, 13, 12, 12, 12 (mean 12.2). The difference is 2.8 defects, exact permutation p = 0.004, so
+  the decision rule is met for read-only defect finding. Tokens per rep were equal within 2
+  percent. The arm used a control prompt on one fixture and did not test implementation work,
+  which is the largest share of the pool.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
