@@ -13,7 +13,7 @@ Measures bug-finding **recall** and **false-positive rate** of a finding skill o
 ## Notes
 - `repo/`, `ANSWER_KEY.json`, and `ANSWER_KEY.md` are derived. Do not hand-edit them: change the bench target or its seeds, then run `node evals/scale-parquet/build.mjs`.
 - The unseeded source is `evals/bench/targets/hyparquet`. Keep it, `build.mjs`, and the answer key out of the skill's context, because a diff against the source reveals every seed.
-- Run the skill on a copy of `repo/` outside this repository. A worker that runs inside the repository can search its way to the unseeded source.
+- Run the skill on a copy of `repo/` outside this repository. `node scripts/judgment-evals.mjs stage` makes that copy for a planned run. A worker that runs inside the repository can search its way to the unseeded source.
 - The pass bar is recall 50% with no decoy flagged, set in `ANSWER_KEY.json`. The recall bar sits below the scorer default of 0.7 because a two-defect swing would flip a strong run across it. The bar was set after the first pilot rep. Compare arms on the raw counts, not the verdict.
 - The CI gate is `node evals/scale-parquet/run.mjs`: the build check, the key anchors, and the hidden oracles on the tracked tree.
 

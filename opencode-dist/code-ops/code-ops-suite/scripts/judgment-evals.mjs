@@ -4,8 +4,9 @@
 // binds the exact fixture, skill, model, candidate, and score evidence into one receipt.
 
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync, statSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { createHash } from 'node:crypto';
+import { existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { dirname, join, relative, resolve, sep } from 'node:path';
 import {
   assertNoAmbiguousIndexFlags,
   assertNoSymlinkComponents,
@@ -23,6 +24,7 @@ import {
   safeRelative,
   samePhysicalFile,
   sha256,
+  toPosix,
 } from './context-index-lib.mjs';
 
 const DEFAULT_MATRIX = 'evals/judgment-matrix.json';
@@ -44,7 +46,8 @@ function usage() {
   die('usage: judgment-evals.mjs plan --root <repo> --mode trend|floor|register --execution available|unavailable --out <ignored-path> --strong-model <id> [--weak-model <id>] [--matrix <path>]\n'
     + '       judgment-evals.mjs check-plan --root <repo> --plan <path>\n'
     + '       judgment-evals.mjs score --root <repo> --plan <path> --out <ignored-path>\n'
-    + '       judgment-evals.mjs check-receipt --root <repo> --plan <path> --receipt <ignored-path>', 2);
+    + '       judgment-evals.mjs check-receipt --root <repo> --plan <path> --receipt <ignored-path>\n'
+    + '       judgment-evals.mjs stage --plan <path> --dest <directory-outside-the-repository> [--root <repo>]', 2);
 }
 
 function flags(args, known) {
@@ -77,11 +80,89 @@ function trackedFile(root, value, label) {
   return { path: value, sha256: sha256(readFileSync(absolute)) };
 }
 
-function treeDigest(root, path) {
+function targetEntries(root, path) {
   if (!safeRelative(path)) throw new Error(`fixture target has an unsafe path: ${path}`);
   const entries = git(root, ['ls-files', '-s', '-z', '--', path]);
   if (!entries.length) throw new Error(`fixture target has no tracked files: ${path}`);
-  return sha256(entries);
+  return entries;
+}
+
+function treeDigest(root, path) { return sha256(targetEntries(root, path)); }
+
+// Windows file IDs exceed Number.MAX_SAFE_INTEGER, so the identity stays a bigint pair.
+function fileIdentity(path) {
+  const { dev, ino } = statSync(path, { bigint: true });
+  if (!ino) throw new Error(`stage destination cannot be checked: ${path} has no usable file identity`);
+  return `${dev}:${ino}`;
+}
+
+// Every checkout of the repository and its shared Git directory hold the answer keys.
+function repositoryIdentities(root) {
+  const paths = [resolve(root, gitText(root, ['rev-parse', '--git-common-dir']))];
+  let entry = null;
+  const add = () => { if (entry && !entry.bare && existsSync(entry.path)) paths.push(entry.path); };
+  for (const line of git(root, ['worktree', 'list', '--porcelain', '-z']).toString('utf8').split('\0')) {
+    if (line.startsWith('worktree ')) { add(); entry = { path: line.slice('worktree '.length), bare: false }; }
+    else if (line === 'bare' && entry) entry.bare = true;
+  }
+  add();
+  return new Set(paths.map(fileIdentity));
+}
+
+// A worker searches from its target upward, so the copy must sit outside every checkout. The
+// nearest existing ancestor is resolved physically, which also expands links and 8.3 names.
+function stageDestination(root, value) {
+  const path = resolve(value);
+  let existing = null;
+  try { existing = lstatSync(path); } catch { /* absent: the command creates it */ }
+  if (existing && (existing.isSymbolicLink() || !existing.isDirectory())) throw new Error('stage destination must be an absent path or a plain directory');
+  if (existing && readdirSync(path).length) throw new Error('stage destination must be empty');
+  let ancestor = path;
+  while (!existsSync(ancestor) && dirname(ancestor) !== ancestor) ancestor = dirname(ancestor);
+  const physical = realpathSync.native(ancestor);
+  const real = resolve(physical, relative(ancestor, path));
+  const rootKey = portableKey(realpathSync.native(gitText(root, ['rev-parse', '--show-toplevel'])));
+  const key = portableKey(real);
+  const outside = new Error('stage destination must be outside the repository');
+  if (key === rootKey || key.startsWith(rootKey.endsWith(sep) ? rootKey : `${rootKey}${sep}`)) throw outside;
+  // Path strings miss UNC spellings, drive roots, and sibling worktrees; file identity does not.
+  const repository = repositoryIdentities(root);
+  for (let step = physical; ; step = dirname(step)) {
+    if (repository.has(fileIdentity(step))) throw outside;
+    if (dirname(step) === step) break;
+  }
+  return { path: real, created: !existing };
+}
+
+const BLOB_ENTRY = /^(100644|100755) ([0-9a-f]{40}|[0-9a-f]{64}) 0\t(.+)$/s;
+
+function stageFixture(root, fixture, destination) {
+  const raw = targetEntries(root, fixture.target);
+  if (sha256(raw) !== fixture.targetTreeSha256) throw new Error(`fixture target drifted from the plan: ${fixture.id}`);
+  const seen = new Set();
+  const entries = raw.toString('utf8').split('\0').filter(Boolean).map((record) => {
+    const match = BLOB_ENTRY.exec(record);
+    const inside = match?.[3]?.startsWith(`${fixture.target}/`) ? match[3].slice(fixture.target.length + 1) : null;
+    if (!match || !inside || !safeRelative(inside)) throw new Error(`fixture ${fixture.id} has a non-regular or unsafe tracked entry`);
+    // Two paths that differ only in case would overwrite each other on a case-insensitive disk.
+    if (seen.has(portableKey(inside))) throw new Error(`fixture ${fixture.id} has portably aliased paths: ${inside}`);
+    seen.add(portableKey(inside));
+    return { path: match[3], mode: match[1], sha: match[2], inside };
+  });
+  assertTrackedStage0RegularFiles(root, entries.map((entry) => entry.path), `fixture ${fixture.id} file`);
+  const base = join(destination, fixture.id);
+  for (const entry of entries) {
+    const copy = join(base, ...entry.inside.split('/'));
+    mkdirSync(dirname(copy), { recursive: true });
+    // The index blob, not the checkout: a checkout may convert line endings or run smudge filters.
+    writeFileSync(copy, git(root, ['cat-file', 'blob', entry.sha]), { flag: 'wx', mode: entry.mode === '100755' ? 0o755 : 0o644 });
+    // Raw bytes, never Git's clean filters: an eol rule would hash a CRLF copy to the LF blob.
+    const bytes = readFileSync(copy);
+    const blob = createHash(entry.sha.length === 64 ? 'sha256' : 'sha1').update(`blob ${bytes.length}\0`).update(bytes).digest('hex');
+    if (blob !== entry.sha) throw new Error(`staged copy does not match the Git index: ${fixture.id}/${entry.inside}`);
+  }
+  // No in-repository target: a worker can read this manifest one level above its copy.
+  return { id: fixture.id, path: toPosix(base), files: entries.length, treeSha256: fixture.targetTreeSha256 };
 }
 
 function exactKeys(value, keys, label) {
@@ -342,4 +423,34 @@ if (command === 'plan') {
     const checked = validateScoreReceipt(root, current, f['--receipt']);
     console.log(`ok judgment receipt ${checked.receipt.receiptSha256} ${checked.receipt.passingUnits}/${checked.receipt.completedUnits} passing`);
   } catch (error) { die(error.message); }
+} else if (command === 'stage') {
+  const f = flags(process.argv.slice(3), new Set(['--root', '--plan', '--dest']));
+  if (!f['--plan'] || !f['--dest']) usage();
+  let cleanup = null;
+  try {
+    const root = resolve(f['--root'] || process.cwd());
+    const current = loadCurrent(root, f['--plan']);
+    const destination = stageDestination(root, f['--dest']);
+    // A failed stage removes only what it made, so a second run on one destination cannot
+    // delete the first run's copy.
+    const first = destination.created ? mkdirSync(destination.path, { recursive: true }) : undefined;
+    if (destination.created && !first) throw new Error('stage destination appeared while staging');
+    const made = [];
+    cleanup = first ? () => rmSync(first, { recursive: true, force: true })
+      : () => { for (const name of made) rmSync(join(destination.path, name), { recursive: true, force: true }); };
+    const fixtures = new Map(current.plan.matrix.fixtures.map((fixture) => [fixture.id, fixture]));
+    const staged = [...new Set(current.plan.units.map((unit) => unit.fixture))].map((id) => {
+      const fixture = fixtures.get(id);
+      if (!fixture) throw new Error(`fixture binding is missing for ${id}`);
+      mkdirSync(join(destination.path, id));
+      made.push(id);
+      return stageFixture(root, fixture, destination.path);
+    });
+    const manifest = { version: 1, planSha256: current.plan.planSha256, headSha: current.plan.headSha, fixtures: staged };
+    atomicWrite(join(destination.path, 'STAGE.json'), `${JSON.stringify(manifest, null, 2)}\n`);
+    for (const entry of staged) console.log(`${entry.id} -> ${entry.path}`);
+  } catch (error) {
+    try { cleanup?.(); } catch (cleanupError) { die(`${error.message}; removing the partial stage failed: ${cleanupError.message}`); }
+    die(error.message);
+  }
 } else usage();

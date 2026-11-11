@@ -97,7 +97,7 @@ authority paths reject linked components or portable aliases to tracked Git path
 output cannot physically alias the plan or a findings file. A score receipt stores the plan,
 head, execution policy, completion totals,
 per-unit findings and score digests, and its own digest. Evidence:
-`scripts/judgment-evals.mjs:122-187` and `scripts/judgment-evals.mjs:189-325`.
+`scripts/judgment-evals.mjs:217-270` and `scripts/judgment-evals.mjs:272-416`.
 
 ## Structural cache
 
