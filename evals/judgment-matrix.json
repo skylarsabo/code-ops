@@ -47,6 +47,12 @@
       "target": "evals/xfn-traps/repo",
       "answerKey": "evals/xfn-traps/ANSWER_KEY.json",
       "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    },
+    {
+      "id": "scale-parquet",
+      "target": "evals/scale-parquet/repo",
+      "answerKey": "evals/scale-parquet/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
     }
   ]
 }

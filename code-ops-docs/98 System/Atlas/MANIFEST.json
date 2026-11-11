@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "f48ef1acb12300cfdc0e6bdcf5c5b173299fb76d",
-      "verifiedDigest": "a402fc5143ca96091be1764baaa9a90d019bd293f4471ba5c948a0698ef2e131",
+      "verifiedAt": "32274178b904daeb23ada9f7b6501db4f42f8236",
+      "verifiedDigest": "5abcb9e123972b7c33827ae56c2063349cb444840a4a5154a1a94e022518122e",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1841,8 +1841,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "356b1d9a536c94760e36ba0d2a3833563b1f4ac9",
-      "verifiedDigest": "8b0dab4da40c178b7c26a664ba23f907a6783fb8126cde83c50d71b490c8d1b1",
+      "verifiedAt": "073b0d08cdc8a7dfeb7afdb291c8a3290dfa2ba5",
+      "verifiedDigest": "5e493d07e8ce212588f336a7e58d5ea92b61651ce467a3988c5517c05e87e740",
       "claims": [
         {
           "file": ".github/workflows/validate.yml",
@@ -1852,77 +1852,77 @@
         {
           "file": ".github/workflows/validate.yml",
           "line": 100,
-          "anchor": "- name: Direction gap link (advisory)"
+          "anchor": "# Advisory only: prints a note when the body links no row of the direction note'"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 247,
-          "anchor": "run: node evals/direction-alignment/run.mjs"
+          "anchor": "run: node evals/skill-write-class/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 675,
-          "anchor": "run: node evals/direction-alignment/run.mjs"
+          "anchor": "run: node evals/docs-alignment/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 403,
-          "anchor": "run: node evals/brief-template/run.mjs"
+          "anchor": "run: node evals/co-facade/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 739,
-          "anchor": "run: node evals/brief-template/run.mjs"
+          "anchor": "run: node evals/co-facade/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 264,
-          "anchor": "- name: opencode lifecycle regression eval"
+          "anchor": "- name: Derived-file merge driver regression eval"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 783,
-          "anchor": "- name: opencode lifecycle regression eval"
+          "anchor": "- name: opencode distribution regression eval"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 303,
-          "anchor": "run: node evals/handoff-convergence/run.mjs"
+          "anchor": "run: node evals/handoff-state/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 654,
-          "anchor": "run: node evals/peer-surfaces/run.mjs"
+          "anchor": "package-manager-cache: false"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 237,
-          "anchor": "- name: Refutation tally eval (fail-closed panel votes, tier and severity only f"
+          "anchor": "- name: Branch-name rule and hook eval"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 240,
-          "anchor": "- name: Skill trigger harness eval (logic only; the model-in-the-loop runner is"
+          "anchor": "- name: Refutation tally eval (fail-closed panel votes, tier and severity only f"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 243,
-          "anchor": "- name: Skill write-class eval (disallowed-tools match what each skill writes)"
+          "anchor": "- name: Skill trigger harness eval (logic only; the model-in-the-loop runner is"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 489,
-          "anchor": "host-evals-macos:"
+          "anchor": "# The two devices in use are Windows and macOS. Ubuntu and Windows run on every"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 186,
-          "anchor": "run: node scripts/ci-budget.mjs check"
+          "anchor": "run: node scripts/lint-plugins.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 189,
-          "anchor": "run: node evals/ci-budget/run.mjs"
+          "anchor": "run: node scripts/ci-budget.mjs check"
         },
         {
           "file": "scripts/ci-budget.mjs",
@@ -1937,7 +1937,7 @@
         {
           "file": ".github/workflows/validate.yml",
           "line": 541,
-          "anchor": "run: node evals/distill-check/run.mjs"
+          "anchor": "run: node evals/docs-manifest/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1947,7 +1947,7 @@
         {
           "file": ".github/workflows/validate.yml",
           "line": 572,
-          "anchor": "run: node evals/distill-vault/run.mjs"
+          "anchor": "run: node evals/docs-relocate/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1958,6 +1958,11 @@
           "file": ".github/workflows/validate.yml",
           "line": 94,
           "anchor": "- name: Beat-the-bare-model bench regression eval"
+        },
+        {
+          "file": ".github/workflows/validate.yml",
+          "line": 97,
+          "anchor": "- name: Scale-parquet judgment fixture eval (derivation, key anchors, oracles)"
         }
       ]
     },
@@ -1982,7 +1987,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "71c5e732a41a712f74df92050c3fe8b33058ddb2",
+      "verifiedAt": "32274178b904daeb23ada9f7b6501db4f42f8236",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2065,7 +2070,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "b2ab7a31a6f1a287abf19ea28ea73acf55f0347f4196de7efaad425bab18aef7"
+      "verifiedDigest": "bd93af3debedfd4b040752ed2c93ef7ec622ae16e9e885e84f4dcd143410bea3"
     },
     {
       "slug": "root-contracts",

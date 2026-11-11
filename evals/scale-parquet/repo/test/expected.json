@@ -1,0 +1,99 @@
+{
+  "bloom_filter.parquet": {
+    "rows": 4096,
+    "columns": [
+      "code"
+    ],
+    "digest": "3174ab6ddb6319c2234147396a4e176af943494c9bf64f4aba3003afbace050e"
+  },
+  "byte_array_decimal.parquet": {
+    "rows": 24,
+    "columns": [
+      "value"
+    ],
+    "digest": "f97dea74394749bff1c6a480b28696b5aae6091e35df9d307bc252191acc4d5b"
+  },
+  "datapage_v2.snappy.parquet": {
+    "rows": 5,
+    "columns": [
+      "a",
+      "b",
+      "c",
+      "d",
+      "e.list.element"
+    ],
+    "digest": "df3bc6bf23bd2e02a336c4fd7ca551aaac29054951476c8eea774ddcf738ac60"
+  },
+  "delta_encoding_optional_column.parquet": {
+    "rows": 100,
+    "columns": [
+      "c_customer_sk",
+      "c_current_cdemo_sk",
+      "c_current_hdemo_sk",
+      "c_current_addr_sk",
+      "c_first_shipto_date_sk",
+      "c_first_sales_date_sk",
+      "c_birth_day",
+      "c_birth_month",
+      "c_birth_year",
+      "c_customer_id",
+      "c_salutation",
+      "c_first_name",
+      "c_last_name",
+      "c_preferred_cust_flag",
+      "c_birth_country",
+      "c_email_address",
+      "c_last_review_date"
+    ],
+    "digest": "c6848188f9e10c4b297c8fc7516f2e1c4dcd8d28cf84e9124edd53bc3d4c9d1f"
+  },
+  "dictionary_offset_indexed.parquet": {
+    "rows": 200,
+    "columns": [
+      "id",
+      "country"
+    ],
+    "digest": "6efc27182fb4e47e71e23bddbc726fabfed53983041c5dd0dd084163a7285e38"
+  },
+  "geospatial.parquet": {
+    "rows": 28,
+    "columns": [
+      "group",
+      "wkt",
+      "geometry"
+    ],
+    "digest": "f1e4577aaeab6a763875fb394e9342435e50aec06438e78bff132b51a2b10de1"
+  },
+  "nullable.impala.parquet": {
+    "rows": 7,
+    "columns": [
+      "id",
+      "int_array.list.element",
+      "int_array_Array.list.element.list.element",
+      "int_map.map.key",
+      "int_map.map.value",
+      "int_Map_Array.list.element.map.key",
+      "int_Map_Array.list.element.map.value",
+      "nested_struct.A",
+      "nested_struct.b.list.element",
+      "nested_struct.C.d.list.element.list.element.E",
+      "nested_struct.C.d.list.element.list.element.F",
+      "nested_struct.g.map.key",
+      "nested_struct.g.map.value.H.i.list.element"
+    ],
+    "digest": "398dcb0526a9714390b64df568a2d382d7a34bcc8cd12634c59625a8ff2b8d0d"
+  },
+  "shredded-object.parquet": {
+    "rows": 1,
+    "columns": [
+      "id",
+      "var.metadata",
+      "var.value",
+      "var.typed_value.a.value",
+      "var.typed_value.a.typed_value",
+      "var.typed_value.b.value",
+      "var.typed_value.b.typed_value"
+    ],
+    "digest": "12b1b32c08e8408511f1c218761be49c89c2fff8007d05bae4b2c18d5386710a"
+  }
+}

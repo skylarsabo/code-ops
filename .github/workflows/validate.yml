@@ -94,6 +94,9 @@ jobs:
       - name: Beat-the-bare-model bench regression eval
         run: node evals/bench/run.mjs
 
+      - name: Scale-parquet judgment fixture eval (derivation, key anchors, oracles)
+        run: node evals/scale-parquet/run.mjs
+
       # Advisory only: prints a note when the body links no row of the direction note's gap table
       # and exits 0 either way. It stays a separate step so the fail-closed traceless step above
       # never carries an advisory. Promotion to a failing gate waits for zero false positives.
