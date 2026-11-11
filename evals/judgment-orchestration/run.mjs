@@ -2,7 +2,7 @@
 // Regression eval for the provider-neutral local judgment-eval planner and scorer.
 
 import { execFileSync } from 'node:child_process';
-import { cpSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
+import { cpSync, existsSync, linkSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
 import { fileURLToPath } from 'node:url';
@@ -33,6 +33,9 @@ function run(args, root) {
 }
 
 const root = mkdtempSync(join(tmpdir(), 'judgment-orchestration-'));
+// A sibling of the throwaway repository, so stage destinations sit outside it.
+const stageRoot = mkdtempSync(join(tmpdir(), 'judgment-stage-'));
+let linkedParent = null;
 try {
   for (const path of ['evals/score.mjs', 'evals/judgment-matrix.json', 'evals/bug-garden', 'evals/leak-lab', 'evals/drifted-docs', 'evals/hasty-code', 'evals/trap-garden', 'evals/calibration-traps', 'evals/xfn-traps', 'evals/scale-parquet', 'plugins/rigor/skills/bug-hunt/SKILL.md', 'plugins/privacy-opsec-suite/skills/metadata-leak-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/tor-egress-audit/SKILL.md', 'plugins/privacy-opsec-suite/skills/anon-session-audit/SKILL.md', 'plugins/code-ops-suite/skills/doc-alignment/SKILL.md', 'plugins/code-ops-suite/skills/normalize/SKILL.md']) {
     const from = join(SOURCE, path); const to = join(root, path);
@@ -85,6 +88,88 @@ try {
   check('worker units do not expose answer-key paths', plan.units.every((unit) => !Object.hasOwn(unit, 'answerKey')));
   const checked = run(['check-plan', '--root', root, '--plan', planPath], root);
   check('plan revalidates HEAD and all fixture inputs', checked.status === 0, checked.stderr);
+  // No --root: the documented launch runs stage from the repository top.
+  const stageDest = join(stageRoot, 'trend');
+  const staged = run(['stage', '--plan', planPath, '--dest', stageDest], root);
+  const stageManifestBytes = staged.status === 0 ? readFileSync(join(stageDest, 'STAGE.json')) : Buffer.alloc(0);
+  const stageManifest = staged.status === 0 ? JSON.parse(stageManifestBytes.toString('utf8')) : null;
+  const fixtureIds = [...new Set(plan.units.map((unit) => unit.fixture))];
+  const fixtureOf = (id) => plan.matrix.fixtures.find((fixture) => fixture.id === id);
+  check('stage copies one directory per planned fixture outside the repository', staged.status === 0
+    && readdirSync(stageDest).sort().join(' ') === [...fixtureIds, 'STAGE.json'].sort().join(' ')
+    && Object.keys(stageManifest).join(' ') === 'version planSha256 headSha fixtures'
+    && stageManifest.version === 1 && stageManifest.planSha256 === plan.planSha256 && stageManifest.headSha === plan.headSha
+    && stageManifest.fixtures.map((entry) => entry.id).join(' ') === fixtureIds.join(' ')
+    && stageManifest.fixtures.every((entry) => Object.keys(entry).join(' ') === 'id path files treeSha256'
+      && staged.stdout.includes(`${entry.id} -> ${entry.path}`)
+      && entry.treeSha256 === fixtureOf(entry.id)?.targetTreeSha256
+      && entry.files === git(root, ['ls-files', '--', fixtureOf(entry.id)?.target]).split('\n').filter(Boolean).length), staged.stderr);
+  check('the stage manifest names no in-repository fixture path', staged.status === 0 && !stageManifestBytes.toString('utf8').includes('evals/'));
+  check('a staged file is byte-equal to its tracked source', staged.status === 0
+    && readFileSync(join(stageDest, 'bug-garden/src/auth.js')).equals(readFileSync(join(root, hiddenTarget))));
+  check('no answer key reaches the staged copy', staged.status === 0 && existsSync(join(root, 'evals/bug-garden/ANSWER_KEY.json'))
+    && !readdirSync(stageDest, { recursive: true }).some((name) => String(name).includes('ANSWER_KEY')));
+  const insideStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(root, 'run/stage-in')], root);
+  check('stage refuses a destination inside the repository', insideStage.status !== 0
+    && insideStage.stderr.includes('outside the repository') && !existsSync(join(root, 'run/stage-in')), insideStage.stderr);
+  const stageLink = join(stageRoot, 'link-in');
+  symlinkSync(join(root, 'run'), stageLink, process.platform === 'win32' ? 'junction' : 'dir');
+  const linkedStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(stageLink, 'staged')], root);
+  check('stage resolves a linked destination ancestor into the repository and refuses it', linkedStage.status !== 0
+    && linkedStage.stderr.includes('outside the repository') && !existsSync(join(root, 'run/staged')), linkedStage.stderr);
+  unlinkSync(stageLink);
+  const stagedAuth = join(stageDest, 'bug-garden/src/auth.js');
+  const stagedAuthBytes = existsSync(stagedAuth) ? readFileSync(stagedAuth) : null;
+  const fullStage = run(['stage', '--root', root, '--plan', planPath, '--dest', stageDest], root);
+  check('stage refuses a non-empty destination and leaves the earlier stage intact', fullStage.status !== 0 && fullStage.stderr.includes('must be empty')
+    && staged.status === 0 && existsSync(join(stageDest, 'STAGE.json')) && readFileSync(join(stageDest, 'STAGE.json')).equals(stageManifestBytes)
+    && existsSync(stagedAuth) && readFileSync(stagedAuth).equals(stagedAuthBytes), fullStage.stderr);
+  const fileDest = join(stageRoot, 'plain-file');
+  writeFileSync(fileDest, 'not a directory\n');
+  const fileStage = run(['stage', '--root', root, '--plan', planPath, '--dest', fileDest], root);
+  check('stage refuses a destination that is a file', fileStage.status !== 0 && fileStage.stderr.includes('an absent path or a plain directory')
+    && readFileSync(fileDest, 'utf8') === 'not a directory\n', fileStage.stderr);
+  // The link points at an empty directory outside the repository, so only the link rule refuses it.
+  mkdirSync(join(stageRoot, 'link-target'));
+  const linkDest = join(stageRoot, 'link-dest');
+  symlinkSync(join(stageRoot, 'link-target'), linkDest, process.platform === 'win32' ? 'junction' : 'dir');
+  const linkDestStage = run(['stage', '--root', root, '--plan', planPath, '--dest', linkDest], root);
+  check('stage refuses a destination that is itself a link', linkDestStage.status !== 0
+    && linkDestStage.stderr.includes('an absent path or a plain directory') && readdirSync(join(stageRoot, 'link-target')).length === 0, linkDestStage.stderr);
+  unlinkSync(linkDest);
+
+  // A replace ref changes what `cat-file` returns for one index blob, while the index, the tree
+  // digest, and the clean check still see the planned blob. Only copy verification sees it.
+  const lastFixture = fixtureOf(fixtureIds.at(-1));
+  const replacedBlob = git(root, ['ls-files', '-s', '--', lastFixture.target]).split('\n')[0].split(' ')[1];
+  const replacement = execFileSync('git', ['hash-object', '-w', '--stdin'], { cwd: root, input: 'replaced blob\n', encoding: 'utf8', timeout: 15000 }).trim();
+  git(root, ['replace', replacedBlob, replacement]);
+  const replacedStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(stageRoot, 'replaced')], root);
+  check('a blob that differs from its index entry fails copy verification and leaves no copy', replacedStage.status !== 0
+    && replacedStage.stderr.includes('does not match the Git index') && !existsSync(join(stageRoot, 'replaced')), replacedStage.stderr);
+  const emptyDest = join(stageRoot, 'empty');
+  mkdirSync(emptyDest);
+  const emptyStage = run(['stage', '--root', root, '--plan', planPath, '--dest', emptyDest], root);
+  check('a failed stage into an existing empty directory leaves it existing and empty', emptyStage.status !== 0
+    && emptyStage.stderr.includes('does not match the Git index') && existsSync(emptyDest) && readdirSync(emptyDest).length === 0, emptyStage.stderr);
+  const nestedStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(stageRoot, 'absent', 'nested')], root);
+  check('a failed stage removes every directory it created', nestedStage.status !== 0
+    && nestedStage.stderr.includes('does not match the Git index') && !existsSync(join(stageRoot, 'absent')), nestedStage.stderr);
+  git(root, ['replace', '-d', replacedBlob]);
+
+  // Containment covers every checkout of the repository, not only the one `--root` names.
+  linkedParent = mkdtempSync(join(tmpdir(), 'judgment-linked-'));
+  const linked = join(linkedParent, 'wt');
+  git(root, ['worktree', 'add', '--detach', linked]);
+  const intoLinked = run(['stage', '--root', root, '--plan', planPath, '--dest', join(linked, 'run/stage-in')], root);
+  check('stage refuses a destination inside a second worktree of the repository', intoLinked.status !== 0
+    && intoLinked.stderr.includes('outside the repository') && !existsSync(join(linked, 'run/stage-in')), intoLinked.stderr);
+  mkdirSync(join(linked, 'run/linked'), { recursive: true });
+  const linkedPlanned = run(['plan', '--root', linked, '--mode', 'trend', '--execution', 'available', '--out', 'run/linked/plan.json', '--strong-model', 'strong-model'], linked);
+  const fromLinked = run(['stage', '--root', linked, '--plan', 'run/linked/plan.json', '--dest', join(root, 'run/stage-main')], linked);
+  check('stage from a linked worktree refuses a destination inside the main checkout', linkedPlanned.status === 0 && fromLinked.status !== 0
+    && fromLinked.stderr.includes('outside the repository') && !existsSync(join(root, 'run/stage-main')), `${linkedPlanned.stderr}${fromLinked.stderr}`);
+  git(root, ['worktree', 'remove', '--force', linked]);
   const forgedPlan = structuredClone(plan);
   forgedPlan.units[0].arm = 'control'; forgedPlan.units[0].skillDocs = [];
   const { planSha256: omitted, ...forgedBody } = forgedPlan;
@@ -92,6 +177,9 @@ try {
   writeFileSync(join(root, planPath), `${JSON.stringify(forgedPlan, null, 2)}\n`);
   const forged = run(['check-plan', '--root', root, '--plan', planPath], root);
   check('self-digested hand edits cannot replace canonical matrix expansion', forged.status !== 0 && forged.stderr.includes('canonical matrix expansion'), forged.stderr);
+  const forgedStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(stageRoot, 'forged')], root);
+  check('stage refuses a self-digested hand-edited plan', forgedStage.status !== 0
+    && forgedStage.stderr.includes('canonical matrix expansion') && !existsSync(join(stageRoot, 'forged')), forgedStage.stderr);
   writeFileSync(join(root, planPath), `${JSON.stringify(plan, null, 2)}\n`);
   for (const unit of plan.units) { mkdirSync(dirname(join(root, unit.findingsPath)), { recursive: true }); writeFileSync(join(root, unit.findingsPath), '[]\n'); }
   const aliasedOutput = run(['score', '--root', root, '--plan', planPath, '--out', 'run/trend/PLAN.json'], root);
@@ -157,7 +245,47 @@ try {
   writeFileSync(join(root, 'drift.txt'), 'new\n'); git(root, ['add', 'drift.txt']); git(root, ['commit', '-m', 'drift']);
   const drift = run(['check-plan', '--root', root, '--plan', planPath], root);
   check('new HEAD invalidates an old judgment plan', drift.status !== 0 && drift.stderr.includes('HEAD drift'), drift.stderr);
-} finally { rmSync(root, { recursive: true, force: true }); }
+  const driftStage = run(['stage', '--root', root, '--plan', planPath, '--dest', join(stageRoot, 'drift')], root);
+  check('stage refuses a plan from an old HEAD', driftStage.status !== 0
+    && driftStage.stderr.includes('HEAD drift') && !existsSync(join(stageRoot, 'drift')), driftStage.stderr);
+
+  // With autocrlf, adding a CRLF copy stores the same LF blob and refreshes the index stat, so the
+  // status check passes. Stage copies the index blob, so the copy holds the committed LF bytes.
+  mkdirSync(join(root, 'run/crlf'), { recursive: true });
+  const crlfPlan = run(['plan', '--root', root, '--mode', 'trend', '--execution', 'available', '--out', 'run/crlf/plan.json', '--strong-model', 'strong-model'], root);
+  const sourceBytes = readFileSync(join(root, hiddenTarget));
+  const repoGit = (args) => execFileSync('git', args, { cwd: root, encoding: 'utf8', timeout: 15000, stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+  const committedBytes = execFileSync('git', ['cat-file', 'blob', `HEAD:${hiddenTarget}`], { cwd: root, timeout: 15000 });
+  git(root, ['config', 'core.autocrlf', 'true']);
+  writeFileSync(join(root, hiddenTarget), sourceBytes.toString('utf8').replace(/\n/g, '\r\n'));
+  repoGit(['add', '--', hiddenTarget]);
+  const crlfStatus = repoGit(['status', '--porcelain']);
+  const crlfStage = run(['stage', '--root', root, '--plan', 'run/crlf/plan.json', '--dest', join(stageRoot, 'crlf')], root);
+  const crlfCopy = join(stageRoot, 'crlf', 'bug-garden/src/auth.js');
+  check('a converted checkout stages the committed bytes, not the working-tree bytes', crlfPlan.status === 0 && crlfStatus === ''
+    && readFileSync(join(root, hiddenTarget)).includes('\r\n') && !committedBytes.includes('\r')
+    && crlfStage.status === 0 && existsSync(crlfCopy) && readFileSync(crlfCopy).equals(committedBytes),
+  `${crlfPlan.stderr}${crlfStatus}${crlfStage.stderr}`);
+  writeFileSync(join(root, hiddenTarget), sourceBytes);
+  repoGit(['add', '--', hiddenTarget]);
+  git(root, ['config', '--unset', 'core.autocrlf']);
+
+  // A bare repository's Git directory holds every blob, answer keys included, and sits outside
+  // its worktrees. The worktree list marks it bare, so only the common-directory identity refuses it.
+  const bare = join(stageRoot, 'bare.git');
+  const bareTree = join(stageRoot, 'bare-tree');
+  git(root, ['clone', '--bare', '--quiet', root, bare]);
+  git(bare, ['worktree', 'add', '--detach', bareTree]);
+  mkdirSync(join(bareTree, 'run/bare'), { recursive: true });
+  const barePlanned = run(['plan', '--root', bareTree, '--mode', 'trend', '--execution', 'available', '--out', 'run/bare/plan.json', '--strong-model', 'strong-model'], bareTree);
+  const bareStage = run(['stage', '--root', bareTree, '--plan', 'run/bare/plan.json', '--dest', join(bare, 'staged')], bareTree);
+  check('stage refuses a destination inside a Git directory outside every worktree', barePlanned.status === 0 && bareStage.status !== 0
+    && bareStage.stderr.includes('outside the repository') && !existsSync(join(bare, 'staged')), `${barePlanned.stderr}${bareStage.stderr}`);
+} finally {
+  rmSync(root, { recursive: true, force: true });
+  rmSync(stageRoot, { recursive: true, force: true });
+  if (linkedParent) rmSync(linkedParent, { recursive: true, force: true });
+}
 
 if (fails.length) {
   console.error(`\n${fails.length} judgment-orchestration failure(s):`);

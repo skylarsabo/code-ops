@@ -572,8 +572,18 @@ deterministic scorer binds each findings file, execution policy, and score outpu
 receipt. Ignored plan, findings, and receipt paths reject linked components and portable
 aliases to tracked Git paths. A score output
 must not portably or physically alias the plan or any findings file. Evidence:
-`scripts/judgment-evals.mjs:24-31`, `scripts/judgment-evals.mjs:53-187`, and
-`scripts/judgment-evals.mjs:189-325`.
+`scripts/judgment-evals.mjs:30-42`, `scripts/judgment-evals.mjs:53-270`, and
+`scripts/judgment-evals.mjs:272-416`.
+
+The `stage` subcommand validates the plan, then writes the tracked files of each fixture target
+to `<dest>/<fixture id>/`. Each copy comes from its index blob, not the checkout, and must hash to
+that blob. The command refuses a non-empty destination. It also refuses a destination inside any
+worktree of the repository or its common Git directory. It compares path strings and the file
+identity of each physical ancestor, so links, UNC spellings, and sibling worktrees do not pass.
+`<dest>/STAGE.json` binds the plan digest and HEAD and names no in-repository path. Workers start
+from a staged path outside every checkout of the repository, and the copy holds only the tracked
+files of the target. Evidence: `scripts/judgment-evals.mjs:92-166` and
+`scripts/judgment-evals.mjs:426-455`.
 
 The matrix declares the fixture-to-answer-key and fixture-to-skill mapping. Its current
 fixtures cover bug, leak, documentation-drift, normalization, and trap-focused review
@@ -584,8 +594,8 @@ per declared tier for that fixture, same skill and same answer key, so the tier 
 thing that varies between the resulting registers. Each unit names its tier in the id the
 score receipt is keyed by. The mode requires two distinct model IDs and at least one fixture
 declaring arms. Trend and floor expansions are untouched. Evidence:
-`scripts/judgment-evals.mjs:100-112`, `scripts/judgment-evals.mjs:152-161`, and
-`scripts/judgment-evals.mjs:278-280`.
+`scripts/judgment-evals.mjs:181-193`, `scripts/judgment-evals.mjs:233-242`, and
+`scripts/judgment-evals.mjs:359-361`.
 
 Hosted CI keeps deterministic validation. `validate.yml` runs the structural gate and
 regression evals, including the local-review and judgment-orchestration fixture evals.

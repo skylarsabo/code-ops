@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "f48ef1acb12300cfdc0e6bdcf5c5b173299fb76d",
+      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -441,7 +441,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "591ca2d57cc5c1170b281f526d31c18037289c97f3577ebcc37c8939a0172feb"
+      "verifiedDigest": "2e6e376d416e206575d15d8406717c70b19c69f2125057b412efda96c75b2b4f"
     },
     {
       "slug": "gate-scripts",
@@ -450,7 +450,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "f48ef1acb12300cfdc0e6bdcf5c5b173299fb76d",
+      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1193,7 +1193,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "80d3849cb0e42fc75264071656be9ae30cf5c152cde81564ab7f25e5396200ee"
+      "verifiedDigest": "330e10771d33b73577e3edd6d2780470fa2769c4754e5c3508c83544811a93c0"
     },
     {
       "slug": "evals-and-calibration",
@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "32274178b904daeb23ada9f7b6501db4f42f8236",
-      "verifiedDigest": "5abcb9e123972b7c33827ae56c2063349cb444840a4a5154a1a94e022518122e",
+      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
+      "verifiedDigest": "8d9d1948ee50394c7b53228df7d6f5e55b87fcf75c9b7dea095a1e6b29562331",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1316,7 +1316,7 @@
         },
         {
           "file": "scripts/judgment-evals.mjs",
-          "line": 156,
+          "line": 237,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
         },
         {
@@ -1706,7 +1706,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "f48ef1acb12300cfdc0e6bdcf5c5b173299fb76d",
+      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1833,7 +1833,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "3714242a9ce7ad0bd46768ae7d41e06f611af833dc3d90f2b45613f512684e4d"
+      "verifiedDigest": "3a3597b457d13a5c5bf7da5c505ce7de6d5b270a42bf6d0c1b41cda0bcb0104e"
     },
     {
       "slug": "ci-workflows",
@@ -1987,7 +1987,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "32274178b904daeb23ada9f7b6501db4f42f8236",
+      "verifiedAt": "b1192969594af1cfaae4e0c75a1ce2afd7f20d54",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2047,12 +2047,12 @@
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
           "line": 1011,
-          "anchor": "compacted, says to start a new session pointed at that segment. On Claude and Co"
+          "anchor": "scripts/opencode-lifecycle.js"
         },
         {
           "file": "code-ops-docs/35 Contracts and Data/CONTRACTS.md",
           "line": 1171,
-          "anchor": "also refuses with exit 1 while a stale open row remains. A"
+          "anchor": "and names three ways out: wait, settle a lost one with"
         },
         {
           "file": "code-ops-docs/50 Platform/INFRASTRUCTURE.md",
@@ -2070,7 +2070,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "bd93af3debedfd4b040752ed2c93ef7ec622ae16e9e885e84f4dcd143410bea3"
+      "verifiedDigest": "68fd14a64cdfe67b6167f11e0a6c32c1a446c027b0c99b40f9661d628e516224"
     },
     {
       "slug": "root-contracts",

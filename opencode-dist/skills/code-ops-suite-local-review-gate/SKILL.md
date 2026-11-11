@@ -116,6 +116,22 @@ target. Skill-arm units read their listed skill documents and plugin conventions
 units receive neither. Each unit writes only its declared `findingsPath`, as a JSON array of
 `{file,line,note,tier}`.
 
+After planning and before dispatch, stage the fixtures outside the repository:
+
+```bash
+node <plugin-root>/scripts/judgment-evals.mjs stage \
+  --plan <ignored-run-folder>/plan.json --dest <directory-outside-the-repository>
+```
+
+`judgment-evals.mjs stage` validates the plan as `judgment-evals.mjs check-plan` does. The
+repository root defaults to the current directory; pass `--root <repo>` to name another. It
+writes each tracked file of each planned fixture target to `<dest>/<fixture id>/`. Each copy
+comes from its index blob, not the checkout, and must match the index. It refuses a non-empty
+destination and a destination inside any worktree of the repository. It writes
+`<dest>/STAGE.json` with each staged path. Dispatch each unit with the staged path of its fixture as the worker's target and
+scope, never the in-repository target. The worker reads only that staged path, plus the skill
+documents and plugin conventions of a skill-arm unit. The scorer still reads findings by path suffix.
+
 Planning and replay reject ambiguous Git index flags before workers read fixture paths. Plans,
 findings, and score receipts must use ignored paths, without linked components and without
 portable aliases to tracked Git paths. The scorer rejects a portable or physical output alias
