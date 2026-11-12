@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -450,7 +450,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
-      "verifiedDigest": "e4ccd14cfb63bbce7b09ffbb2da93461906f415200048e4a773a743d6be2d0b3",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedDigest": "164983fa88bcdd776a5af0e1748fcca10a14c520a03d06b7cc950aeeecf79eea",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1318,11 +1318,6 @@
           "file": "scripts/judgment-evals.mjs",
           "line": 237,
           "anchor": "else if (mode === 'register') for (const tier of fixture.arms ?? []) add(fixture"
-        },
-        {
-          "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 595,
-          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
@@ -1707,7 +1702,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1848,8 +1843,8 @@
       "scope": [
         ".github"
       ],
-      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
-      "verifiedDigest": "d2291935d20ad85b9a139fc42bb77d3eae8cb5bd522bd75f0394f9a72ca8bb50",
+      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
+      "verifiedDigest": "8176ebcef81c35063321a29c03430289d4514ca6f635aafac22c23947408b7a9",
       "claims": [
         {
           "file": ".github/workflows/validate.yml",
@@ -1858,62 +1853,59 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 100,
+          "line": 102,
           "anchor": "# Advisory only: prints a note when the body links no row of the direction note'"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 250,
+          "line": 252,
           "anchor": "run: node evals/skill-write-class/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 682,
-          "anchor": "run: node evals/docs-alignment/run.mjs"
+          "line": 682
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 406,
-          "anchor": "run: node evals/co-facade/run.mjs"
+          "line": 406
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 746,
-          "anchor": "run: node evals/co-facade/run.mjs"
+          "line": 746
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 267,
-          "anchor": "- name: Derived-file merge driver regression eval"
+          "anchor": "run: node evals/opencode-dist/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 790,
-          "anchor": "- name: opencode distribution regression eval"
+          "anchor": "run: node evals/fleet-standard/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 306,
+          "line": 308,
           "anchor": "run: node evals/handoff-state/run.mjs"
         },
         {
           "file": ".github/workflows/validate.yml",
           "line": 661,
-          "anchor": "package-manager-cache: false"
+          "anchor": "with:"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 246,
+          "line": 248,
           "anchor": "- name: Skill trigger harness eval (logic only; the model-in-the-loop runner is"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 492,
+          "line": 494,
           "anchor": "# The two devices in use are Windows and macOS. Ubuntu and Windows run on every"
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 192,
+          "line": 194,
           "anchor": "run: node scripts/ci-budget.mjs check"
         },
         {
@@ -1928,8 +1920,7 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 545,
-          "anchor": "run: node evals/docs-manifest/run.mjs"
+          "line": 545
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1938,8 +1929,7 @@
         },
         {
           "file": ".github/workflows/validate.yml",
-          "line": 576,
-          "anchor": "run: node evals/docs-relocate/run.mjs"
+          "line": 576
         },
         {
           "file": ".github/workflows/validate.yml",
@@ -1979,7 +1969,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "a5a4e496f486bb0889cb61ff174ed3891559cd18",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2062,7 +2052,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "fdb03ca00a69e2b90c2891908542ef8188c5b3162f529dc4f996bca30e77de69"
+      "verifiedDigest": "cdacdd47c679ff4397e722dab567acf9f59b18476fd98c80b521bfef357b55a0"
     },
     {
       "slug": "root-contracts",

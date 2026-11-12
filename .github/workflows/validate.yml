@@ -96,6 +96,8 @@ jobs:
 
       - name: Scale-parquet judgment fixture eval (derivation, key anchors, oracles)
         run: node evals/scale-parquet/run.mjs
+      - name: Scale-prolog judgment fixture eval (derivation, key anchors, oracles)
+        run: node evals/scale-prolog/run.mjs
 
       # Advisory only: prints a note when the body links no row of the direction note's gap table
       # and exits 0 either way. It stays a separate step so the fail-closed traceless step above

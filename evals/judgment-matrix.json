@@ -53,6 +53,12 @@
       "target": "evals/scale-parquet/repo",
       "answerKey": "evals/scale-parquet/ANSWER_KEY.json",
       "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
+    },
+    {
+      "id": "scale-prolog",
+      "target": "evals/scale-prolog/repo",
+      "answerKey": "evals/scale-prolog/ANSWER_KEY.json",
+      "skillDocs": ["plugins/rigor/skills/bug-hunt/SKILL.md"]
     }
   ]
 }
