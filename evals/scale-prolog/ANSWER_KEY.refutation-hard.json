@@ -1,0 +1,25 @@
+{
+  "fixture": "scale-prolog",
+  "claims": [
+    {"id": "H-01", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 6419, "probe": {"query": "sort([1, 1.0], L).", "expect": "L = [1.0,1]"}},
+    {"id": "H-02", "verdict": "REAL", "file": "modules/core.js", "line": 5641, "probe": {"query": "catch(catch(throw(a), b, true), E, true).", "expect": "false"}},
+    {"id": "H-03", "verdict": "REAL", "file": "modules/lists.js", "line": 121, "probe": {"program": ":- use_module(library(lists)).", "query": "foldr(atom_concat, [a,b,c], '', R).", "expect": "R = cba"}},
+    {"id": "H-04", "verdict": "NOT-A-DEFECT", "file": "modules/lists.js", "line": 186, "probe": {"program": ":- use_module(library(lists)).", "query": "prefix(P, [a,b]).", "expect": "P = [] ; P = [a] ; P = [a,b]"}},
+    {"id": "H-05", "verdict": "REAL", "file": "modules/core.js", "line": 4770, "probe": {"query": "X = f(X).", "expect": "false"}},
+    {"id": "H-06", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 7131, "probe": {"query": "number_chars(2.0, L).", "expect": "L = [2,.,0]"}},
+    {"id": "H-07", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 6829, "probe": {"query": "findall(N, (atom_codes(A, [128512]), atom_length(A, N)), L).", "expect": "L = [1]"}},
+    {"id": "H-08", "verdict": "REAL", "file": "modules/core.js", "line": 7293, "probe": {"query": "atomic_list_concat([a, 1], X).", "expect": "X = aundefined"}},
+    {"id": "H-09", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 4315, "probe": {"query": "X is 9007199254740991 * 4.", "expect": "uncaught exception: error(evaluation_error(int_overflow),/(is,2))"}},
+    {"id": "H-10", "verdict": "REAL", "file": "modules/lists.js", "line": 403, "probe": {"program": ":- use_module(library(lists)).", "query": "list_to_set([a,b,a], S).", "expect": "S = [a,b,a]"}},
+    {"id": "H-11", "verdict": "REAL", "file": "modules/os.js", "line": 748, "probe": {"program": ":- use_module(library(os)).", "query": "catch(getenv('NO_SUCH_VAR', 42), E, true).", "expect": "false"}},
+    {"id": "H-12", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 3316, "probe": {"query": "1 @> 1.0.", "expect": "true"}},
+    {"id": "H-13", "verdict": "REAL", "file": "modules/core.js", "line": 6448, "probe": {"query": "catch(keysort([a], L), E, true).", "expect": "false"}},
+    {"id": "H-14", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 6011, "probe": {"query": "copy_term(f(X, X), C), C = f(a, Y).", "expect": "C = f(a,a), Y = a"}},
+    {"id": "H-15", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 7119, "probe": {"query": "number_chars(X, ['0', x, f, f]).", "expect": "X = 255"}},
+    {"id": "H-16", "verdict": "REAL", "file": "modules/core.js", "line": 5905, "probe": {"program": ":- use_module(library(lists)).", "query": "setof(X, member(X, [b,a,b]), L).", "expect": "L = [b,a,b]"}},
+    {"id": "H-17", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 7069, "probe": {"query": "findall(C, (atom_codes(A, [128512]), char_code(A, C)), L).", "expect": "L = [128512]"}},
+    {"id": "H-18", "verdict": "REAL", "file": "modules/js.js", "line": 54, "probe": {"program": ":- use_module(library(js)).", "query": "global(G), get_prop(G, 'JSON', J), apply(J, parse, ['{'], R), var(R).", "expect": "G = <javascript>(object), J = <javascript>(object)"}},
+    {"id": "H-19", "verdict": "NOT-A-DEFECT", "file": "modules/core.js", "line": 4340, "probe": {"query": "X is 2 ^ (-1).", "expect": "uncaught exception: error(type_error(float,2),/(is,2))"}},
+    {"id": "H-20", "verdict": "REAL", "file": "modules/core.js", "line": 6894, "probe": {"query": "sub_atom(abc, B, 1, 0, S).", "expect": "uncaught exception: error(domain_error(not_less_than_zero,0),/(sub_atom,5))"}}
+  ]
+}

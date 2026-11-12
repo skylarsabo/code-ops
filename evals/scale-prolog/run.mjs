@@ -2,7 +2,8 @@
 // Regression eval for the scale-prolog judgment fixture: the tracked bytes match build.mjs, the
 // answer key anchors match repo/, the build check fails on drift, and on the tracked tree every
 // planted defect fails its hidden oracle while every decoy and the visible suite pass. It also checks
-// the refutation claim set against its key and the seed sites, and pins score-refutation.mjs.
+// the refutation claim set against its key and the seed sites, checks the hard claim set and runs its
+// probes against repo/, and pins score-refutation.mjs on both keys.
 
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, cpSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -105,13 +106,58 @@ const meanWords = (verdict) => {
 const means = `REAL ${meanWords('REAL').toFixed(1)}, NOT-A-DEFECT ${meanWords('NOT-A-DEFECT').toFixed(1)}`;
 check(`mean words per verdict differ by at most 3 (${means})`, Math.abs(meanWords('REAL') - meanWords('NOT-A-DEFECT')) <= 3, means);
 
+// The hard set: its claims need code far from the cited line, so each label is fixed by an executed probe.
+const HARD_KEY = 'evals/scale-prolog/ANSWER_KEY.refutation-hard.json';
+const hardKey = JSON.parse(readFileSync(join(ROOT, HARD_KEY), 'utf8')).claims;
+const hardText = readFileSync(join(HERE, 'REFUTATION_CLAIMS_HARD.md'), 'utf8');
+const hard = [...hardText.matchAll(/^- (H-\d{2}) · (modules\/[\w.]+):(\d+) · (.+)$/gm)]
+  .map(([, id, file, line, text]) => ({ id, file, line: Number(line), words: text.trim().split(/\s+/).length }));
+const hardOrder = Array.from({ length: 20 }, (_, i) => `H-${String(i + 1).padStart(2, '0')}`).join(',');
+check('hard claims file and key hold 20 claims each', hard.length === 20 && hardKey.length === 20, `${hard.length}, ${hardKey.length}`);
+check('hard claim ids are unique and in order in both files', ids(hard) === hardOrder && ids(hardKey) === hardOrder, ids(hard));
+const hardVerdicts = hardKey.map((c) => c.verdict);
+check('10 hard claims of each verdict', hardVerdicts.filter((v) => v === 'REAL').length === 10 && hardVerdicts.filter((v) => v === 'NOT-A-DEFECT').length === 10, hardVerdicts.join(','));
+const hardMoved = hardKey.filter((c, i) => hard[i]?.file !== c.file || hard[i]?.line !== c.line);
+check('every hard claim cites the file and line of its key entry', !hardMoved.length, ids(hardMoved));
+// A real hard claim sits on a planted site the first set leaves out; C-19's site is the one allowed reuse.
+const firstSites = new Set(refKey.filter((c) => c.id !== 'C-19').map((c) => `${c.file}:${c.line}`));
+const plantedSites = new Set(key.planted.map((p) => `${p.file}:${p.line}`));
+const hardOffSite = hardKey.filter((c) => {
+  const at = `${c.file}:${c.line}`;
+  return (c.verdict === 'REAL' && !plantedSites.has(at)) || firstSites.has(at);
+});
+check('every real hard claim sits on a planted site and no hard claim on a first-set site', !hardOffSite.length, ids(hardOffSite));
+const hardLength = hard.filter((c) => c.words < 18 || c.words > 40);
+check('every hard claim holds 18 to 40 words', !hardLength.length, hardLength.map((c) => `${c.id}=${c.words}`).join(', '));
+const hardForbidden = ['decoy', 'equivalent', 'planted', 'seed', 'unreachable', 'guard', ...site.keys()].filter((w) => hardText.toLowerCase().includes(w.toLowerCase()));
+check('the hard claims file holds no forbidden word or seed id', !hardForbidden.length, hardForbidden.join(', '));
+check('the hard claims file holds no verdict word', !/\breal\b|not-a-defect/i.test(hardText), 'verdict word found');
+const hardRun = hardVerdicts.reduce((acc, v, i) => {
+  const run = i > 0 && v === hardVerdicts[i - 1] ? acc.run + 1 : 1;
+  return { run, max: Math.max(acc.max, run) };
+}, { run: 0, max: 0 }).max;
+check('no run of one hard verdict is longer than 3', hardRun <= 3, `max run ${hardRun}`);
+const hardMean = (verdict) => {
+  const of = hard.filter((_, i) => hardVerdicts[i] === verdict);
+  return of.reduce((n, c) => n + c.words, 0) / (of.length || 1);
+};
+const hardMeans = `REAL ${hardMean('REAL').toFixed(1)}, NOT-A-DEFECT ${hardMean('NOT-A-DEFECT').toFixed(1)}`;
+check(`mean words per hard verdict differ by at most 3 (${hardMeans})`, Math.abs(hardMean('REAL') - hardMean('NOT-A-DEFECT')) <= 3, hardMeans);
+check('at most 4 hard probes use js', hardKey.filter((c) => c.probe?.js !== undefined).length <= 4, 'too many js probes');
+const probed = node(['evals/scale-prolog/run-probes.mjs', HARD_KEY]);
+/** @type {Record<string, string>} */
+const seen = probed.status === 0 ? JSON.parse(probed.stdout) : {};
+const drifted = hardKey.filter((c) => typeof c.probe?.expect !== 'string' || seen[c.id] !== c.probe.expect);
+check('every hard probe observes its expected outcome on repo/', probed.status === 0 && !drifted.length,
+  probed.status === 0 ? drifted.map((c) => `${c.id}: ${seen[c.id]}`).join(' | ') : tail(probed));
+
 const scratch = mkdtempSync(join(tmpdir(), 'scale-prolog-refutation-'));
 try {
   /** Score candidate lines with --json; returns the parsed result, or null when the scorer failed. */
-  const score = (name, lines) => {
+  const score = (name, lines, extra = []) => {
     const file = join(scratch, name);
     writeFileSync(file, `${lines.join('\n')}\n`);
-    const r = node(['evals/scale-prolog/score-refutation.mjs', file, '--json']);
+    const r = node(['evals/scale-prolog/score-refutation.mjs', file, '--json', ...extra]);
     return r.status === 0 ? JSON.parse(r.stdout) : null;
   };
   // Each reason names the other verdict, so a scorer that reads past the verdict field fails here.
@@ -121,6 +167,13 @@ try {
   check('the scorer gives 15 for an all-REAL candidate', allReal?.correct === 15 && allReal.real.correct === 15 && allReal.false.correct === 0, JSON.stringify(allReal));
   const gaps = score('gaps.md', [...refKey.slice(1).map((c) => `* ${c.id} · ${c.verdict} · reason`), `- C-02 · ${refKey[1].verdict === 'REAL' ? 'NOT-A-DEFECT' : 'REAL'} · reason`]);
   check('the scorer counts a missing and a double verdict as wrong', gaps?.correct === 28 && gaps.wrong.join(',') === 'C-01,C-02', JSON.stringify(gaps));
+  const withKey = ['--key', HARD_KEY];
+  const hardPerfect = score('hard-perfect.md', hardKey.map((c) => `- ${c.id} · ${c.verdict} · not ${c.verdict === 'REAL' ? 'NOT-A-DEFECT' : 'REAL'}`), withKey);
+  check('the scorer gives 20 for a perfect hard candidate', hardPerfect?.correct === 20 && hardPerfect.total === 20 && hardPerfect.real.correct === 10 && hardPerfect.false.correct === 10, JSON.stringify(hardPerfect));
+  const hardAllReal = score('hard-all-real.md', [...hardKey.map((c) => `${c.id} · REAL · reason`), '- C-01 · REAL · reason'], withKey);
+  check('the scorer gives 10 for an all-REAL hard candidate and ignores ids outside the key', hardAllReal?.correct === 10 && hardAllReal.total === 20 && hardAllReal.false.correct === 0, JSON.stringify(hardAllReal));
+  const noKeyPath = node(['evals/scale-prolog/score-refutation.mjs', join(scratch, 'hard-perfect.md'), '--key']);
+  check('the scorer exits 2 on --key with no path', noKeyPath.status === 2, String(noKeyPath.status));
   const misuse = node(['evals/scale-prolog/score-refutation.mjs']);
   const unreadable = node(['evals/scale-prolog/score-refutation.mjs', join(scratch, 'absent.md')]);
   check('the scorer exits 2 on a usage error and an unreadable file', misuse.status === 2 && unreadable.status === 2, `${misuse.status}, ${unreadable.status}`);

@@ -18,6 +18,9 @@ The refutation task measures whether a reviewer can tell a real defect from a pl
 - The worker returns one line per claim in the form `- C-NN · REAL|NOT-A-DEFECT · <reason>`.
 - Score the output with `node evals/scale-prolog/score-refutation.mjs <candidate.md>`. Add `--json` for one JSON object. The scorer prints the correct count of 30, the split between real and false claims, and the wrong ids. A claim with no verdict or two different verdicts counts as wrong.
 - `run.mjs` checks the claim set against its key and the seed sites, and checks the scorer on fixed candidates.
+- `REFUTATION_CLAIMS_HARD.md` is a second, harder set of 20 claims, ids `H-NN`, in the same line form. Each claim needs code far from the cited line, such as a check in a caller, a fixed flag, or a helper in another function, and its sites are not bound to the seeds.
+- `ANSWER_KEY.refutation-hard.json` gives the verdict for each hard claim and a probe that fixes it by execution. `run-probes.mjs` runs every probe against `repo/`, and `run.mjs` fails when an observed outcome differs from the `expect` value.
+- The `expect` values reveal the outcomes, so keep the hard key and `run-probes.mjs` out of the worker's context. Score a hard candidate with `node evals/scale-prolog/score-refutation.mjs <candidate.md> --key evals/scale-prolog/ANSWER_KEY.refutation-hard.json`.
 
 ## Results: medium against high effort (2026-11-12)
 
@@ -31,6 +34,7 @@ Pre-registered, five reps per cell, a strong-tier model reading a staged copy of
 - Review has headroom at medium (77 percent recall) and shows no gain from high effort.
 - Refutation is at ceiling at medium, so it cannot show a gain. Only claim C-23 needs code far from the cited line; medium got it wrong in 5 of 5 reps and high in 3 of 5.
 - Four defects were missed by all ten review reps: `ca-answer-limit-rejects`, `ca-permutation-partial`, `ca-json-prolog-pairs`, `ca-getenv-value-type`.
+- A second run used the hard claim set (20 claims, each false claim prevented by code 167 to 6,676 lines from the cited line). Medium scored 20.0 of 20 and high 19.8, at ceiling again. Distance from the cited line does not make a claim hard when a search for the helper settles it.
 - Limits: five reps per cell, static reading only, whole-repository review, and review reps stop near 300,000 tokens with a partial read of the 9,101-line `core.js`.
 
 ## Notes
