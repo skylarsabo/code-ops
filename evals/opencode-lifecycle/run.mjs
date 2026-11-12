@@ -196,6 +196,11 @@ expect(blocked, 'a general dispatch was not blocked');
 
 // Effort ceiling: a request above high runs at high and says so.
 expect(overlay.CodeOpsLifecycle.internals.resolveEffort('code-ops-suite-implementer', 'xhigh').level === 'high', 'resolveEffort did not clamp xhigh to high');
+// Review defaults to medium; refutation and the privacy reviewer keep high; review never runs low.
+expect(overlay.CodeOpsLifecycle.internals.resolveEffort('code-ops-suite-reviewer').level === 'medium', 'the reviewer default effort is not medium');
+expect(overlay.CodeOpsLifecycle.internals.resolveEffort('rigor-verifier').level === 'high', 'the verifier default effort is not high');
+expect(overlay.CodeOpsLifecycle.internals.resolveEffort('privacy-opsec-suite-privacy-reviewer').level === 'high', 'the privacy reviewer default effort is not high');
+expect(overlay.CodeOpsLifecycle.internals.resolveEffort('code-ops-suite-reviewer', 'low').level === 'medium', 'a low review request did not raise to medium');
 await hooks['tool.execute.before']({ tool: 'task', sessionID: 'eff-lead', callID: 'e1' }, { args: { prompt: 'Round budget: 5.\nEffort: xhigh\ndo it', subagent_type: 'code-ops-suite-implementer' } });
 const effTurn = { parts: [{ type: 'text', text: 'continue' }] };
 await hooks['chat.message']({ sessionID: 'eff-lead', agent: 'build' }, effTurn);

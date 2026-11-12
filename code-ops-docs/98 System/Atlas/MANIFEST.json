@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -441,7 +441,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "b9c6d4269fae9b6af1e5ce2bd4f82523f30b3f4312eb1434222702b71864e616"
+      "verifiedDigest": "92dc4c8683348f395a10e651882d07fe08d65bba05ae5b1ed5b60150b82c1cbe"
     },
     {
       "slug": "gate-scripts",
@@ -450,7 +450,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -949,12 +949,12 @@
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 209,
+          "line": 214,
           "anchor": "export function routeUnit(basis) {"
         },
         {
           "file": "scripts/route-unit.mjs",
-          "line": 239,
+          "line": 244,
           "anchor": "if (rung === 'premium') return provider.premiumCollapse ?? null;"
         },
         {
@@ -1193,7 +1193,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "9010a25bd099797566220233a7bb04e7d2be16fbe0847c09e270a4dea29aff31"
+      "verifiedDigest": "d79ec1eed309fb9f6d14f92923f6788811bb4f3afc0b87226b88b1edbf37a8d9"
     },
     {
       "slug": "evals-and-calibration",
@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "5effc7ddd68d5918cfd632c0afe93be7c274b2b7",
-      "verifiedDigest": "41d4cd797151a3c5cd55569420e51d05f398d5e418d5600ce6cf54f1e0252e12",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedDigest": "164983fa88bcdd776a5af0e1748fcca10a14c520a03d06b7cc950aeeecf79eea",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1321,12 +1321,7 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 590,
-          "anchor": "await hooksFor['experimental.session.compacting']({ sessionID }, out);"
-        },
-        {
-          "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 595,
+          "line": 600,
           "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
         },
         {
@@ -1564,12 +1559,13 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 605,
+          "line": 610,
           "anchor": "a written snapshot was not named by path: ${withSnapshot.slice(-200)}"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 285
+          "line": 285,
+          "anchor": "expect(await ceilingCase('0', 'env-zero', 900000) === null, 'CODE_OPS_CONTEXT_CE"
         },
         {
           "file": "evals/distill-check/run.mjs",
@@ -1588,7 +1584,7 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 337,
+          "line": 342,
           "anchor": "tokens: { input: 1000, output: 20, reasoning: 0, cache: { read: 159000, write: 0"
         },
         {
@@ -1678,7 +1674,7 @@
         },
         {
           "file": "evals/dispatch-guard/run.mjs",
-          "line": 2809,
+          "line": 2815,
           "anchor": "the eval must read the gate table from the hook, found ${known.length} ids"
         },
         {
@@ -1706,7 +1702,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "8bb6945885a09d26bf85dd96dff0ae8c98bd8547",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1839,7 +1835,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "b0f5fc3428b29932cb79b76fbaa6d51412dd35df00e47d00b29c75f13418cfa3"
+      "verifiedDigest": "bacc7fe249e14120bfe27d17041536ec17ad2b9d611e493d4674ac64e317fe23"
     },
     {
       "slug": "ci-workflows",
@@ -1973,7 +1969,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "5effc7ddd68d5918cfd632c0afe93be7c274b2b7",
+      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2056,7 +2052,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "4b0ceac7d5ab8bf9118763284d1b13369c60a054a06eff5eb9d9155bb12ea4c7"
+      "verifiedDigest": "cdacdd47c679ff4397e722dab567acf9f59b18476fd98c80b521bfef357b55a0"
     },
     {
       "slug": "root-contracts",

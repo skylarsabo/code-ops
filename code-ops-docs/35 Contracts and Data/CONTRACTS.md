@@ -94,7 +94,7 @@ The `lead` block records the session model: the model the operator started the s
 with, on any host. The validator checks it for shape only: a nonempty model, a known tier,
 and a known effort. A lead below strong, or a model the registry cannot place at its declared
 tier, prints a warning and never fails the contract. A task-based contract caps the lead and every unit at high effort, the frontier peer included, while replay and calibration contracts keep their accepted efforts. The session lead owns acceptance. Unit
-floors still fail closed, so judgment, review, and refutation stay at the strong tier. A review or refutation unit names both the unit it
+floors still fail closed, so judgment, review, and refutation stay at the strong tier. A review unit runs at medium or high effort, and a refutation unit runs at high effort only. Two pre-registered measurements of whole-repository review by a strong-tier model found no gain from high over medium effort (15.4 against 15.0 of 18 on `evals/scale-parquet`, and 28.4 against 29.4 of 38 on a second fixture), at 7 to 10 percent more tokens and about 40 percent more wall time. Both were static whole-repository reviews at five reps per cell, so the result does not cover refutation, which keeps its high floor. A review or refutation unit names both the unit it
 validates and the role-independent relationship. Finalization also requires each planned
 operative artifact to exist and contain evidence. Earlier contract versions retain their
 original compatibility rules for replay only. Every newly authored substantive run uses

@@ -1,6 +1,6 @@
 # Changelog — rigor
 
-## 3.7.2
+## 3.7.3
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
 - The `tracer` and `verifier` agents pin `claude-opus-5-5`, matching the rebound Anthropic strong rung. The vendored `scripts/model-tiers.mjs` carries the new tier table.
@@ -9,6 +9,7 @@
 - The verifier agent body adds shell guidance: scripts from a file under the host .tmp, an explicit timeout for long commands, no background process left running. Vendored scripts refreshed.
 - The `tracer` agent checks four false-positive classes before it keeps a finding, and cites the line that shows the one that applies: a defect that predates the change under review, a security finding that crosses no privilege or trust boundary, throwaway code, and a case handled elsewhere or intentional. The `verifier` agent is unchanged, because an executed repro outranks a class.
 - `deep-review` refutes each concern with three refuters, one per lens (reachability, impact, defenses). The vendored `scripts/refutation-tally.mjs` counts their votes. A concern below PROBABLE is not Blocking, and each drop or downgrade cites the refuting guard.
+- The vendored `route-unit.mjs` now routes a review unit to medium effort below high ambiguity. A refutation unit still routes to high effort.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.
