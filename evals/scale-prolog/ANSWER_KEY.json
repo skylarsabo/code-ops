@@ -1,0 +1,490 @@
+{
+  "fixture": "scale-prolog",
+  "repo": "repo",
+  "lineTolerance": 3,
+  "thresholds": {
+    "recall": 0.5,
+    "maxDecoys": 0
+  },
+  "planted": [
+    {
+      "id": "bh-succ-zero",
+      "file": "modules/core.js",
+      "line": 7408,
+      "anchor": "if( pl.type.is_variable( m ) || m.value >= 0 ) {",
+      "category": "off-by-one",
+      "oracle": "bh-succ-zero.test.js",
+      "desc": "`if( pl.type.is_variable( m ) || m.value > 0 ) {` became `if( pl.type.is_variable( m ) || m.value >= 0 ) {`"
+    },
+    {
+      "id": "bh-arg-last",
+      "file": "modules/core.js",
+      "line": 5956,
+      "anchor": "if( n > 0 && n < atom.args[1].args.length ) {",
+      "category": "off-by-one",
+      "oracle": "bh-arg-last.test.js",
+      "desc": "`if( n > 0 && n <= atom.args[1].args.length ) {` became `if( n > 0 && n < atom.args[1].args.length ) {`"
+    },
+    {
+      "id": "bh-subatom-after-zero",
+      "file": "modules/core.js",
+      "line": 6894,
+      "anchor": "} else if( pl.type.is_integer( after ) && after.value <= 0 ) {",
+      "category": "off-by-one",
+      "oracle": "bh-subatom-after-zero.test.js",
+      "desc": "`pl.type.is_integer( after ) && after.value < 0 ) {` became `pl.type.is_integer( after ) && after.value <= 0 ) {`"
+    },
+    {
+      "id": "bh-rem-zero",
+      "file": "modules/core.js",
+      "line": 4370,
+      "anchor": "fn: function( x, y, thread ) { return x % y; }",
+      "category": "missing-guard",
+      "oracle": "bh-rem-zero.test.js",
+      "desc": "`return y ? x % y : pl.error.evaluation( \"zero_divisor\", thread.__call_indicator ); }` became `return x % y; }`"
+    },
+    {
+      "id": "bh-occurs-check-default",
+      "file": "modules/core.js",
+      "line": 4770,
+      "anchor": "value: new Term( \"true\" ),",
+      "category": "wrong-default",
+      "oracle": "bh-occurs-check-default.test.js",
+      "desc": "`value: new Term( \"false\" ),` became `value: new Term( \"true\" ),`"
+    },
+    {
+      "id": "bh-catch-rethrow",
+      "file": "modules/core.js",
+      "line": 5641,
+      "anchor": "thread.prepend([]);",
+      "category": "swallowed-error",
+      "oracle": "bh-catch-rethrow.test.js",
+      "desc": "`thread.throw_error(answer.args[0]);` became `thread.prepend([]);`"
+    },
+    {
+      "id": "bh-asserta-order",
+      "file": "modules/core.js",
+      "line": 6597,
+      "anchor": "get_module.rules[head.indicator] = get_module.rules[head.indicator].concat([new Rule(head, body, true)]);",
+      "category": "wrong-order",
+      "oracle": "bh-asserta-order.test.js",
+      "desc": "`get_module.rules[head.indicator] = [new Rule(head, body, true)].concat(get_module.rules[head.indicator]);` became `get_module.rules[head.indicator] = get_module.rules[head.indicator].concat([new Rule(head, body, true)]);`"
+    },
+    {
+      "id": "bh-numbervars-start",
+      "file": "modules/core.js",
+      "line": 6055,
+      "anchor": "var value = 0;",
+      "category": "wrong-variable",
+      "oracle": "bh-numbervars-start.test.js",
+      "desc": "`var value = start.value;` became `var value = 0;`"
+    },
+    {
+      "id": "bh-forall-test-negation",
+      "file": "modules/core.js",
+      "line": 5577,
+      "anchor": "thread.prepend( [new State( point.goal.replace( new Term( \"\\\\+\", [new Term( \",\", [new Term( \"call\", [generate] ), new Term( \"call\", [test] )] )] ) ), point.substitution, point )] );",
+      "category": "inverted-guard",
+      "oracle": "bh-forall-test-negation.test.js",
+      "desc": "`new Term( \"\\\\+\", [new Term( \"call\", [test] )] )` became `new Term( \"call\", [test] )`"
+    },
+    {
+      "id": "bh-promise-answers-await",
+      "file": "modules/promises.js",
+      "line": 67,
+      "anchor": "var answer = this.promiseAnswer();",
+      "category": "missing-await",
+      "oracle": "bh-promise-answers-await.test.js",
+      "desc": "`var answer = await this.promiseAnswer();` became `var answer = this.promiseAnswer();`"
+    },
+    {
+      "id": "bh-random-between-upper",
+      "file": "modules/random.js",
+      "line": 106,
+      "anchor": "var gen = Math.floor(lower.value + thread.get_random_generator().next() * (upper.value - lower.value));",
+      "category": "off-by-one",
+      "oracle": "bh-random-between-upper.test.js",
+      "desc": "`(upper.value - lower.value + 1)` became `(upper.value - lower.value)`"
+    },
+    {
+      "id": "bh-replicate-count",
+      "file": "modules/lists.js",
+      "line": 267,
+      "anchor": "for( var i = 0; i <= times.value; i++ ) {",
+      "category": "off-by-one",
+      "oracle": "bh-replicate-count.test.js",
+      "desc": "`for( var i = 0; i < times.value; i++ ) {` became `for( var i = 0; i <= times.value; i++ ) {`"
+    },
+    {
+      "id": "bh-not-unify-inverted",
+      "file": "modules/core.js",
+      "line": 5801,
+      "anchor": "if( mgu !== null ) {",
+      "category": "inverted-guard",
+      "oracle": "bh-not-unify-inverted.test.js",
+      "desc": "`if( mgu === null ) {` became `if( mgu !== null ) {`"
+    },
+    {
+      "id": "bh-atom-concat-suffix-guard",
+      "file": "modules/core.js",
+      "line": 6854,
+      "anchor": "if( str !== undefined ) {",
+      "category": "missing-guard",
+      "oracle": "bh-atom-concat-suffix-guard.test.js",
+      "desc": "`if( str + end.id === whole.id ) {` became `if( str !== undefined ) {`"
+    },
+    {
+      "id": "bh-univ-number-head",
+      "file": "modules/core.js",
+      "line": 5995,
+      "anchor": "} else if( args.length > 0 && (pl.type.is_compound( atom.args[1].args[0] ) ) ) {",
+      "category": "missing-guard",
+      "oracle": "bh-univ-number-head.test.js",
+      "desc": "`|| pl.type.is_number( atom.args[1].args[0] )) ) {` became `) ) {`"
+    },
+    {
+      "id": "bh-random-float-flag",
+      "file": "modules/random.js",
+      "line": 62,
+      "anchor": "point.goal.replace( new pl.type.Term( \"=\", [rand, new pl.type.Num( gen, false )] ) ),",
+      "category": "wrong-default",
+      "oracle": "bh-random-float-flag.test.js",
+      "desc": "`new pl.type.Num( gen, true )` became `new pl.type.Num( gen, false )`"
+    },
+    {
+      "id": "bh-keysort-pair-error",
+      "file": "modules/core.js",
+      "line": 6448,
+      "anchor": "thread.prepend( [] );",
+      "category": "swallowed-error",
+      "oracle": "bh-keysort-pair-error.test.js",
+      "desc": "`thread.throw_error( pl.error.type( \"pair\", elem, atom.indicator ) );` became `thread.prepend( [] );`"
+    },
+    {
+      "id": "bh-compare-args-swapped",
+      "file": "modules/core.js",
+      "line": 7352,
+      "anchor": "var compare = pl.compare( right, left );",
+      "category": "wrong-order",
+      "oracle": "bh-compare-args-swapped.test.js",
+      "desc": "`var compare = pl.compare( left, right );` became `var compare = pl.compare( right, left );`"
+    },
+    {
+      "id": "bh-setof-as-bagof",
+      "file": "modules/core.js",
+      "line": 5905,
+      "anchor": "point.goal.replace(new Term(\"$bagof\", [template, goal, instances])),",
+      "category": "wrong-variable",
+      "oracle": "bh-setof-as-bagof.test.js",
+      "desc": "`new Term(\"$setof\", [template, goal, instances])` became `new Term(\"$bagof\", [template, goal, instances])`"
+    },
+    {
+      "id": "ca-take-short-list",
+      "file": "modules/lists.js",
+      "line": 323,
+      "anchor": "if( i >= 0 ) {",
+      "category": "off-by-one",
+      "oracle": "ca-take-short-list.test.js",
+      "desc": "`if( i === 0 ) {` became `if( i >= 0 ) {`"
+    },
+    {
+      "id": "ca-list-to-set-rescan",
+      "file": "modules/lists.js",
+      "line": 403,
+      "anchor": "for( var j = 0; j < arr.length; j++ ) {",
+      "category": "missing-guard",
+      "oracle": "ca-list-to-set-rescan.test.js",
+      "desc": "`j < arr.length && !match` became `j < arr.length`"
+    },
+    {
+      "id": "ca-foldr-order",
+      "file": "modules/lists.js",
+      "line": 121,
+      "anchor": "new pl.type.Rule(new pl.type.Term(\"foldr\", [new pl.type.Var(\"G\"),new pl.type.Term(\".\", [new pl.type.Var(\"A\"),new pl.type.Var(\"As\")]),new pl.type.Var(\"V0\"),new pl.type.Var(\"V2\")]), new pl.type.Term(\",\", [new pl.type.Term(\"call\", [new pl.type.Var(\"G\"),new pl.type.Var(\"A\"),new pl.type.Var(\"V0\"),new pl.type.Var(\"V1\")]),new pl.type.Term(\"foldr\", [new pl.type.Var(\"G\"),new pl.type.Var(\"As\"),new pl.type.Var(\"V1\"),new pl.type.Var(\"V2\")])]))",
+      "category": "wrong-order",
+      "oracle": "ca-foldr-order.test.js",
+      "desc": "`new pl.type.Term(\",\", [new pl.type.Term(\"foldr\", [new pl.type.Var(\"G\"),new pl.type.Var(\"As\"),new pl.type.Var(\"V0\"),new pl.type.Var(\"V1\")]),new pl.type.Term(\"call\", [new pl.type.Var(\"G\"),new pl.type.Var(\"A\"),new pl.type.Var(\"V1\"),new pl.type.Var(\"V2\")])])` became `new pl.type.Term(\",\", [new pl.type.Term(\"call\", [new pl.type.Var(\"G\"),new pl.type.Var(\"A\"),new pl.type.Var(\"V0\"),new pl.type.Var(\"V1\")]),new pl.type.Term(\"foldr\", [new pl.type.Var(\"G\"),new pl.type.Var(\"As\"),new pl.type.Var(\"V1\"),new pl.type.Var(\"V2\")])])`"
+    },
+    {
+      "id": "ca-epoch-stat",
+      "file": "modules/statistics.js",
+      "line": 93,
+      "anchor": "return new pl.type.Num( thread.cpu_time, false );",
+      "category": "wrong-variable",
+      "oracle": "ca-epoch-stat.test.js",
+      "desc": "`return new pl.type.Num( thread.epoch, false );` became `return new pl.type.Num( thread.cpu_time, false );`"
+    },
+    {
+      "id": "ca-apply-throws",
+      "file": "modules/js.js",
+      "line": 54,
+      "anchor": "thread.success( point );",
+      "category": "swallowed-error",
+      "oracle": "ca-apply-throws.test.js",
+      "desc": "`thread.throw_error( pl.error.javascript( e.toString(), atom.indicator ) );` became `thread.success( point );`"
+    },
+    {
+      "id": "ca-size-file-field",
+      "file": "modules/os.js",
+      "line": 626,
+      "anchor": "var filesize = stat.blksize;",
+      "category": "wrong-variable",
+      "oracle": "ca-size-file-field.test.js",
+      "desc": "`var filesize = stat.size;` became `var filesize = stat.blksize;`"
+    },
+    {
+      "id": "ca-future-done-state",
+      "file": "modules/concurrent.js",
+      "line": 58,
+      "anchor": "if(future.state === FUTURE_PENDING) {",
+      "category": "inverted-guard",
+      "oracle": "ca-future-done-state.test.js",
+      "desc": "`if(future.state !== FUTURE_PENDING) {` became `if(future.state === FUTURE_PENDING) {`"
+    },
+    {
+      "id": "ca-answer-limit-rejects",
+      "file": "modules/promises.js",
+      "line": 56,
+      "anchor": "limit: resolve",
+      "category": "swallowed-error",
+      "oracle": "ca-answer-limit-rejects.test.js",
+      "desc": "`limit: reject` became `limit: resolve`"
+    },
+    {
+      "id": "ca-between-single",
+      "file": "modules/core.js",
+      "line": 7383,
+      "anchor": "if( lower.value < upper.value ) {",
+      "category": "off-by-one",
+      "oracle": "ca-between-single.test.js",
+      "desc": "`if( lower.value <= upper.value ) {` became `if( lower.value < upper.value ) {`"
+    },
+    {
+      "id": "ca-sub-atom-length",
+      "file": "modules/core.js",
+      "line": 6931,
+      "anchor": "var str = atom1.id.substr( i, k );",
+      "category": "wrong-variable",
+      "oracle": "ca-sub-atom-length.test.js",
+      "desc": "`var str = atom1.id.substr( i, j );` became `var str = atom1.id.substr( i, k );`"
+    },
+    {
+      "id": "ca-reverse-bad-tail",
+      "file": "modules/lists.js",
+      "line": 367,
+      "anchor": "} else if( false ) {",
+      "category": "missing-guard",
+      "oracle": "ca-reverse-bad-tail.test.js",
+      "desc": "`!pl.type.is_variable( reversed ) && !pl.type.is_fully_list( reversed )` became `false`"
+    },
+    {
+      "id": "ca-permutation-partial",
+      "file": "modules/random.js",
+      "line": 143,
+      "anchor": "if( pl.type.is_variable( list ) && pl.type.is_variable( permutation ) ) {",
+      "category": "missing-guard",
+      "oracle": "ca-permutation-partial.test.js",
+      "desc": "removes `|| !ins_list && !ins_permutation`"
+    },
+    {
+      "id": "ca-random-float-bound",
+      "file": "modules/random.js",
+      "line": 81,
+      "anchor": "var float = lower.is_float && upper.is_float;",
+      "category": "inverted-guard",
+      "oracle": "ca-random-float-bound.test.js",
+      "desc": "`var float = lower.is_float || upper.is_float;` became `var float = lower.is_float && upper.is_float;`"
+    },
+    {
+      "id": "ca-time-elapsed-sign",
+      "file": "modules/statistics.js",
+      "line": 10,
+      "anchor": "new pl.type.Rule(new pl.type.Term(\"time\", [new pl.type.Var(\"Goal\")]), new pl.type.Term(\",\", [new pl.type.Term(\"get_time\", [new pl.type.Var(\"T0\")]),new pl.type.Term(\",\", [new pl.type.Term(\"call\", [new pl.type.Var(\"Goal\")]),new pl.type.Term(\",\", [new pl.type.Term(\"get_time\", [new pl.type.Var(\"T1\")]),new pl.type.Term(\",\", [new pl.type.Term(\"!\", []),new pl.type.Term(\",\", [new pl.type.Term(\"is\", [new pl.type.Var(\"T\"),new pl.type.Term(\"-\", [new pl.type.Var(\"T0\"),new pl.type.Var(\"T1\")])]),new pl.type.Term(\"write\", [new pl.type.Var(\"T\")])])])])])]))",
+      "category": "wrong-order",
+      "oracle": "ca-time-elapsed-sign.test.js",
+      "desc": "`new pl.type.Term(\"-\", [new pl.type.Var(\"T1\"),new pl.type.Var(\"T0\")])` became `new pl.type.Term(\"-\", [new pl.type.Var(\"T0\"),new pl.type.Var(\"T1\")])`"
+    },
+    {
+      "id": "ca-json-prolog-pairs",
+      "file": "modules/js.js",
+      "line": 177,
+      "anchor": "var list = pl.fromJavaScript.apply(json.value);",
+      "category": "wrong-default",
+      "oracle": "ca-json-prolog-pairs.test.js",
+      "desc": "`pl.fromJavaScript.apply(json.value, true)` became `pl.fromJavaScript.apply(json.value)`"
+    },
+    {
+      "id": "ca-getenv-value-type",
+      "file": "modules/os.js",
+      "line": 748,
+      "anchor": "} else if(!pl.type.is_variable(value) && !pl.type.is_atom(value) && !pl.type.is_number(value)) {",
+      "category": "unsafe-input",
+      "oracle": "ca-getenv-value-type.test.js",
+      "desc": "`} else if(!pl.type.is_variable(value) && !pl.type.is_atom(value)) {` became `} else if(!pl.type.is_variable(value) && !pl.type.is_atom(value) && !pl.type.is_number(value)) {`"
+    },
+    {
+      "id": "ca-future-any-fail",
+      "file": "modules/concurrent.js",
+      "line": 209,
+      "anchor": "if(future.expected >= 0)",
+      "category": "off-by-one",
+      "oracle": "ca-future-any-fail.test.js",
+      "desc": "`if(future.expected === 0)` became `if(future.expected >= 0)`"
+    },
+    {
+      "id": "ca-atomic-list-number",
+      "file": "modules/core.js",
+      "line": 7293,
+      "anchor": "id += \"\" + pointer.args[0].id;",
+      "category": "wrong-variable",
+      "oracle": "ca-atomic-list-number.test.js",
+      "desc": "`id += \"\" + pointer.args[0].value;` became `id += \"\" + pointer.args[0].id;`"
+    },
+    {
+      "id": "ca-time-weekday",
+      "file": "modules/core.js",
+      "line": 8893,
+      "anchor": "value = new Term(\"weekday\", [new Num(date.getDate(), false)]);",
+      "category": "wrong-variable",
+      "oracle": "ca-time-weekday.test.js",
+      "desc": "`new Num(date.getDay(), false)` became `new Num(date.getDate(), false)`"
+    }
+  ],
+  "decoys": [
+    {
+      "id": "bh-functor-arity-sign",
+      "file": "modules/core.js",
+      "line": 5929,
+      "anchor": "if( arity.value >= 0 ) {",
+      "category": "wrong-variable",
+      "oracle": "bh-functor-arity-sign.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if( atom.args[2].value >= 0 ) {` became `if( arity.value >= 0 ) {`"
+    },
+    {
+      "id": "bh-assertz-append",
+      "file": "modules/core.js",
+      "line": 6646,
+      "anchor": "get_module.rules[head.indicator] = get_module.rules[head.indicator].concat([new Rule(head, body, true)]);",
+      "category": "wrong-order",
+      "oracle": "bh-assertz-append.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `get_module.rules[head.indicator].push(new Rule(head, body, true));` became `get_module.rules[head.indicator] = get_module.rules[head.indicator].concat([new Rule(head, body, true)]);`"
+    },
+    {
+      "id": "bh-nth1-lower-bound",
+      "file": "modules/lists.js",
+      "line": 196,
+      "anchor": "new pl.type.Rule(new pl.type.Term(\"nth1\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Y\"),new pl.type.Var(\"Z\")]), new pl.type.Term(\";\", [new pl.type.Term(\"->\", [new pl.type.Term(\"var\", [new pl.type.Var(\"X\")]),new pl.type.Term(\"nth\", [new pl.type.Num(1, false),new pl.type.Var(\"X\"),new pl.type.Var(\"Y\"),new pl.type.Var(\"Z\"),new pl.type.Var(\"_\")])]),new pl.type.Term(\",\", [new pl.type.Term(\">=\", [new pl.type.Var(\"X\"),new pl.type.Num(0, false)]),new pl.type.Term(\",\", [new pl.type.Term(\"nth\", [new pl.type.Num(1, false),new pl.type.Var(\"X\"),new pl.type.Var(\"Y\"),new pl.type.Var(\"Z\"),new pl.type.Var(\"_\")]),new pl.type.Term(\"!\", [])])])]))",
+      "category": "off-by-one",
+      "oracle": "bh-nth1-lower-bound.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `new pl.type.Term(\">\", [new pl.type.Var(\"X\"),new pl.type.Num(0, false)]),new pl.type.Term(\",\", [new pl.type.Term(\"nth\", [new pl.type.Num(1, false),new pl.type.Var(\"X\"),new pl.type.Var(\"Y\"),new pl.type.Var(\"Z\"),new pl.type.Var(\"_\")])` became `new pl.type.Term(\">=\", [new pl.type.Var(\"X\"),new pl.type.Num(0, false)]),new pl.type.Term(\",\", [new pl.type.Term(\"nth\", [new pl.type.Num(1, false),new pl.type.Var(\"X\"),new pl.type.Var(\"Y\"),new pl.type.Var(\"Z\"),new pl.type.Var(\"_\")])`"
+    },
+    {
+      "id": "bh-abolish-arity-limit",
+      "file": "modules/core.js",
+      "line": 6792,
+      "anchor": "} else if(pl.type.is_number(thread.get_flag(\"max_arity\")) && predicate.args[1].value >= thread.get_flag(\"max_arity\").value) {",
+      "category": "off-by-one",
+      "oracle": "bh-abolish-arity-limit.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `&& predicate.args[1].value > thread.get_flag(\"max_arity\").value) {` became `&& predicate.args[1].value >= thread.get_flag(\"max_arity\").value) {`"
+    },
+    {
+      "id": "bh-arith-compare-order",
+      "file": "modules/core.js",
+      "line": 4891,
+      "anchor": "return expr1.value > expr2.value ? 1 : (expr1.value < expr2.value ? -1 : 0);",
+      "category": "wrong-order",
+      "oracle": "bh-arith-compare-order.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `return expr1.value < expr2.value ? -1 : (expr1.value > expr2.value ? 1 : 0);` became `return expr1.value > expr2.value ? 1 : (expr1.value < expr2.value ? -1 : 0);`"
+    },
+    {
+      "id": "bh-number-codes-point",
+      "file": "modules/core.js",
+      "line": 7197,
+      "anchor": "list2 = new Term( \".\", [ new Num( str.charCodeAt(i), false ), list2 ] );",
+      "category": "wrong-variable",
+      "oracle": "bh-number-codes-point.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `new Num( codePointAt(str,i), false )` became `new Num( str.charCodeAt(i), false )`"
+    },
+    {
+      "id": "bh-keygroup-search-stop",
+      "file": "modules/core.js",
+      "line": 6509,
+      "anchor": "if(pl.compare(key, keys[i]) === 0) {",
+      "category": "missing-guard",
+      "oracle": "bh-keygroup-search-stop.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: removes `break;`"
+    },
+    {
+      "id": "bh-max-list-tie",
+      "file": "modules/lists.js",
+      "line": 163,
+      "anchor": "new pl.type.Rule(new pl.type.Term(\"max_list\", [new pl.type.Term(\".\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Xs\")]),new pl.type.Var(\"S\")]), new pl.type.Term(\",\", [new pl.type.Term(\"max_list\", [new pl.type.Var(\"Xs\"),new pl.type.Var(\"Y\")]),new pl.type.Term(\";\", [new pl.type.Term(\",\", [new pl.type.Term(\">\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Y\")]),new pl.type.Term(\",\", [new pl.type.Term(\"=\", [new pl.type.Var(\"S\"),new pl.type.Var(\"X\")]),new pl.type.Term(\"!\", [])])]),new pl.type.Term(\"=\", [new pl.type.Var(\"S\"),new pl.type.Var(\"Y\")])])]))",
+      "category": "off-by-one",
+      "oracle": "bh-max-list-tie.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `new pl.type.Term(\">=\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Y\")])` became `new pl.type.Term(\">\", [new pl.type.Var(\"X\"),new pl.type.Var(\"Y\")])`"
+    },
+    {
+      "id": "bh-permutation-shuffle-bound",
+      "file": "modules/random.js",
+      "line": 156,
+      "anchor": "for( i = 0; i < array.length - 1; i++ ) {",
+      "category": "off-by-one",
+      "oracle": "bh-permutation-shuffle-bound.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `for( i = 0; i < array.length; i++ ) {` became `for( i = 0; i < array.length - 1; i++ ) {`"
+    },
+    {
+      "id": "ca-future-all-count",
+      "file": "modules/concurrent.js",
+      "line": 134,
+      "anchor": "if(future.state === FUTURE_PENDING && future.expected <= 0) {",
+      "category": "off-by-one",
+      "oracle": "ca-future-all-count.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `future.state === FUTURE_PENDING && future.expected === 0` became `future.state === FUTURE_PENDING && future.expected <= 0`"
+    },
+    {
+      "id": "ca-time-property-input",
+      "file": "modules/core.js",
+      "line": 8855,
+      "anchor": "} else if(!pl.type.is_number(time)) {",
+      "category": "missing-guard",
+      "oracle": "ca-time-property-input.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `else if(!pl.type.is_variable(time) && !pl.type.is_number(time)) {` became `else if(!pl.type.is_number(time)) {`"
+    },
+    {
+      "id": "ca-getenv-text",
+      "file": "modules/os.js",
+      "line": 769,
+      "anchor": "var getvalue = process.env[name.id] ? new pl.type.Term(\"\" + process.env[name.id], []) : null;",
+      "category": "unsafe-input",
+      "oracle": "ca-getenv-text.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `new pl.type.Term(process.env[name.id].toString(), [])` became `new pl.type.Term(\"\" + process.env[name.id], [])`"
+    },
+    {
+      "id": "ca-random-member-index",
+      "file": "modules/random.js",
+      "line": 128,
+      "anchor": "var gen = Math.trunc(thread.get_random_generator().next() * array.length);",
+      "category": "off-by-one",
+      "oracle": "ca-random-member-index.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `var gen = Math.floor(thread.get_random_generator().next() * array.length);` became `var gen = Math.trunc(thread.get_random_generator().next() * array.length);`"
+    },
+    {
+      "id": "ca-consult-options",
+      "file": "modules/promises.js",
+      "line": 16,
+      "anchor": "options = options || {};",
+      "category": "wrong-default",
+      "oracle": "ca-consult-options.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `options = options === undefined ? {} : options;` became `options = options || {};`"
+    },
+    {
+      "id": "ca-get-prop-defined",
+      "file": "modules/js.js",
+      "line": 87,
+      "anchor": "if( typeof fn !== \"undefined\" ) {",
+      "category": "missing-guard",
+      "oracle": "ca-get-prop-defined.test.js",
+      "why": "an equivalent rewrite that keeps its oracle green: `if( fn !== undefined ) {` became `if( typeof fn !== \"undefined\" ) {`"
+    }
+  ]
+}
