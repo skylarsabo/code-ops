@@ -1,0 +1,33 @@
+# scale-prolog review claims
+Each line claims a defect at one site in `repo/`, and some of these claims are wrong.
+
+- C-01 · modules/lists.js:267 · The loop on this line runs one time too many, so replicate(a, 3, L) binds L to a list of four copies of a instead of three.
+- C-02 · modules/core.js:5929 · The test on this line accepts an arity of zero, so functor(T, foo, 0) builds a compound term with an empty argument list instead of binding T to the atom foo.
+- C-03 · modules/random.js:128 · Rounding toward zero on this line skips the first element, so random_member(X, [a,b]) always binds X to b and never yields the first member a.
+- C-04 · modules/core.js:7352 · The two terms reach the comparison in reverse order, so compare(O, 1, 2) binds O to the atom > instead of <, and compare(O, 2, 1) binds O to < instead of >.
+- C-05 · modules/promises.js:16 · The fallback on this line leaves options undefined when the caller omits it, so promiseConsult(program) with one argument throws a TypeError when it reads options.context_module.
+- C-06 · modules/concurrent.js:209 · The failure callback reports failure while other goals are still pending, so future_any over two goals fails as soon as the first one fails, before the second can succeed.
+- C-07 · modules/core.js:6055 · The counter on this line ignores the Start argument, so numbervars(f(A,B), 5, E) names the variables '$VAR'(0) and '$VAR'(1) and binds E to 2 instead of 7.
+- C-08 · modules/lists.js:163 · The strict greater-than test leaves a tie without a match, so max_list([3,3], M) reaches neither binding for M and the query fails instead of giving M = 3.
+- C-09 · modules/random.js:106 · The width of the range on this line is one short, so random_between(1, 2, X) always binds X to 1 and never yields the upper bound 2.
+- C-10 · modules/core.js:4891 · The comparison on this line returns 1 when the first value is smaller and -1 when it is larger, so the goal 3 > 2 fails and 2 < 3 fails too.
+- C-11 · modules/os.js:769 · The text conversion on this line turns an unset variable into the atom undefined, so getenv('NO_SUCH_VAR', V) succeeds with V = undefined instead of failing.
+- C-12 · modules/core.js:6509 · The key search keeps going after a match and records the last equal key, so keygroup([a-1, b-2, a-3], G) splits the values for a across two groups.
+- C-13 · modules/js.js:177 · The conversion on this line omits the flag that turns objects into pairs, so json_prolog(Obj, L) on a plain object binds L to a wrapped JavaScript value instead of a Key-Value list.
+- C-14 · modules/core.js:6597 · asserta/1 adds the new clause after the existing clauses, so after asserta(p(1)) and then asserta(p(2)) the query p(X) gives X = 1 first instead of X = 2.
+- C-15 · modules/concurrent.js:134 · The completion test on this line also fires after the count goes below zero, so a late answer to future_all runs this block again and calls done twice on one future.
+- C-16 · modules/lists.js:196 · The index guard in nth1/3 admits zero, so nth1(0, [a,b,c], E) succeeds and binds E to a instead of failing for an index below one.
+- C-17 · modules/core.js:7408 · The guard on this line admits M equal to zero, so succ(N, 0) binds N to -1 instead of failing, because no natural number has zero as its successor.
+- C-18 · modules/js.js:87 · The defined check on this line also passes for a missing property, so prop(Obj, nosuch, V) binds V to an undefined value instead of failing.
+- C-19 · modules/os.js:748 · The value check on this line lets a number through, so getenv('HOME', 42) runs the lookup instead of raising a type error for a value that is not an atom.
+- C-20 · modules/lists.js:323 · The test on this line accepts a list that ran out before the count reached zero, so take(5, [a,b], L) succeeds with L = [a,b] instead of failing.
+- C-21 · modules/core.js:6931 · The substring on this line uses the after count where it needs the length, so sub_atom(abcde, 1, 3, A, S) fails instead of giving S = bcd and A = 1.
+- C-22 · modules/random.js:156 · The shuffle loop on this line stops one short of the end, so random_permutation([a,b,c], P) never moves c out of the last position in any result.
+- C-23 · modules/core.js:6792 · The limit test on this line rejects an arity equal to max_arity, so abolish(foo/N) with N at that limit raises a representation error instead of removing foo/N.
+- C-24 · modules/promises.js:67 · The call on this line is not awaited, so each answer is a pending promise that never equals false, and iterating promiseAnswers never stops after the last answer.
+- C-25 · modules/core.js:6646 · assertz/1 adds the new clause before the existing clauses, so after assertz(p(1)) and then assertz(p(2)) the query p(X) gives X = 2 first instead of X = 1.
+- C-26 · modules/random.js:143 · The instantiation check on this line needs both arguments to be variables, so random_permutation([a|T], P) with two partial lists raises no instantiation error.
+- C-27 · modules/core.js:8855 · The type check on this line has no variable test, so time_property(T, P) with T unbound raises a type error instead of an instantiation error.
+- C-28 · modules/core.js:4370 · The rem function on this line has no zero divisor check, so X is 7 rem 0 does not raise the evaluation error zero_divisor that the standard requires.
+- C-29 · modules/core.js:7383 · The bound test on this line is strict, so between(1, 3, X) gives X = 1 and X = 2 but never X = 3, and between(3, 3, X) fails.
+- C-30 · modules/core.js:7197 · The loop around this line walks the text from its end, so number_codes(12, L) binds L to the codes of 21, [50,49], instead of [49,50].

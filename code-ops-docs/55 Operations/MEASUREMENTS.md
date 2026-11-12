@@ -1062,6 +1062,15 @@ source is `node scripts/cost-split.mjs --all --since 2026-10-26`, which covers 1
   (p 0.008), for 12.8 percent fewer tokens. High found 15.4, no gain, for 7.4 percent more tokens
   and 40 percent more wall time. Keep medium for a whole-library hunt. Effort moves wall time far
   more than tokens, because most tokens are the read.
+- **Medium against high on a second fixture, 2026-11-12.** `evals/scale-prolog` (38 defects, 15 decoys,
+  12,059 lines), pre-registered, five reps per cell. Review: Opus 5.5 found 29.4 of 38 at medium and
+  28.4 at high, no gain (p 0.9167), for 9.9 percent more tokens and 39.4 percent more wall time.
+  Refutation of 30 claims: 28.8 against 29.0, at ceiling, so it does not test the high-effort floor for
+  refutation units. The review floor now has two fixtures with no gain from high. The refutation
+  floor is still unmeasured. A second claim set, 20 claims whose false half is prevented by code far
+  from the cited line and whose labels are fixed by executed probes, was also at ceiling: 20.0 of 20
+  at medium and 19.8 at high. A static claim on a readable codebase is settled by search at medium
+  effort; a refutation test with headroom needs claims that a search cannot settle.
 - **Open lever: exact-spec units to `mech`.** Gated on the ledger recording the route-basis kind
   share.
 - **Shipped lever: routine `Anchors:` blocks in execution briefs.** On 2026-11-09 the dispatch guard
