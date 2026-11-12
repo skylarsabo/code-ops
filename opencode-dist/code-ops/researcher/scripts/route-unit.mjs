@@ -145,7 +145,7 @@ export function surfaceOfScope(paths) {
   return SURFACES.find((surface) => found.has(surface)) ?? 'none';
 }
 
-// Kinds whose rung is `strong` before a premium trigger applies (rows 3 to 6). A trigger never
+// Kinds whose rung is `strong` before a premium trigger applies (rows 3 to 6b). A trigger never
 // lifts breadth or a mechanical unit: premium at high effort on a read-only sweep is the spend
 // the rubric exists to prevent.
 const STRONG_KINDS = new Set(['execution', 'judgment', 'review', 'refutation']);
@@ -201,7 +201,12 @@ function route(basis, attempt) {
       ? result('strong', 'high', '5', 'judgment at high ambiguity', notes)
       : result('strong', 'medium', '4', 'judgment at low or medium ambiguity', notes);
   }
-  return result('strong', 'high', '6', 'review or refutation', notes);
+  if (effective === 'review') {
+    return ambiguity === 'high'
+      ? result('strong', 'high', '6b', 'review at high ambiguity', notes)
+      : result('strong', 'medium', '6a', 'review at low or medium ambiguity', notes);
+  }
+  return result('strong', 'high', '6', 'refutation', notes);
 }
 
 // Basis: { kind, ambiguity, reversible, surface?, attempt?, floor?, peerException?, synthesis? }.

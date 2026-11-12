@@ -1,6 +1,6 @@
 # Changelog — privacy-opsec-suite
 
-## 2.7.2
+## 2.7.3
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
@@ -9,6 +9,7 @@
 - The `subagent-report` hook saves a report only for an agent with no `Write` or `Edit` tool, decided from the agent file's `tools:` line or, where a host strips that line, a frozen set of the read-only suite agents. A write-capable agent gets no save. The pinned `report-persistence` passage now says the hook saves a read-only agent's report and the lead writes it only where the hook does not.
 - The privacy-reviewer agent body adds shell guidance: plain single commands, an explicit timeout for long commands, no background process left running. Vendored scripts refreshed.
 - `opsec-pr-gate` and `privacy-feature-design` declare `disallowed-tools: Edit, NotebookEdit`, so on a host that honors the key they cannot edit an existing file while active and can still write new run artifacts. Bash stays for read-only probes, so a shell command can still write; the skill prose still forbids it. The derived host builds strip the key.
+- The vendored `route-unit.mjs` now routes a review unit to medium effort below high ambiguity. A refutation unit still routes to high effort.
 - Vendored `route-unit.mjs` adds `AGENT_ROUND_BUDGET` and `defaultRoundBudget`, the per-agent default Round budgets that `co brief` prefills.
 The vendored `co.mjs` routes `co run retention` and `co run retention-check`.
 The vendored `co.mjs` gains the `recall` command.

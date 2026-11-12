@@ -126,7 +126,7 @@ const EFFORTS = ['low', 'medium', 'high'];
 const ABOVE_HIGH = ['xhigh', 'max'];
 const BREADTH = new Set(['explorer', 'gatherer']);
 const REVIEW = new Set(['reviewer', 'privacy-reviewer', 'tracer', 'verifier', 'claim-checker']);
-const EFFORT_DEFAULT = { breadth: 'low', build: 'medium', review: 'high', 'claim-checker': 'medium' };
+const EFFORT_DEFAULT = { breadth: 'low', build: 'medium', review: 'high', reviewer: 'medium', 'claim-checker': 'medium' };
 const HANDOFF_RE = /code-ops-suite[-:]handoff/;
 const LADDER_CARD = [
   'Code-economy ladder (code-ops):',
@@ -1158,7 +1158,7 @@ function routingCard(byTier, profile, fallbacks = []) {
     // Present only while a fallback is active, so the happy-path prefix stays byte-identical.
     ...(fallbacks.length ? [`Ladder fallbacks on this host: ${fallbacks.join(' ')}`] : []),
     'A tier below the agent floor runs at the floor: explorer and gatherer light, claim-checker mid, every other suite agent strong. premium binds a second enabled strong-class model for strong-floor agents; with none, it runs at strong and the dispatch says so.',
-    'Effort: low | medium | high sets that subagent\'s reasoning level. With no line: breadth low, implementer and claim-checker medium, review, trace, and verify high.',
+    'Effort: low | medium | high sets that subagent\'s reasoning level. With no line: breadth low, implementer, reviewer, and claim-checker medium, privacy review, trace, and verify high.',
     'Tier follows the judgment the unit needs. Effort follows its ambiguity. Review never runs low. Effort never runs above high; a higher request runs at high.',
   ].join('\n');
 }

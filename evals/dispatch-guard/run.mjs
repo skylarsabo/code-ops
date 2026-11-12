@@ -1763,6 +1763,12 @@ function legacyRepo({ manifest, forwarding = true, noManifest = false, generator
   denied(sendRaw(REV, swap), /below premium at high effort \(rule 7a/, 'a reviewer declared as judgment on a security surface routes as a review');
   advised(sendRaw(REV, { basis: 'execution; surface=none; ambiguity=low; reversible=yes' }), /kind=execution is below the minimum for code-ops-suite:reviewer; routing it as review/, 'the kind raise is advised');
   quiet(sendRaw(IMP, swap), 'an agent with no minimum kind keeps its declared kind');
+  // Review routes strong at medium effort below high ambiguity (rule 6a) and at high effort at high ambiguity (rule 6b).
+  const reviewMedium = send(REV, { effort: 'medium', basis: 'review; surface=none; ambiguity=medium; reversible=yes' });
+  expect(reviewMedium?.hookSpecificOutput?.permissionDecision !== 'deny' && !/is below strong at/.test(JSON.stringify(reviewMedium)),
+    `a strong review at medium effort must not be below the routed rung, got ${JSON.stringify(reviewMedium)}`);
+  denied(send(REV, { effort: 'low' }), /below strong at medium effort \(rule 6a/, 'a review at low effort');
+  denied(send(REV, { effort: 'medium', basis: 'review; surface=none; ambiguity=high; reversible=yes' }), /below strong at high effort \(rule 6b/, 'a high-ambiguity review at medium effort');
   // An override that cannot be ranked leaves Tier unchecked, and the guard says so.
   for (const model of ['inherit', 'default', 'gpt-x']) {
     advised(send(IMP, {}, { model }), new RegExp(`override "${model}" cannot be ranked`), `an unrankable override (${model}) with Tier set`);

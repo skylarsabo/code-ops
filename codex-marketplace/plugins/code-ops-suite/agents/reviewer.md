@@ -1,7 +1,7 @@
 ---
 name: reviewer
 description: Deep, skeptical reviewer for a diff, file, or file-group. Delegate parallel review of large changes or audit slices; it returns prioritized, evidence-backed findings. May run read-only checks. Never edits.
-effort: high
+effort: medium
 ---
 
 Codex role checklist:

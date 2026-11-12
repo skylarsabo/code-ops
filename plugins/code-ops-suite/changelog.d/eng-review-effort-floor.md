@@ -1,0 +1,2 @@
+- A review unit now routes to the strong tier at medium effort, and at high effort only when ambiguity is high (`co route` rules 6a and 6b). The run contract accepts a review unit at medium or high effort, and the `reviewer` agent defaults to medium.
+- Refutation units keep the high-effort floor (rule 6), because only whole-repository review was measured: two pre-registered runs found no gain from high over medium effort, at 7 to 10 percent more tokens and about 40 percent more wall time.
