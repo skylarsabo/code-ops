@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedAt": "d0fe454d2e37df05de365166db5997ee4264de33",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -441,7 +441,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "92dc4c8683348f395a10e651882d07fe08d65bba05ae5b1ed5b60150b82c1cbe"
+      "verifiedDigest": "c5968db980a94173ca90875e3f50abd78fc3ba399ca0dbe69a1be08e0d9e0e74"
     },
     {
       "slug": "gate-scripts",
@@ -1702,7 +1702,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedAt": "d0fe454d2e37df05de365166db5997ee4264de33",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1835,7 +1835,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "bacc7fe249e14120bfe27d17041536ec17ad2b9d611e493d4674ac64e317fe23"
+      "verifiedDigest": "7064af071d49e165ee179a65a0eb7cba0cdfb25d64aae975fbaf12f746792fb5"
     },
     {
       "slug": "ci-workflows",
