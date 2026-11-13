@@ -1,0 +1,1 @@
+- The implementer opens a granted pull request as ready, runs the CI watch command that the brief's optional `CI watch:` line or the repository's instructions name, and fixes what it reports inside Scope before it returns. The report states the watch command's final line.
