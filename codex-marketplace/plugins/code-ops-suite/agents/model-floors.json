@@ -3,10 +3,10 @@
   "provider": "openai",
   "rungs": {
     "light": "gpt-6-luna",
-    "mid": "gpt-6.1-sol",
-    "strong": "gpt-6.1-sol",
-    "premium": "gpt-6-astra",
-    "frontier": "gpt-6.1-sol"
+    "mid": "gpt-6.2-sol",
+    "strong": "gpt-6.2-sol",
+    "premium": "gpt-6.2-astra",
+    "frontier": "gpt-6.2-sol"
   },
   "premiumCollapse": null,
   "roles": [

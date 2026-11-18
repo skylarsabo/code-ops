@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Source of truth
 
-Edit canonical source under `plugins/` and `scripts/`. Treat host projections as generated output. Run both renderers after a plugin change. Evidence: `scripts/build-opencode-dist.mjs:476-489` and `AGENTS.md:97-104`.
+Edit canonical source under `plugins/` and `scripts/`. Treat host projections as generated output. Run both renderers after a plugin change. Evidence: `scripts/build-opencode-dist.mjs:761-774` and `AGENTS.md:97-104`.
 
 `AGENTS.md` holds the only copy of the repository contract, and `CLAUDE.md` is the single import line `@AGENTS.md`. Edit `AGENTS.md` only; lint fails closed on any other `CLAUDE.md` content. Evidence: `AGENTS.md:43-51`.
 

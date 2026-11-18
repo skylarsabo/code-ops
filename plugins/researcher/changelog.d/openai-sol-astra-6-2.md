@@ -1,0 +1,1 @@
+- OpenAI routing now uses Sol 6.2 for mid, strong, and the default frontier lead. Astra 6.2 serves premium dispatches and bounded frontier work. Existing Sol 6.1 and Astra records keep their tier eligibility.

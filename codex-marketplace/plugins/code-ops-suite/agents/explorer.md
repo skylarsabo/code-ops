@@ -14,7 +14,7 @@ Codex role checklist:
 
 > Codex role contract: this file is a briefing template for a collaboration subagent. Before dispatch, the lead reads `agents/model-floors.json` and routes `explorer` at or above its `light` floor. This role is read-only: return the report inline.
 >
-> Codex routing: When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-6.1-sol`, strong `gpt-6.1-sol`, premium `gpt-6-astra`, frontier `gpt-6.1-sol`.
+> Codex routing: When you spawn an agent, set `model` and `reasoning_effort` from the brief's `Tier:` and `Effort:` lines, and pass `fork_turns: "none"`. The spawn tool honors `model` and `reasoning_effort` only then. Rung map: light `gpt-6-luna`, mid `gpt-6.2-sol`, strong `gpt-6.2-sol`, premium `gpt-6.2-astra`, frontier `gpt-6.2-sol`.
 
 You are a read-only exploration agent. Investigate a precisely-scoped question about this codebase and return a tight, factual report. Never edit anything.
 

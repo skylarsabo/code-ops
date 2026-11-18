@@ -42,7 +42,8 @@ const KNOWN_MODELS = {
   },
   "openai": {
     "gpt-6-luna": "light",
-    "gpt-6.1-sol": "frontier",
+    "gpt-6.2-sol": "frontier",
+    "gpt-6.2-astra": "frontier",
     "gpt-6-astra": "frontier"
   },
   "google": {
@@ -88,6 +89,7 @@ const KNOWN_MODELS = {
     "gpt-5.6-terra": "strong",
     "gpt-5.6-sol": "frontier",
     "gpt-6-sol": "frontier",
+    "gpt-6.1-sol": "frontier",
     "grok-4.6": "frontier",
     "claude-haiku-4-5-20251001": "light",
     "claude-haiku-4-5": "light",
@@ -106,7 +108,7 @@ const TIER_BY_ID = {
   "claude-fable-5-2": "frontier",
   "grok-4.7": "frontier",
   "gpt-6-luna": "light",
-  "gpt-6.1-sol": "frontier",
+  "gpt-6.2-sol": "frontier",
   "gemini-3.1-flash-lite": "light",
   "gemini-3.6-flash": "mid",
   "gemini-3.1-pro-preview": "frontier",
@@ -124,6 +126,7 @@ const TIER_BY_ID = {
   "muse-spark-1.3-contributor-free": "strong",
   "gemini-3.8-flash": "mid",
   "gpt-6-sol": "frontier",
+  "gpt-6.2-astra": "frontier",
   "gpt-6-astra": "frontier",
   "grok-build-0.1": "light",
   "claude-opus-5.5": "strong",
@@ -134,6 +137,7 @@ const TIER_BY_ID = {
   "gpt-5.6-luna": "light",
   "gpt-5.6-terra": "strong",
   "gpt-5.6-sol": "frontier",
+  "gpt-6.1-sol": "frontier",
   "grok-4.6": "frontier",
   "claude-haiku-4-5-20251001": "light",
   "claude-haiku-4-5": "light",
@@ -143,6 +147,7 @@ const TIER_BY_ID = {
 };
 const SPECIALIST_MODELS = {
   "openai": [
+    "gpt-6.2-astra",
     "gpt-6-astra"
   ],
   "xai": [
@@ -155,6 +160,10 @@ const SPECIALIST_MODELS = {
     "mai-code-1.1-flash"
   ]
 };
+const PREMIUM_SPECIALIST_MODELS = [
+  "gpt-6.2-astra",
+  "gpt-6-astra"
+];
 // Read by the lifecycle chooser and the cost report, never by this gate.
 const MODEL_PRICES = {
   "github-copilot": {

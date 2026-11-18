@@ -241,9 +241,14 @@ process.env.CODE_OPS_PEER_GUARD = 'off';
 await hooks['tool.execute.after']({ tool: 'edit', sessionID: 'ses_off', callID: 'c2', args: { filePath: ${JSON.stringify(join(root, 'scripts', 'co.mjs'))} } }, {});
 const config = {};
 await hooks.config(config);
+const openai = {};
+for (const id of ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.1-sol', 'gpt-6-astra', 'gpt-6-luna', 'gpt-6.3-astra']) {
+  openai[id] = await run({ providerID: 'openai', id });
+}
 console.log(JSON.stringify({
   belowFloor: await run({ providerID: 'anthropic', id: ${JSON.stringify(anthropic.models.light)} }),
   atFloor: await run({ providerID: 'anthropic', id: ${JSON.stringify(anthropic.models.strong)} }),
+  openai,
   unknown: await run({ providerID: 'unknown', id: 'unknown' }),
   preserved: compaction.context.some((line) => line.includes('Compaction summary:')),
   routed: system.system.some((line) => line.includes('code-ops standard operating mode')),
@@ -261,6 +266,12 @@ console.log(JSON.stringify({
     const verdicts = JSON.parse(floorResult.stdout.trim().split('\n').pop());
     expect(verdicts.belowFloor === 'blocked', `model-floor plugin should block a below-floor binding, got ${verdicts.belowFloor}`);
     expect(verdicts.atFloor === 'allowed', `model-floor plugin should allow an at-floor binding, got ${verdicts.atFloor}`);
+    for (const model of ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.1-sol', 'gpt-6-astra']) {
+      expect(verdicts.openai?.[model] === 'allowed', `the generated floor gate should preserve explicit strong authorization for ${model}`);
+    }
+    for (const model of ['gpt-6-luna', 'gpt-6.3-astra']) {
+      expect(verdicts.openai?.[model] === 'blocked', `the generated floor gate should reject below-floor or invented model ${model}`);
+    }
     expect(verdicts.unknown === 'blocked', `model-floor plugin should block an unclassified binding, got ${verdicts.unknown}`);
     expect(verdicts.preserved === true, 'model-floor plugin did not append compaction preservation context');
     expect(verdicts.routed === true, 'OpenCode runtime plugin did not inject routing guidance');

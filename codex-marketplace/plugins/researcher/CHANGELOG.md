@@ -1,6 +1,6 @@
 # Changelog — researcher
 
-## 0.18.3
+## 0.18.4
 - The `gatherer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 - The vendored `scripts/model-tiers.mjs` carries the rebound Anthropic tier table. No agent changes.
 - The `gatherer` and `claim-checker` bodies tell the agent to return the report as the final message, which the suite `subagent-report` hook saves to the brief's `Report path:`.
@@ -14,6 +14,7 @@ The vendored `co.mjs` gains the `recall` command.
 - `co.mjs` lists `co build-graph`, which runs only in the code-ops repository and prints "not bundled here" from an installed plugin.
 - Skill and agent descriptions are shorter, to cut session-start context.
 - Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
+- OpenAI routing now uses Sol 6.2 for mid, strong, and the default frontier lead. Astra 6.2 serves premium dispatches and bounded frontier work. Existing Sol 6.1 and Astra records keep their tier eligibility.
 
 ## 0.18.1
 - Refresh vendored scripts.

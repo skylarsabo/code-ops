@@ -155,7 +155,7 @@ both measure a finished run. `scripts/estimate-run-cost.mjs` reads the same evid
 forward. Run it at Phase 0, before you set the levers:
 
 ```
-node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--model gpt-6-astra] [--repo-size 40]
+node scripts/estimate-run-cost.mjs --runs <vault>/80\ Runs --skill ship [--model gpt-6.2-astra] [--repo-size 40]
 ```
 
 It walks prior run folders, parses their `DISPATCH_LEDGER.md` files with grammar (a) from

@@ -8,7 +8,7 @@
         "plugins",
         ".claude-plugin"
       ],
-      "verifiedAt": "d0fe454d2e37df05de365166db5997ee4264de33",
+      "verifiedAt": "5d3b3abaf354c07dc68aca48e760e616f72d0fc5",
       "claims": [
         {
           "file": "plugins/code-ops-suite/scripts/docs-manifest.mjs",
@@ -441,7 +441,7 @@
           "anchor": "function workspaceLine(setup) {"
         }
       ],
-      "verifiedDigest": "c5968db980a94173ca90875e3f50abd78fc3ba399ca0dbe69a1be08e0d9e0e74"
+      "verifiedDigest": "3922497bde5cafb01f5cad4d10f96216c2f14c5db2bd0a42abce2b34f65191a1"
     },
     {
       "slug": "gate-scripts",
@@ -450,7 +450,7 @@
         "scripts",
         ".githooks"
       ],
-      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedAt": "5d3b3abaf354c07dc68aca48e760e616f72d0fc5",
       "claims": [
         {
           "file": "scripts/docs-manifest.mjs",
@@ -964,7 +964,7 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 925,
+          "line": 927,
           "anchor": "// current refresh is authoritative; a cache only seeds launch-time bindings."
         },
         {
@@ -1144,12 +1144,12 @@
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 873,
+          "line": 875,
           "anchor": "if (!date || !(+date <= +now ? +now < +sixMonthsAfter(date) : +date < +sixMonths"
         },
         {
           "file": "scripts/opencode-lifecycle.js",
-          "line": 927,
+          "line": 929,
           "anchor": "// whatever the routing switch says, so the model cannot reach a disabled model."
         },
         {
@@ -1193,7 +1193,7 @@
           "anchor": "function isUntrackedScratch(parent, name, dir) {"
         }
       ],
-      "verifiedDigest": "d79ec1eed309fb9f6d14f92923f6788811bb4f3afc0b87226b88b1edbf37a8d9"
+      "verifiedDigest": "061e99fb48cdd827574da6b6caa0c6a0f121ed01174910fc9f5e10b90aa565f1"
     },
     {
       "slug": "evals-and-calibration",
@@ -1201,8 +1201,8 @@
       "scope": [
         "evals"
       ],
-      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
-      "verifiedDigest": "164983fa88bcdd776a5af0e1748fcca10a14c520a03d06b7cc950aeeecf79eea",
+      "verifiedAt": "5d3b3abaf354c07dc68aca48e760e616f72d0fc5",
+      "verifiedDigest": "582578f56d2adf5a35a8af3e30760bb50f78ebae931e22c1573ac35859eaa5c4",
       "claims": [
         {
           "file": "evals/opencode-enabled-models/run.mjs",
@@ -1271,7 +1271,7 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 269,
+          "line": 280,
           "anchor": "expect(verdicts.boarded === true, 'OpenCode runtime plugin did not record the ed"
         },
         {
@@ -1281,7 +1281,7 @@
         },
         {
           "file": "evals/opencode-dist/run.mjs",
-          "line": 295,
+          "line": 306,
           "anchor": "${plugin}: rendered reference specs [${rendered.join(', ')}] do not match canoni"
         },
         {
@@ -1321,7 +1321,7 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 600,
+          "line": 616,
           "anchor": "expect(pushed.includes('OI-01 open item') && pushed.includes('OI-12') && !pushed"
         },
         {
@@ -1481,17 +1481,17 @@
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 66,
+          "line": 71,
           "anchor": "const requiredSections = calibration(); requiredSections.context.requiredViewSec"
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 81,
+          "line": 86,
           "anchor": "const taskBased = () => { const value = calibration(); delete value.calibration;"
         },
         {
           "file": "evals/run-contract/run.mjs",
-          "line": 89,
+          "line": 94,
           "anchor": "const validPeer = taskBased(); validPeer.units[0] = { ...validPeer.units[0], mod"
         },
         {
@@ -1559,12 +1559,12 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 610,
+          "line": 626,
           "anchor": "a written snapshot was not named by path: ${withSnapshot.slice(-200)}"
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 285,
+          "line": 301,
           "anchor": "expect(await ceilingCase('0', 'env-zero', 900000) === null, 'CODE_OPS_CONTEXT_CE"
         },
         {
@@ -1584,7 +1584,7 @@
         },
         {
           "file": "evals/opencode-lifecycle/run.mjs",
-          "line": 342,
+          "line": 358,
           "anchor": "tokens: { input: 1000, output: 20, reasoning: 0, cache: { read: 159000, write: 0"
         },
         {
@@ -1702,7 +1702,7 @@
         ".agents",
         "opencode-dist"
       ],
-      "verifiedAt": "d0fe454d2e37df05de365166db5997ee4264de33",
+      "verifiedAt": "5d3b3abaf354c07dc68aca48e760e616f72d0fc5",
       "claims": [
         {
           "file": "scripts/build-codex-marketplace.mjs",
@@ -1791,7 +1791,7 @@
         },
         {
           "file": "scripts/build-opencode-dist.mjs",
-          "line": 479,
+          "line": 482,
           "anchor": "// The presence board records this session's edits through the canonical edit ho"
         },
         {
@@ -1826,7 +1826,7 @@
         },
         {
           "file": "scripts/build-opencode-dist.mjs",
-          "line": 548,
+          "line": 553,
           "anchor": "— a starter chooser profile with prices and cost gates. Copy it to \\"
         },
         {
@@ -1835,7 +1835,7 @@
           "anchor": "const creditsOf = (row) => {"
         }
       ],
-      "verifiedDigest": "7064af071d49e165ee179a65a0eb7cba0cdfb25d64aae975fbaf12f746792fb5"
+      "verifiedDigest": "29d2fbc768f26a21d010997c7e79e9886dc3fe3a709b43f8dad908aa4de5681a"
     },
     {
       "slug": "ci-workflows",
@@ -1969,7 +1969,7 @@
         "scripts/docs-extract.mjs",
         "scripts/docs-manifest.mjs"
       ],
-      "verifiedAt": "9ed285c29c60331febf77521cc2cd29d413e0214",
+      "verifiedAt": "5d3b3abaf354c07dc68aca48e760e616f72d0fc5",
       "claims": [
         {
           "file": "code-ops-docs/Standard.md",
@@ -2052,7 +2052,7 @@
           "anchor": "Version-4 checkpoint, resume, replan, and verification reconcile active dispatch"
         }
       ],
-      "verifiedDigest": "cdacdd47c679ff4397e722dab567acf9f59b18476fd98c80b521bfef357b55a0"
+      "verifiedDigest": "d71bdd882e325e7ed40280edd0bd69711da162412fa4492af1bb35a8f2678fe5"
     },
     {
       "slug": "root-contracts",

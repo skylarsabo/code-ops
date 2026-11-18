@@ -224,20 +224,25 @@ const derivedCollapse = (provider) => (provider.models.premium === provider.mode
 check('every provider pins a premium model and states its collapse', Object.values(PROVIDER_TIERS).every((p) => typeof p.models.premium === 'string' && p.premiumCollapse === derivedCollapse(p)),
   Object.values(PROVIDER_TIERS).filter((p) => p.premiumCollapse !== derivedCollapse(p)).map((p) => p.id).join(','));
 check('every premium id clears the strong rung', Object.values(PROVIDER_TIERS).every((p) => modelSupportsTier(p.models.premium, 'strong')));
-check('Astra premium validates at strong without changing its frontier class', modelSupportsTier('gpt-6-astra', 'strong') && modelSupportsTier('gpt-6-astra', 'frontier') && modelClassOf('gpt-6-astra') === 'frontier');
+for (const model of ['gpt-6-astra', 'gpt-6.2-astra']) {
+  check(`${model} validates at strong without changing its frontier class`, modelSupportsTier(model, 'strong') && modelSupportsTier(model, 'frontier') && modelClassOf(model) === 'frontier' && modelRankOf(model) === 3);
+}
 check('Anthropic strong is Opus 5.5 behind its frontmatter pin; premium and frontier are Fable 5.2 behind the fable alias', PROVIDER_TIERS.anthropic.models.strong === 'claude-opus-5-5' && PROVIDER_TIERS.anthropic.dispatchAlias.strong === null
   && PROVIDER_TIERS.anthropic.models.premium === 'claude-fable-5-2' && PROVIDER_TIERS.anthropic.models.frontier === 'claude-fable-5-2' && PROVIDER_TIERS.anthropic.dispatchAlias.premium === 'fable' && PROVIDER_TIERS.anthropic.dispatchAlias.frontier === 'fable' && PROVIDER_TIERS.anthropic.premiumCollapse === 'frontier');
-check('OpenAI pins Luna light, Sol mid/strong/frontier, Astra premium', PROVIDER_TIERS.openai.models.light === 'gpt-6-luna' && PROVIDER_TIERS.openai.models.mid === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.models.strong === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.models.premium === 'gpt-6-astra' && PROVIDER_TIERS.openai.models.frontier === 'gpt-6.1-sol' && PROVIDER_TIERS.openai.premiumCollapse === null);
+check('OpenAI pins Luna light, Sol 6.2 mid/strong/frontier, Astra 6.2 premium', PROVIDER_TIERS.openai.models.light === 'gpt-6-luna' && PROVIDER_TIERS.openai.models.mid === 'gpt-6.2-sol' && PROVIDER_TIERS.openai.models.strong === 'gpt-6.2-sol' && PROVIDER_TIERS.openai.models.premium === 'gpt-6.2-astra' && PROVIDER_TIERS.openai.models.frontier === 'gpt-6.2-sol' && PROVIDER_TIERS.openai.premiumCollapse === null);
 check('Copilot premium is Opus 5.5', PROVIDER_TIERS['github-copilot'].models.premium === 'claude-opus-5.5' && PROVIDER_TIERS['github-copilot'].premiumCollapse === null);
 check('the retired Mistral light id is gone', PROVIDER_TIERS.mistral.models.light === 'mistral-small-2603');
 check('Opus 5.5 ranks strong and Sonnet 5.5 mid; Sonnet stays mid, not ambiguous, and Fable keeps its frontier class', modelRankOf('claude-opus-5-5') === 2 && modelRankOf('claude-sonnet-5-5') === 1
   && modelClassOf('claude-sonnet-5-5') === 'mid' && modelClassOf('claude-opus-5-5') === 'strong' && modelClassOf('claude-fable-5-2') === 'frontier' && modelClassOf('claude-fable-5-1') === 'frontier' && modelClassOf('claude-fable-5.1') === 'frontier');
 check('Fable 5.2 as premium still clears a strong floor; Sonnet 5.5 does not', modelSupportsTier('claude-fable-5-2', 'strong') && modelSupportsTier('claude-opus-5-5', 'strong') && !modelSupportsTier('claude-sonnet-5-5', 'strong'));
-check('the previous Sol id keeps its frontier class; the current shared id is ambiguous', modelClassOf('gpt-6-sol') === 'frontier' && modelClassOf('gpt-6.1-sol') === 'ambiguous' && modelRankOf('gpt-6.1-sol') === 3);
+check('the previous Sol id keeps its frontier class', modelClassOf('gpt-6-sol') === 'frontier');
+for (const model of ['gpt-6.1-sol', 'gpt-6.2-sol']) {
+  check(`${model} retains shared-rung classification and authorization`, modelClassOf(model) === 'ambiguous' && modelRankOf(model) === 3 && ['mid', 'strong', 'frontier'].every((tier) => modelSupportsTier(model, tier)) && !modelSupportsTier(model, 'light'));
+}
 const bindingsFor = (rung) => Object.fromEntries(real.hostBindings(rung).map((b) => [b.host, b]));
 check('premium binds Fable on Claude (repeating frontier) and Astra on Codex; Grok and OpenCode collapse',
   bindingsFor('premium').claude.detail.includes('model="fable"') && bindingsFor('premium').claude.collapse === 'frontier'
-  && bindingsFor('premium').codex.detail.includes('gpt-6-astra') && !bindingsFor('premium').codex.collapse
+  && bindingsFor('premium').codex.detail.includes('gpt-6.2-astra') && !bindingsFor('premium').codex.collapse
   && ['grok', 'opencode'].every((host) => bindingsFor('premium')[host].collapse));
 check('strong leaves the Claude model unset', bindingsFor('strong').claude.detail.startsWith('leave model unset'));
 check('frontier binds fable on claude and inherits on opencode', bindingsFor('frontier').claude.detail.includes('model="fable"') && bindingsFor('frontier').opencode.detail.includes('inherits'));
@@ -250,7 +255,7 @@ const lines = direct.stdout.split('\n');
 check('the CLI prints the paste-ready lines first', direct.status === 0 && lines[0] === 'Tier: premium' && lines[1] === 'Effort: high'
   && lines[2] === 'Route basis: review; surface=gate-script; ambiguity=low; reversible=yes', direct.stdout.slice(0, 200) + direct.stderr);
 check('the CLI prints one binding line per host and marks each collapse', ['claude:', 'codex:', 'grok:', 'opencode:'].every((host, i) => lines[3 + i]?.startsWith(host))
-  && !lines[4].includes('COLLAPSE') && lines[4].includes('gpt-6-astra') && lines[5].includes('COLLAPSE') && lines[6].includes('COLLAPSE')
+  && !lines[4].includes('COLLAPSE') && lines[4].includes('gpt-6.2-astra') && lines[5].includes('COLLAPSE') && lines[6].includes('COLLAPSE')
   && lines[3].includes('model="fable" (claude-fable-5-2) [COLLAPSE: premium shares its model with frontier; premium differs from frontier only by Tier]') && !lines[3].includes('no distinct premium model'), lines[3]);
 const viaCo = run(join(ROOT, 'scripts', 'co.mjs'), ['route', ...review]);
 check('co route reaches the same script', viaCo.status === 0 && viaCo.stdout === direct.stdout, viaCo.stderr);

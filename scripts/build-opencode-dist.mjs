@@ -398,6 +398,8 @@ function modelFloorPlugin(agents, routingCard) {
     const ladder = new Set(TIER_ORDER.map((tier) => models[tier]));
     return [providerId, specialists.map((specialist) => specialist.model).filter((model) => !ladder.has(model))];
   }));
+  const premiumSpecialistModels = Object.values(PROVIDER_SPECIALISTS).flat()
+    .filter((specialist) => specialist.premium).map((specialist) => specialist.model);
   for (const [model, tiers] of Object.entries(ACCEPTED_MODELS)) {
     const highest = [...tiers].sort((a, b) => rank[a] - rank[b]).at(-1);
     consider('accepted', model, highest);
@@ -418,6 +420,7 @@ const RANK = ${JSON.stringify(rank, null, 2)};
 const KNOWN_MODELS = ${JSON.stringify(knownModels, null, 2)};
 const TIER_BY_ID = ${JSON.stringify(tierById, null, 2)};
 const SPECIALIST_MODELS = ${JSON.stringify(specialistModels, null, 2)};
+const PREMIUM_SPECIALIST_MODELS = ${JSON.stringify(premiumSpecialistModels, null, 2)};
 // Read by the lifecycle chooser and the cost report, never by this gate.
 const MODEL_PRICES = ${JSON.stringify(PROVIDER_PRICES, null, 2)};
 const ROUTING_CARD = ${JSON.stringify(routingCard)};
@@ -515,9 +518,9 @@ function modelTiersDoc(agents) {
     'the briefs, the fan-out rules, and the verification bar are identical everywhere, and only',
     'this table changes between providers.',
     '',
-    `Model ids are pinned, verified against the models.dev registry on ${REGISTRY_VERIFIED_AT}, except a`,
-    'provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its',
-    'entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.',
+    `Model ids are pinned. The last registry-wide models.dev check was ${REGISTRY_VERIFIED_AT}.`,
+    'Provider notes record newer host-catalog checks. CLI-verified providers record their own dates.',
+    'Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.',
     '',
     '## Tier bindings',
     '',
@@ -538,7 +541,9 @@ function modelTiersDoc(agents) {
     'default lead or operative binding:',
     '',
     ...Object.entries(PROVIDER_SPECIALISTS).flatMap(([providerId, specialists]) => specialists.map((specialist) =>
-      `- \`${providerId}/${specialist.model}\` — \`${specialist.tier}\` for ${specialist.uses.join(', ')}. ${specialist.notes}`)),
+      specialist.historical
+        ? `- Legacy fallback \`${providerId}/${specialist.model}\`. ${specialist.notes}`
+        : `- \`${providerId}/${specialist.model}\` — \`${specialist.tier}\` for ${specialist.uses.join(', ')}. ${specialist.notes}`)),
     '',
     '## Ready-made configs',
     '',
