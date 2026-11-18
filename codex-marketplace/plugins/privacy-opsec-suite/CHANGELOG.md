@@ -1,6 +1,6 @@
 # Changelog — privacy-opsec-suite
 
-## 2.7.3
+## 2.7.4
 - The `explorer` agent declares `effort: medium`, the Haiku 5.5 default, so it never inherits a session dial above the operator cap.
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
@@ -17,6 +17,7 @@ The vendored `co.mjs` gains the `recall` command.
 - The Workflow fan-out section admits an opt-in from an operator-invoked skill whose own instructions call Workflow, for fan-outs of three or more independent units. Every `agent()` call names a suite agent type.
 - Skill and agent descriptions are shorter, to cut session-start context.
 - Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
+- OpenAI routing now uses Sol 6.2 for mid, strong, and the default frontier lead. Astra 6.2 serves premium dispatches and bounded frontier work. Existing Sol 6.1 and Astra records keep their tier eligibility.
 
 ## 2.7.1
 - Refresh vendored scripts.

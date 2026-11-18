@@ -45,8 +45,8 @@ export const CLAUDE_ALIAS_TIER = {
 // distinct model for a rung repeats the nearest one above it; that collapse is deliberate
 // and documented rather than hidden behind an invented tier.
 //
-// Every `models` id below is a real id in the models.dev registry that opencode itself
-// resolves against, verified at the date in REGISTRY_VERIFIED_AT. They are pinned, not
+// REGISTRY_VERIFIED_AT records the last registry-wide models.dev check. Provider notes
+// name host-catalog verification for pins newer than that check. They are pinned, not
 // fetched, so the renderer and the gate stay offline and deterministic. Re-verify them with
 // `node scripts/check-model-registry.mjs --fetch`, which is opt-in for exactly that reason.
 //
@@ -97,14 +97,14 @@ export const PROVIDER_TIERS = {
     label: 'OpenAI (GPT)',
     models: {
       light: 'gpt-6-luna',
-      mid: 'gpt-6.1-sol',
-      strong: 'gpt-6.1-sol',
-      premium: 'gpt-6-astra',
-      frontier: 'gpt-6.1-sol',
+      mid: 'gpt-6.2-sol',
+      strong: 'gpt-6.2-sol',
+      premium: 'gpt-6.2-astra',
+      frontier: 'gpt-6.2-sol',
     },
     premiumCollapse: null,
     notes:
-      'Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). `gpt-6.1-sol` serves `mid`, `strong`, and the default `frontier` binding. `gpt-6-astra` is the distinct dispatch-only `premium` binding for bounded high-judgment work. The selected rung and effort remain explicit in each dispatch. Sol remains the default frontier from runs R-007 and R-008.',
+      '`gpt-6.2-sol` serves `mid`, `strong`, and the default `frontier` binding. Choose `gpt-6.2-astra` for a premium dispatch or one bounded frontier decision. The Codex host catalog listed both models on 2026-11-18. Record the selected tier and effort with each dispatch.',
   },
   google: {
     id: 'google',
@@ -195,11 +195,22 @@ export const PROVIDER_SPECIALISTS = {
   openai: [
     {
       name: 'astra',
+      model: 'gpt-6.2-astra',
+      tier: 'frontier',
+      premium: true,
+      uses: ['difficult architecture', 'independent refutation', 'mathematics', 'cross-domain synthesis'],
+      verifiedAt: '2026-11-18',
+      notes: 'Select one bounded peer explicitly when architecture, refutation, mathematics, or synthesis justifies it. Record the rationale, stopping criterion, and lead-owned blocking criterion. Ordinary judgment stays on Sol at the strong tier, and final acceptance stays with the session lead.',
+    },
+    {
+      name: 'astra-historical',
       model: 'gpt-6-astra',
       tier: 'frontier',
+      historical: true,
+      premium: true,
       uses: ['difficult architecture', 'independent refutation', 'cross-domain synthesis'],
       verifiedAt: '2026-09-22',
-      notes: 'Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Sol is $2/$10 and Astra is $10/$50, verified 2026-09-22. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.',
+      notes: 'Retained for historical stamps, explicit frontier dispatches, and premium fallback when the host does not offer Astra 6.2. Ordinary automatic selection excludes it.',
     },
   ],
   xai: [
@@ -282,6 +293,8 @@ export const ACCEPTED_MODELS = {
   // Previous OpenAI frontier pin, replaced by `gpt-6.1-sol` 2026-10-01. Copilot still binds it
   // to strong and frontier, so this entry also keeps its class a single rung, not `ambiguous`.
   'gpt-6-sol': ['frontier'],
+  // Historical receipts depend on all three rungs and their shared classification.
+  'gpt-6.1-sol': ['mid', 'strong', 'frontier'],
   'grok-4.6': ['light', 'mid', 'strong', 'frontier'],
   // Previous `light` pin, kept for a historical stamp and for the cloud hosts that still serve Haiku 4.5.
   'claude-haiku-4-5-20251001': ['light'],
@@ -302,7 +315,8 @@ export function modelSupportsTier(modelId, tier) {
   return Object.values(PROVIDER_TIERS).some((provider) => provider.models[tier] === modelId)
     // Premium has a strong floor. A distinct premium model such as Astra may serve a
     // strong unit only when a separate frontier placement already recognizes that id.
-    || (tier === 'strong' && Object.values(PROVIDER_TIERS).some((provider) => provider.models.premium === modelId)
+    || (tier === 'strong' && (Object.values(PROVIDER_TIERS).some((provider) => provider.models.premium === modelId)
+      || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.premium))
       && modelSupportsTier(modelId, 'frontier'))
     || Object.values(PROVIDER_SPECIALISTS).flat().some((entry) => entry.model === modelId && entry.tier === tier)
     || (ACCEPTED_MODELS[modelId]?.includes(tier) ?? false);

@@ -803,7 +803,7 @@ the Codex projection. A group left with no command is dropped. OpenCode has no `
 distribution bundles only `digest-rewrite.mjs` and `index-refresh.mjs`. Evidence:
 `scripts/build-codex-marketplace.mjs:385-388`, `scripts/build-codex-marketplace.mjs:394`,
 `scripts/build-codex-marketplace.mjs:470`, `scripts/build-codex-marketplace.mjs:625`, and
-`scripts/build-opencode-dist.mjs:799`. The eval is `evals/digest-post/run.mjs`.
+`scripts/build-opencode-dist.mjs:804-807`. The eval is `evals/digest-post/run.mjs`.
 
 ## Script entrypoint
 
@@ -1824,7 +1824,7 @@ seconds. The existing `file.edited` handler keeps the index refresh. Two limits 
 board record uses OpenCode's `sessionID`, while `handoff-state.mjs` reads only `--session`,
 `CLAUDE_CODE_SESSION_ID`, or `CODEX_SESSION_ID`. So an OpenCode `open` or `resume` record joins
 the edit record only when `--session` passes the same id. Second, `apply_patch` edits are not
-recorded. Evidence: `scripts/build-opencode-dist.mjs:401,452-461,685-687` and
+recorded. Evidence: `scripts/build-opencode-dist.mjs:482-498` and
 `evals/opencode-dist/run.mjs`.
 
 **Cost.** MEASUREMENTS.md, "Presence board hook latency, 2026-09-28", records the added latency.

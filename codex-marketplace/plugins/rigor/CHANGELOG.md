@@ -1,6 +1,6 @@
 # Changelog — rigor
 
-## 3.7.3
+## 3.7.4
 **Changed**
 - Refresh the vendored artifact-grammars reference with the not-dispatched marker section.
 - The `tracer` and `verifier` agents pin `claude-opus-5-5`, matching the rebound Anthropic strong rung. The vendored `scripts/model-tiers.mjs` carries the new tier table.
@@ -18,6 +18,7 @@ The vendored `co.mjs` gains the `recall` command.
 - Skill and agent descriptions are shorter, to cut session-start context.
 - Vendored `co.mjs` adds the `gh`, `fetch`, `until`, `each`, and `show` commands.
 - The `verifier` agent body now carries the run-proof receipt rule for every repro, mutation, or benchmark.
+- OpenAI routing now uses Sol 6.2 for mid, strong, and the default frontier lead. Astra 6.2 serves premium dispatches and bounded frontier work. Existing Sol 6.1 and Astra records keep their tier eligibility.
 
 ## 3.7.1
 - Point verifier scratch at the host folder's `.tmp`; refresh vendored scripts.

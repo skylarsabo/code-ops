@@ -1,42 +1,42 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "model": "openai/gpt-6.1-sol",
+  "model": "openai/gpt-6.2-sol",
   "agent": {
     "code-ops-suite-explorer": {
       "model": "openai/gpt-6-luna"
     },
     "code-ops-suite-implementer": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "code-ops-suite-mech-review": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "code-ops-suite-mech": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "code-ops-suite-probe": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "code-ops-suite-reviewer": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "code-ops-suite-web-researcher": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "privacy-opsec-suite-explorer": {
       "model": "openai/gpt-6-luna"
     },
     "privacy-opsec-suite-privacy-reviewer": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "rigor-tracer": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "rigor-verifier": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "researcher-claim-checker": {
-      "model": "openai/gpt-6.1-sol"
+      "model": "openai/gpt-6.2-sol"
     },
     "researcher-gatherer": {
       "model": "openai/gpt-6-luna"

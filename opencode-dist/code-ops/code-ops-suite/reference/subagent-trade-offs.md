@@ -65,7 +65,7 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 | --- | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `haiku` (`claude-haiku-5-5`) | `claude-sonnet-5-5` | `claude-opus-5-5` | `fable` (`claude-fable-5-2`) | `fable` (`claude-fable-5-2`) |
 | xAI (Grok) | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` | `grok-4.7` |
-| OpenAI (GPT) | `gpt-6-luna` | `gpt-6.1-sol` | `gpt-6.1-sol` | `gpt-6-astra` | `gpt-6.1-sol` |
+| OpenAI (GPT) | `gpt-6-luna` | `gpt-6.2-sol` | `gpt-6.2-sol` | `gpt-6.2-astra` | `gpt-6.2-sol` |
 | Google (Gemini) | `gemini-3.1-flash-lite` | `gemini-3.6-flash` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` | `gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `glm-5` | `glm-5.1` | `glm-5.2` | `glm-5.2` | `glm-5.2` |
 | Moonshot AI (Kimi) | `kimi-k2.6` | `kimi-k2.7-code` | `kimi-k3` | `kimi-k3` | `kimi-k3` |
@@ -75,11 +75,11 @@ The rungs above are provider-agnostic, so a host running a non-Anthropic model s
 
 The `premium` column is a dispatch binding, never a rung. For floors it ranks `strong`, so it clears only strong floors. OpenAI binds it to Astra, and GitHub Copilot binds it to `claude-opus-5.5`. Providers without a distinct premium model repeat `strong`. Anthropic repeats `frontier`, so the model id cannot tell a premium dispatch from a frontier peer. The brief `Tier:` line does. A `Tier: premium` dispatch does not count toward the one-frontier-peer cap, and a dispatch on the frontier model with any other `Tier:` line, or none, counts as a frontier peer.
 
-OpenAI also exposes `gpt-6-astra` as an explicit frontier specialist. It does not replace
-Sol in the ready-made `mid`, `strong`, and `frontier` bindings. Rates verified on 2026-09-22
-price Sol at $2/$10 per million tokens and Astra at $10/$50. Use Astra when a bounded
-decision justifies the premium dispatch. The binding and selected use remain visible in the run contract and dispatch ledger.
-See the [OpenAI model comparison](https://developers.openai.com/api/docs/models/compare).
+Use Sol 6.2 for implementation, ordinary review, and the default OpenAI lead.
+Choose Astra 6.2 for a premium dispatch when the task needs deeper judgment.
+As an explicit frontier peer, Astra can handle one bounded architecture, refutation, mathematics, or synthesis decision.
+The lead owns acceptance. Record the selected tier and effort because Sol serves several tiers.
+Existing contracts and dispatch records retain their original placements for `gpt-6.1-sol` and `gpt-6-astra`.
 
 The Anthropic `mid` rung binds to `claude-sonnet-5-5` (the `sonnet` alias, a dateless pinned snapshot), $2/$10 per million tokens, cache reads $0.20, cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. The pricing table gives the $0.20 cache read; the page prose gives a different figure. The `strong` rung binds to `claude-opus-5-5`, $4/$20 per million tokens with cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), and batch $2/$10, so strong costs twice mid. The five strong-floor agents pin that id in their frontmatter. Opus 5.5 has a 1M context, 128K output, and a default effort of `medium`. The `premium` dispatch binding and the `frontier` lead both bind to `claude-fable-5-2` (selected with `model: "fable"`), $8/$40 per million tokens with cache reads $0.20, cache writes $10 (5-minute) or $16 (1-hour), and batch $4/$20, so premium costs twice strong. It has a 1M context and 128K output, and no bundled agent declares it. Fable 5.2 always thinks adaptively and accepts effort `low` to `max`. The API default is `high` and the host default is `medium`, so a dispatch states effort explicitly. Fable 5.1 (`claude-fable-5-1`, $10/$50) stays served and stays an accepted historical id. The Anthropic `light` rung binds `claude-haiku-5-5` (a dateless pinned snapshot, released 2026-10-07), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. The `haiku` alias resolves to it on the Anthropic API only: Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. models.dev did not list `claude-haiku-5-5` on 2026-10-07, so `REGISTRY_VERIFIED_AT` was not bumped. The `fable` alias binds to `claude-fable-5-2`. Fable 5.2 uses adaptive thinking,
 so the runtime controls effort and the instruction files do not imitate a reasoning trace.
@@ -90,13 +90,15 @@ a tool call for this model; let the agent select a tool when the task needs one.
 
 The binding table is what makes the rest of the doctrine portable. The briefs, the fan-out rules, the disconfirmation pass, and the verification bar are identical on every provider. Only the bindings change. Adding a provider takes one `PROVIDER_TIERS` entry in `scripts/model-tiers.mjs` plus one `PROVIDER_SLUG_PATTERNS` line. Premium alternatives live in `PROVIDER_SPECIALISTS`, so generated defaults remain cost-disciplined.
 
-Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.7` never routes work below its floor, and running one model removes tier as a variable. Its list price doubles above 200,000 tokens. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. The OpenAI `mid`, `strong`, and `frontier` bindings use Sol 6.1; premium uses Astra. Sol and Luna keep their GPT-6 rungs at half the previous token price. `grok-build-0.1` is a light specialist for mechanical breadth, not a default rung.
+Where a provider repeats a model across rungs, its lineup carries no distinct model for the lower rung. The repeat is recorded rather than covered up with an invented tier. The xAI row is flat by choice: `grok-4.7` never routes work below its floor, and running one model removes tier as a variable. Its list price doubles above 200,000 tokens. The OpenCode Zen operatives are flat by the same choice: `muse-spark-1.3-contributor-free` never routes operative work below its floor, and the lead stays unset. `grok-build-0.1` is a light specialist for mechanical breadth, not a default rung.
 
 Effort remains variable on every provider, because the major providers expose the same low, medium, high, and xhigh scale.
 
 The OpenCode Zen row is the free ladder and the default the opencode renderer ships. It binds every operative agent to `muse-spark-1.3-contributor-free`, a single model that clears every floor, and leaves the lead unset, so the lead inherits whatever session model the operator chose, and a fresh install costs nothing. Its id is verified against the host's own `opencode models` list, because models.dev does not carry the Zen catalogue. Free-tier rate limits show as 429s under a wide fan-out. Shrink the wave before blaming the ladder.
 
-Model ids are pinned, not fetched, so the renderer and the gate stay offline and deterministic. `REGISTRY_VERIFIED_AT` in `scripts/model-tiers.mjs` records when they were last checked. Re-verify them against the models.dev registry that opencode itself resolves through:
+The renderer and the gate use pinned model IDs offline. The Codex model catalog lists both OpenAI 6.2 IDs.
+`REGISTRY_VERIFIED_AT` in `scripts/model-tiers.mjs` records the last registry-wide check.
+To verify pins against the models.dev registry that OpenCode uses, run
 
 ```bash
 node scripts/check-model-registry.mjs --fetch

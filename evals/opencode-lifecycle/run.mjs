@@ -106,7 +106,7 @@ mkdirSync(familyDir);
 writeFileSync(join(familyDir, 'code-ops-lifecycle.js'), readFileSync(join(root, 'scripts', 'opencode-lifecycle.js')));
 writeFileSync(join(familyDir, 'legacy-paths-lib.mjs'), readFileSync(join(root, 'scripts', 'legacy-paths-lib.mjs')));
 const family = (await import(pathToFileURL(join(familyDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
-for (const id of ['openai/gpt-6-sol', 'openai/gpt-6.1-sol', 'openai/gpt-6.1-luna']) {
+for (const id of ['openai/gpt-6-sol', 'openai/gpt-6.1-sol', 'openai/gpt-6.1-luna', 'openai/gpt-6.2-sol', 'openai/gpt-6.2-astra']) {
   expect(family.classifyChooserModel(id) === null, `a missing verified table must leave ${id} unclassified`);
 }
 expect(classifyChooserModel('openai/gpt-6-sol') === 'frontier' && classifyChooserModel('openai/gpt-6.1-sol') === 'frontier'
@@ -121,6 +121,22 @@ for (const file of ['plugins/code-ops-model-floors.js', 'plugins/code-ops-lifecy
 }
 writeFileSync(join(copilotDir, 'cost-report.mjs'), readFileSync(join(root, 'scripts', 'opencode-cost-report.mjs')));
 const copilot = (await import(pathToFileURL(join(copilotDir, 'code-ops-lifecycle.js')).href)).CodeOpsLifecycle.internals;
+// Exercise the shipped floor table for current OpenAI routing; the synthetic table above
+// deliberately retains its historical fixture independently of today's pins.
+const openaiCatalog = ['openai/gpt-6.2-sol', 'openai/gpt-6.2-astra'];
+for (const model of [...openaiCatalog, 'openai/gpt-6.1-sol', 'openai/gpt-6-astra']) {
+  expect(copilot.classifyChooserModel(model) === 'frontier', `${model} should retain its verified frontier floor`);
+}
+for (const tier of ['mid', 'strong', 'frontier']) {
+  expect(copilot.pickChooserModel(tier, openaiCatalog, {}) === openaiCatalog[0], `Sol 6.2 should remain the default ${tier} choice beside the Astra specialist`);
+  expect(copilot.pickChooserModel(tier, [openaiCatalog[1]], {}) === null, `Astra 6.2 must not enter automatic ${tier} selection`);
+}
+expect(copilot.pickPremiumModel(openaiCatalog[0], openaiCatalog, {}) === openaiCatalog[1], 'Astra 6.2 should remain a distinct eligible premium choice beside Sol 6.2');
+expect(copilot.pickPremiumModel(openaiCatalog[0], [openaiCatalog[0]], {}) === null, 'premium must collapse when only Sol 6.2 is enabled');
+expect(copilot.pickChooserModel('strong', ['openai/gpt-6-astra'], {}) === null, 'historical Astra must not reenter automatic routine selection');
+expect(copilot.pickPremiumModel('openai/gpt-6.1-sol', ['openai/gpt-6.1-sol', 'openai/gpt-6-astra'], {}) === 'openai/gpt-6-astra', 'the older Sol and Astra pair should retain explicit premium dispatch');
+expect(copilot.pickPremiumModel(openaiCatalog[0], [...openaiCatalog, 'openai/gpt-6.1-sol', 'openai/gpt-6-astra'], {}) === openaiCatalog[1], 'the current Astra should take premium when both generations are enabled');
+expect(copilot.classifyChooserModel(openaiCatalog[0], { models: { [openaiCatalog[0]]: { tier: 'mid' } } }) === 'mid', 'a measured OpenAI profile should still lower its verified floor');
 const starter = JSON.parse(readFileSync(join(root, 'opencode-dist', 'configs', 'model-profile.github-copilot.json'), 'utf8'));
 const copilotCatalog = starter.enabled;
 for (const profileCase of [{}, starter]) {

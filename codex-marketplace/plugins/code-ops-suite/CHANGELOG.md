@@ -4,7 +4,7 @@ All notable changes to this plugin are documented here. Versions track
 the source plugin manifest and matching marketplace entries.
 
 
-## 2.91.0
+## 2.91.1
 - The dispatch guard advises, without denying, when an `implementer` execution brief has no `Anchors:` block, and names the `co brief --anchors` command. `Anchors: none (<reason>)` silences it.
 - Workflow `agent()` calls to the `implementer` get the same anchors advisory: a literal or template prompt without `Anchors:` is named by call index, and a prompt the hook cannot read is reported as unchecked.
 - Extend the workspace note to `apply_patch`. An absolute patch target outside the repository earns the once-per-directory note, and a relative target stays silent. `legacy-paths-lib.mjs` now exports `editTargets`, and `branch-name.mjs` exports the `git worktree add` argument reader that `workspace-layout.mjs` shares.
@@ -105,6 +105,7 @@ Transcript recall: `co recall` and the `transcript_recall` MCP tool find and ope
 - `subagentFilesFor` in `transcript-lib.mjs` also reads the agents a Workflow run writes under `subagents/workflows/<run>/`, one level deep. So `cost-split`, the context audit and the session receipt now count Workflow agents. A Workflow agent groups by the `agentType` in its sibling meta file, or `unknown` when that file is missing. On the local corpus this added about 1,049 transcripts that were skipped before.
 - `cost-split` counts each message id once across every file it reads. Before, a forked or resumed session counted about 1.3 percent of messages twice. This rule covers usage, Haiku tier pricing and advisor tokens. A line with no message id still counts per line.
 - The cost-split eval adds a nested Workflow tree and a forked pair that shares ids, each with a mutant. The context-audit eval asserts the nested file list.
+- OpenAI routing now uses Sol 6.2 for mid, strong, and the default frontier lead. Astra 6.2 serves premium dispatches and bounded frontier work. Existing Sol 6.1 and Astra records keep their tier eligibility.
 
 ## 2.85.0
 - Add a per-host workspace layout. Each host keeps worktrees and scratch in one self-ignored folder at the repository top, as the workspace-layout technique lists. Add `scripts/workspace-layout.mjs` and `co workspace`. The dispatch guard gives a once-per-directory advisory for a write outside the repository or a `git worktree add` outside the host folder, and never denies or rewrites. Off switch: `CODE_OPS_WORKSPACE_GUARD`. Session start creates the folders. `conform` runs `ensure` and `check` and reports stray worktrees. The subagent git guard denial now names the host worktrees folder. `check-no-deps` and the citation index skip linked worktrees and untracked host scratch, and still scan tracked files there.

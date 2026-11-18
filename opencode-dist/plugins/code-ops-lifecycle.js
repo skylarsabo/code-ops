@@ -722,6 +722,8 @@ function gateTier(fullId) {
       const known = JSON.parse(/const KNOWN_MODELS = (\{[\s\S]*?\n\});/.exec(text)[1]);
       const specialistText = /const SPECIALIST_MODELS = (\{[\s\S]*?\n\});/.exec(text);
       const specialists = specialistText ? JSON.parse(specialistText[1]) : {};
+      const premiumText = /const PREMIUM_SPECIALIST_MODELS = (\[[\s\S]*?\n\]);/.exec(text);
+      const premiumSpecialists = premiumText ? JSON.parse(premiumText[1]) : [];
       const byId = {};
       const bySpecialist = {};
       for (const [provider, models] of Object.entries(known)) {
@@ -732,7 +734,7 @@ function gateTier(fullId) {
       }
       for (const [id, tier] of Object.entries(bySpecialist)) byId[id] ??= tier;
       const prices = /const MODEL_PRICES = (\{[\s\S]*?\n\});/.exec(text);
-      gateTable = { known, byId, prices: prices ? JSON.parse(prices[1]) : {} };
+      gateTable = { known, byId, premiumSpecialists, prices: prices ? JSON.parse(prices[1]) : {} };
     } catch { /* an unavailable verified table cannot qualify a model */ }
   }
   const id = String(fullId);
@@ -1004,7 +1006,8 @@ function pickChooserModel(required, catalog, profile = {}) {
       value: valueScore(profileRow(id, profile), profile),
       cost: workloadCost(priceOf(id, profile)),
     }))
-    .filter((row) => row.tier && TIER_RANK[row.tier] >= need);
+    .filter((row) => row.tier && TIER_RANK[row.tier] >= need
+      && !gateTable?.premiumSpecialists.includes(bareId(row.id)));
   if (!eligible.length) return null;
   // A measured model outranks an unmeasured one. Among unmeasured ones a priced
   // model ranks by its workload cost ahead of an unpriced one, which keeps the

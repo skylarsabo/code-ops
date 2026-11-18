@@ -8,9 +8,9 @@ models satisfies an agent’s floor. That is what makes the orchestration doctri
 the briefs, the fan-out rules, and the verification bar are identical everywhere, and only
 this table changes between providers.
 
-Model ids are pinned, verified against the models.dev registry on 2026-10-01, except a
-provider marked as verified against its host CLI, whose ids come from `opencode models` on the date its
-entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.
+Model ids are pinned. The last registry-wide models.dev check was 2026-10-01.
+Provider notes record newer host-catalog checks. CLI-verified providers record their own dates.
+Re-verify with `node scripts/check-model-registry.mjs --fetch` in the code-ops repository.
 
 ## Tier bindings
 
@@ -18,7 +18,7 @@ entry records. Re-verify with `node scripts/check-model-registry.mjs --fetch` in
 | --- | --- | --- | --- | --- |
 | Anthropic (Claude) | `anthropic/claude-haiku-5-5` | `anthropic/claude-sonnet-5-5` | `anthropic/claude-opus-5-5` | `anthropic/claude-fable-5-2` |
 | xAI (Grok) | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` | `xai/grok-4.7` |
-| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-6.1-sol` | `openai/gpt-6.1-sol` | `openai/gpt-6.1-sol` |
+| OpenAI (GPT) | `openai/gpt-6-luna` | `openai/gpt-6.2-sol` | `openai/gpt-6.2-sol` | `openai/gpt-6.2-sol` |
 | Google (Gemini) | `google/gemini-3.1-flash-lite` | `google/gemini-3.6-flash` | `google/gemini-3.1-pro-preview` | `google/gemini-3.1-pro-preview` |
 | Z.AI (GLM) | `zai/glm-5` | `zai/glm-5.1` | `zai/glm-5.2` | `zai/glm-5.2` |
 | Moonshot AI (Kimi) | `moonshotai/kimi-k2.6` | `moonshotai/kimi-k2.7-code` | `moonshotai/kimi-k3` | `moonshotai/kimi-k3` |
@@ -34,7 +34,7 @@ the lower one. The collapse is recorded rather than papered over with an invente
 
 - **Anthropic (Claude)** — The reference ladder — the one agent frontmatter aliases resolve against. Operator decision 2026-09-28: `mid` binds to Claude Sonnet 5.5 (`claude-sonnet-5-5`, a dateless pinned snapshot the `sonnet` alias also resolves to), $2/$10 per million tokens, cache reads $0.20 (the pricing table value, which the page prose contradicts), cache writes $2.50 (5-minute) or $4 (1-hour), batch $1/$5, 1M context. Operator decision 2026-11-09: `strong` binds to Claude Opus 5.5 (`claude-opus-5-5`, the model the `opus` alias resolves to on the Anthropic API), $4/$20 per million tokens, cache reads $0.20, cache writes $5 (5-minute) or $8 (1-hour), batch $2/$10, 1M context, 128K output; the five strong-floor agents pin that id in frontmatter. The same decision binds `premium` and `frontier` to Claude Fable 5.2 (`claude-fable-5-2`, a dateless pinned snapshot the `fable` alias resolves to), $8/$40 per million tokens, cache reads $0.20, cache writes $10 (5-minute) or $16 (1-hour), batch $4/$20, 1M context, 128K output. Premium is dispatch-only, ranks strong, and repeats the frontier model (`premiumCollapse: frontier`), so a dispatch selects it through a routing trigger with the `fable` alias and only the `Tier:` line of the brief tells it from a frontier peer. Fable 5.1 (`claude-fable-5-1`, $10/$50) stays accepted for historical stamps. Every bundled operative caps its `effort:` frontmatter at `high`. Decision 2026-10-07: `light` binds Claude Haiku 5.5 (`claude-haiku-5-5`, a dateless pinned snapshot the `haiku` alias resolves to on the Anthropic API only), $0.10/$0.50 per million tokens up to a 100,000-token prompt and $0.50/$2.50 above it, cache reads $0.01 ($0.05 above), cache writes $0.125 (5-minute) or $0.20 (1-hour) ($0.625 and $1 above), 1M context, 128K output, default effort `medium`. Its tokenizer yields about 30 percent more tokens than Haiku 4.5, so the real saving is smaller than the list drop. Bedrock, Google Cloud, and Foundry still serve Haiku 4.5 (`claude-haiku-4-5-20251001`), which Anthropic retires no sooner than 2026-10-15. `frontier` is Fable 5.2, lead-only; no bundled agent declares frontier as a floor.
 - **xAI (Grok)** — Every rung binds to `grok-4.7` by deliberate choice. It replaces `grok-4.6` at the same $2/$6 list price and keeps the low/medium/high/xhigh effort dial, so effort stays the live dial and no rung routes below the floor. Input, output, and cache reads double above 200,000 tokens, which is why the host compacts near 184,000 tokens, at 72 percent of the 256,000-token window. `grok-build-0.1` is the fast coding specialist, not a default rung.
-- **OpenAI (GPT)** — Luna and Sol are the GPT-6 successors of the 5.6 pins, at half the promotional token price ($0.10/$0.50 and $2/$10). `gpt-6.1-sol` serves `mid`, `strong`, and the default `frontier` binding. `gpt-6-astra` is the distinct dispatch-only `premium` binding for bounded high-judgment work. The selected rung and effort remain explicit in each dispatch. Sol remains the default frontier from runs R-007 and R-008.
+- **OpenAI (GPT)** — `gpt-6.2-sol` serves `mid`, `strong`, and the default `frontier` binding. Choose `gpt-6.2-astra` for a premium dispatch or one bounded frontier decision. The Codex host catalog listed both models on 2026-11-18. Record the selected tier and effort with each dispatch.
 - **Google (Gemini)** — The only Pro-class id in the registry carries a `-preview` suffix, so `strong`, `premium`, and `frontier` share it. Re-pin once a stable Pro id ships.
 - **Z.AI (GLM)** — A tight lineup: the top model serves `strong`, `premium`, and `frontier`.
 - **Moonshot AI (Kimi)** — `kimi-k2.6` is the general agent-loop light rung, `kimi-k2.7-code` is the coding-specialized mid rung, and `kimi-k3` serves `strong`, `premium`, and `frontier`.
@@ -48,7 +48,8 @@ the lower one. The collapse is recorded rather than papered over with an invente
 Specialists are explicit bounded alternatives. They never replace a ready-made config’s
 default lead or operative binding:
 
-- `openai/gpt-6-astra` — `frontier` for difficult architecture, independent refutation, cross-domain synthesis. Use one bounded peer when the decision justifies Astra’s premium over the default Sol frontier. Sol is $2/$10 and Astra is $10/$50, verified 2026-09-22. Keep ordinary judgment on the strong tier and final acceptance with the highest-tier lead.
+- `openai/gpt-6.2-astra` — `frontier` for difficult architecture, independent refutation, mathematics, cross-domain synthesis. Select one bounded peer explicitly when architecture, refutation, mathematics, or synthesis justifies it. Record the rationale, stopping criterion, and lead-owned blocking criterion. Ordinary judgment stays on Sol at the strong tier, and final acceptance stays with the session lead.
+- Legacy fallback `openai/gpt-6-astra`. Retained for historical stamps, explicit frontier dispatches, and premium fallback when the host does not offer Astra 6.2. Ordinary automatic selection excludes it.
 - `xai/grok-build-0.1` — `light` for mechanical breadth, high-volume file and log triage. Fast coding model at $1/$2 per million tokens, with no effort dial and a 256k window. The live OpenCode chooser may bind a light agent to it when the host lists it. It is not the default light pin, and it never satisfies a mid, strong, or frontier floor.
 - `github-copilot/claude-opus-5.5` — `strong` for quality-first judgment, review. Opus 5.5 at $4/$20 per million tokens, cache reads $0.20 and cache writes $5. Select it for a unit where review quality outweighs the premium over Sol.
 - `github-copilot/grok-4.7` — `strong` for short high-output units. Grok 4.7 at $2/$6 per million tokens, but cached input costs $0.50, 2.5 times Sol and Opus 5.5, and every rate doubles above 200,000 tokens. It suits short units with a large output, not a long lead.

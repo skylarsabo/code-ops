@@ -19,6 +19,11 @@ try {
   const invalidTokenBudget = contract(); invalidTokenBudget.units[0].tokenBudget = { input: 0, output: 100, reasoning: 100 }; save(invalidTokenBudget); r = run(['check', '--contract', path, '--root', REPO]); check('invalid unit token budget fails closed', r.status === 1 && /tokenBudget.input/.test(r.out), r.out);
   const astra = contract(); astra.lead.model = 'gpt-6-astra'; save(astra); r = run(['check', '--contract', path, '--root', REPO]); check('explicit Astra frontier alternative checks', r.status === 0, r.out);
   const astraPremium = contract(); astraPremium.units[1].model = 'gpt-6-astra'; save(astraPremium); r = run(['check', '--contract', path, '--root', REPO]); check('Astra premium review validates at the strong tier', r.status === 0, r.out);
+  for (const model of ['gpt-6.2-sol', 'gpt-6.2-astra', 'gpt-6.1-sol']) {
+    const lead = contract(); lead.lead.model = model; save(lead); r = run(['check', '--contract', path, '--root', REPO]); check(`${model} frontier lead checks`, r.status === 0 && !/lead model .* is not placed/.test(r.out), r.out);
+    const review = contract(); review.units[1].model = model; save(review); r = run(['check', '--contract', path, '--root', REPO]); check(`${model} review validates at the strong tier`, r.status === 0, r.out);
+    review.units[1].effort = 'low'; save(review); r = run(['check', '--contract', path, '--root', REPO]); check(`${model} still enforces the review effort floor`, r.status === 1 && /review routing/.test(r.out), r.out);
+  }
   const unknown = contract(); unknown.extra = true; save(unknown); r = run(['check', '--contract', path, '--root', REPO]); check('unknown key fails closed', r.status === 1 && /unknown key/.test(r.out), r.out);
   const stale = contract(); stale.head = '0'.repeat(40); save(stale); r = run(['check', '--contract', path, '--root', REPO]); check('stale head fails closed', r.status === 1 && /head does not match/.test(r.out), r.out);
   const routing = contract(); routing.units[0].effort = 'low'; save(routing); r = run(['check', '--contract', path, '--root', REPO]); check('invalid judgment routing fails', r.status === 1 && /judgment routing/.test(r.out), r.out);
